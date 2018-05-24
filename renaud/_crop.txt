@@ -1,0 +1,122 @@
+/*
+                     ImageJ Crop Macro     
+               (c) 2005-2018 Renaud Lebrun
+
+
+This macro is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
+
+
+ requires("1.33n"); 
+   dir = getDirectory("Choose input directory ");
+   list = getFileList(dir);
+   dir2 = getDirectory("Choose a target directory ");
+   Sort(list);
+   start = getTime();
+   
+   setBatchMode(true); // runs up to 6 times faster
+   length = list.length;
+   print ("length "+length);
+  for (i=0; i<list.length-1; i++) {
+	print ("list[i] "+list[i]);
+  }
+  k = 0;
+   //for (i=0; i<list.length-1; i++) {
+	for (i=0; i<list.length-1; i++) {
+        print ("i="+i);
+        image_input1 = dir+list[i];
+	   k++;
+	  if ((k<10)){im_num = "000"+toString(k);}
+	  if ((k>=10)&&(k<=99)){im_num = "00"+toString(k);}
+	  if ((k>=100)&&(k<=999)){im_num = "0"+toString(k);}
+	  if ((k>=1000)){im_num = toString(k);}
+	  image_output = dir2+"Crop_"+im_num; 
+        print ("image_input1 "+list[i]);
+       	  print ("image_output "+im_num);
+
+        showProgress(i, list.length);
+	  //list[i] must not be a directory!
+        if (!endsWith(image_input1,"/"))
+	  {   //run("Raw...", "open="+image_input1+" image=[32-bit Real] width=1959 height=1959 offset=0 number=1 gap=0");
+		//run("Raw...", "open="+image_input2+" image=[32-bit Real] width=1959 height=1959 offset=0 number=1 gap=0");
+		open(image_input1);//First image
+
+
+
+makeRectangle(740, 36, 306, 590);
+
+
+
+// Oval cropping
+//makeOval(28, 91, 288, 297);
+//run("Copy");
+//run("Select All");
+//run("Fill", "slice");
+//run("Paste");
+
+run("Crop");
+		
+		saveAs("Tiff", image_output);		
+		
+	      close();
+        }
+  }
+setBatchMode(false); // runs up to 6 times faster
+
+  //print((getTime()-start)/1000);
+
+
+function Sort (a)
+{
+	if (! AlreadySorted(a))
+	{SortA(a, 0, a.length-1);}
+}
+
+function SortA (a, from, to)
+{
+	i = from;
+      j = to;
+	center = a[(from + to)/2];
+	do {
+		while(i<to && center > a[i]) {i++;}
+		while (j>from && center<a[j]) {j--;}
+		if (i<j){temp = a[i]; a[i] = a[j]; a[j] =temp;}
+		if (i<= j){i++; j--;}				
+	}
+	while (i<=j);
+	if (from <j) {SortA(a,from,j);}
+	if (i<to) SortA(a,i,to);
+}
+function AlreadySorted (a)
+{
+	//> = comes after
+	//< = comes before
+
+	for (i=1; i<a.length; i++)
+      {
+		if (a[i] < a[i-1])
+		{
+		 return false;
+		 //print (a[i] + "<" + a[i-1]);
+		}
+		//else
+		//{print (a[i] + ">" + a[i-1]);}
+	}
+	return true;
+}
+
+
+
