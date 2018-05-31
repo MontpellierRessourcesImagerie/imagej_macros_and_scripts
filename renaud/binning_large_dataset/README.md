@@ -3,9 +3,9 @@
 = reducing image resolution by a factor of 2 using ImageJ
 
 Again, you may use the software ImageJ to reduce the resolution of a CT/MRI dataset.
-## Step 1: download and install "averaging reducer" plugin at https://imagej.nih.gov/ij/plugins/reducer.html
+## Step 1: download and install "averaging reducer" plugin 
 
-You can download the plugin at the following page.. Then close and restart ImageJ.
+You can download the plugin at the following page: https://imagej.nih.gov/ij/plugins/reducer.html Then close and restart ImageJ.
 ## Step 2: Install and run the "binning" macro.
 
 Download the binning macro and place this file inside the "macro" directory of ImageJ.
