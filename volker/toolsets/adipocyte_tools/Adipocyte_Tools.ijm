@@ -7,8 +7,7 @@
   * in collaboration with Matthieu Lacroix and Patricia Cavelier
   */
 
-var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Adipocytes_Tool"
-
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Adipocytes-Tools"
 var preMinSize = 40;
 var preMaxSize = 20000;
 var preThresholdMethod = "Percentile";
