@@ -1,5 +1,16 @@
-# 20180528-_f0001_t0002_w0003.tif
-
+#
+# Convert images taken with the SPINNING DISC NIKON TI ANDOR CSU-X1 into hyperstacks. 
+# When the image is too big the time-points are broken down into multiple chunks. Concatenate
+# the z-projections of the different chunks and save one file per date/position/wavelength.
+#
+# 20180528-_f0000_t0000_w0000.tif
+#
+# where f is the position, t the time and w the channel
+# 
+# (c) 2018, INSERM
+# written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
+# 
+ 
 import os, re
 from ij import IJ
 from ij.macro import Interpreter as IJ1
