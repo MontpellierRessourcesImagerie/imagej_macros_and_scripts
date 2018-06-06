@@ -7,7 +7,7 @@
  * where r is the row, c the column, f the field, p the 
  * z position and ch the channel.
  * 
- * (c) 2017, INSERM
+ * (c) 2018, INSERM
  * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
  * 
  */
