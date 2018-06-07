@@ -6,10 +6,10 @@
 # where r is the row, c the column, f the field, p the 
 # z position and ch the channel.
 #
-# (c) 2017, INSERM
 # written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
 
 import os, re
+import math
 from ij import IJ
 from ij.macro import Interpreter as IJ1
 
@@ -37,9 +37,10 @@ def run():
 	for image, filename in images.iteritems():
 		IJ.log("\\Update1:Processing image "+ str(counter) +"/"+ str(numberOfImages))
 		nrOfChannels = channels[image]
-		openAsHyperstack(filename, image, nrOfChannels)
-		adjustDisplay(nrOfChannels, saturated)
-		IJ.saveAsTiff(IJ.getImage(), os.path.join(outDir, image + ".tiff"))
+		success = openAsHyperstack(filename, image, nrOfChannels)
+		if (success):
+			adjustDisplay(nrOfChannels, saturated)
+			IJ.saveAsTiff(IJ.getImage(), os.path.join(outDir, image + ".tiff"))
 		IJ.getImage().close()
 		counter = counter + 1
 	IJ.log("Finished !")
@@ -68,10 +69,15 @@ def openAsHyperstack(filename, image, nrOfChannels):
 	IJ.run("Image Sequence...", parameters)
 	nrOfSlices = IJ.getImage().getImageStackSize()
 	nrOfZSlices = nrOfSlices / nrOfChannels
+	if math.floor(nrOfZSlices) * nrOfChannels != nrOfSlices:
+		IJ.log("Can not create hyperstack for image (ch ("+str(nrOfChannels)+") x z ("+str(nrOfZSlices)+") does not match numer of slices ("+str(nrOfSlices)+"): " + filename2)
+		return False
 	IJ.run("Stack to Hyperstack...", "order=xyczt(default) channels="+str(nrOfChannels)+" slices="+str(nrOfZSlices)+" frames=1 display=Composite")
+	return True
 
 def createFileAndChannelsDictionaries(dir, exp):
 	paths = getImageList(dir)
+	
 	images = dict()
 	channels = dict()
 	for path in paths:
