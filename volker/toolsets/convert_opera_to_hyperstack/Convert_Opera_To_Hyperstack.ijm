@@ -12,7 +12,7 @@
  * 
  */
  
-var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/MRI_Convert_Opera_To_Hyperstack";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Convert_Opera_To_Hyperstack";
 var _SATURATED = 0.35;
 var _OUTPUT_FOLDER = "stack";
 
