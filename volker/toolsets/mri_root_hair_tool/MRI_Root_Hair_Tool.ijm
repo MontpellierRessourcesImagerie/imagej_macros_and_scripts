@@ -9,7 +9,7 @@
   */
 
 
-var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/MRI_Root_Hair_Tools";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Root_Hair_Tools";
   
 var _INVERT = true;
 var _RADIUS = 250;
