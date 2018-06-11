@@ -1,3 +1,5 @@
+# MRI_Convert_Opera_To_Hyperstack
+
 The tool converts images taken with the Opera into hyperstacks. The image names are in the form
 
 r02c04f01p01-ch1sk1fk1fl1.tiff
