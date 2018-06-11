@@ -29,7 +29,7 @@ timeUnit = "sec"
 #@ File(label="Select a directory", style="directory") srcDir
 
 def run():
-	global ext, timeChunkExp, channelExp, srcDir, imageExp, zSlices, timeInterval, timeUnit, pixelSize, pixelUnit
+	global ext, timeChunkExp, channelExp, imageExp, outputFolder, zSlices, pixelSize, pixelUnit, timeInterval, timeUnit, srcDir
 	
 	IJ1.batchMode = True
 	if not isinstance(srcDir, str): 

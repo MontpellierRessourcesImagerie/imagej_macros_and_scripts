@@ -51,6 +51,7 @@ function convertNikonTIAndor() {
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/MRI_Convert_Nikon_TI_Andor_To_Hyperstac.py");
 	dir = getDirectory("Select a directory!");
+	dir = replace(dir, '\\', '/');
 	parameter = "dir="+ dir +", "; 
 	parameter = parameter + "outputFolder=" + _OUTPUT_FOLDER + ", ";
 	parameter = parameter + "zslices=" + _ZSLICES + ", ";
