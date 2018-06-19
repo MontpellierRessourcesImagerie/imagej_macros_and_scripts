@@ -15,6 +15,7 @@
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Convert_Nikon_Andor_To_Hyperstack";
 var _OUTPUT_FOLDER = "stacks";
 var _ZSLICES = 31;
+var _CHANNELS = 1;
 var _PIXEL_SIZE = 0;
 var _PIXEL_UNIT = "nm";
 var _TIME_INTERVAL = 0;
@@ -31,6 +32,7 @@ macro "convert Nikon_TI_Andor (f9) Action Tool - C037T1d13cT9d13nC555"{
 macro "convert Nikon_TI_Andor (f9) Action Tool Options" {
 	 Dialog.create("Convert Nikon_TI_Andor Options");
 	 Dialog.addNumber("z-slices: ", _ZSLICES);
+	 Dialog.addNumber("channels (in one file): ", _CHANNELS);
 	 Dialog.addString("output folder: ", _OUTPUT_FOLDER);
 	 Dialog.addNumber("pixel size (0 to skip): " , _PIXEL_SIZE);
 	 Dialog.addString("pixel unit: ", _PIXEL_UNIT);
@@ -40,6 +42,7 @@ macro "convert Nikon_TI_Andor (f9) Action Tool Options" {
 	 Dialog.addHelp(helpURL);
  	 Dialog.show();
  	 _ZSLICES = Dialog.getNumber();
+ 	 _CHANNELS = Dialog.getNumber();
  	 _OUTPUT_FOLDER = Dialog.getString();
  	 _PIXEL_SIZE = Dialog.getNumber();
  	 _PIXEL_UNIT = Dialog.getString();
@@ -55,6 +58,7 @@ function convertNikonTIAndor() {
 	parameter = "dir="+ dir +", "; 
 	parameter = parameter + "outputFolder=" + _OUTPUT_FOLDER + ", ";
 	parameter = parameter + "zslices=" + _ZSLICES + ", ";
+	parameter = parameter + "channles=" + _CHANNELS + ", ";
 	parameter = parameter + "pixelSize=" + _PIXEL_SIZE + ", ";
 	parameter = parameter + "pixelUnit=" + _PIXEL_UNIT + ", ";
 	parameter = parameter + "timeInterval=" + _TIME_INTERVAL + ", ";
