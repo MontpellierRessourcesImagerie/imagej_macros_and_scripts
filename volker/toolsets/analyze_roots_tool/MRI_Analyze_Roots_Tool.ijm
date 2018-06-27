@@ -13,7 +13,7 @@
  *
 */
 
-var _MIN_AREA = 18000;
+var _MIN_AREA = 10000;
 var _MAX_ROOT_WIDTH = 25;
 var _MIN_ROOT_LENGTH = 3000;
 var _STEP_WIDTH = 3;
@@ -201,15 +201,24 @@ function analyzeRootsInCurrentImage() {
 	boxStartIndex = roiManager("count");
 	run("Analyze Particles...", "size="+_MIN_AREA+"-Infinity add");
 	boxEndIndex = roiManager("count");
+
+	nrOfRoots = boxEndIndex-boxStartIndex;
+	xCoordinates = newArray(nrOfRoots);
+
+	counter = 0;
 	for(i=boxStartIndex; i<boxEndIndex; i++) {
 		roiManager("select", i);
 		setKeyDown("shift");
 		run("To Bounding Box");
+		getSelectionBounds(x,y,w,h);
+		xCoordinates[counter] = x;
+		counter++;
 		setKeyDown("none");
 		roiManager("Update");
 	}
-	
-	nrOfRoots = boxEndIndex-boxStartIndex;
+
+	ranks = Array.rankPositions(xCoordinates);
+
 	totalArea = 0;
 	measurements = newArray(nrOfRoots);
 	boundsX = newArray(nrOfRoots);
@@ -297,8 +306,10 @@ function analyzeRootsInCurrentImage() {
 	run("Select None");
 	
 	roiManager("Sort");
-	
-	reportResults(measurements);
+
+	// Reorder rois and measurements from left to right instead top/left to bottom/right
+
+	reportResults(measurements, ranks);
 	
 	roiManager("Show All without labels");
 	run("From ROI Manager");
@@ -306,7 +317,7 @@ function analyzeRootsInCurrentImage() {
 	
 	setFont("SansSerif" ,72 , "bold");
 	for (i=0; i<nrOfRoots; i++) {
-		Overlay.drawString(""+(i+1), boundsX[i]+5, boundsY[i]+72);
+		Overlay.drawString(""+(i+1), boundsX[ranks[i]]+5, boundsY[ranks[i]]+72);
 	}
 }
 
@@ -390,9 +401,9 @@ function makeAreaSelection(x1, y1, x2, y2) {
 	  makeSelection("Freehand", xPoints, yPoints);
 }
 
-function reportResults(measurements) {
+function reportResults(measurements, ranks) {
      for(i=0; i<measurements.length; i++) {
-			print(_REPORT_HANDLE, (i+1) + "\t" + measurements[i]);
+			print(_REPORT_HANDLE, (i+1) + "\t" + measurements[ranks[i]]);
 	 }
 }
 
