@@ -33,14 +33,14 @@ for l in range(0, width):
 	nearestNeighborsDist.append(minimum)
 	nearestNeighborsInd.append(index)
 
-print nearestNeighborsDist
-print nearestNeighborsInd
-
 RoiManager()
 roiManager = RoiManager.getRoiManager()
 
 for i in range(0, width):
+	nnI = nearestNeighborsInd[i]
+	if (nnI<i and nearestNeighborsInd[nnI]==i):
+		continue
 	p1 = pointList[i]
-	p2 = pointList[nearestNeighborsInd[i]]
+	p2 = pointList[nnI]
 	roi = Line(p1.x, p1.y, p2.x, p2.y)
 	roiManager.addRoi(roi)
