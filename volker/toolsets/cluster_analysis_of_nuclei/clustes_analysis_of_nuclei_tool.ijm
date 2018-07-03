@@ -18,6 +18,10 @@ var _NOISE = 100;
 var _THRESHOLD = 14000;
 var _MAX_DIST = 120
 var _MIN_PTS = 2
+var _CHANNEL = "DAPI";
+var _OUT_FOLDER = "control";
+var _SAVE_CONTROL_IMAGE = true;
+var _SAVE_CONTROL_SNAPSHOT = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI-macro-toolsets/Cluster_Analysis_Of_Nuclei";
 
@@ -30,11 +34,11 @@ macro "cluster nuclei tools help (f4) Action Tool - C555D27D37D47D52D5cD60D74D75
 }
 
 macro "cluster nuclei [f5]" {
-	clusterNuclei();
+	clusterNuclei(false);
 }
 
 macro "cluster nuclei (f5) Action Tool - C000T4b12c" {
-	clusterNuclei();
+	clusterNuclei(false);
 }
 
 macro "cluster nuclei (f5) Action Tool Options" {
@@ -71,11 +75,11 @@ macro "select all nuclei (f7) Action Tool - C037T1d13sT9d13aC555" {
 }
 
 macro "select unclustered nuclei [f8]" {
-	selectAllUnclustered();
+	selectAllUnclustered(false);
 }
 
 macro "select unclustered nuclei (f8) Action Tool - C037T1d13sT9d13uC555" {
-	selectAllUnclustered();
+	selectAllUnclustered(false);
 }
 
 macro "select clustered nuclei [f9]" {
@@ -86,8 +90,33 @@ macro "select unclustered nuclei (f9) Action Tool - C037T1d13sT9d13cC555" {
 	selectAllClustered();
 }
 
-function clusterNuclei() {
+macro "run batch [f10]" {
+	folder = getDirectory("Please select the input folder");
+	runBatch(folder, _CHANNEL, _OUT_FOLDER, _SAVE_CONTROL_IMAGE, _SAVE_CONTROL_SNAPSHOT);
+}
+
+macro "run batch (f10) Action Tool - C000T4b12r" {
+	folder = getDirectory("Please select the input folder");
+	runBatch(folder, _CHANNEL, _OUT_FOLDER, _SAVE_CONTROL_IMAGE, _SAVE_CONTROL_SNAPSHOT);
+}
+
+
+macro "run batch (f10) Action Tool Options" {
+	 Dialog.create("Cluster Nuclei Batch Options");
+	 Dialog.addString("output folder: ", _OUT_FOLDER);
+	 Dialog.addString("channel: ", _CHANNEL);
+	 Dialog.addCheckbox("save control images", _SAVE_CONTROL_IMAGE);
+	 Dialog.addCheckbox("save control snapshots", _SAVE_CONTROL_SNAPSHOT);
+	 Dialog.show();
+	 _OUT_FOLDER = Dialog.getString();
+	 _CHANNEL = Dialog.getString();
+	 _SAVE_CONTROL_IMAGE = Dialog.getCheckbox();
+	 _SAVE_CONTROL_SNAPSHOT = Dialog.getCheckbox();
+}
+
+function clusterNuclei(batch) {
 	run("Set Measurements...", "area mean standard modal min centroid center integrated display redirect=None decimal=3");
+	if (!batch) setBatchMode(true);
 	run("Duplicate...", " ");
 	run("Gaussian Blur...", "sigma=" + _SIGMA);
 	run("Find Maxima...", "noise="+_NOISE+" output=[Point Selection] exclude");
@@ -108,6 +137,7 @@ function clusterNuclei() {
 	}
 	
 	close();
+	if (!batch) setBatchMode(false);
 	makeSelection("point",xCoordinates,yCoordinates);
 	roiManager("reset");
 	roiManager("Add");
@@ -124,43 +154,43 @@ function clusterNuclei() {
 
   	title = "Cluster Analysis of Nuclei Results";
   	handle = "["+title+"]";
-  if (!isOpen(title)) {
-     run("Table...", "name="+handle+" width=800 height=600");
-     print(handle, "\\Headings:n\ttitle\tnr. of nuclei\tnr. of clusters\tclustered nuclei\tunclustered nuclei\tmean-nn-dist. all\tstdev. all\tmean-nn-dist. unclustered\tstdev unclustered\tmean-nn-dist. clustered\tstdev. clustered");
-     line = "0\tmax. dist.="+_MAX_DIST+", min pts.="+_MIN_PTS + ", s="+_SIGMA + ", n=" + _NOISE + ", t=" + _THRESHOLD;
-  	 print(handle, line);
-  }
-  lineNr = 1;
-  selectAllNuclei();
-  Roi.getCoordinates(xpoints, ypoints);
-  run("Select None");
-  totalNumberOfNuclei = xpoints.length;
-  count = roiManager("count");
-  numberOfClusters =  count - 1;
-  clusteredNuclei = 0;
-  for(i=1; i<count; i++) {
-  	roiManager("select", i); 
+  	if (!isOpen(title)) {
+    	run("Table...", "name="+handle+" width=800 height=600");
+    	print(handle, "\\Headings:n\ttitle\tnr. of nuclei\tnr. of clusters\tclustered nuclei\tunclustered nuclei\tmean-nn-dist. all\tstdev. all\tmean-nn-dist. unclustered\tstdev unclustered\tmean-nn-dist. clustered\tstdev. clustered");
+    	line = "0\tmax. dist.="+_MAX_DIST+", min pts.="+_MIN_PTS + ", s="+_SIGMA + ", n=" + _NOISE + ", t=" + _THRESHOLD;
+  		print(handle, line);
+  	}
+	lineNr = 1;
+  	selectAllNuclei();
   	Roi.getCoordinates(xpoints, ypoints);
-  	clusteredNuclei = clusteredNuclei + xpoints.length;
-  }
-  selectAllNuclei();
-  nearestNeighbors();
-  allMean = getResult("Length", nResults-4);
-  allSD = getResult("Length", nResults-3);
+  	run("Select None");
+  	totalNumberOfNuclei = xpoints.length;
+  	count = roiManager("count");
+  	numberOfClusters =  count - 1;
+  	clusteredNuclei = 0;
+  	for(i=1; i<count; i++) {
+	  	roiManager("select", i); 
+	  	Roi.getCoordinates(xpoints, ypoints);
+	  	clusteredNuclei = clusteredNuclei + xpoints.length;
+  	}
+  	selectAllNuclei();
+  	nearestNeighbors();
+  	allMean = getResult("Length", nResults-4);
+  	allSD = getResult("Length", nResults-3);
 
-  selectAllUnclustered();
-  nearestNeighbors();
-  unclusteredMean = getResult("Length", nResults-4);
-  unclusteredSD = getResult("Length", nResults-3);
+  	selectAllUnclustered(batch);
+  	nearestNeighbors();
+  	unclusteredMean = getResult("Length", nResults-4);
+  	unclusteredSD = getResult("Length", nResults-3);
   
-  selectAllClustered();
-  nearestNeighbors();
-  clusteredMean = getResult("Length", nResults-4);
-  clusteredSD = getResult("Length", nResults-3);
+  	selectAllClustered();
+  	nearestNeighbors();
+  	clusteredMean = getResult("Length", nResults-4);
+  	clusteredSD = getResult("Length", nResults-3);
 
-  line = "" + lineNr + "\t" + getTitle() + "\t" + totalNumberOfNuclei + "\t" + numberOfClusters + "\t" + clusteredNuclei + "\t" + (totalNumberOfNuclei-clusteredNuclei) + "\t"; 
-  line = line + allMean + "\t" + allSD + "\t" + unclusteredMean + "\t" + unclusteredSD + "\t" + clusteredMean + "\t" + clusteredSD;
-  print(handle, line);
+  	line = "" + lineNr + "\t" + getTitle() + "\t" + totalNumberOfNuclei + "\t" + numberOfClusters + "\t" + clusteredNuclei + "\t" + (totalNumberOfNuclei-clusteredNuclei) + "\t"; 
+  	line = line + allMean + "\t" + allSD + "\t" + unclusteredMean + "\t" + unclusteredSD + "\t" + clusteredMean + "\t" + clusteredSD;
+  	print(handle, line);
 }
 
 function randomColorRois(startIndex) {
@@ -222,14 +252,14 @@ function selectAllClustered() {
 	roiManager("deselect");
 }
 
-function selectAllUnclustered() {
+function selectAllUnclustered(batch) {
 	count = roiManager("count");
 	if (count==1) {
 		roiManager("select", 0);
 		return;
 	}
 	inputImageID = getImageID();
-	setBatchMode(true);
+	if (!batch) setBatchMode(true);
 	run("Duplicate...", " ");
 	tmpImage = getImageID();
 	run("Select All");
@@ -258,5 +288,65 @@ function selectAllUnclustered() {
 	run("Restore Selection");
 	selectImage(tmpImage);
 	close();
+	if (!batch) setBatchMode(false);
+}
+
+function runBatch(folder, channel, out, saveControl, saveSnap) {
+	files = getFileList(folder);
+	files = filterImageFiles(files, channel);
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec)
+	datePrefix = "" + year + "-" + (month + 1) + "-" + dayOfMonth + "_" + hour + ":" + minute + ":" + second + ":" + msec;
+	outPath = folder + "/" + out + "-" + datePrefix;
+	if (!File.exists(folder + "/" + out + "-" + datePrefix)) File.makeDirectory(outPath);
 	setBatchMode(false);
+	run("Clear Results");
+	print("\\Clear");
+	print("Cluster Analysis of Nuclei started - " + datePrefix);
+	for(i=0; i<files.length; i++) {
+		print("\\Update1:Analysing Image "+ (i+1) + " of " + files.length);
+		file = files[i];
+		open(folder + "/" + file);
+		clusterNuclei(true);
+		if (saveControl) {
+			run("From ROI Manager");
+			saveAs("Tiff", outPath + "/" + file);
+		}
+		if (saveSnap) {
+			run("Capture Image");
+			saveAs("Jpeg", outPath + "/" + file);
+			close();
+		}
+		close();
+	}
+	setBatchMode(false);
+	selectWindow("Cluster Analysis of Nuclei Results");
+	saveAs("Text", folder + "/" + datePrefix + "_-_Cluster Analysis of Nuclei Results.csv");
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	datePrefix = "" + year + "-" + (month + 1) + "-" + dayOfMonth + "_" + hour + ":" + minute + ":" + second + ":" + msec;
+	print("Cluster Analysis of Nuclei finished -" + datePrefix);
+}
+
+function filterImageFiles(files, channel) {
+	filteredFiles = newArray();
+	for (i=0; i<files.length; i++) {
+		file = files[i];
+		if (File.isDirectory(file)) continue;
+		if (isImage(file)) {
+			if (channel!="" && indexOf(file, channel)==-1) continue;
+			filteredFiles =  Array.concat(filteredFiles, file);
+		}
+	}
+	return filteredFiles;
+}
+
+function isImage(file) {
+	imageExtensions = newArray("TIF", "TIFF", "JPG");
+	parts = split(file, '.');
+	if (parts.length<2) return false;
+	fileExt = toUpperCase(parts[1]);
+	for(i=0; i<imageExtensions.length; i++) {
+		if (fileExt==imageExtensions[i]) return true;
+	}
+	return false;
+	
 }
