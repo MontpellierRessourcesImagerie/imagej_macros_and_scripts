@@ -9,7 +9,7 @@ def run():
 	if method == 'Histogram':
 		ColorQuantizerUtil.quantize(numberOfColors, colorSpace)
 	if method == 'Median Cut':
-		ColorQuantizerUtil.quantizeMedianCut.quantize(numberOfColors, colorSpace)
+		ColorQuantizerUtil.quantizeMedianCut(numberOfColors, colorSpace)
 	if method == 'Wu':
 		ColorQuantizerUtil.quantizeWu(numberOfColors, colorSpace)
 

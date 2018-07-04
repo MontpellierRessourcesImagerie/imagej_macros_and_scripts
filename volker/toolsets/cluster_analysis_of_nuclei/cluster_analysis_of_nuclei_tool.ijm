@@ -23,7 +23,7 @@ var _OUT_FOLDER = "control";
 var _SAVE_CONTROL_IMAGE = true;
 var _SAVE_CONTROL_SNAPSHOT = false;
 
-var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI-macro-toolsets/Cluster_Analysis_Of_Nuclei";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Cluster-Analysis-of-Nuclei-Tool";
 
 macro "cluster nuclei tools help [f4]" {
 	run('URL...', 'url='+helpURL);
@@ -160,7 +160,10 @@ function clusterNuclei(batch) {
     	line = "0\tmax. dist.="+_MAX_DIST+", min pts.="+_MIN_PTS + ", s="+_SIGMA + ", n=" + _NOISE + ", t=" + _THRESHOLD;
   		print(handle, line);
   	}
-	lineNr = 1;
+  	selectWindow("Cluster Analysis of Nuclei Results");
+  	lines = getInfo("window.contents");
+  	lines = split(lines, '\n');
+	lineNr = lines.length-1;
   	selectAllNuclei();
   	Roi.getCoordinates(xpoints, ypoints);
   	run("Select None");
