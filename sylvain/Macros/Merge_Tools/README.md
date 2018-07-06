@@ -1,6 +1,6 @@
 # general MACROs dedicated to merge images
 
-= all of these macros allow to merge images comming from different type of microscopes, ie Tiff format (from MDA tool of MetaMorh)
+= all of these macros allow to merge images comming from different type of microscopes, ie Tiff format (from MDA tool of MetaMorph)
 
 ## Step 1: Install and run the .ijm macro
 

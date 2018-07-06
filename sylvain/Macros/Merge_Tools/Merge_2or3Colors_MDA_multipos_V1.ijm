@@ -1,8 +1,13 @@
 //MACRO developpée pour Marion Peter
 //S.DeRossi_Juin2018
-//Permet d'automatiser les merges en 2 ou 3 couleurs d'images provenant de MetaMorph (via l'acquisition du MDA)
-//channels possibles : DAPI - GFP - DsRed
-//Permet de choisir si les acquisitions ont été réalisées en multiple positions ou non (option)
+//Allow merge of 2 or 3 colors from Metamorph images - Multi dimentional acquisition (MDA)
+//possible channels : DAPI - GFP - DsRed (order you want)
+//Possibility toi choose in single position or multi-position aquisition
+
+//Image format (autorized naming) :
+//		case single position (GFP et DAPI only) : prefixname_w1GFP or prefixname_w2DAPI (or w1DAPI / w2GFP)
+//		cas multiple positions : prefixname_w1GFP_s1 / prefixname_w2DAPI_s1 / prefixname_w3DsRed_s1 (all combination possible)
+//								s1 to s...	
 //***************************************************************************************************************
 
 //In and out folders
