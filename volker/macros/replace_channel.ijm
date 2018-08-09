@@ -1,3 +1,12 @@
+/*
+ * For each image there are two hyperstacks. Replace the 4th channel of the first stack by the 4th channel of the second Stack.
+ * The image from the second stack is scaled to the size of the images in the first stack before they are merged.
+ * 
+ * (c) 2018, INSERM
+ * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
+ * 
+ */
+
 var _CHANNEL_SUPER = "SIR";
 var _CHANNEL_WF = "WF_D3D";
 var _OUT_DIR = "results";
@@ -13,12 +22,18 @@ function batchProcessImages() {
 	File.makeDirectory(dir + "/" + _OUT_DIR);
 
 	files = filterImageFilesChannelSuper(dir, files);
-
+	setBatchMode(true);
+	print("\\Clear");
+	print("replacing channel 4...");
 	for (i = 0; i < files.length; i++) {
+		print("\\Update1:Processing image " + (i+1) + " of " + files.length);
 		file1 = files[i];
 		path = dir + "/" + file1;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
 		close();
+		width1 = getWidth();
+		height1 = getHeight();
+		depth = nSlices;
 		file2 = replace(file1, _CHANNEL_SUPER, _CHANNEL_WF);
 		path = dir + "/" + file2;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
@@ -27,7 +42,11 @@ function batchProcessImages() {
 		oneChannelID = getImageID();
 		selectImage(wfImageID);
 		close();
-		run("Scale...", "x=2 y=2 z=1.0 width=1024 height=1024 depth=29 interpolation=Bilinear average process create");
+		width2 = getWidth();
+		height2 = getHeight();
+		sfx = width1 / width2;
+		sfy = height1 / height2;
+		run("Scale...", "x="+sfx+" y="+sfy+" z=1.0 width="+width1+" height="+height1+" depth="+depth+" interpolation=Bilinear average process create");
 		scaledTitle = getTitle();
 		selectImage(oneChannelID);
 		close();
@@ -37,6 +56,8 @@ function batchProcessImages() {
 		save(dir + "/" + _OUT_DIR + "/" + outFile);
 		close();
 	}
+	setBatchMode(false);
+	print("Finished replacing channel 4 !");
 }
 
 function filterImageFilesChannelSuper(dir, files) {
