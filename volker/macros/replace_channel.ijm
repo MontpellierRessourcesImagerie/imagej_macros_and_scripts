@@ -74,11 +74,3 @@ function filterImageFilesChannelSuper(dir, files) {
 	return filteredFiles;
 }
 
-function cleanFolder(folder) {
-	files = getFileList(folder);
-	for (i = 0; i < files.length; i++) {	
-		if (File.isDirectory())  continue;
-		path = folder + "/" + files[i];
-		File.delete(path);
-	}
-}
