@@ -10,7 +10,6 @@
 var _CHANNEL_SUPER = "SIR";
 var _CHANNEL_WF = "WF_D3D";
 var _OUT_DIR = "results";
-var _WORK_DIR = "tmp";
 var _EXT = ".dv";
 
 batchProcessImages()
