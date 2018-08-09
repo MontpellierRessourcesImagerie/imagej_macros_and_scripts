@@ -3,7 +3,7 @@
   * 
   * Analyse the clustering behaviour of nuclei in DAPI stained images.  
   * The nuclei are detected as the maxima in the image. Using a threshold intensity
-  * value maxima below the threshold are eliminated. The resulting points are clustered
+  * value, maxima below the threshold are eliminated. The resulting points are clustered
   * using the DBSCAN algorithm. The nearest neighbor distances outside and inside of the clusters
   * are calculated.
   *   
