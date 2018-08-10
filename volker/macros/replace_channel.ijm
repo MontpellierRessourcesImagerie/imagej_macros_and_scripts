@@ -18,7 +18,7 @@ function batchProcessImages() {
 	dir = getDirectory("Select the input folder");
 	files = getFileList(dir);
 	
-	File.makeDirectory(dir + "/" + _OUT_DIR);
+	File.makeDirectory(dir + File.separator + _OUT_DIR);
 
 	files = filterImageFilesChannelSuper(dir, files);
 	setBatchMode(true);
@@ -27,14 +27,14 @@ function batchProcessImages() {
 	for (i = 0; i < files.length; i++) {
 		print("\\Update1:Processing image " + (i+1) + " of " + files.length);
 		file1 = files[i];
-		path = dir + "/" + file1;
+		path = dir + File.separator + file1;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
 		close();
 		width1 = getWidth();
 		height1 = getHeight();
 		depth = nSlices;
 		file2 = replace(file1, _CHANNEL_SUPER, _CHANNEL_WF);
-		path = dir + "/" + file2;
+		path = dir + File.separator + file2;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 		wfImageID = getImageID();
 		run("Duplicate...", "duplicate channels=4-4");
@@ -52,7 +52,7 @@ function batchProcessImages() {
 		run("Merge Channels...", "c1=["+file1+" - C=0] c2=["+file1+" - C=1] c3=["+file1+" - C=2] c4=["+scaledTitle+"] create");
 		outFile = replace(file1,  _CHANNEL_SUPER+"_", "");
 		outFile = replace(outFile,  ".dv", ".tif");
-		save(dir + "/" + _OUT_DIR + "/" + outFile);
+		save(dir + File.separator + _OUT_DIR + File.separator + outFile);
 		close();
 	}
 	setBatchMode(false);
@@ -63,7 +63,7 @@ function filterImageFilesChannelSuper(dir, files) {
 	filteredFiles = newArray();
 	for(i=0; i<files.length; i++) {
 		file = files[i];
-		path = dir + "/" + file;
+		path = dir + File.separator + file;
 		if (	indexOf(file, _CHANNEL_SUPER)!=-1 &&
 				!File.isDirectory(path) && 
 				endsWith(file, _EXT)
