@@ -2,6 +2,11 @@
  * For each image there are two hyperstacks. Replace the 4th channel of the first stack by the 4th channel of the second Stack.
  * The image from the second stack is scaled to the size of the images in the first stack before they are merged.
  * 
+ * The first stack is the reconstructed image from the OMX microscope. It is converted to 16bit using the simcheck plugin. This will discard
+ * all values up to the mode of the histogram.
+ * 
+ * The second is a deconvoluted widefield image. It is converted to 16bit via the normal ImageJ conversion.
+ * 
  * (c) 2018, INSERM
  * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
  * 
@@ -27,9 +32,15 @@ function batchProcessImages() {
 	for (i = 0; i < files.length; i++) {
 		print("\\Update1:Processing image " + (i+1) + " of " + files.length);
 		file1 = files[i];
+		f1c0 = file1+" - C=0";
+		f1c1 = file1+" - C=1";
+		f1c2 = file1+" - C=2";
 		path = dir + File.separator + file1;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
 		close();
+		thresholdAndConvert(f1c0);
+		thresholdAndConvert(f1c1);
+		thresholdAndConvert(f1c2);
 		width1 = getWidth();
 		height1 = getHeight();
 		depth = nSlices;
@@ -39,6 +50,13 @@ function batchProcessImages() {
 		wfImageID = getImageID();
 		run("Duplicate...", "duplicate channels=4-4");
 		oneChannelID = getImageID();
+		Stack.getStatistics(voxelCount, mean, min, max, stdDev);
+		if (max>65535) {
+			run("Conversions...", "scale");
+		} else {
+			run("Conversions...", " ");
+		}
+		run("16-bit");
 		selectImage(wfImageID);
 		close();
 		width2 = getWidth();
@@ -57,6 +75,17 @@ function batchProcessImages() {
 	}
 	setBatchMode(false);
 	print("Finished replacing channel 4 !");
+}
+
+function thresholdAndConvert(title) {
+		selectImage(title);
+		id = getImageID();
+		run("Threshold and 16-bit Conversion", "auto-scale");
+		newImageID = getImageID();
+		selectImage(id);
+		close();
+		selectImage(newImageID);
+		rename(title);
 }
 
 function filterImageFilesChannelSuper(dir, files) {
