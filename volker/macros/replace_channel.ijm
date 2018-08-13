@@ -38,9 +38,6 @@ function batchProcessImages() {
 		path = dir + File.separator + file1;
 		run("Bio-Formats Importer", "open=[path] autoscale color_mode=Default rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
 		close();
-		thresholdAndConvert(f1c0);
-		thresholdAndConvert(f1c1);
-		thresholdAndConvert(f1c2);
 		width1 = getWidth();
 		height1 = getHeight();
 		depth = nSlices;
@@ -51,12 +48,6 @@ function batchProcessImages() {
 		run("Duplicate...", "duplicate channels=4-4");
 		oneChannelID = getImageID();
 		Stack.getStatistics(voxelCount, mean, min, max, stdDev);
-		if (max>65535) {
-			run("Conversions...", "scale");
-		} else {
-			run("Conversions...", " ");
-		}
-		run("16-bit");
 		selectImage(wfImageID);
 		close();
 		width2 = getWidth();
