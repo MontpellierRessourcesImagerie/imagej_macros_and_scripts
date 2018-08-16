@@ -2,7 +2,7 @@
 *macro to measure retraction and protrusion of focal adhesions
 *it's necessary to create 1 folder for the processed images, 1 folder for the mask and 1 folder for the results*
 *macro developped by MRI
-
+*Virginie Georget
 */
 
 dir1 = getDirectory("Choose Destination Directory for the processed images");
