@@ -12,6 +12,13 @@ var _EVENTS = newArray();	// The indices of the array are the numbers of the tra
 var _MIN_INT_DEN = 100000;
 var _FILLED_TRAPS;
 
+
+var _MIN_RADIUS = 20;
+var _MAX_RADIUS = 50;
+var _RADIUS_STEP = 4;
+var _MAX_MEAN_INTENSITY = 65;
+var _MIN_QUALITY_CIRCLE = 100;
+
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Turgomap-Tools";
 
 macro "MRI Turgomap Tools Help Action Tool - C000D26D38D3dD44D4bD81D8cDc8Dc9De7De9C777D02D03D0dD0eD11D1aD21D2eD2fD31D41D46D48D4fD56D57D59D5dD62D65D68D6aD75D76D78D80D84D86D8bD8dD90D91D96D99D9bD9fDa0Da6Da7Da8Da9DaaDadDafDb4DbbDbfDcaDcfDd1Dd5DdbDdcDdfDe1De2De4De5DeaDebDedDeeDefDf6DfbDfcDfdDfeDffC555D1bD34D39D3bD4aD51D5bD74D8aD92D93D98D9aDb8C777D06D0aD0bD0cD17D23D47D4eD50D58D5aD5fD60D70Da1DabDacDb1Db6DbaDc1Dd2De3Df5C333D13D19D1cD29D45D54D5cD6cD6dD7eD82D8eDd4De6C666D01D04D0fD10D1dD1eD1fD20D30D3eD3fD40D5eD67D69D6bD6fD79D7aD7bD85D88D89D94D95DaeDb0Db7DbcDbdDbeDc0Dc6DcbDccDcdDceDd0DdaDddDdeDe0DecDf0Df1Df2Df3Df4C888D05D18D24D49D7dDd7DfaC222D14D15D16D25D27D2cD32D37D63Db5Dc7Dd9De8C666D00D12D33D42D55D66D77D7fD8fD97D9cDb9Df9C444D28D2bD53D64D87Da3Da5Dc5C888D3cDb3C111D08D2dD35D61D6eD71D7cDa4Db2Dc3C444D22D36D4dD52D73D9eDa2Df8C333D07D09D3aD43D4cD83D9dDc2Dd3C555D2aDc4Dd6Df7C999D72Dd8" {
@@ -22,8 +29,20 @@ macro 'Create Grid Action Tool (f1) - C000T4b12g' {
 	createGrid();
 }
 
+macro 'Detect Circles Action Tool (f2) - C000T4b12c' {
+	detectCircles();
+}
+
+macro 'Detect Circles Action Tool (f2) Options' {
+	detectCircleOptions();
+}
+
 macro "create-grid [f1]" {
 	createGrid();
+}
+
+macro "detect-circles [f2]" {
+	detectCircles();
 }
 
 function createGrid() {
@@ -188,4 +207,241 @@ function markEmptyTraps() {
 	selectImage(maskID);	
 	close();
 	selectImage(imageID);	
+}
+
+
+
+function detectCircles() {
+	if (selectionType()==-1) return;
+	run("MRI Roi Util");
+	run("Set Measurements...", "area mean modal min display redirect=None decimal=3");
+	roiManager("reset")
+	roiManager("add");
+	setBatchMode(true);
+	runFindCircles();
+	setBatchMode("exit and display");
+	drawCirclesAbove(_MIN_QUALITY_CIRCLE);
+	removeIntersectingRois();
+	nrOfCircles = roiManager("count")-1;
+	if (nrOfCircles>3) removeBrightCircles();
+	sortCirclesByIntensity();
+	run("Select None");
+	roiManager("Deselect");
+	roiManager("Show None");
+	roiManager("select", 0);
+}
+
+function runFindCircles() {
+	roiManager("Select", 0);
+	getSelectionBounds(xBox, yBox, widthBox, heightBox);
+	run("Duplicate...", " ");
+	setBackgroundColor(0, 0, 0);
+	run("Clear Outside");
+	imageID = getImageID();
+	
+	title = "Circles";
+	handle = "[" + title + "]";
+	counter = 0;
+	if (isOpen(title)) {
+	     print(handle, "\\Clear");
+	}
+	else
+	     run("Table...", "name="+handle+" width=400 height=600");
+	 
+	print(handle, "\\Headings:n\tradius\tx\ty\tscore");
+	
+	for (radius=_MIN_RADIUS; radius<=_MAX_RADIUS; radius=radius+_RADIUS_STEP) {
+		run("Duplicate...", " ");
+		workingImageID = getImageID();
+		findCircles();
+		run("Find Maxima...", "noise=20 output=[Point Selection]");
+		run("Clear Results");
+		run("Measure");
+		for (i=0; i<nResults; i++) {
+			x = getResult("X", i);
+			y = getResult("Y", i);
+			score = getResult("Mode", i);
+			print(handle, "" + (++counter) + "\t" + radius + "\t" + x + "\t" + y + "\t" + score);
+		}
+		close();
+		selectImage(imageID);
+	}
+	//close();
+}
+
+function removeBrightCircles() {
+	count = roiManager("count");
+	indices = newArray();
+	for(i=1; i<count; i++) {
+		roiManager("Select", i);
+		run("Area to Line");
+		getStatistics(area, mean);
+		if (mean>_MAX_MEAN_INTENSITY) indices = Array.concat(indices, i);
+	}
+	if (indices.length==0) return;
+	roiManager("Select", indices);
+	roiManager("Delete");
+}
+
+function sortCirclesByIntensity() {
+	count = roiManager("count");
+	means = newArray(count);
+	means[0] = -1;
+	for(i=1; i<count; i++) {
+		roiManager("Select", i);
+		run("Area to Line");
+		getStatistics(area, mean);
+		means[i]=mean;
+	}
+	sortRoisBy(means);
+}
+
+function removeIntersectingRois() {
+	indices = newArray();
+	roiManager("Select", 0);
+	getSelectionCoordinates(X1, Y1);
+	count = roiManager("count");
+	for(i=1; i<count; i++) {
+		roiManager("Select", i);
+		getSelectionCoordinates(X2, Y2);
+		result = Ext.doRoisOverlap(X1,Y1,X2,Y2);
+		if (result=="true") indices = Array.concat(indices, i);
+	}
+	if (indices.length == 0) return; 
+	roiManager("Select", indices);
+	roiManager("Delete");
+}
+
+function detectCircleOptions() {
+  //Create and show the user input dialog
+    Dialog.create("Find Circles");
+    Dialog.addNumber("Min. radius: ",  _MIN_RADIUS);
+    Dialog.addNumber("Max. radius: ",  _MAX_RADIUS);
+	Dialog.addNumber("Delta radius: ", _RADIUS_STEP);
+	Dialog.addNumber("Max. mean intensity: ", _MAX_MEAN_INTENSITY);
+	Dialog.addNumber("Min. quality of circle: ", _MIN_QUALITY_CIRCLE);
+    Dialog.show();
+    _MIN_RADIUS = Dialog.getNumber();
+    _MAX_RADIUS = Dialog.getNumber();
+    _RADIUS_STEP = Dialog.getNumber();
+    _MAX_MEAN_INTENSITY = Dialog.getNumber();
+    _MIN_QUALITY_CIRCLE = Dialog.getNumber();
+}
+
+function findCircles() {
+	inverted=true;
+	filled=false;
+	slices=true;
+    snapshot();
+    //If RGB then convert to 8-bit for analysis
+    if (bitDepth()==24) {
+        run("8-bit");
+    }
+    //Pick a good value for maximum image value for image inversion
+    if (bitDepth()==32) {
+        amax=0;
+    } else {
+        amax=pow(2, bitDepth())-1;
+    }
+
+    //Derive the slice range to analyse
+    if (nSlices==1) {
+        startSlice=1;
+        endSlice=1;
+    } else {
+        if (slices==true) {
+            startSlice=1;
+            endSlice=nSlices();
+        } else {
+            startSlice=getSliceNumber();
+            endSlice=getSliceNumber();
+        }
+    }
+
+    for (i=startSlice; i<=endSlice; i++) {
+        setSlice(i);
+        //Invert (if selected)
+        if (inverted==true) {
+            run("Macro...", "code=[v="+amax+"-v] slice");
+        }
+        //Find edges in the image prior to analysis (if optimised to also find filled circles)
+        if (filled==true) {
+            run("Find Edges", "slice");
+        }
+        //Find circles in the image
+        diameter=2*round(radius)+1;
+        circleKernel(diameter);            
+    }
+}
+
+//Function to generate and apply a circle shaped kernel
+//The diameter must be odd and greater than zero, very large diameters are slow
+function circleKernel(diameter) {
+    //Make an image to generate the kernel pattern in
+    newImage("Kernel", "8-bit Black", diameter, diameter, 1);
+    //And make a hollow circle 1px in thickness with a value of one
+    makeOval(0, 0, diameter, diameter);
+    setColor(1);
+    fill();
+    makeOval(1, 1, diameter-2, diameter-2);
+    setColor(0);
+    fill();
+    run("Select None");
+    setMinAndMax(0, 1);
+
+    //Record the kernel by reading the image values to a 2D array
+    kernel=newArray(diameter*diameter);
+    kernelstring="";
+    for (x=0; x<diameter; x++) {
+        for (y=0; y<diameter; y++) {
+            kernel[x+y*diameter]=getPixel(x, y);
+            kernelstring+=""+getPixel(x, y)+" ";
+        }
+        kernelstring+="\n";
+    }
+    //And close the kernel image
+    close();
+
+    //Apply the kernel to the image
+    run("Convolve...", "text1=["+kernelstring+"] normalize slice");
+} 
+
+
+function drawCirclesAbove(scoreMin) {
+	selectWindow("Circles");
+	text = getInfo("window.contents");
+	lines = split(text, "\n");
+	for(i=1; i<lines.length; i++) {
+		line = split(lines[i], "\t");
+		radius = parseFloat(line[1]);
+		x = parseFloat(line[2]);
+		y = parseFloat(line[3]);
+		score = parseFloat(line[4]);
+		if (score>scoreMin) {
+			makeOval(x-radius,y-radius,(2*radius)+1, (2*radius)+1);
+			roiManager("add");
+		}
+	}
+}
+
+function sortRoisBy(aList) {
+	REVERSE = true;
+	Array.sort(aList);
+	positions = Array.rankPositions(aList);
+	if (REVERSE) Array.reverse(positions);
+	ranks = Array.rankPositions(positions);
+	// Your code starts after this line
+	for (i=0; i<roiManager("count"); i++) {
+		/* select the element number i in the roi manager*/
+		roiManager("select", i);
+		/* Rename the selected roi in the roi manager to its position in the sorted list, that is rename it to IJ.pad(ranks[i], 4) */
+		roiManager("Rename", IJ.pad(ranks[i]+1, 4)); 
+		print(aList[i]);
+	}
+	/* Deselect all rois in the roi-manager */
+	roiManager("Deselect");
+	/* Sort the rois in the roi-manager according to their names */
+	roiManager("Sort");
+	roiManager("Show None");
+	roiManager("Show All");
 }
