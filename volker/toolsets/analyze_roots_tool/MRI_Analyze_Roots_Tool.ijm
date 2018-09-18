@@ -105,12 +105,14 @@ function showOptionsDialog() {
 	 	_ROTATE = true;
 	  _FILE_EXTENSION = Dialog.getString();
 }
+
 function openResultsTable() {
 	if (!isOpen(_REPORT_TITLE)){
 		run("Table...", "name="+_REPORT_HANDLE+" width=800 height=600");
  		print(_REPORT_HANDLE, "\\Headings:nr\tmain root length\tmain root area\tnr. of 2-order roots\ttotal area\ttotal length\timage");
 	}
 }
+
 function batchProcessImages() {
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 	startTimeStamp = "" + year + "-" + (month + 1)+"-"+dayOfMonth+"--"+hour+"."+minute+"."+second+"."+msec;
@@ -217,15 +219,14 @@ function analyzeRootsInCurrentImage() {
 		roiManager("Update");
 	}
 
-	ranks = Array.rankPositions(xCoordinates);
-
+	ranks = Array.rankPositions(xCoordinates);	
 	totalArea = 0;
 	measurements = newArray(nrOfRoots);
 	boundsX = newArray(nrOfRoots);
 	boundsY = newArray(nrOfRoots);
 	for (i=0; i<nrOfRoots; i++) {
-		rootNR = IJ.pad((i+1), 2);
-		measurements[i] = "";
+		rootNR = IJ.pad((ranks[i]+1), 2);
+		measurements[rootNR-1] = "";
 		leftIndex = (3 * i) + 1;
 		rightIndex = (3 * i) + 2;
 		boxIndex = boxStartIndex + i;
@@ -245,7 +246,7 @@ function analyzeRootsInCurrentImage() {
 		getSelectionCoordinates(xpoints1, ypoints1);
 		roiManager("select", rightIndex);
 		getSelectionCoordinates(xpoints2, ypoints2);
-		roiManager("select", i);
+		roiManager("select", 3* i);
 		run("Measure");
 		length = getResult("Length", nResults-1);
 		makeAreaSelection(xpoints1, ypoints1, xpoints2, ypoints2);
@@ -285,7 +286,7 @@ function analyzeRootsInCurrentImage() {
 		roiManager("Rename", rootNR + "-skeletons");
 		roiManager("Set Color", _SKELETON_COLOR);
 		run("Select None");
-		measurements[i] = "" + length + "\t" + area +"\t" + nrOfSecondOrderRoots + "\t" + totalArea + "\t" + totalLength + "\t" + inputTitle; 
+		measurements[rootNR-1] = "" + length + "\t" + area +"\t" + nrOfSecondOrderRoots + "\t" + totalArea + "\t" + totalLength + "\t" + inputTitle; 
 	}
 	close();
 	
@@ -298,7 +299,7 @@ function analyzeRootsInCurrentImage() {
 	}
 	
 	for(i=0; i<nrOfRoots; i++) {
-		rootNR = IJ.pad((i+1), 2);
+		rootNR = IJ.pad((ranks[i]+1), 2);
 		roiManager("Select", i);
 		roiManager("Rename", rootNR + "-main-center");
 		roiManager("Set Color", _MAIN_CENTER_COLOR);
@@ -309,7 +310,7 @@ function analyzeRootsInCurrentImage() {
 
 	// Reorder rois and measurements from left to right instead top/left to bottom/right
 
-	reportResults(measurements, ranks);
+	reportResults(measurements);
 	
 	roiManager("Show All without labels");
 	run("From ROI Manager");
@@ -401,9 +402,9 @@ function makeAreaSelection(x1, y1, x2, y2) {
 	  makeSelection("Freehand", xPoints, yPoints);
 }
 
-function reportResults(measurements, ranks) {
+function reportResults(measurements) {
      for(i=0; i<measurements.length; i++) {
-			print(_REPORT_HANDLE, (i+1) + "\t" + measurements[ranks[i]]);
+			print(_REPORT_HANDLE, (i+1) + "\t" + measurements[i]);
 	 }
 }
 
@@ -446,3 +447,5 @@ function measureSkeletonLength() {
     result = result * pw;
     return result;
 }
+
+
