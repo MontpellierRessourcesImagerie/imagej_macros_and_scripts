@@ -187,7 +187,7 @@ function analyzeRootsInCurrentImage() {
 	width = width +100;
 	makeRectangle(x, y, width, height);
 	run("Crop");
-	
+
 	findTips();
 	
 	selectImage(inputImageID);

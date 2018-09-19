@@ -19,6 +19,8 @@ var _RADIUS_STEP = 4;
 var _MAX_MEAN_INTENSITY = 65;
 var _MIN_QUALITY_CIRCLE = 100;
 
+var _ENLARGE_BY = 10
+
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Turgomap-Tools";
 
 macro "MRI Turgomap Tools Help Action Tool - C000D26D38D3dD44D4bD81D8cDc8Dc9De7De9C777D02D03D0dD0eD11D1aD21D2eD2fD31D41D46D48D4fD56D57D59D5dD62D65D68D6aD75D76D78D80D84D86D8bD8dD90D91D96D99D9bD9fDa0Da6Da7Da8Da9DaaDadDafDb4DbbDbfDcaDcfDd1Dd5DdbDdcDdfDe1De2De4De5DeaDebDedDeeDefDf6DfbDfcDfdDfeDffC555D1bD34D39D3bD4aD51D5bD74D8aD92D93D98D9aDb8C777D06D0aD0bD0cD17D23D47D4eD50D58D5aD5fD60D70Da1DabDacDb1Db6DbaDc1Dd2De3Df5C333D13D19D1cD29D45D54D5cD6cD6dD7eD82D8eDd4De6C666D01D04D0fD10D1dD1eD1fD20D30D3eD3fD40D5eD67D69D6bD6fD79D7aD7bD85D88D89D94D95DaeDb0Db7DbcDbdDbeDc0Dc6DcbDccDcdDceDd0DdaDddDdeDe0DecDf0Df1Df2Df3Df4C888D05D18D24D49D7dDd7DfaC222D14D15D16D25D27D2cD32D37D63Db5Dc7Dd9De8C666D00D12D33D42D55D66D77D7fD8fD97D9cDb9Df9C444D28D2bD53D64D87Da3Da5Dc5C888D3cDb3C111D08D2dD35D61D6eD71D7cDa4Db2Dc3C444D22D36D4dD52D73D9eDa2Df8C333D07D09D3aD43D4cD83D9dDc2Dd3C555D2aDc4Dd6Df7C999D72Dd8" {
@@ -37,12 +39,27 @@ macro 'Detect Circles Action Tool (f2) Options' {
 	detectCircleOptions();
 }
 
+macro 'Detect Circles Tool - C000T4b12d' {
+	getCursorLoc(x, y, z, modifiers);
+	width = 2*_MAX_RADIUS+1;
+	makeOval(x-(width/2), y-(width/2), width, width);
+	detectCircles();
+}
+
+macro 'Track Circles Action Tool - C000T4b12t (f3)' {
+	trackCircle();
+}
+
 macro "create-grid [f1]" {
 	createGrid();
 }
 
 macro "detect-circles [f2]" {
 	detectCircles();
+}
+
+macro "detect-circles [f3]" {
+	trackCircles();
 }
 
 function createGrid() {
@@ -214,11 +231,11 @@ function markEmptyTraps() {
 function detectCircles() {
 	if (selectionType()==-1) return;
 	run("MRI Roi Util");
-	run("Set Measurements...", "area mean modal min display redirect=None decimal=3");
+	setupMeasurements();
 	roiManager("reset")
 	roiManager("add");
 	setBatchMode(true);
-	runFindCircles();
+	runFindCircles(_MIN_RADIUS, _MAX_RADIUS, _RADIUS_STEP);
 	setBatchMode("exit and display");
 	drawCirclesAbove(_MIN_QUALITY_CIRCLE);
 	removeIntersectingRois();
@@ -231,12 +248,16 @@ function detectCircles() {
 	roiManager("select", 0);
 }
 
-function runFindCircles() {
+function setupMeasurements() {
+	run("Set Measurements...", "area mean modal min centroid display redirect=None decimal=3");
+}
+
+function runFindCircles(minRadius, maxRadius, step) {
 	roiManager("Select", 0);
 	getSelectionBounds(xBox, yBox, widthBox, heightBox);
-	run("Duplicate...", " ");
+	run("Duplicate...", "duplicate");
 	setBackgroundColor(0, 0, 0);
-	run("Clear Outside");
+	run("Clear Outside", "stack");
 	imageID = getImageID();
 	
 	title = "Circles";
@@ -250,7 +271,7 @@ function runFindCircles() {
 	 
 	print(handle, "\\Headings:n\tradius\tx\ty\tscore");
 	
-	for (radius=_MIN_RADIUS; radius<=_MAX_RADIUS; radius=radius+_RADIUS_STEP) {
+	for (radius=minRadius; radius<=maxRadius; radius=radius+step) {
 		run("Duplicate...", " ");
 		workingImageID = getImageID();
 		findCircles();
@@ -267,6 +288,47 @@ function runFindCircles() {
 		selectImage(imageID);
 	}
 	//close();
+}
+
+function trackCircle() {
+	setupMeasurements();
+	slice = getSliceNumber();
+	counter = 0;
+	getBoundingRect(x, y, width, height);
+	for(i=slice; i<=nSlices; i++) {
+		
+		run("Measure");
+		x1=getResult("X", nResults-1);
+		y1=getResult("Y", nResults-1);
+		run("Add Selection...");
+		run("Enlarge...", "enlarge="+_ENLARGE_BY);
+		getBoundingRect(x1, y1, width1, height1);
+		setSlice(i+1);
+		
+		roiManager("Deselect");
+		roiManager("Delete");	
+		
+		makeOval(x, y, width, height);
+		if (selectionType()==-1) return;
+	
+		roiManager("reset")
+		roiManager("add");
+		setBatchMode(true);
+		runFindCircles(width1/2, width1/2+_ENLARGE_BY, 1);
+		setBatchMode("exit and display");
+		drawCirclesAbove(_MIN_QUALITY_CIRCLE);
+		nrOfCircles = roiManager("count")-1;
+		if (nrOfCircles>3) removeBrightCircles();
+		sortCirclesByIntensity();
+		run("Select None");
+		close();
+		run("Select None");
+		roiManager("Deselect");
+		roiManager("Show None");
+		roiManager("select", 0);
+		moveTo(x, y);
+		waitForUser("Press ok to continue!");
+	}
 }
 
 function removeBrightCircles() {
