@@ -20,7 +20,10 @@ var _MAX_MEAN_INTENSITY = 65;
 var _MIN_QUALITY_CIRCLE = 100;
 
 var _ENLARGE_BY = 10
+var _PLOT_MEASUREMENTS = true;
+var _AUTO_MAX_MEAN = true
 
+var _MAX_DIST = 30;
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Turgomap-Tools";
 
 macro "MRI Turgomap Tools Help Action Tool - C000D26D38D3dD44D4bD81D8cDc8Dc9De7De9C777D02D03D0dD0eD11D1aD21D2eD2fD31D41D46D48D4fD56D57D59D5dD62D65D68D6aD75D76D78D80D84D86D8bD8dD90D91D96D99D9bD9fDa0Da6Da7Da8Da9DaaDadDafDb4DbbDbfDcaDcfDd1Dd5DdbDdcDdfDe1De2De4De5DeaDebDedDeeDefDf6DfbDfcDfdDfeDffC555D1bD34D39D3bD4aD51D5bD74D8aD92D93D98D9aDb8C777D06D0aD0bD0cD17D23D47D4eD50D58D5aD5fD60D70Da1DabDacDb1Db6DbaDc1Dd2De3Df5C333D13D19D1cD29D45D54D5cD6cD6dD7eD82D8eDd4De6C666D01D04D0fD10D1dD1eD1fD20D30D3eD3fD40D5eD67D69D6bD6fD79D7aD7bD85D88D89D94D95DaeDb0Db7DbcDbdDbeDc0Dc6DcbDccDcdDceDd0DdaDddDdeDe0DecDf0Df1Df2Df3Df4C888D05D18D24D49D7dDd7DfaC222D14D15D16D25D27D2cD32D37D63Db5Dc7Dd9De8C666D00D12D33D42D55D66D77D7fD8fD97D9cDb9Df9C444D28D2bD53D64D87Da3Da5Dc5C888D3cDb3C111D08D2dD35D61D6eD71D7cDa4Db2Dc3C444D22D36D4dD52D73D9eDa2Df8C333D07D09D3aD43D4cD83D9dDc2Dd3C555D2aDc4Dd6Df7C999D72Dd8" {
@@ -32,22 +35,30 @@ macro 'Create Grid Action Tool (f1) - C000T4b12g' {
 }
 
 macro 'Detect Circles Action Tool (f2) - C000T4b12c' {
-	detectCircles();
+	detectCircles(0, true);
 }
 
 macro 'Detect Circles Action Tool (f2) Options' {
 	detectCircleOptions();
 }
 
+macro 'Next Circle Action Tool (f5) - C000T4b12n' {
+	nextCircle();
+}
+
 macro 'Detect Circles Tool - C000T4b12d' {
 	getCursorLoc(x, y, z, modifiers);
 	width = 2*_MAX_RADIUS+1;
 	makeOval(x-(width/2), y-(width/2), width, width);
-	detectCircles();
+	detectCircles(0, true);
 }
 
 macro 'Track Circles Action Tool - C000T4b12t (f3)' {
 	trackCircle();
+}
+
+macro 'Measure Swelling Action Tool (f9) - C000T4b12m' {
+	measureSwelling();	 
 }
 
 macro "create-grid [f1]" {
@@ -55,11 +66,19 @@ macro "create-grid [f1]" {
 }
 
 macro "detect-circles [f2]" {
-	detectCircles();
+	detectCircles(0, true);
 }
 
 macro "detect-circles [f3]" {
-	trackCircles();
+	trackCircle();
+}
+
+macro "next-circle [f5]" {
+	nextCircle();
+}
+
+macro "measure-swelling [f9]" {
+	measureSwelling();
 }
 
 function createGrid() {
@@ -227,15 +246,49 @@ function markEmptyTraps() {
 }
 
 
+function nextCircle() {
+	run("Measure");
+	x1=getResult("X", nResults-1);
+	y1=getResult("Y", nResults-1);
+	run("Add Selection...");
+	Overlay.activateSelection(0);
+	sliceNr = getSliceNumber();
+	if (sliceNr==nSlices) return 999999;
+	setSlice(sliceNr+1);
+	detectCircles(0, false);
+	run("Clear Results");
+	roiManager("Deselect");
+	roiManager("Measure");
+	minDist = 999999;
+	minIndex = -1;
+	for (i = 0; i < nResults; i++) {
+		x2 = getResult("X", i);
+		y2 = getResult("Y", i);
+		dy = y2-y1;
+		dx = x2-x1;
+		dist = dx*dx + dy*dy;
+		if (dist<minDist) {
+			minDist = dist;
+			minIndex = i;
+		}
+	}
+	roiManager("select", minIndex);
+	return minDist;
+}
 
-function detectCircles() {
+function detectCircles(backgroundColor, duplicate) {
 	if (selectionType()==-1) return;
 	run("MRI Roi Util");
 	setupMeasurements();
 	roiManager("reset")
 	roiManager("add");
+	if (_AUTO_MAX_MEAN) {
+		roiManager("Select", 0);
+		getStatistics(area, mean);
+		_MAX_MEAN_INTENSITY = mean + 3;
+	}
 	setBatchMode(true);
-	runFindCircles(_MIN_RADIUS, _MAX_RADIUS, _RADIUS_STEP);
+	runFindCircles(_MIN_RADIUS, _MAX_RADIUS, _RADIUS_STEP, backgroundColor, duplicate);
 	setBatchMode("exit and display");
 	drawCirclesAbove(_MIN_QUALITY_CIRCLE);
 	removeIntersectingRois();
@@ -249,15 +302,19 @@ function detectCircles() {
 }
 
 function setupMeasurements() {
-	run("Set Measurements...", "area mean modal min centroid display redirect=None decimal=3");
+	run("Set Measurements...", "area mean modal min centroid stack display redirect=None decimal=3");
 }
 
-function runFindCircles(minRadius, maxRadius, step) {
+function runFindCircles(minRadius, maxRadius, step, backgroundColor, duplicate) {
 	roiManager("Select", 0);
 	getSelectionBounds(xBox, yBox, widthBox, heightBox);
-	run("Duplicate...", "duplicate");
-	setBackgroundColor(0, 0, 0);
-	run("Clear Outside", "stack");
+	if (duplicate) {
+		sliceNr = getSliceNumber();
+		run("Duplicate...", "duplicate");
+		setSlice(sliceNr);
+		setBackgroundColor(backgroundColor, backgroundColor, backgroundColor);
+		run("Clear Outside", "stack");
+	}
 	imageID = getImageID();
 	
 	title = "Circles";
@@ -296,39 +353,10 @@ function trackCircle() {
 	counter = 0;
 	getBoundingRect(x, y, width, height);
 	for(i=slice; i<=nSlices; i++) {
-		
-		run("Measure");
-		x1=getResult("X", nResults-1);
-		y1=getResult("Y", nResults-1);
-		run("Add Selection...");
-		run("Enlarge...", "enlarge="+_ENLARGE_BY);
-		getBoundingRect(x1, y1, width1, height1);
-		setSlice(i+1);
-		
-		roiManager("Deselect");
-		roiManager("Delete");	
-		
-		makeOval(x, y, width, height);
-		if (selectionType()==-1) return;
-	
-		roiManager("reset")
-		roiManager("add");
-		setBatchMode(true);
-		runFindCircles(width1/2, width1/2+_ENLARGE_BY, 1);
-		setBatchMode("exit and display");
-		drawCirclesAbove(_MIN_QUALITY_CIRCLE);
-		nrOfCircles = roiManager("count")-1;
-		if (nrOfCircles>3) removeBrightCircles();
-		sortCirclesByIntensity();
-		run("Select None");
-		close();
-		run("Select None");
-		roiManager("Deselect");
-		roiManager("Show None");
-		roiManager("select", 0);
-		moveTo(x, y);
-		waitForUser("Press ok to continue!");
+		distance = nextCircle();
+		if (distance>_MAX_DIST) break;
 	}
+	measureSwelling();
 }
 
 function removeBrightCircles() {
@@ -380,12 +408,14 @@ function detectCircleOptions() {
     Dialog.addNumber("Min. radius: ",  _MIN_RADIUS);
     Dialog.addNumber("Max. radius: ",  _MAX_RADIUS);
 	Dialog.addNumber("Delta radius: ", _RADIUS_STEP);
+	Dialog.addCheckbox("Auto. find max. mean intensity ", _AUTO_MAX_MEAN)
 	Dialog.addNumber("Max. mean intensity: ", _MAX_MEAN_INTENSITY);
 	Dialog.addNumber("Min. quality of circle: ", _MIN_QUALITY_CIRCLE);
     Dialog.show();
     _MIN_RADIUS = Dialog.getNumber();
     _MAX_RADIUS = Dialog.getNumber();
     _RADIUS_STEP = Dialog.getNumber();
+    _AUTO_MAX_MEAN = Dialog.getCheckbox();
     _MAX_MEAN_INTENSITY = Dialog.getNumber();
     _MIN_QUALITY_CIRCLE = Dialog.getNumber();
 }
@@ -434,6 +464,24 @@ function findCircles() {
         diameter=2*round(radius)+1;
         circleKernel(diameter);            
     }
+}
+
+function measureSwelling() {
+	run("Clear Results");
+	Overlay.activateSelection(0);
+	Overlay.removeSelection(0);
+	Overlay.measure;
+	Overlay.add;	
+	area = newArray(nResults);
+	if(_PLOT_MEASUREMENTS) {
+		time = newArray(nResults);
+		for(i=0; i<nResults; i++) {
+			area[i] = getResult("Area", i);
+			time[i] = i+1;
+		}
+		
+		Plot.create("Area/time", "time", "area", time, area);
+	}
 }
 
 //Function to generate and apply a circle shaped kernel
