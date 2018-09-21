@@ -150,8 +150,10 @@ function analyzeRootsInCurrentImage() {
 	
 	inputImageID = getImageID();
 	inputTitle = getTitle();
-	
-	doWand(3456, 3564, 45.0, "Legacy");
+
+	for(i=150; selectionType()<0 && i<5600; i=i+150) {
+		doWand(3456+i, 3564, 45.0, "Legacy");
+	}
 	run("Enlarge...", "enlarge=20");
 	run("Enlarge...", "enlarge=-30");
 	getStatistics(area, mean);
@@ -219,7 +221,8 @@ function analyzeRootsInCurrentImage() {
 		roiManager("Update");
 	}
 
-	ranks = Array.rankPositions(xCoordinates);	
+	rranks = Array.rankPositions(xCoordinates);	
+	ranks = Array.rankPositions(rranks);	
 	totalArea = 0;
 	measurements = newArray(nrOfRoots);
 	boundsX = newArray(nrOfRoots);
@@ -234,8 +237,8 @@ function analyzeRootsInCurrentImage() {
 		roiManager("select", boxIndex);
 		roiManager("Rename", rootNR + "-bounds");
 		getSelectionBounds(x, y, width, height);
-		boundsX[i] = x;
-		boundsY[i] = y;
+		boundsX[rootNR-1] = x;
+		boundsY[rootNR-1] = y;
 		run("Duplicate...", " ");
 		run("Create Selection");
 		run("Measure");
@@ -307,7 +310,7 @@ function analyzeRootsInCurrentImage() {
 	run("Select None");
 	
 	roiManager("Sort");
-
+	
 	// Reorder rois and measurements from left to right instead top/left to bottom/right
 
 	reportResults(measurements);
@@ -318,7 +321,7 @@ function analyzeRootsInCurrentImage() {
 	
 	setFont("SansSerif" ,72 , "bold");
 	for (i=0; i<nrOfRoots; i++) {
-		Overlay.drawString(""+(i+1), boundsX[ranks[i]]+5, boundsY[ranks[i]]+72);
+		Overlay.drawString(""+(i+1), boundsX[i]+5, boundsY[i]+72);
 	}
 }
 
