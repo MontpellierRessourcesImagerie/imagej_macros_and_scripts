@@ -78,10 +78,10 @@ function selectMainRoot() {
 		roiManager("Show All");
 		return;
 	}
-	if (_SUBTRACT_BACKGROUND) run("Subtract Background...", "rolling="+_SUBTRACT_BACKGROUND_RADIUS);
 	sourceImageID = getImageID();
 	run("Duplicate...", " ");
 	tmpImageID = getImageID();
+	if (_SUBTRACT_BACKGROUND) run("Subtract Background...", "rolling="+_SUBTRACT_BACKGROUND_RADIUS);
 	run("Subtract Background...", "rolling="+_RADIUS+" create");
 	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
 	run("Analyze Particles...", "size="+_MIN_AREA+"-Infinity add");
