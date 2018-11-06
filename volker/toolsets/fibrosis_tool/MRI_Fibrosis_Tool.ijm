@@ -18,6 +18,7 @@ var b3 = 0.831;
 var _EXT = ".ndpi";
 var _CONTROL_FOLDER = "control-images";
 var _RESULTS_TABLE = "Fibrosis area";
+var _REMOVE_SCALE = false;
 
 var helpURL = "http://dev.mri.cnrs.fr/projects/imagej-macros/wiki/MRI_Fibrosis_Tool";
 
@@ -50,6 +51,7 @@ macro "Measure Image (f2) Action Tool Options" {
 	Dialog.addNumber("green 3:", g3);
 	Dialog.addNumber("blue 3:", b3);
 	Dialog.addString("file ext.:", _EXT);
+	Dialog.addCheckbox("remove scale", _REMOVE_SCALE);
 	Dialog.show();
 	r1 = Dialog.getNumber();
 	g1 = Dialog.getNumber();
@@ -61,7 +63,9 @@ macro "Measure Image (f2) Action Tool Options" {
 	g3 = Dialog.getNumber();
 	b3 = Dialog.getNumber();
 	_EXT = Dialog.getString();
+	_REMOVE_SCALE = Dialog.getCheckbox();
 }
+
 macro "run batch [f3]" {
    measureCurrentImage();
 }
@@ -80,7 +84,9 @@ macro "Run Batch (f3) Action Tool Options" {
 }
 
 function measureCurrentImage() {
+	if (_REMOVE_SCALE) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
 	run("Set Measurements...", "area mean standard modal min display redirect=None decimal=3");
+	getPixelSize(unit, pixelWidth, pixelHeight);
 	run("RGB Color");
 	run("Restore Selection");
 	run("Clear Outside");
@@ -90,6 +96,7 @@ function measureCurrentImage() {
 	close();
 	setAutoThreshold("Default");
 	run("Create Selection");
+	run("Set Scale...", "distance=1 known="+pixelWidth+" pixel=1 unit="+unit);
 	run("Measure");
 	close();
 	close();
