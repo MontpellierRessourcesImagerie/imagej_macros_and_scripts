@@ -1,12 +1,24 @@
+/*
+ *	Heights Pf surfaces tools 
+ *	
+ *	The tool compares the height in the z-dimension of the signals in two different channels (red and blue). It calculates the fraction of the volume of the
+ *	red signal that lies above the blue signal and the fraction of the red signal that lies below the blue signal. Only places where both signals are present 
+ *	(heights of red and blue bigger than zero) are taken into account.
+ *	
+ */
 var	_METHODS = getList("threshold.methods");
 var _METHOD = _METHODS[0];
 var _NAMES = newArray("one", "two");
-
+var _EXTENSION = ".czi";
+var _REMOVE_BACKGROUND = true;
+var _RED_CHANNEL = 3;
+var _BLUE_CHANNEL = 1;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools";
 
+// FOR DEBUGGING
 //createSurfaceImage();
 //plotHeights();
-// calculateVolumes();
+//calculateVolumes();
 
 macro "MRI Heights of Surfaces Tools (f5) Help Action Tool - Cf00D1bD1cD24D25D28D29D31D32D33D41D42D43D44D45D68D69D6aD76D77D83D84D85D91D92D93D94D95Da6Da7Da9DaaDb9Dc6Dc7Dd5Dd6De7DfaDfbCfffD00D01D02D03D04D05D06D07D08D09D0aD0dD0eD0fD10D11D12D13D14D15D16D17D1dD1eD1fD20D21D22D23D2aD2bD2cD2dD2eD2fD30D34D35D37D38D39D3aD3bD3cD3dD3eD3fD40D48D49D4aD4bD4cD4dD4eD4fD50D51D52D53D54D55D56D5dD5eD5fD60D61D62D63D64D65D66D67D6dD6eD6fD70D71D72D73D74D75D78D79D7aD7cD7dD7eD7fD80D81D82D86D87D88D8bD8cD8dD8eD8fD90D96D97D99D9aD9bD9cD9dD9eD9fDa0Da1Da2Da3Da4Da5DabDacDadDaeDafDb0Db1Db2Db3Db4Db5Db6Db7DbaDbbDbcDbdDbeDbfDc0Dc1Dc2Dc3Dc4Dc5Dc9DcaDcbDccDcdDceDcfDd0Dd1Dd2Dd3Dd4Dd7Dd9DdaDdbDdcDddDdeDdfDe0De1De2De3De4De5De6DeaDebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7Df8DfcDfdDfeDffC00fD0bD0cD18D19D36D47D6bD6cD7bD89D8aD98Dc8Dd8Df9Cf0fD1aD26D27D46D57D58D59D5aD5bD5cDa8Db8De8De9"{
 	help();
@@ -26,6 +38,16 @@ macro "correct background [f6]" {
 
 macro 'Correct Background (f6) Action Tool - C000T4b12b' {
 	correctBackgrounds();
+}
+
+
+macro 'Correct Background (f6) Action Tool Options' {
+	 Dialog.create("Create Surface Image Options");
+	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
+	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
+ 	 Dialog.show();
+ 	 _BLUE_CHANNEL = Dialog.getNumber();
+ 	 _RED_CHANNEL = Dialog.getNumber();
 }
 
 macro "create surface image [f7]" {
@@ -54,29 +76,43 @@ macro 'calculate volumes [f9]' {
 	calculateVolumes();
 }
 
+macro 'Batch process (f11) Action Tool - C444D22D2cD52D5cD68D85D9dDe8Df6C000D29D41D67D8fDd4DebCcccD32D33D39D3cD57D65D69D6bD8aDa9Db8Dc7Dd7De7CbbbD26D7cD80D8bD8cD8eD92D95D99D9bD9cDa8DaaDabDb9DbaDbbDc4Dc9DcaDccDd6C222D31D3dD90D9eDc1Dd9DdaCeeeD17D36D37D38D45D46D48D49D4aD55D56D58D59D63D64D73D82D83Da4Da5Db3Db4Dc2Dc3C888D16D28D34D3aD42D4cD62D6cD70D79D7dDa7Db2Dd2Dd8DdbDdcDe6C111D06D98Df8CeeeD44D4bD53D54D5aD72D81Db5Db6CcccD35D71D7bD8dD9aDa6Dc8DcbC333D07D23D2bD66D91DbcDd5CfffD27D47D74D84D93D94Da3C555D18D75D7eD89Da2DacDd3Df7C111D08D25D61D96DcdCdddD3bD43D5bD6aD7aDb7Dc5Dc6' {
+	runBatchProcessing();
+}
+
+macro 'Batch process folders [f11]' {
+	runBatchProcessing();
+}
+
+macro 'Batch process (f11) Action Tool Options' {
+	 Dialog.create("Create Surface Batch Image Options");
+	 Dialog.addString("File extension: ", _EXTENSION);
+	 Dialog.addCheckbox("Remove background: ", _REMOVE_BACKGROUND)
+ 	 Dialog.show();
+ 	 _EXTENSION = Dialog.getString();
+ 	 _REMOVE_BACKGROUND = Dialog.getCheckbox();
+}
+
 function createSurfaceOptions() {
 	 Dialog.create("Create Surface Image Options");
 	 Dialog.addChoice("Auto-threshold method: "_METHODS, _METHOD)
+	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
+	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
  	 Dialog.show();
  	 _METHOD = Dialog.getChoice();
+ 	 _BLUE_CHANNEL = Dialog.getNumber();
+ 	 _RED_CHANNEL = Dialog.getNumber();
 }
 
 function createSurfaceImage() {
+	getDimensions(width, height, channels, slices, frames);
 	setBatchMode(true);
 	imageTitle = getTitle();
 	rename("image");
 	method = _METHOD;
-	getDimensions(width, height, channels, slices, frames);
 	imageID = getImageID();
-	if (channels==3) {
-		Stack.setChannel(2);
-		run("Delete Slice", "delete=channel");
-		Stack.setChannel(1);
-	}	
-	getDimensions(width, height, channels, slices, frames);
-	if (channels==2) {
-		run("Split Channels");
-	}
+	removeChannels();
+	run("Split Channels");
 	getVoxelSize(width, height, depth, unit);
 	for (i = 2; i > 0; i--) {
 		wait(500);
@@ -102,6 +138,19 @@ function createSurfaceImage() {
 	run("Enhance Contrast", "saturated=0.35");
 	setBatchMode(false);
 	rename(imageTitle + "-surface");
+}
+
+function removeChannels() {
+	channelsToBeDeleted = newArray(0);
+	for(i=1; i<=channels; i++) {
+		if (i!=_RED_CHANNEL && i!=_BLUE_CHANNEL) {
+			channelsToBeDeleted = Array.concat(channelsToBeDeleted,i);
+		}
+	}
+	for(i=0; i<channelsToBeDeleted.length; i++) {
+		Stack.setChannel(channelsToBeDeleted[i]);
+		run("Delete Slice", "delete=channel");
+	}
 }
 
 function plotHeights() {
@@ -237,9 +286,9 @@ function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbo
 }
 
 function correctBackgrounds() {
-	correctBackground(1);
-	correctBackground(3);
-	Stack.setChannel(1);
+	correctBackground(_BLUE_CHANNEL);
+	correctBackground(_RED_CHANNEL);
+	Stack.setChannel(_BLUE_CHANNEL);
 }
 
 function correctBackground(channel) {
@@ -261,7 +310,7 @@ function correctBackground(channel) {
 	run("Plot Z-axis Profile");
 	Plot.getValues(xpoints, ypoints);
 	close();
-	selectImage(imageID)
+	selectImage(imageID);
 	run("Select None");
 	Fit.doFit("Straight Line", xpoints, ypoints);
 	for (i = 0; i < xpoints.length; i++) {
@@ -271,3 +320,50 @@ function correctBackground(channel) {
 	}
 	Stack.setSlice(1);
 }
+
+function runBatchProcessing() {
+	input = getDirectory("Choose the input folder!");
+	output = getDirectory("Choose the output folder!");	
+	processFolder(input, output);
+	selectWindow("Volumes Table");
+	t = getTime();
+	ts = d2s(t, 0);
+	saveAs("results", output + "heights_of_surfaces-"+ts+".xls");
+}
+
+function processFolder(input, output) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i], output);
+		if(endsWith(list[i], _EXTENSION))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+	print("Processing: " + input + File.separator + file);
+	run("Bio-Formats Importer", "open=["+input + file +"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
+	if (_REMOVE_BACKGROUND) correctBackgrounds();
+	createSurfaceImage();
+	image = getImageID();
+	plotHeights();
+	Plot.makeHighResolution("Height of channels_HiRes",4.0);
+	save(output + file +"-plot.tif");
+	close();
+	close();
+	run("Select None");
+	calculateVolumes();
+	print("Saving to: " + output + File.nameWithoutExtension + ".png");
+	selectImage(image);
+	wait(500);
+	run("Capture Image");
+	save(output + File.nameWithoutExtension + ".png");
+	close();
+	close();
+}
+
+
+
+
