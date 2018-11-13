@@ -1,1 +1,1 @@
-The "heights of surfaces tools" help to compare the height in a z-stack in two channels of an image. See the wiki for details: [wiki:MRI_Heights_of_Surfaces_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools)
+The "heights of surfaces tools" help to compare the height in a z-stack in two channels of an image. See the wiki for details: [wiki/MRI_Heights_of_Surfaces_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools)
