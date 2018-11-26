@@ -8,7 +8,6 @@
  */
 var	_METHODS = getList("threshold.methods");
 var _METHOD = _METHODS[0];
-var _NAMES = newArray("one", "two");
 var _EXTENSION = ".czi";
 var _REMOVE_BACKGROUND = true;
 var _RED_CHANNEL = 3;
@@ -138,6 +137,7 @@ function createSurfaceImage() {
 	run("Enhance Contrast", "saturated=0.35");
 	setBatchMode(false);
 	rename(imageTitle + "-surface");
+	setMetadata("original_nr_of_slices", toString(slices));
 }
 
 function removeChannels() {
@@ -229,8 +229,9 @@ function calculateVolumes() {
 	close();
 	selectImage("C2-"+title);
 	close();
-	reportVolumes(title, volumeRed[0], volumeRed[1], volumeBlue[0], volumeBlue[1], unit);
 	close();
+	totalVolumes = measureTotalVolumes();
+	reportVolumes(title, volumeRed[0], volumeRed[1], volumeBlue[0], volumeBlue[1], totalVolumes, unit);
 	run("Restore Selection");
 }
 
@@ -272,17 +273,36 @@ function measureVolume(depth, commonSupportMaskID) {
 	return result;
 }
 
-function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbove, volumeBlueBelow, unit) {
+function measureTotalVolumes() {
+	width = getWidth();
+	height = getHeight();
+	slices = parseInt(getMetadata("original_nr_of_slices"));
+	getVoxelSize(pixelWidth, pixelHeight, pixelDepth, unit);
+	total = width*pixelWidth*height*pixelHeight*slices*pixelDepth;
+	run("Select None");
+	Stack.setChannel(1);
+	run("Measure");
+	volumeBlue = getResult("IntDen", nResults-1);
+	Stack.setChannel(2);
+	run("Measure");
+	volumeRed = getResult("IntDen", nResults-1);
+	fractionBlue = volumeBlue / total;
+	fractionRed = volumeRed / total;
+	results = newArray(fractionBlue, fractionRed, volumeBlue, volumeRed);
+	return results;
+}
+
+function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbove, volumeBlueBelow, totalVolumes, unit) {
   volumeRedTotal = volumeRedBelow + volumeRedAbove;
   title = "Volumes Table";
   handle = "["+title+"]";
   if (!isOpen(title)) {
      run("Table...", "name="+handle+" width=1000 height=600");
-  	 print(handle, "\\Headings:image\tthreshold\tfraction red above\tfraction red below\tvolume red above ("+unit+"^3)\tvolume red below ("+unit+"^3)");
+  	 print(handle, "\\Headings:image\tthreshold\tfraction red above\tfraction red below\tvolume red above ("+unit+"^3)\tvolume red below ("+unit+"^3)\tfraction blue total\tfraction red total\tvolume blue total ("+unit+"^3)\tvolume red total ("+unit+"^3)");
   }
   fractionRedAbove = volumeRedAbove / volumeRedTotal;
   fractionRedBelow = volumeRedBelow / volumeRedTotal;
-  print(handle, imageTitle + "\t" + _METHOD + "\t" + fractionRedAbove + "\t" + fractionRedBelow + "\t" + volumeRedAbove + "\t" + volumeRedBelow);
+  print(handle, imageTitle + "\t" + _METHOD + "\t" + fractionRedAbove + "\t" + fractionRedBelow + "\t" + volumeRedAbove + "\t" + volumeRedBelow + "\t" + totalVolumes[0] + "\t" + totalVolumes[1] + "\t" + totalVolumes[2] + "\t" + totalVolumes[3] + "\t");
 }
 
 function correctBackgrounds() {
