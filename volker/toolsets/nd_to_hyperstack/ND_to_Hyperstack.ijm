@@ -45,7 +45,7 @@ function convertNDImages() {
 	print("Converting nd-images to hyperstack...");
 	for(i=0; i<stageNames.length; i++) {
 		print("\\Update1:Converting position " + (i+1) + " of " + stageNames.length);
-		run("Bio-Formats Importer", "open="+path+" autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_"+(i+1));
+		run("Bio-Formats Importer", "open=["+path+"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_"+(i+1));
 		title = getTitle();
 		parts = split(title, "_");
 		nameP1 = parts[0];
