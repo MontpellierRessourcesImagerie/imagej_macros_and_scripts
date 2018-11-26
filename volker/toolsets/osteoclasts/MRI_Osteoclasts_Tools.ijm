@@ -143,15 +143,18 @@ function createRoisFromPredictions() {
 	imageCalculator("OR ", "C3-"+title, "C4-"+title);
 	objects = getTitle();
 	selectImage("C4-"+title);
+	wait(500);
 	close();
 	selectImage("C1-"+title);
 	imageCalculator("OR ", "C1-"+title, "C2-"+title);
 	background = getTitle();
 	selectImage("C2-"+title);
+	wait(500);
 	close();
 	selectImage(objects);
 	imageCalculator("Subtract ", objects, background);
 	selectImage(background);
+	wait(500);
 	close();
 	roiManager("reset");
 	run("Analyze Particles...", "size=20-Infinity exclude add");
@@ -173,6 +176,10 @@ function detectNuclei() {
 	run("Convert to Mask");
 	run("Watershed");
 	rename(title+"-"+"nuclei-mask");
+	run("Ultimate Points");
+	setThreshold(1, 255);
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
 	id = getImageID();
 	return id;
 }
@@ -189,12 +196,14 @@ function convertToMask(thresholdingMethod) {
 
 function filterRoisByNumberOfNuclei() {
 	count = roiManager("count");
+	run("Set Measurements...", "shape integrated display redirect=None decimal=3");
 	indicesOfRoisToBeDeleted = newArray();
-	run("Set Measurements...", "centroid limit display redirect=None decimal=3");
 	for(i=0; i<count; i++) {
 		roiManager("select", i);
-		run("Analyze Particles...", "size=5-Infinity display clear");
-		if(nResults<3) Array.concat(indicesOfRoisToBeDeleted,i);
+		run("Measure");
+		value = getResult("IntDen", nResults-1);
+		circ = getResult("Circ.", nResults-1);
+		if (value<511 || circ<0.25) indicesOfRoisToBeDeleted = Array.concat(indicesOfRoisToBeDeleted,i);
 	}
 	roiManager("select", indicesOfRoisToBeDeleted);
 	roiManager("delete");
