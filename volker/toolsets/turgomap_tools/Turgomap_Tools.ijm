@@ -26,12 +26,19 @@ var _AUTO_MAX_MEAN = true
 var _MAX_DIST = 30;
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Turgomap-Tools";
 
+// createGrid();
+// detectCircles(0, true);
+
 macro "MRI Turgomap Tools Help Action Tool - C000D26D38D3dD44D4bD81D8cDc8Dc9De7De9C777D02D03D0dD0eD11D1aD21D2eD2fD31D41D46D48D4fD56D57D59D5dD62D65D68D6aD75D76D78D80D84D86D8bD8dD90D91D96D99D9bD9fDa0Da6Da7Da8Da9DaaDadDafDb4DbbDbfDcaDcfDd1Dd5DdbDdcDdfDe1De2De4De5DeaDebDedDeeDefDf6DfbDfcDfdDfeDffC555D1bD34D39D3bD4aD51D5bD74D8aD92D93D98D9aDb8C777D06D0aD0bD0cD17D23D47D4eD50D58D5aD5fD60D70Da1DabDacDb1Db6DbaDc1Dd2De3Df5C333D13D19D1cD29D45D54D5cD6cD6dD7eD82D8eDd4De6C666D01D04D0fD10D1dD1eD1fD20D30D3eD3fD40D5eD67D69D6bD6fD79D7aD7bD85D88D89D94D95DaeDb0Db7DbcDbdDbeDc0Dc6DcbDccDcdDceDd0DdaDddDdeDe0DecDf0Df1Df2Df3Df4C888D05D18D24D49D7dDd7DfaC222D14D15D16D25D27D2cD32D37D63Db5Dc7Dd9De8C666D00D12D33D42D55D66D77D7fD8fD97D9cDb9Df9C444D28D2bD53D64D87Da3Da5Dc5C888D3cDb3C111D08D2dD35D61D6eD71D7cDa4Db2Dc3C444D22D36D4dD52D73D9eDa2Df8C333D07D09D3aD43D4cD83D9dDc2Dd3C555D2aDc4Dd6Df7C999D72Dd8" {
 	run('URL...', 'url='+helpURL);
 }
 
 macro 'Create Grid Action Tool (f1) - C000T4b12g' {
 	createGrid();
+}
+
+macro 'Create Grid Action Tool (f1) Options' {
+	createGridOptions();
 }
 
 macro 'Detect Circles Action Tool (f2) - C000T4b12c' {
@@ -69,7 +76,7 @@ macro "detect-circles [f2]" {
 	detectCircles(0, true);
 }
 
-macro "detect-circles [f3]" {
+macro "track-circles [f3]" {
 	trackCircle();
 }
 
@@ -99,8 +106,9 @@ function selectTraps() {
 	roiManager("Reset");
 	run("Options...", "iterations=10 count=1 do=Nothing");
 	run("Duplicate...", "use");
-	run("Subtract Background...", "rolling=30");
-	setAutoThreshold("Li dark");
+	// run("Subtract Background...", "rolling=30");
+	// setAutoThreshold("Li dark");
+	run("Auto Local Threshold", "method=Phansalkar radius=15 parameter_1=0 parameter_2=0");
 	run("Convert to Mask");
 	run("Dilate");
 	run("Analyze Particles...", "size="+2*_MIN_AREA+"-Infinity show=Masks in_situ");
@@ -158,10 +166,10 @@ function makeCircles() {
 		run("Select None");
 		selectImage(trapImage);
 		run("Select None");
-		setAutoThreshold("Huang");
+		setAutoThreshold("Triangle");
 		run("Convert to Mask");
-		run("Analyze Particles...", "size=2000-Infinity show=Masks include in_situ");
-		run("Erode");
+		run("Analyze Particles...", "size=1800-Infinity show=Masks include in_situ");
+//		run("Erode");
 		run("Fit Circle to Image", "threshold=254");
 		getSelectionBounds(xCircle, yCircle, widthCircle, heightCircle);
 		selectImage(originalImage);
@@ -181,15 +189,15 @@ function makeCircles() {
 	for(row=0; row<_NUMBER_OF_ROWS; row++) {
 		xCoords = newArray();
 		for(column=0; column<_NUMBER_OF_COLUMNS; column++) {
-			roiManager("select", _NUMBER_OF_ROWS * row + column);
+			roiManager("select", _NUMBER_OF_COLUMNS * row + column);
 			getSelectionBounds(x, y, width, height);
 			xCoords = Array.concat(xCoords, x);
 		}	
 		rankPositions = Array.rankPositions(Array.rankPositions(xCoords));
 		Array.print(xCoords);
 		Array.print(rankPositions);
-		for(column=0; column<_NUMBER_OF_ROWS; column++) {
-			roiManager("select", _NUMBER_OF_ROWS * row + column);
+		for(column=0; column<_NUMBER_OF_COLUMNS; column++) {
+			roiManager("select", _NUMBER_OF_COLUMNS * row + column);
 			roiManager("rename", ROW_NAMES[row] + "-" + COLUMN_NAMES[rankPositions[column]]);
 		}
 	}
@@ -212,7 +220,7 @@ function markEmptyTraps() {
 	imageID = getImageID();
 	setForegroundColor(0,0,0);
 	setBackgroundColor(255,255,255);
-	run("Reduce...", "reduction=10");
+//	run("Reduce...", "reduction=10");
 	run("Stack Difference", "gap=1");
 	run("Z Project...", "projection=[Max Intensity]");
 	setAutoThreshold("RenyiEntropy dark");
@@ -418,6 +426,15 @@ function detectCircleOptions() {
     _AUTO_MAX_MEAN = Dialog.getCheckbox();
     _MAX_MEAN_INTENSITY = Dialog.getNumber();
     _MIN_QUALITY_CIRCLE = Dialog.getNumber();
+}
+
+function createGridOptions() {
+	Dialog.create("Create Grid");
+    Dialog.addNumber("Number of rows: ", _NUMBER_OF_ROWS);
+    Dialog.addNumber("Number of columns: ", _NUMBER_OF_COLUMNS);
+    Dialog.show();
+    _NUMBER_OF_ROWS = Dialog.getNumber();
+    _NUMBER_OF_COLUMNS = Dialog.getNumber();
 }
 
 function findCircles() {
