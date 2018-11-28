@@ -12,6 +12,11 @@ var _EXTENSION = ".czi";
 var _REMOVE_BACKGROUND = true;
 var _RED_CHANNEL = 3;
 var _BLUE_CHANNEL = 1;
+var _CHANNEL_FOR_CELL_SEGMENTATION = 3;
+var _SHRINK_BY = 2.2;
+var _MIN_SIZE = 300;
+var _TOTAL_VOLUME_IN_CELL_ONLY = true;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools";
 
 // FOR DEBUGGING
@@ -92,15 +97,40 @@ macro 'Batch process (f11) Action Tool Options' {
  	 _REMOVE_BACKGROUND = Dialog.getCheckbox();
 }
 
+function findCell() {
+	run("Remove Overlay");
+	roiManager("reset");
+	run("Duplicate...", "duplicate channels="+_CHANNEL_FOR_CELL_SEGMENTATION+"-"+_CHANNEL_FOR_CELL_SEGMENTATION);
+	run("Z Project...", "projection=[Max Intensity]");
+	run("Gaussian Blur...", "sigma=8");
+	setAutoThreshold("Huang dark");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity include add");
+	roiManager("select", 0);
+	run("Enlarge...", "enlarge=-"+_SHRINK_BY);
+	roiManager("Update");
+	close(); 
+	close();
+	run("From ROI Manager");
+	roiManager("reset");
+}
+
 function createSurfaceOptions() {
 	 Dialog.create("Create Surface Image Options");
 	 Dialog.addChoice("Auto-threshold method: "_METHODS, _METHOD)
 	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
 	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
+	 Dialog.addCheckbox("Restrict total volume to cell", _TOTAL_VOLUME_IN_CELL_ONLY);
+	 Dialog.addNumber("segment cell in channel: ", _CHANNEL_FOR_CELL_SEGMENTATION);
+	 Dialog.addNumber("shrink roi of cell border by: ", _SHRINK_BY);
+	 Dialog.addNumber("min. size of cell", _MIN_SIZE);
  	 Dialog.show();
  	 _METHOD = Dialog.getChoice();
  	 _BLUE_CHANNEL = Dialog.getNumber();
  	 _RED_CHANNEL = Dialog.getNumber();
+ 	 _TOTAL_VOLUME_IN_CELL_ONLY = Dialog.getCheckbox();
+ 	 _CHANNEL_FOR_CELL_SEGMENTATION = Dialog.getNumber();
+ 	 _SHRINK_BY = Dialog.getNumber();
+ 	 _MIN_SIZE = Dialog.getNumber();
 }
 
 function createSurfaceImage() {
@@ -110,6 +140,8 @@ function createSurfaceImage() {
 	rename("image");
 	method = _METHOD;
 	imageID = getImageID();
+	findCell();
+	Overlay.copy;
 	removeChannels();
 	run("Split Channels");
 	getVoxelSize(width, height, depth, unit);
@@ -137,6 +169,7 @@ function createSurfaceImage() {
 	run("Enhance Contrast", "saturated=0.35");
 	setBatchMode(false);
 	rename(imageTitle + "-surface");
+	Overlay.paste;
 	setMetadata("original_nr_of_slices", toString(slices));
 }
 
@@ -274,18 +307,18 @@ function measureVolume(depth, commonSupportMaskID) {
 }
 
 function measureTotalVolumes() {
-	width = getWidth();
-	height = getHeight();
+	if (_TOTAL_VOLUME_IN_CELL_ONLY) Overlay.activateSelection(0);
+	getStatistics(area);
+	Stack.setChannel(1);
 	slices = parseInt(getMetadata("original_nr_of_slices"));
 	getVoxelSize(pixelWidth, pixelHeight, pixelDepth, unit);
-	total = width*pixelWidth*height*pixelHeight*slices*pixelDepth;
-	run("Select None");
-	Stack.setChannel(1);
+	total = area*slices*pixelDepth;
 	run("Measure");
 	volumeBlue = getResult("IntDen", nResults-1);
 	Stack.setChannel(2);
 	run("Measure");
 	volumeRed = getResult("IntDen", nResults-1);
+	run("Select None");
 	fractionBlue = volumeBlue / total;
 	fractionRed = volumeRed / total;
 	results = newArray(fractionBlue, fractionRed, volumeBlue, volumeRed);
