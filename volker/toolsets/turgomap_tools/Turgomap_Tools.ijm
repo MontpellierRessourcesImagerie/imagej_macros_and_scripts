@@ -15,6 +15,7 @@ var _FILLED_TRAPS;
 
 var _MIN_RADIUS = 20;
 var _MAX_RADIUS = 50;
+var _CIRCLE_KERNELS = createCircleKernels(_MIN_RADIUS, _MAX_RADIUS);
 var _RADIUS_STEP = 4;
 var _MAX_MEAN_INTENSITY = 65;
 var _MIN_QUALITY_CIRCLE = 100;
@@ -27,7 +28,7 @@ var _MAX_DIST = 30;
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Turgomap-Tools";
 
 // createGrid();
-// detectCircles(0, true);
+// detectCircles(0, false);
 
 macro "MRI Turgomap Tools Help Action Tool - C000D26D38D3dD44D4bD81D8cDc8Dc9De7De9C777D02D03D0dD0eD11D1aD21D2eD2fD31D41D46D48D4fD56D57D59D5dD62D65D68D6aD75D76D78D80D84D86D8bD8dD90D91D96D99D9bD9fDa0Da6Da7Da8Da9DaaDadDafDb4DbbDbfDcaDcfDd1Dd5DdbDdcDdfDe1De2De4De5DeaDebDedDeeDefDf6DfbDfcDfdDfeDffC555D1bD34D39D3bD4aD51D5bD74D8aD92D93D98D9aDb8C777D06D0aD0bD0cD17D23D47D4eD50D58D5aD5fD60D70Da1DabDacDb1Db6DbaDc1Dd2De3Df5C333D13D19D1cD29D45D54D5cD6cD6dD7eD82D8eDd4De6C666D01D04D0fD10D1dD1eD1fD20D30D3eD3fD40D5eD67D69D6bD6fD79D7aD7bD85D88D89D94D95DaeDb0Db7DbcDbdDbeDc0Dc6DcbDccDcdDceDd0DdaDddDdeDe0DecDf0Df1Df2Df3Df4C888D05D18D24D49D7dDd7DfaC222D14D15D16D25D27D2cD32D37D63Db5Dc7Dd9De8C666D00D12D33D42D55D66D77D7fD8fD97D9cDb9Df9C444D28D2bD53D64D87Da3Da5Dc5C888D3cDb3C111D08D2dD35D61D6eD71D7cDa4Db2Dc3C444D22D36D4dD52D73D9eDa2Df8C333D07D09D3aD43D4cD83D9dDc2Dd3C555D2aDc4Dd6Df7C999D72Dd8" {
 	run('URL...', 'url='+helpURL);
@@ -258,6 +259,7 @@ function nextCircle() {
 	run("Measure");
 	x1=getResult("X", nResults-1);
 	y1=getResult("Y", nResults-1);
+	mean1 = getResult("Mean", nResults-1);
 	run("Add Selection...");
 	Overlay.activateSelection(0);
 	sliceNr = getSliceNumber();
@@ -269,19 +271,24 @@ function nextCircle() {
 	roiManager("Measure");
 	minDist = 999999;
 	minIndex = -1;
+	minDistSpatial = 999999;
 	for (i = 0; i < nResults; i++) {
 		x2 = getResult("X", i);
 		y2 = getResult("Y", i);
+		mean2 = getResult("Mean", i);
 		dy = y2-y1;
 		dx = x2-x1;
-		dist = dx*dx + dy*dy;
+		dm = mean2-mean1;
+		distSpatial = dx*dx + dy*dy;
+		dist = distSpatial + dm*dm;
 		if (dist<minDist) {
 			minDist = dist;
+			minDistSpatial = distSpatial;
 			minIndex = i;
 		}
 	}
 	roiManager("select", minIndex);
-	return minDist;
+	return minDistSpatial;
 }
 
 function detectCircles(backgroundColor, duplicate) {
@@ -306,7 +313,7 @@ function detectCircles(backgroundColor, duplicate) {
 	run("Select None");
 	roiManager("Deselect");
 	roiManager("Show None");
-	roiManager("select", 0);
+	roiManager("select", 1);
 }
 
 function setupMeasurements() {
@@ -339,7 +346,7 @@ function runFindCircles(minRadius, maxRadius, step, backgroundColor, duplicate) 
 	for (radius=minRadius; radius<=maxRadius; radius=radius+step) {
 		run("Duplicate...", " ");
 		workingImageID = getImageID();
-		findCircles();
+		findCircles(radius);
 		run("Find Maxima...", "noise=20 output=[Point Selection]");
 		run("Clear Results");
 		run("Measure");
@@ -426,6 +433,8 @@ function detectCircleOptions() {
     _AUTO_MAX_MEAN = Dialog.getCheckbox();
     _MAX_MEAN_INTENSITY = Dialog.getNumber();
     _MIN_QUALITY_CIRCLE = Dialog.getNumber();
+    
+    _CIRCLE_KERNELS =  createCircleKernels(_MIN_RADIUS, _MAX_RADIUS);
 }
 
 function createGridOptions() {
@@ -437,7 +446,7 @@ function createGridOptions() {
     _NUMBER_OF_COLUMNS = Dialog.getNumber();
 }
 
-function findCircles() {
+function findCircles(radius) {
 	inverted=true;
 	filled=false;
 	slices=true;
@@ -478,8 +487,9 @@ function findCircles() {
             run("Find Edges", "slice");
         }
         //Find circles in the image
-        diameter=2*round(radius)+1;
-        circleKernel(diameter);            
+		
+        kernelstring = _CIRCLE_KERNELS[radius-_MIN_RADIUS];
+    	run("Convolve...", "text1=["+kernelstring+"] normalize slice");          
     }
 }
 
@@ -503,34 +513,8 @@ function measureSwelling() {
 
 //Function to generate and apply a circle shaped kernel
 //The diameter must be odd and greater than zero, very large diameters are slow
-function circleKernel(diameter) {
-    //Make an image to generate the kernel pattern in
-    newImage("Kernel", "8-bit Black", diameter, diameter, 1);
-    //And make a hollow circle 1px in thickness with a value of one
-    makeOval(0, 0, diameter, diameter);
-    setColor(1);
-    fill();
-    makeOval(1, 1, diameter-2, diameter-2);
-    setColor(0);
-    fill();
-    run("Select None");
-    setMinAndMax(0, 1);
+function circleKernel(radius) {
 
-    //Record the kernel by reading the image values to a 2D array
-    kernel=newArray(diameter*diameter);
-    kernelstring="";
-    for (x=0; x<diameter; x++) {
-        for (y=0; y<diameter; y++) {
-            kernel[x+y*diameter]=getPixel(x, y);
-            kernelstring+=""+getPixel(x, y)+" ";
-        }
-        kernelstring+="\n";
-    }
-    //And close the kernel image
-    close();
-
-    //Apply the kernel to the image
-    run("Convolve...", "text1=["+kernelstring+"] normalize slice");
 } 
 
 
@@ -552,8 +536,7 @@ function drawCirclesAbove(scoreMin) {
 }
 
 function sortRoisBy(aList) {
-	REVERSE = true;
-	Array.sort(aList);
+	REVERSE = false;
 	positions = Array.rankPositions(aList);
 	if (REVERSE) Array.reverse(positions);
 	ranks = Array.rankPositions(positions);
@@ -571,4 +554,42 @@ function sortRoisBy(aList) {
 	roiManager("Sort");
 	roiManager("Show None");
 	roiManager("Show All");
+	
+}
+
+function createCircleKernels(startRadius, endRadius) {
+	/** Calculate the kernel-strings for the circular convolution filters.
+	 */
+	setBatchMode(true);
+	kernels = newArray();
+	for(radius=startRadius; radius<=endRadius; radius++) {
+		diameter = 2*radius+1;
+		//Make an image to generate the kernel pattern in
+	    newImage("Kernel", "8-bit Black", diameter, diameter, 1);
+	    //And make a hollow circle 1px in thickness with a value of one
+	    makeOval(0, 0, diameter, diameter);
+	    setColor(1);
+	    fill();
+	    makeOval(1, 1, diameter-2, diameter-2);
+	    setColor(0);
+	    fill();
+	    run("Select None");
+	    setMinAndMax(0, 1);
+	    //Record the kernel by reading the image values to a 2D array
+	    kernel=newArray(diameter*diameter);
+	    kernelstring="";
+	    for (x=0; x<diameter; x++) {
+	        for (y=0; y<diameter; y++) {
+	            kernel[x+y*diameter]=getPixel(x, y);
+	            kernelstring+=""+getPixel(x, y)+" ";
+	        }
+	        kernelstring+="\n";
+	    }
+	    //And close the kernel image
+	    close();
+	
+	  	kernels = Array.concat(kernels, kernelstring);
+	}
+	setBatchMode(false);
+	return kernels;
 }
