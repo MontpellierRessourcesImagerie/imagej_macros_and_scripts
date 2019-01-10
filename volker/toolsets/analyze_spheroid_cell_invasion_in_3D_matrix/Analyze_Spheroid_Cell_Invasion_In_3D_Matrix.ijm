@@ -1,7 +1,7 @@
 /**
   *  Measure the area of the invading spheroïd in a 3D cell invasion assay.
   *   
-  *  written 2016 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
+  *  written 2016-2019 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
   *  in cooperation with Mailys LE BORGNE
   **
 */
@@ -11,7 +11,9 @@ var _FILE_EXTENSIONS = newArray("tif", "TIF");
 var _REMOVE_SMALL_OBJECTS = true;
 var _MIN_SIZE = 50;
 var _INVERT_CONTRAST = false;
-
+var _SPHEROID_ROI_COLOR = "magenta";
+var _NUCLEI_ROI_COLOR = "cyan";
+var _MIN_SIZE_NUCLEI=180;
 var _URL = "http://dev.mri.cnrs.fr/projects/imagej-macros/wiki/Analyze_Spheroid_Cell_Invasion_In_3D_Matrix";
 
 
@@ -21,6 +23,10 @@ macro "HELP for the Analyze Spheroid Cell Invasion In 3D Matrix Action Tool - C7
 
 macro "Measure Area Current Image Action Tool - C037T4d14m" {
 	 measureArea();
+}
+
+macro "Measure Area Current Stack Action Tool - C037T4d14s" {
+	measureStack();
 }
 
 macro "Measure Area Batch Action Tool - C037T4d14b" {
@@ -61,6 +67,88 @@ function measureSeries(folder, files) {
 	setBatchMode("exit and display");
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 	print("Measure area finished at "+hour+":"+minute+":"+second+"."+msec);
+}
+
+/*
+ * Channel one is supposed to contain the nuclei and channel two the cells.
+ */
+function measureStack() {
+	inputTitle = getTitle();
+	outDir = getDirectory("Please select the output folder!");
+	run("Set Measurements...", "area centroid stack display redirect=None decimal=3");
+	setForegroundColor(255, 255, 255);
+	setBackgroundColor(0, 0, 0);
+	run("Clear Results");
+	inputImage = getImageID();
+	getDimensions(width, height, channels, slices, frames);
+	if (slices>1 && frames == 1) run("Properties...", "channels="+channels+" slices=1 frames="+slices);
+	getDimensions(width, height, channels, slices, frames);
+	run("Remove Overlay");
+	setBatchMode(true);
+	if (channels>1) Stack.setChannel(2);
+	for (i = 1; i <= frames; i++) {
+		Stack.setFrame(i);
+		measureArea();
+		Overlay.addSelection(_SPHEROID_ROI_COLOR);
+		if (channels>1) Overlay.setPosition(0,0,i);
+		else Overlay.setPosition(i);
+	}
+	area = newArray(frames);
+	for (i = 0; i < frames; i++) {
+		area[i] = getResult("Area", i);
+	}
+	setBatchMode(false);
+	run("Select None");
+	roiManager("reset");
+	Stack.setFrame(1);
+	setBatchMode(true);
+	if (channels>1) {
+		run("To ROI Manager");
+		run("Duplicate...", "duplicate channels=1-1");
+		nucleiImage = getImageID();
+		countNuclei();
+		selectImage(inputImage);
+		count = roiManager("count");
+		for (i = 0; i < count; i++) {
+			Stack.setFrame(i+1);
+			roiManager("select", i);
+			Overlay.addSelection(_SPHEROID_ROI_COLOR);
+			Overlay.setPosition(0,0,i+1);
+		}
+		setAutoThreshold("Default");
+		selectImage(nucleiImage);
+		title = getTitle();
+		run("Analyze Particles...", "size="+_MIN_SIZE_NUCLEI+"-Infinity show=Nothing display clear summarize add stack");
+		close();
+		Table.rename("Summary of "+title, "Results");
+		combineRoisByFrame();
+		for(i=0; i<frames; i++) {
+			setResult("spheroid area", i, area[i]);
+		}
+	}
+	setBatchMode(false);
+	Stack.setFrame(1);
+	saveAs("results", outDir+"/"+"results.xls");
+	saveAs("tiff", outDir+"/"+inputTitle);
+	beep();
+}
+
+
+function combineRoisByFrame() {
+	for (i = 0; i < nResults; i++) {
+		frame = getResult("Slice", i);
+		count = getResult("Count", i);
+		indices = newArray(count);
+		for (index = 0; index < count; index++) {
+			indices[index] = index;
+		}
+		roiManager("select", indices);
+		roiManager("combine");
+		Overlay.addSelection(_NUCLEI_ROI_COLOR);
+		Overlay.setPosition(0,0,frame);
+		run("Select None");
+		roiManager("delete");
+	}
 }
 
 function measureArea() {
@@ -107,3 +195,38 @@ function filterFiles(files, extensions) {
 	return resultFiles;
 }
 
+/*
+ * Count the nuclei in the image. If a selection is given, only the nuclei in the selection 
+ * are counted.
+ * 
+ * (c) 2019 INSERM
+ * 
+ * Written by Volker Baecker, based on a version written by Sylvain DeRossi.
+ */
+
+function countNuclei() {
+	run("Options...", "iterations=1 count=1 do=Nothing");
+	run("Subtract Background...", "rolling=50 stack");
+	run("Unsharp Mask...", "radius=10 mask=0.90 stack");
+	run("Median...", "radius=2 stack");
+	run("8-bit");
+	setAutoThreshold("Mean dark");
+	run("Convert to Mask", "method=Mean background=Dark calculate");
+	run("Fill Holes", "stack");
+	run("Analyze Particles...", "size=50-Infinity show=Nothing stack");
+	run("Erode", "stack");
+	run("Dilate", "stack");
+	run("Fill Holes", "stack");
+	run("Dilate", "stack");
+	run("Watershed", "stack");
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		Stack.setFrame(i+1);
+		run("Make Inverse");
+		run("Fill", "slice");
+		run("Make Inverse");
+		roiManager("update");
+	}
+	run("Select None");
+}
