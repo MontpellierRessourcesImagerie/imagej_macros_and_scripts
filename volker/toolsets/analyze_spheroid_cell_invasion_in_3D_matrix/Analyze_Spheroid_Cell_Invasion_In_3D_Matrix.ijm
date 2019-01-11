@@ -11,9 +11,17 @@ var _FILE_EXTENSIONS = newArray("tif", "TIF");
 var _REMOVE_SMALL_OBJECTS = true;
 var _MIN_SIZE = 50;
 var _INVERT_CONTRAST = false;
+var _COLORS = newArray("red","green","blue","magenta","cyan","yellow","orange","black","white");
 var _SPHEROID_ROI_COLOR = "magenta";
 var _NUCLEI_ROI_COLOR = "cyan";
+
 var _MIN_SIZE_NUCLEI=180;
+var _ROLLING_BALL_RADIUS = 50;
+var _UNSHARP_MASK_RADIUS = 10;
+var _UNSHARP_MASK_WEIGHT = 0.9;
+var _MEDIAN_FILTER_RADIUS = 2;
+var _REMOVE_SMALL_OBJECTS_SIZE = 50;
+
 var _URL = "http://dev.mri.cnrs.fr/projects/imagej-macros/wiki/Analyze_Spheroid_Cell_Invasion_In_3D_Matrix";
 
 
@@ -47,6 +55,27 @@ macro "Measure Area Current Image Action Tool Options" {
 	_REMOVE_SMALL_OBJECTS = Dialog.getCheckbox();
 	_MIN_SIZE = Dialog.getNumber();
 	_INVERT_CONTRAST = Dialog.getCheckbox();
+}
+
+macro "Measure Area Current Stack Action Tool Options" {
+	Dialog.create("Measure Area on Stack Options");
+	Dialog.addNumber("min. nucleus size", _MIN_SIZE_NUCLEI);
+	Dialog.addNumber("subtract background radius", _ROLLING_BALL_RADIUS );
+	Dialog.addNumber("unsharp mask radius", _UNSHARP_MASK_RADIUS);
+	Dialog.addNumber("unsharp mask weight", _UNSHARP_MASK_WEIGHT);
+	Dialog.addNumber("median filter radius", _MEDIAN_FILTER_RADIUS);
+	Dialog.addNumber("remove small objects size", _REMOVE_SMALL_OBJECTS_SIZE);
+	Dialog.addChoice("color of the spheroid roi", _COLORS, _SPHEROID_ROI_COLOR);
+	Dialog.addChoice("color of the nuclei roi", _COLORS, _NUCLEI_ROI_COLOR);
+	Dialog.show();
+	_MIN_SIZE_NUCLEI = Dialog.getNumber();
+	_ROLLING_BALL_RADIUS = Dialog.getNumber();
+	_UNSHARP_MASK_RADIUS = Dialog.getNumber();
+	_UNSHARP_MASK_WEIGHT = Dialog.getNumber();
+	_MEDIAN_FILTER_RADIUS = Dialog.getNumber();
+	_REMOVE_SMALL_OBJECTS_SIZE = Dialog.getNumber();
+	_SPHEROID_ROI_COLOR = Dialog.getChoice();
+	_NUCLEI_ROI_COLOR = Dialog.getChoice();
 }
 
 function measureSeries(folder, files) {
@@ -206,14 +235,14 @@ function filterFiles(files, extensions) {
 
 function countNuclei() {
 	run("Options...", "iterations=1 count=1 do=Nothing");
-	run("Subtract Background...", "rolling=50 stack");
-	run("Unsharp Mask...", "radius=10 mask=0.90 stack");
-	run("Median...", "radius=2 stack");
+	run("Subtract Background...", "rolling="+_ROLLING_BALL_RADIUS+" stack");
+	run("Unsharp Mask...", "radius="+_UNSHARP_MASK_RADIUS+" mask="+_UNSHARP_MASK_WEIGHT+" stack");
+	run("Median...", "radius="+_MEDIAN_FILTER_RADIUS+" stack");
 	run("8-bit");
 	setAutoThreshold("Mean dark");
 	run("Convert to Mask", "method=Mean background=Dark calculate");
 	run("Fill Holes", "stack");
-	run("Analyze Particles...", "size=50-Infinity show=Nothing stack");
+	run("Analyze Particles...", "size="+_REMOVE_SMALL_OBJECTS_SIZE+"-Infinity show=Nothing stack");
 	run("Erode", "stack");
 	run("Dilate", "stack");
 	run("Fill Holes", "stack");
