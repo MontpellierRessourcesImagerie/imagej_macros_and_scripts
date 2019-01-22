@@ -9,7 +9,7 @@
  * 
 **/
 
-var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Load-Corresponding_Images";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Load-Corresponding-Images";
 var DIRECTORY1 = "";
 var DIRECTORY2 = "";
 var FILES = newArray(0);
