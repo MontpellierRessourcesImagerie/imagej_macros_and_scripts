@@ -14,6 +14,8 @@ var _INVERT_CONTRAST = false;
 var _COLORS = newArray("red","green","blue","magenta","cyan","yellow","orange","black","white");
 var _SPHEROID_ROI_COLOR = "magenta";
 var _NUCLEI_ROI_COLOR = "cyan";
+var _SPHEROID_STROKE_WIDTH = 4;
+var _NUCLEI_STROKE_WIDTH = 4;
 
 var _MIN_SIZE_NUCLEI=180;
 var _ROLLING_BALL_RADIUS = 50;
@@ -66,7 +68,9 @@ macro "Measure Area Current Stack Action Tool Options" {
 	Dialog.addNumber("median filter radius", _MEDIAN_FILTER_RADIUS);
 	Dialog.addNumber("remove small objects size", _REMOVE_SMALL_OBJECTS_SIZE);
 	Dialog.addChoice("color of the spheroid roi", _COLORS, _SPHEROID_ROI_COLOR);
+	Dialog.addNumber("stroke-width of the sheroid roi", _SPHEROID_STROKE_WIDTH);
 	Dialog.addChoice("color of the nuclei roi", _COLORS, _NUCLEI_ROI_COLOR);
+	Dialog.addNumber("stroke-width of the nuclei roi", _NUCLEI_STROKE_WIDTH);
 	Dialog.show();
 	_MIN_SIZE_NUCLEI = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
@@ -75,7 +79,9 @@ macro "Measure Area Current Stack Action Tool Options" {
 	_MEDIAN_FILTER_RADIUS = Dialog.getNumber();
 	_REMOVE_SMALL_OBJECTS_SIZE = Dialog.getNumber();
 	_SPHEROID_ROI_COLOR = Dialog.getChoice();
+	_SPHEROID_STROKE_WIDTH = Dialog.getNumber();
 	_NUCLEI_ROI_COLOR = Dialog.getChoice();
+	_NUCLEI_STROKE_WIDTH = Dialog.getNumber();
 }
 
 function measureSeries(folder, files) {
@@ -118,7 +124,7 @@ function measureStack() {
 	for (i = 1; i <= frames; i++) {
 		Stack.setFrame(i);
 		measureArea();
-		Overlay.addSelection(_SPHEROID_ROI_COLOR);
+		Overlay.addSelection(_SPHEROID_ROI_COLOR, _SPHEROID_STROKE_WIDTH);
 		if (channels>1) Overlay.setPosition(0,0,i);
 		else Overlay.setPosition(i);
 	}
@@ -141,7 +147,7 @@ function measureStack() {
 		for (i = 0; i < count; i++) {
 			Stack.setFrame(i+1);
 			roiManager("select", i);
-			Overlay.addSelection(_SPHEROID_ROI_COLOR);
+			Overlay.addSelection(_SPHEROID_ROI_COLOR, _SPHEROID_STROKE_WIDTH);
 			Overlay.setPosition(0,0,i+1);
 		}
 		setAutoThreshold("Default");
@@ -173,7 +179,7 @@ function combineRoisByFrame() {
 		}
 		roiManager("select", indices);
 		roiManager("combine");
-		Overlay.addSelection(_NUCLEI_ROI_COLOR);
+		Overlay.addSelection(_NUCLEI_ROI_COLOR, _NUCLEI_STROKE_WIDTH);
 		Overlay.setPosition(0,0,frame);
 		run("Select None");
 		roiManager("delete");
