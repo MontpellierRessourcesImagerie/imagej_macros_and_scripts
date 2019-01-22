@@ -13,7 +13,7 @@ var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_an
 var DIRECTORY1 = "";
 var DIRECTORY2 = "";
 var FILES = newArray(0);
-var EXT = ".tif";
+var EXT = "tif";
 var VIEW_OPTION = "Hyperstack";
 var currentFile = 0;
 var IMAGE_A = "";
@@ -110,7 +110,15 @@ macro "Open File (f8) Action Tool Options" {
 }
 
 function showIOSettings() {
-    // Create options with dialog
+     Dialog.create("Load Corresponding Images Options");
+     if (FILES.length<1) message = "No current image. Please set the input folders!";
+     else message = "Image " + (currentFile + 1) + " of " + FILES.length;
+     Dialog.addMessage(message);
+	 Dialog.addString("File extension: ", EXT);
+	 Dialog.addCheckbox("Close last pair of images", CLOSE_LAST_IMAGES);
+ 	 Dialog.show();
+ 	 EXT = Dialog.getString();
+ 	 CLOSE_LAST_IMAGES = Dialog.getCheckbox();
 }
 
 function getFiles() {
@@ -118,7 +126,7 @@ function getFiles() {
      FILES = newArray(0);
      for (i=0; i<list.length; i++) {
      	file = list[i];
-     	if (endsWith(file, EXT)) {
+     	if (endsWith(file, "."+EXT)) {
      		FILES = Array.concat(FILES, file);
      	}
      }
@@ -135,10 +143,14 @@ function setFolders() {
 
 function loadCurrentImage() {
     if (nImages>0 && CLOSE_LAST_IMAGES) {
-    	selectImage(IMAGE_A);
-    	close();
-    	selectImage(IMAGE_B);
-    	close();
+    	if (isOpen(IMAGE_A)) {
+    		selectImage(IMAGE_A);
+    		close();
+    	}
+    	if (isOpen(IMAGE_B)) {
+    		selectImage(IMAGE_B);
+    		close();
+    	}
     }
     if (FILES.length<1) return;
     file = FILES[currentFile];
