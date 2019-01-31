@@ -10,9 +10,11 @@ var _FILTER = "Gaussian Blur...";
 var _FILTER_PARAM = 1.2;
 var _MIN_SIZE = 20;
 var _MEASURE_REGION_OPTIONS = newArray("whole cell", "above threshold", "around max");
-var _MEASURE_REGION_OPTION = _MEASURE_REGION_OPTIONS[1];
+var _MEASURE_REGION_OPTION = _MEASURE_REGION_OPTIONS[0];
 var _PROJECTION_IMAGE_ID = 0;
-
+var _RADIUS_AROUND_MAX = 3;
+var _FIND_MAXIMA_NOISE = 10000;
+var _DO_NOT_CORRECT_BACKGROUND = false;
 
 // regions are named according to the schema:
 // 	I_PHOTO_C<cc>_t<tt> - photo converted region of cell cc at time point tt
@@ -43,9 +45,11 @@ macro "pepare image [f2]" {
 
 macro "prepare image Action Tool (f2) Options" {
 	Dialog.create("Photo Conversion Analysis Options");
+	Dialog.addCheckbox("do not correct background", _DO_NOT_CORRECT_BACKGROUND);
 	Dialog.addCheckbox("use rolling-ball", _USE_ROLLING_BALL);
     Dialog.addNumber("rolling ball radius: ", _ROLLING_BALL_RADIUS);
     Dialog.show();
+    _DO_NOT_CORRECT_BACKGROUND = Dialog.getCheckbox();
     _USE_ROLLING_BALL = Dialog.getCheckbox();
     _ROLLING_BALL_RADIUS = Dialog.getNumber();
 }
@@ -89,22 +93,39 @@ macro "plot intensity curve [f4]" {
 function plotCurve() {
 	run("Duplicate...", "duplicate");
 	run("32-bit");
-	setSlice(1);
-	getStatistics(area, mean);
-	print("Mean before photoconversion: ", mean);
-	run("Select None");
-	run("Divide...", "value="+mean+" stack");
-	run("Restore Selection");
 	run("Clear Results");
 	roiManager("reset");
 	roiManager("add");
 	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[0]) plotCurveWholeCell();
 	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[1]) plotCurveAboveThreshold();
+	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[2]) plotCurveAroundMax();
 }
 
 function plotCurveWholeCell() {
 	roiManager("select", 0)
 	roiManager("Multi Measure");
+	close();
+	createPlot();
+}
+
+function plotCurveAroundMax() {
+	run("Clear Results");
+	Stack.getDimensions(width, height, channels, slices, frames);
+	Stack.setFrame(1);
+	roiManager("select", 0)
+	getStatistics(area, int);
+	setResult("Mean1", 0, int);
+	for (i=2; i<=frames; i++) {
+		Stack.setFrame(i);
+		run("Find Maxima...", "noise="+_FIND_MAXIMA_NOISE+" output=[Point Selection]");
+		if (_RADIUS_AROUND_MAX>0) {
+			run("To Bounding Box");
+			run("Enlarge...", "enlarge="+_RADIUS_AROUND_MAX +" pixel");
+		}
+		getStatistics(area, int);
+		setResult("Mean1", i-1, int);
+		run("Select None");
+	}
 	close();
 	createPlot();
 }
@@ -120,18 +141,24 @@ function plotCurveAboveThreshold() {
 }
 
 function createPlot() {
-	Table.deleteRows(0, 0);
-	Plot.create("Plot of Results", "x", "Mean1");
-	Plot.setColor("blue")
-	Plot.add("Circle", Table.getColumn("Mean1", "Results"));
+	I_min = getResult("Mean1", 0);
+	I_max = getResult("Mean1", 1);
+	intensities = newArray(nResults-1);
+	for(i=1; i<nResults; i++) {
+		I = getResult("Mean1", i);
+		I_norm = (I - I_min) / (I_max - I_min);
+		intensities[i-1] = I_norm;
+	}
+	Plot.create("Intensity Plot", "t", "Intensity");
+	Plot.setColor("blue");
+	Plot.add("circle", intensities);
 }
 
 function prepareImage() {
 	inputImage = getImageID();
 	run("Select None");
 	run("Duplicate...", "duplicate channels="+_CHANNEL+"-"+_CHANNEL);
-	run("Restore Selection");
-	correctBackground(_USE_ROLLING_BALL, _ROLLING_BALL_RADIUS);
+	if (!_DO_NOT_CORRECT_BACKGROUND) correctBackground(_USE_ROLLING_BALL, _ROLLING_BALL_RADIUS);
 	channelImageID = getImageID();
 	run("Z Project...", "projection=[Max Intensity] all");
 	_PROJECTION_IMAGE_ID = getImageID();
@@ -139,7 +166,6 @@ function prepareImage() {
 	close();
 	setSlice(1);
 	selectImage(inputImage);
-	run("Restore Selection");
 }
 
 
@@ -154,6 +180,7 @@ function correctBackGroundRollingBall(radius) {
 }
 
 function correctBackgroundSubtractMean() {
+	run("Restore Selection");
 	if (selectionType()<0 || selectionType()>4) {
 		exit("No selection. Select a background region before running the macro!") 
 	}
@@ -177,7 +204,6 @@ function selectCells() {
 	Stack.setPosition(_CELL_MASK_CHANNEL, 1, 1);
 	run("Select None");
 	run("Duplicate...", " ");
-	run("Restore Selection");
 	correctBackground(_USE_ROLLING_BALL_SEG, _ROLLING_BALL_RADIUS_SEG);
 	run("Select None");
 	run(_FILTER, "sigma="+_FILTER_PARAM);
