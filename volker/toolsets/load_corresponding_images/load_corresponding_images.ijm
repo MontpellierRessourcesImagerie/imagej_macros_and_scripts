@@ -19,6 +19,10 @@ var currentFile = 0;
 var IMAGE_A = "";
 var IMAGE_B = "";
 var CLOSE_LAST_IMAGES = true;
+var FILTER_BY_CHOICES = newArray("none", "filename contains", "filename does not contain");
+var FILTER_BY  = FILTER_BY_CHOICES[2];
+var FILTER_STRING = "DNA";
+var BORDER_PERCENT = 5;
 
 macro "Load Corresponding Images Help [f1]" {
    showHelp();
@@ -46,6 +50,10 @@ macro "Last Image [f6]" {
 
 macro "Reload Image [f7]" {
     reloadImageAction();
+}
+
+macro "Combine Images [f9]" {
+	combineImages();
 }
 
 macro "Load Corresponding Images Help (f1) Action Tool - C000T4b12?"{
@@ -109,6 +117,48 @@ macro "Open File (f8) Action Tool Options" {
     showIOSettings();
 }
 
+macro "Combine Images (f9) Action Tool - C000T4b12c"{
+	combineImages();	
+}
+
+
+macro "Combine Images (f9) Action Tool Options"{
+	showIOSettings();
+}
+
+function combineImages() {
+	dir = DIRECTORY1 + "/COMBINED";
+	File.makeDirectory(dir);
+	setBatchMode(true);
+	for (i = 0; i < FILES.length; i++) {
+		showProgress(i, FILES.length-1);
+		file = FILES[i];
+    	run("Bio-Formats Importer", "open=["+DIRECTORY1+"/"+file+"] color_mode=Default view=["+VIEW_OPTION+"] stack_order=XYCZT");
+    	enhanceDisplay();
+    	rename("a"+file);
+    	width = getWidth();
+    	height = getHeight();
+    	aID = getImageID();
+    	run("Bio-Formats Importer", "open=["+DIRECTORY2+"/"+file+"] view=["+VIEW_OPTION+"]");
+    	enhanceDisplay();
+    	rename("b"+file);
+    	bID = getImageID();
+    	if (BORDER_PERCENT>0) {
+    		newWidth = width + (width * BORDER_PERCENT) / 100;
+    		newHeight = height + (height * BORDER_PERCENT) / 100; 
+    		selectImage(aID);
+    		run("Canvas Size...", "width="+newWidth+" height="+newHeight+" position=Center zero");
+    		selectImage(bID);
+    		run("Canvas Size...", "width="+newWidth+" height="+newHeight+" position=Center zero");
+    	}
+    	run("Combine...", "stack1=a"+file+" stack2=b"+file);
+    	rename(file);
+    	saveAs("tiff", dir+"/"+file);
+    	close();
+	}
+	setBatchMode(false);
+}
+
 function showIOSettings() {
      Dialog.create("Load Corresponding Images Options");
      if (FILES.length<1) message = "No current image. Please set the input folders!";
@@ -116,13 +166,20 @@ function showIOSettings() {
      Dialog.addMessage(message);
 	 Dialog.addString("File extension: ", EXT);
 	 Dialog.addCheckbox("Close last pair of images", CLOSE_LAST_IMAGES);
+	 Dialog.addChoice("Filter by: ", FILTER_BY_CHOICES, FILTER_BY);
+	 Dialog.addString("Substring: ", FILTER_STRING);
+	 Dialog.addNumber("% border: ", BORDER_PERCENT);
  	 Dialog.show();
  	 EXT = Dialog.getString();
  	 CLOSE_LAST_IMAGES = Dialog.getCheckbox();
+ 	 FILTER_BY = Dialog.getChoice();
+ 	 FILTER_STRING = Dialog.getString();
+ 	 BORDER_PERCENT = Dialog.getNumber();
 }
 
 function getFiles() {
      list = getFileList(DIRECTORY1);
+     if (FILTER_BY!=FILTER_BY_CHOICES[0]) list = filterList(list);
      FILES = newArray(0);
      for (i=0; i<list.length; i++) {
      	file = list[i];
@@ -131,6 +188,17 @@ function getFiles() {
      	}
      }
      return FILES;
+}
+
+function filterList(list) {
+	filteredList = newArray();
+	for (i = 0; i < list.length; i++) {
+		filename = list[i];
+		included = (indexOf(filename, FILTER_STRING) >= 0);
+		if (FILTER_BY == FILTER_BY_CHOICES[2]) included = !included;
+		if (included) filteredList = Array.concat(filteredList, filename);
+	}
+	return filteredList;
 }
 
 function setFolders() {
