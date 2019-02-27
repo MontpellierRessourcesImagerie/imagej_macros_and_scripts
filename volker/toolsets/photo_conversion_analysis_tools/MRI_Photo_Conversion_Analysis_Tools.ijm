@@ -12,6 +12,7 @@ var _MIN_SIZE = 20;
 var _MEASURE_REGION_OPTIONS = newArray("whole cell", "above threshold", "around max");
 var _MEASURE_REGION_OPTION = _MEASURE_REGION_OPTIONS[0];
 var _PROJECTION_IMAGE_ID = 0;
+var _PROJECTION_METHOD = "Average Intensity"; //"Sum Slices";
 var _RADIUS_AROUND_MAX = 3;
 var _FIND_MAXIMA_NOISE = 10000;
 var _DO_NOT_CORRECT_BACKGROUND = false;
@@ -160,7 +161,7 @@ function prepareImage() {
 	run("Duplicate...", "duplicate channels="+_CHANNEL+"-"+_CHANNEL);
 	if (!_DO_NOT_CORRECT_BACKGROUND) correctBackground(_USE_ROLLING_BALL, _ROLLING_BALL_RADIUS);
 	channelImageID = getImageID();
-	run("Z Project...", "projection=[Max Intensity] all");
+	run("Z Project...", "projection=["+_PROJECTION_METHOD+"] all");
 	_PROJECTION_IMAGE_ID = getImageID();
 	selectImage(channelImageID);
 	close();
