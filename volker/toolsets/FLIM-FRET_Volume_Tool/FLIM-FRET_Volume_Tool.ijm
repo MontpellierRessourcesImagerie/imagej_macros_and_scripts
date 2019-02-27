@@ -1,3 +1,12 @@
+/**
+  *  Measure in FLIM-FRET images for each cell the total volume of the cell and the volume occupied by values above 
+  *  a fixed threshold.
+  *   
+  *  written 2019 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
+  *  in cooperation with Claire Dupont
+  **
+*/
+
 var _SUBTRACT_BACKGROUND_RADIUS = 1;
 var _SUBTRACT_BACKGROUND_OFFSET = 1;
 var _SUBTRACT_BACKGROUND_ITERATIONS = 2;
@@ -7,7 +16,32 @@ var _MAX_SIZE = 1000000000000000000000000000000.0000;
 var _MIN_SIZE = 10;
 var _CREATE_CONTROL_IMAGE = true;
 
-measureCells();
+var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/FLIM-FRET_Volume_Tool";
+
+macro "HELP for the FLIM/FRET Volume (f1) Action Tool - C506D5dD72D7eD8eDbdDc2Df6Df7C000D16D1aD1bD3cD5eDecDf4C50bD55D56D66D9cDb7DbaDc7Dc8Cb05D35D49D4aD64D6aD6bD74D7aD7bDa3Db4Dc5Dd4Dd5De8C302D18D25D2bD43D62DaeDd2DdcDe3DebDf5Ca09D36D37D54D5bD65D68D76D7dD8aD97Da5Da7Da8Db2Db3Dc4Ca07D27D29D34D38D48D4bD63D6dD84D86D92Db6Dc6Dd3DdaDdbDe5C101D15D17D24D33D4dD81D91Da1Db1DbeDcdC80bD44D45D46D57D5cD87D88D8dD98D9dDa9DadDbbDbcDc9DcaCb07D28D58D59D5aD69D6cD79D7cD93D94D95D96Da4Dd6Dd9Ca03D2aD39D3aD3bD53D75D85Db5De9DeaDf8C90bD47D73D78D83D89D8bD8cD99D9aDa6Dc3DcbDd7Dd8De6De7C705D26D4cD6eD82D9eDa2DccDe4C100D19D52D9fDf9C60cD67D77D9bDaaDabDacDb8Db9" {
+	 run('URL...', 'url='+_URL);
+}
+
+macro 'help for the FLIM/FRET Volume Tool [f1]' {
+	run('URL...', 'url='+_URL);
+}
+
+macro "Measure Volumes in Current Image (f2) Action Tool - C037T4d14m" {
+	 measureCells();
+}
+
+macro "Measure Volumes in Current Image (f2) Action Tool Options" {
+	Dialog.create("FLIM/FRET Volume Tool Options");
+	Dialog.addNumber("threshold: ", _THRESHOLD);
+    Dialog.addCheckbox("create control image", _CREATE_CONTROL_IMAGE);
+    Dialog.show();
+    _THRESHOLD = Dialog.getNumber();
+    _CREATE_CONTROL_IMAGE = Dialog.getCheckbox();
+}
+
+macro 'measure volumes in current image [f2]' {
+	measureCells();
+}
 
 function measureCells() {
 	createTable(_TABLE_TITLE);
@@ -29,6 +63,7 @@ function measureCells() {
 // needs the table with the measurements of the cells, the objects map and the input image to be open.
 function createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, tableTitle, threshold) {
 	selectImage(inputImageID);
+	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 	getMinAndMax(min, max);
 	title = getTitle();
 	channelOneID = createOutputImage(title, 1, inputImageID);
@@ -68,18 +103,20 @@ function createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, table
 	yCoordsColumn = "Y";
 	zCoordsColumn = "Z";
 	selectWindow(tableTitle);
+	lines = Table.size;
 	for (i = 0; i < numberOfCells; i++) {
-		xCoord = Table.get(xCoordsColumn, i);
-		yCoord = Table.get(yCoordsColumn, i);
-		zCoord = Table.get(zCoordsColumn, i);
+		xCoord = Table.get(xCoordsColumn, lines-i-1);
+		yCoord = Table.get(yCoordsColumn, lines-i-1);
+		zCoord = Table.get(zCoordsColumn, lines-i-1);
 		setColor("white");
-		Overlay.drawString(""+i, xCoord-fontSize/2, yCoord+fontHeight/2);
-		Overlay.setPosition(2, round(zCoord), 1);
+		Overlay.drawString(""+(i+1), xCoord-fontSize/2, yCoord+fontHeight/2);
+		Overlay.setPosition(2, round(zCoord), 0);
+		Overlay.show;
 	}
-	Overlay.show;
 	resetMinAndMax();
 	Stack.setChannel(1);
 	setMinAndMax(min, max);
+	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 	closeImage(cellsIndexMaskID);
 }
 
@@ -113,7 +150,7 @@ function measureCell(indexedMaskID, inputImageID, cellNr, threshold, tableTitle)
 	currentObjectImageTitle = getTitleOfImage(maskOfCellID);
 	imageCalculator("Multiply create 32-bit stack", inputImageTitle, currentObjectImageTitle);
 	multipliedID = getImageID();
-	run("Macro...", "code=v=(v>"+threshold*255+") stack");
+	run("Macro...", "code=v=(v>"+threshold*255+") stack");						// creates image with values 0 and 1.
 	run("Z Project...", "projection=[Sum Slices]");
 	projectionID = getImageID();
 	run("Measure");
