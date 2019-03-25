@@ -16,7 +16,8 @@ var _TABLE_TITLE = "FLIM FRET Tool volumes";
 var _MAX_SIZE = 1000000000000000000000000000000.0000;
 var _MIN_SIZE = 10;
 var _CREATE_CONTROL_IMAGE = true;
-
+var _CONTROL_FOLDER = "control"
+var _EXT = "tif";
 var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/FLIM-FRET_Volume_Tool";
 
 macro "HELP for the FLIM/FRET Volume (f1) Action Tool - C506D5dD72D7eD8eDbdDc2Df6Df7C000D16D1aD1bD3cD5eDecDf4C50bD55D56D66D9cDb7DbaDc7Dc8Cb05D35D49D4aD64D6aD6bD74D7aD7bDa3Db4Dc5Dd4Dd5De8C302D18D25D2bD43D62DaeDd2DdcDe3DebDf5Ca09D36D37D54D5bD65D68D76D7dD8aD97Da5Da7Da8Db2Db3Dc4Ca07D27D29D34D38D48D4bD63D6dD84D86D92Db6Dc6Dd3DdaDdbDe5C101D15D17D24D33D4dD81D91Da1Db1DbeDcdC80bD44D45D46D57D5cD87D88D8dD98D9dDa9DadDbbDbcDc9DcaCb07D28D58D59D5aD69D6cD79D7cD93D94D95D96Da4Dd6Dd9Ca03D2aD39D3aD3bD53D75D85Db5De9DeaDf8C90bD47D73D78D83D89D8bD8cD99D9aDa6Dc3DcbDd7Dd8De6De7C705D26D4cD6eD82D9eDa2DccDe4C100D19D52D9fDf9C60cD67D77D9bDaaDabDacDb8Db9" {
@@ -44,6 +45,37 @@ macro "Measure Volumes in Current Image (f2) Action Tool Options" {
 
 macro 'measure volumes in current image [f2]' {
 	measureCells();
+}
+
+macro "Batch Measure Volumes (f3) Action Tool - C037T4d14b" {
+	 measureCellsBatch();
+}
+
+macro 'batch measure images [f3]' {
+	measureCellsBatch();
+}
+
+
+function measureCellsBatch() {
+	dir = getDirectory("Please select the input folder!");
+	files = getFileList(dir);
+	images = newArray();
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	startTimeStamp = "" + year + "-" + (month + 1)+"-"+dayOfMonth+"--"+hour+"."+minute+"."+second+"."+msec;
+	for(i=0; i<files.length; i++) {
+		if (endsWith(files[i], ".tif")) images = Array.concat(images, files[i]);
+	}
+	File.makeDirectory(dir + _CONTROL_FOLDER);
+	for (i = 0; i < images.length; i++) {
+		image = images[i];
+		open(dir + image);
+		measureCells();
+		saveAs("Tiff", dir + _CONTROL_FOLDER + "/" + image);
+		close();
+		if (nImages>0) close();
+	}
+	selectWindow(_TABLE_TITLE);
+	saveAs("Text", dir + _TABLE_TITLE + "-" + startTimeStamp + ".xls");
 }
 
 function measureCells() {
