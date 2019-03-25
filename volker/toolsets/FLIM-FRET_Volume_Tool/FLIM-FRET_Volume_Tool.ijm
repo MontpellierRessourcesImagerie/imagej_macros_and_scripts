@@ -10,7 +10,8 @@
 var _SUBTRACT_BACKGROUND_RADIUS = 1;
 var _SUBTRACT_BACKGROUND_OFFSET = 1;
 var _SUBTRACT_BACKGROUND_ITERATIONS = 2;
-var _THRESHOLD = 2049;
+var _LOWER_THRESHOLD = 2049;
+var _UPPER_THRESHOLD = 4092;
 var _TABLE_TITLE = "FLIM FRET Tool volumes";
 var _MAX_SIZE = 1000000000000000000000000000000.0000;
 var _MIN_SIZE = 10;
@@ -32,10 +33,12 @@ macro "Measure Volumes in Current Image (f2) Action Tool - C037T4d14m" {
 
 macro "Measure Volumes in Current Image (f2) Action Tool Options" {
 	Dialog.create("FLIM/FRET Volume Tool Options");
-	Dialog.addNumber("threshold: ", _THRESHOLD);
+	Dialog.addNumber("lower threshold: ", _LOWER_THRESHOLD);
+	Dialog.addNumber("upper threshold: ", _UPPER_THRESHOLD);
     Dialog.addCheckbox("create control image", _CREATE_CONTROL_IMAGE);
     Dialog.show();
-    _THRESHOLD = Dialog.getNumber();
+    _LOWER_THRESHOLD = Dialog.getNumber();
+    _UPPER_THRESHOLD = Dialog.getNumber();
     _CREATE_CONTROL_IMAGE = Dialog.getCheckbox();
 }
 
@@ -44,6 +47,7 @@ macro 'measure volumes in current image [f2]' {
 }
 
 function measureCells() {
+	run("Options...", "iterations=1 count=1 black");
 	createTable(_TABLE_TITLE);
 	
 	inputImageID = getImageID();
@@ -54,14 +58,14 @@ function measureCells() {
 	cellsIndexMaskID = getImageID();
 	setBatchMode(true);
 	for (i = 1; i <= numberOfCells; i++) {
-		measureCell(cellsIndexMaskID, inputImageID, i, _THRESHOLD, _TABLE_TITLE);
+		measureCell(cellsIndexMaskID, inputImageID, i, _LOWER_THRESHOLD, _UPPER_THRESHOLD, _TABLE_TITLE);
 	}
 	setBatchMode(false);
-	if (_CREATE_CONTROL_IMAGE) createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, _TABLE_TITLE, _THRESHOLD);
+	if (_CREATE_CONTROL_IMAGE) createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, _TABLE_TITLE, _LOWER_THRESHOLD, _UPPER_THRESHOLD);
 }
 
 // needs the table with the measurements of the cells, the objects map and the input image to be open.
-function createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, tableTitle, threshold) {
+function createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, tableTitle, lowerThreshold, upperThreshold) {
 	selectImage(inputImageID);
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 	getMinAndMax(min, max);
@@ -78,7 +82,7 @@ function createControlImage(inputImageID, cellsIndexMaskID, numberOfCells, table
 		imageCalculator("Multiply create 32-bit stack", inputImageTitle, currentObjectImageTitle);
 		multipliedID = getImageID();
 		multipliedTitle = getTitle();
-		run("Macro...", "code=v=(v>"+threshold*255+")*(v/255) stack");
+		run("Macro...", "code=[v=(v>="+lowerThreshold*255+" && v<"+upperThreshold*255+")*(v/255)] stack");
 		imageCalculator("OR stack", channelOneTitle, multipliedTitle);
 
 		selectImage(maskOfCellID);
@@ -132,7 +136,7 @@ function createOutputImage("title", channel, inputImageID) {
 	return id;
 }
 
-function measureCell(indexedMaskID, inputImageID, cellNr, threshold, tableTitle) {
+function measureCell(indexedMaskID, inputImageID, cellNr, lowerThreshold, upperThreshold, tableTitle) {
 	maskOfCellID = createMaskOfCell(indexedMaskID, cellNr);
 	run("3D Objects Counter", "threshold=128 slice=10 min.="+_MIN_SIZE+" max.="+_MAX_SIZE+" statistics");
 	Stack.getUnits(XU, YU, ZU, TimeU, ValueU);
@@ -150,7 +154,7 @@ function measureCell(indexedMaskID, inputImageID, cellNr, threshold, tableTitle)
 	currentObjectImageTitle = getTitleOfImage(maskOfCellID);
 	imageCalculator("Multiply create 32-bit stack", inputImageTitle, currentObjectImageTitle);
 	multipliedID = getImageID();
-	run("Macro...", "code=v=(v>"+threshold*255+") stack");						// creates image with values 0 and 1.
+	run("Macro...", "code=[v=(v>="+lowerThreshold*255+" && v<"+upperThreshold*255+")] stack");						// creates image with values 0 and 1.
 	run("Z Project...", "projection=[Sum Slices]");
 	projectionID = getImageID();
 	run("Measure");
@@ -201,7 +205,7 @@ function report(tableTitle, inputImageTitle, cellNr, volume, volumeAboveThreshol
 	Table.set("image", counter, inputImageTitle);
 	Table.set("cell nr.", counter, cellNr);
 	Table.set("total volume", counter, volume);
-	Table.set("volume above "+_THRESHOLD, counter, volumeAboveThreshold);
+	Table.set("volume between "+_LOWER_THRESHOLD + " and " +_UPPER_THRESHOLD, counter, volumeAboveThreshold);
 	Table.set("total surface", counter, surface);
 	Table.set("X", counter, x);
 	Table.set("Y", counter, y);
