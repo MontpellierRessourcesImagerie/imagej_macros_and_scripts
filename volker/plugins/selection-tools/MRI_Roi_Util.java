@@ -1,5 +1,3 @@
-import java.awt.Rectangle;
-
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -26,6 +24,8 @@ public class MRI_Roi_Util implements PlugIn, MacroExtension {
 
     private ExtensionDescriptor[] extensions = {
       ExtensionDescriptor.newDescriptor("doRoisOverlap", this, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY),
+      ExtensionDescriptor.newDescriptor("isRoi2IncludedIn1", this, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY),
+      ExtensionDescriptor.newDescriptor("doRoisHaveNoOverlap", this, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY, ARG_ARRAY)
   };
 
   public ExtensionDescriptor[] getExtensionFunctions() {
@@ -33,12 +33,21 @@ public class MRI_Roi_Util implements PlugIn, MacroExtension {
   }
 
   public String handleExtension(String name, Object[] args) {
-    if (name.equals("doRoisOverlap")) {
-    	float[] X1 = convertToFloatArray((Object[]) args[0]);
-    	float[] Y1 = convertToFloatArray((Object[]) args[1]);
-    	float[] X2 = convertToFloatArray((Object[]) args[2]);
-    	float[] Y2 = convertToFloatArray((Object[]) args[3]);
+	if (args.length!=4) return null;
+	float[] X1 = convertToFloatArray((Object[]) args[0]);
+  	float[] Y1 = convertToFloatArray((Object[]) args[1]);
+  	float[] X2 = convertToFloatArray((Object[]) args[2]);
+  	float[] Y2 = convertToFloatArray((Object[]) args[3]);
+    if (name.equals("doRoisOverlap")) {	
     	String result = this.doRoisOverlap(X1, Y1, X2, Y2);
+    	return result;
+    } 
+    if (name.equals("isRoi2IncludedIn1")) {
+    	String result = this.isRoi2IncludedIn1(X1, Y1, X2, Y2);
+    	return result;
+    } 
+    if (name.equals("doRoisHaveNoOverlap")) {
+    	String result = this.doRoisHaveNoOverlap(X1, Y1, X2, Y2);
     	return result;
     } 
     return null;
@@ -54,20 +63,52 @@ public class MRI_Roi_Util implements PlugIn, MacroExtension {
 	return result;
   }
 
+  /*
+   * Do the rois overlap without one being completely included in the other?
+   */
   String doRoisOverlap(float[] X1, float[] Y1, float[] X2, float[] Y2) {	
-	PolygonRoi roi1 = new PolygonRoi(X1, Y1, Roi.TRACED_ROI);
-	PolygonRoi roi2 = new PolygonRoi(X2, Y2, Roi.TRACED_ROI);
-	
-	ShapeRoi shape1 = new ShapeRoi(roi1);
-	ShapeRoi shape2 = new ShapeRoi(roi2);
-	float[] array = shape1.getShapeAsArray();
-	ShapeRoi shape = shape2.not(shape1);
-
-	array = shape.getShapeAsArray();
-	boolean result = array!=null;
-
+	boolean result = !isSubsetOf(X1, Y1, X2, Y2) && !isSubsetOf(X2, Y2, X1, Y1) && !isIntersectionEmpty(X1, Y1, X2, Y2);	
 	return Boolean.toString(result);
   }
+
+  /*
+   * Is the second roi completely included in the first one?
+   */
+  String isRoi2IncludedIn1(float[] X1, float[] Y1, float[] X2, float[] Y2) {
+	  boolean result = isSubsetOf(X1, Y1, X2, Y2);
+	  return Boolean.toString(result);
+  }
+  
+  /*
+   * Do the rois have no overlap at all?
+   */
+  String doRoisHaveNoOverlap(float[] X1, float[] Y1, float[] X2, float[] Y2) {
+	  boolean result = isIntersectionEmpty(X1, Y1, X2, Y2);
+	  return Boolean.toString(result);
+  }
+  
+private boolean isIntersectionEmpty(float[] X1, float[] Y1, float[] X2, float[] Y2) {
+	PolygonRoi roi1 = new PolygonRoi(X1, Y1, Roi.TRACED_ROI);
+	PolygonRoi roi2 = new PolygonRoi(X2, Y2, Roi.TRACED_ROI);
+	ShapeRoi shape1 = new ShapeRoi(roi1);
+	ShapeRoi shape2 = new ShapeRoi(roi2);
+	ShapeRoi shape = shape2.and(shape1);
+	float[] array = shape.getShapeAsArray();
+	boolean result = (array==null || array.length==0);
+	return result;
+}
+
+private boolean isSubsetOf(float[] X1, float[] Y1, float[] X2, float[] Y2) {
+	PolygonRoi roi = new PolygonRoi(X1, Y1, Roi.TRACED_ROI);
+	PolygonRoi subRoi = new PolygonRoi(X2, Y2, Roi.TRACED_ROI);
+	ShapeRoi shape1 = new ShapeRoi(roi);
+	ShapeRoi shape2 = new ShapeRoi(subRoi);
+	ShapeRoi shape = shape2.not(shape1);
+	
+	float[] array = shape.getShapeAsArray();
+	boolean result = (array==null || array.length==0);
+	return result;
+}
 
   public static void main(String[] args) {
 	  new ImageJ();
