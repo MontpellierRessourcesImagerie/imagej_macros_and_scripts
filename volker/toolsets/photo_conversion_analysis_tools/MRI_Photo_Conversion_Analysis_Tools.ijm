@@ -16,6 +16,8 @@ var _PROJECTION_METHOD = "Average Intensity"; //"Sum Slices";
 var _RADIUS_AROUND_MAX = 3;
 var _FIND_MAXIMA_NOISE = 10000;
 var _DO_NOT_CORRECT_BACKGROUND = false;
+var _OUTPUT_FOLDER = "cells";
+var _TABLE_TITLE = "plot_data";
 
 // regions are named according to the schema:
 // 	I_PHOTO_C<cc>_t<tt> - photo converted region of cell cc at time point tt
@@ -57,6 +59,8 @@ macro "prepare image Action Tool (f2) Options" {
 
 macro "select cells Action Tool (f3) - C000T4b12c" {
 	selectCells();	
+	selectImage(_PROJECTION_IMAGE_ID);
+	roiManagerRoisToOverlay();
 }
 
 macro "select cells Action Tool (f3) Options" {
@@ -74,6 +78,8 @@ macro "select cells Action Tool (f3) Options" {
 
 macro "select cells [f3]" {
 	selectCells();	
+	selectImage(_PROJECTION_IMAGE_ID);
+	roiManagerRoisToOverlay();
 }
 
 macro "plot intensity curve Action Tool (f4) - C000T4b12i" {
@@ -91,25 +97,117 @@ macro "plot intensity curve [f4]" {
 	plotCurve();
 }
 
+macro "batch select cells Action Tool (f5) - C037T1d13bT9d13cC555" {
+	batchSelectCells();	
+}
+
+macro "batch select cells [f5]" {
+	batchSelectCells();
+}
+
+macro "batch create intensity curve Action Tool (f6) - C037T1d13bT9d13iC555" {
+	batchIntensityCurve();
+}
+
+macro "batch create intensity curve [f6]" {
+	batchIntensityCurve();
+}
+
+function batchSelectCells() {
+	dir = getDirectory("Please select the input folder!");
+	File.makeDirectory(dir + _OUTPUT_FOLDER);
+	files = getFileList(dir);
+	images = filterImages(files);
+	setBatchMode(true);
+	print("\\Clear");
+	print("Selecting cells...");
+	for (i = 0; i < images.length ; i++) {
+		print("\\Update1: Processing image " + (i+1) + " of " + images.length);
+		image = images[i];
+		open(dir + image);
+		selectCells();
+		roiManagerRoisToOverlay();
+		save(dir + _OUTPUT_FOLDER + "/" + image);
+		close();
+	}
+	setBatchMode(false);
+	print("FINISHED - Selecting cells.");
+}
+
+function batchIntensityCurve() {
+	dir = getDirectory("Please select the input folder!");
+	File.makeDirectory(dir + _OUTPUT_FOLDER);
+	files = getFileList(dir);
+	images = filterImages(files);
+	counter = 0;
+	createTable(_TABLE_TITLE);
+	for (i = 0; i < images.length ; i++) {
+		image = images[i];
+		open(dir + image);
+		prepareImage();
+		selectImage(_PROJECTION_IMAGE_ID);
+		if (i==0) {
+			Stack.getDimensions(width, height, channels, slices, frames);
+			meanIntensities = newArray(frames);
+		}
+		count = Overlay.size;
+		for (j=0; j<count; j++) {
+	 		Overlay.activateSelection(j);
+	 		counter++;
+	 		intensities = getCurve();
+	 		for(k=0; k<frames-1; k++) {
+	 			meanIntensities[k] += intensities[k];
+	 		}
+	 		report(_TABLE_TITLE, image, (j+1), intensities);
+		}
+		close();
+		close();
+	}
+	for (k=0; k<frames-1; k++) {
+		meanIntensities[k] /= counter;
+	}
+}
+
+function report(tableTitle, image, cellNr, intensities) {
+	selectWindow(tableTitle);
+	counter = Table.size;
+	if (counter<0) counter=0;
+	Table.update;	
+	Table.set("image", counter, image);
+	Table.set("cell", counter, cellNr);
+	for(i=0; i<intensities.length; i++) {
+		Table.set("t"+(i+1), counter, intensities[i]); 
+	}
+	Table.update;
+}
+
 function plotCurve() {
+	intensities = getCurve();
+	displayPlot(intensities);	
+}
+
+function getCurve() {
 	run("Duplicate...", "duplicate");
 	run("32-bit");
 	run("Clear Results");
 	roiManager("reset");
 	roiManager("add");
-	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[0]) plotCurveWholeCell();
-	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[1]) plotCurveAboveThreshold();
-	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[2]) plotCurveAroundMax();
+	intensities = newArray(0);
+	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[0]) intensities = getCurveWholeCell();
+	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[1]) intensities = getCurveAboveThreshold();
+	if (_MEASURE_REGION_OPTION==_MEASURE_REGION_OPTIONS[2]) intensities = getCurveAroundMax();
+	return intensities;
 }
 
-function plotCurveWholeCell() {
+function getCurveWholeCell() {
 	roiManager("select", 0)
 	roiManager("Multi Measure");
 	close();
-	createPlot();
+	intensities = getPlot();
+	return intensities;
 }
 
-function plotCurveAroundMax() {
+function getCurveAroundMax() {
 	run("Clear Results");
 	Stack.getDimensions(width, height, channels, slices, frames);
 	Stack.setFrame(1);
@@ -128,20 +226,28 @@ function plotCurveAroundMax() {
 		run("Select None");
 	}
 	close();
-	createPlot();
+	intensities = getPlot();
+	return intensities;
 }
 
-function plotCurveAboveThreshold() {
+function getCurveAboveThreshold() {
 	setAutoThreshold("Triangle dark stack");
 	run("Set Measurements...", "area mean modal min centroid integrated median kurtosis stack limit display redirect=None decimal=3");
 	roiManager("select", 0)
 	roiManager("Multi Measure");
 	run("Set Measurements...", "area mean modal min centroid integrated median kurtosis stack display redirect=None decimal=3");
 	close();
-	createPlot();
+	intensities = getPlot();
+	return intensities;
 }
 
-function createPlot() {
+function displayPlot(intensities) {
+	Plot.create("Intensity Plot", "t", "Intensity");
+	Plot.setColor("blue");
+	Plot.add("circle", intensities);
+}
+
+function getPlot() {
 	I_min = getResult("Mean1", 0);
 	I_max = getResult("Mean1", 1);
 	intensities = newArray(nResults-1);
@@ -150,9 +256,7 @@ function createPlot() {
 		I_norm = (I - I_min) / (I_max - I_min);
 		intensities[i-1] = I_norm;
 	}
-	Plot.create("Intensity Plot", "t", "Intensity");
-	Plot.setColor("blue");
-	Plot.add("circle", intensities);
+	return intensities;
 }
 
 function prepareImage() {
@@ -203,6 +307,8 @@ function correctBackgroundSubtractMean() {
 
 function selectCells() {
 	Stack.setPosition(_CELL_MASK_CHANNEL, 1, 1);
+	frame = findLastImageNotEmpty();
+	Stack.setPosition(_CELL_MASK_CHANNEL, 1, frame);
 	run("Select None");
 	run("Duplicate...", " ");
 	correctBackground(_USE_ROLLING_BALL_SEG, _ROLLING_BALL_RADIUS_SEG);
@@ -211,17 +317,45 @@ function selectCells() {
 	resetThreshold();
 	setAutoThreshold("Default dark");
 	roiManager("reset");
-	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity show=Masks in_situ");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity exclude show=Masks in_situ");
 	run("Fill Holes");
 	run("Close-");
 	run("Open");
 	run("Dilate");
 	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity show=Nothing add");
 	close();
-	selectImage(_PROJECTION_IMAGE_ID);
+}
+
+function roiManagerRoisToOverlay() {
 	run("Select None");
 	roiManager("Show None");
 	roiManager("Show All");
 	run("From ROI Manager");
 	roiManager("reset");
+}
+
+function findLastImageNotEmpty() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	lastFrameNotEmpty = 0;
+	for (i = 1; i <= frames; i++) {
+		Stack.setFrame(i);
+		getStatistics(area, mean, min, max, std, histogram);
+		if(max>0) lastFrameNotEmpty=i;
+	}
+	return lastFrameNotEmpty;
+}
+
+function filterImages(files) {
+	filtered = newArray(0);
+	for(i=0; i<files.length; i++) {
+		file = files[i];
+		if (endsWith(file, ".tif")) filtered = Array.concat(filtered, file);
+	}
+	return filtered;
+}
+
+function createTable(title) {
+	if (!isOpen(title)) {
+		Table.create(title);
+	}
 }
