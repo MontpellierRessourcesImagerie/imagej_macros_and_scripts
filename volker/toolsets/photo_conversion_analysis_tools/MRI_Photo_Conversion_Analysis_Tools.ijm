@@ -2,33 +2,24 @@ var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_an
 var _CHANNEL = 2;
 var _CELL_MASK_CHANNEL = 1;
 var _T0 = 0;
-var _USE_ROLLING_BALL=false;
+var _USE_ROLLING_BALL=true;
 var _ROLLING_BALL_RADIUS = 40;
-var _USE_ROLLING_BALL_SEG = false;
+// var _USE_ROLLING_BALL_SEG = true;
 var _ROLLING_BALL_RADIUS_SEG = 40;
 var _FILTER = "Gaussian Blur...";
 var _FILTER_PARAM = 1.2;
 var _MIN_SIZE = 20;
 var _MEASURE_REGION_OPTIONS = newArray("whole cell", "above threshold", "around max");
-var _MEASURE_REGION_OPTION = _MEASURE_REGION_OPTIONS[0];
+var _MEASURE_REGION_OPTION = _MEASURE_REGION_OPTIONS[2];
 var _PROJECTION_IMAGE_ID = 0;
 var _PROJECTION_METHOD = "Average Intensity"; //"Sum Slices";
-var _RADIUS_AROUND_MAX = 3;
+var _RADIUS_AROUND_MAX = 6;
 var _FIND_MAXIMA_NOISE = 10000;
 var _DO_NOT_CORRECT_BACKGROUND = false;
 var _OUTPUT_FOLDER = "cells";
 var _TABLE_TITLE = "plot_data";
-
-// regions are named according to the schema:
-// 	I_PHOTO_C<cc>_t<tt> - photo converted region of cell cc at time point tt
-//  I_BACK_t<tt>		- background region at time point tt
-//  I_REF_C<cc>_t<tt>	- reference region of cell cc at time point tt
-// 
-// Photo-conversion begins at time-point _T0 + 1
-
-// DEBUG
-// plotCurve();
-// exit();
+var _DoG_SIGMA_SMALL = 0.5;
+var _DoG_SIGMA_BIG = 4;
 
 macro "MRI Photo Conversion Analysis Help Action Tool - C000D21D22D23D24D25D26D27D28D29D2aD2bD2cD2dD2eD3eD4eD5eD6eD7eD8eD9eDaeDbeDceDdeDeeCfffD00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D11D12D13D14D15D16D17D18D19D1aD1bD1cD1dD1eD1fD20D2fD30D31D32D33D34D35D36D37D38D39D3aD3bD3cD3dD3fD40D43D44D45D46D47D48D49D4aD4bD4cD4dD4fD50D51D57D58D59D5aD5bD5cD5dD5fD60D61D62D63D64D65D68D69D6aD6bD6cD6dD6fD70D71D72D73D74D75D76D7bD7cD7dD7fD80D81D82D83D84D85D86D87D88D89D8cD8dD8fD90D91D92D93D94D95D96D97D98D99D9aD9dD9fDa0Da1Da2Da3Da4Da5Da6Da7Da8Da9DaaDabDadDafDb0Db1Db2Db3Db4Db5Db6Db7Db8Db9DbaDbbDbdDbfDc0Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dc9DcaDcbDcdDcfDd0Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8Dd9DdaDddDdfDe0De1De2De3De4De5De6De7De8De9DeaDecDedDefDf0Df1Df2Df3Df4Df5Df6Df7Df8Df9DfaDfcDfdDfeDffCf00D41D42D52D53D54D55D56D66D67D77D78D79D7aD8aD8bD9bD9cDacDbcDccDdbDdcDebDfb" {
 	run('URL...', 'url='+helpURL);
@@ -60,6 +51,7 @@ macro "prepare image Action Tool (f2) Options" {
 macro "select cells Action Tool (f3) - C000T4b12c" {
 	selectCells();	
 	selectImage(_PROJECTION_IMAGE_ID);
+	Overlay.remove;
 	roiManagerRoisToOverlay();
 }
 
@@ -79,6 +71,7 @@ macro "select cells Action Tool (f3) Options" {
 macro "select cells [f3]" {
 	selectCells();	
 	selectImage(_PROJECTION_IMAGE_ID);
+	Overlay.remove;
 	roiManagerRoisToOverlay();
 }
 
@@ -89,8 +82,10 @@ macro "plot intensity curve Action Tool (f4) - C000T4b12i" {
 macro "plot intensity curve Action Tool (f4) Options" {
 	Dialog.create("Photo Conversion Analysis Options");
 	Dialog.addChoice("region to measure: ", _MEASURE_REGION_OPTIONS, _MEASURE_REGION_OPTION);
+	Dialog.addNumber("radius around max.", _RADIUS_AROUND_MAX);
     Dialog.show();
     _MEASURE_REGION_OPTION = Dialog.getChoice();
+    _RADIUS_AROUND_MAX = Dialog.getNumber();
 }
 
 macro "plot intensity curve [f4]" {
@@ -118,7 +113,7 @@ function batchSelectCells() {
 	File.makeDirectory(dir + _OUTPUT_FOLDER);
 	files = getFileList(dir);
 	images = filterImages(files);
-	setBatchMode(true);
+//	setBatchMode(true);
 	print("\\Clear");
 	print("Selecting cells...");
 	for (i = 0; i < images.length ; i++) {
@@ -130,7 +125,7 @@ function batchSelectCells() {
 		save(dir + _OUTPUT_FOLDER + "/" + image);
 		close();
 	}
-	setBatchMode(false);
+//	setBatchMode(false);
 	print("FINISHED - Selecting cells.");
 }
 
@@ -141,7 +136,10 @@ function batchIntensityCurve() {
 	images = filterImages(files);
 	counter = 0;
 	createTable(_TABLE_TITLE);
+	print("\\Clear");
+	print("Calculation intensity curves...");
 	for (i = 0; i < images.length ; i++) {
+		print("\\Update1: Processing image " + (i+1) + " of " + images.length);
 		image = images[i];
 		open(dir + image);
 		prepareImage();
@@ -166,6 +164,7 @@ function batchIntensityCurve() {
 	for (k=0; k<frames-1; k++) {
 		meanIntensities[k] /= counter;
 	}
+	print("FINISHED - Calculation intensity curves.");
 }
 
 function report(tableTitle, image, cellNr, intensities) {
@@ -248,11 +247,23 @@ function displayPlot(intensities) {
 }
 
 function getPlot() {
-	I_min = getResult("Mean1", 0);
+	/*I_min = getResult("Mean1", 0);
 	I_max = getResult("Mean1", 1);
 	intensities = newArray(nResults-1);
 	for(i=1; i<nResults; i++) {
 		I = getResult("Mean1", i);
+		I_norm = (I - I_min) / (I_max - I_min);
+		intensities[i-1] = I_norm;
+	}
+	return intensities; */
+	intensities = newArray(nResults-1);
+	selectWindow("Results");
+	values = Table.getColumn("Mean1");
+	Array.getStatistics(values, min, max, mean, stdDev);
+	I_min = values[0];
+	I_max = max;
+	for(i=1; i<values.length; i++) {
+		I = values[i];
 		I_norm = (I - I_min) / (I_max - I_min);
 		intensities[i-1] = I_norm;
 	}
@@ -311,6 +322,26 @@ function selectCells() {
 	Stack.setPosition(_CELL_MASK_CHANNEL, 1, frame);
 	run("Select None");
 	run("Duplicate...", " ");
+	Overlay.remove;
+	DoG(_DoG_SIGMA_SMALL, _DoG_SIGMA_BIG);
+	run("Find Edges");
+	setAutoThreshold("Default dark");
+	run("Convert to Mask");
+	run("Fill Holes");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity exclude show=Masks in_situ");
+	run("Dilate");
+	roiManager("reset");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity show=Nothing add");
+	close();
+	close();
+}
+
+function selectCellsByThresholding() {
+	Stack.setPosition(_CELL_MASK_CHANNEL, 1, 1);
+	frame = findLastImageNotEmpty();
+	Stack.setPosition(_CELL_MASK_CHANNEL, 1, frame);
+	run("Select None");
+	run("Duplicate...", " ");
 	correctBackground(_USE_ROLLING_BALL_SEG, _ROLLING_BALL_RADIUS_SEG);
 	run("Select None");
 	run(_FILTER, "sigma="+_FILTER_PARAM);
@@ -325,7 +356,6 @@ function selectCells() {
 	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity show=Nothing add");
 	close();
 }
-
 function roiManagerRoisToOverlay() {
 	run("Select None");
 	roiManager("Show None");
@@ -358,4 +388,22 @@ function createTable(title) {
 	if (!isOpen(title)) {
 		Table.create(title);
 	}
+}
+
+function DoG(smallSigma, bigSigma) {
+	inputImageID = getImageID();
+	run("Duplicate...", " ");
+	run("32-bit");
+	rename("small_sigma");
+	run("Gaussian Blur...", "sigma="+smallSigma+" scaled");
+	selectImage(inputImageID);
+	run("Duplicate...", " ");
+	run("32-bit");
+	rename("big_sigma");
+	run("Gaussian Blur...", "sigma="+bigSigma+" scaled");
+	imageCalculator("Subtract create 32-bit", "small_sigma","big_sigma");
+	selectImage("small_sigma");
+	close();
+	selectImage("big_sigma");
+	close();
 }
