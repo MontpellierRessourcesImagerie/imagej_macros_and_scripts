@@ -24,6 +24,20 @@ var _CLOSE_RADIUS = 40;
 var _TABLE_TITLE = "area of axonal projections";
 var _EXLUCDE_ON_EDGES_ZONE = true;
 
+var _BLOLBS_THRESHOLD_METHOD = "Default";
+var _BLOBS_MIN_SIZE = 12160;
+var _BLOBS_MIN_CIRCULARITY = 0.3;
+var _BLOBS_MIN_DIAMETER = 90;
+var _BLOBS_MAX_DIAMETER = 144;
+var _FEATURES = "Area";
+var _PARTS = split(_FEATURES, ",");
+var _MAIN_FEATURE = _PARTS[0];
+var _FIT_ELLIPSE = false;
+
+var _SOMA_MIN_INTENSITY_THRESHOLD = 42; 
+
+var _TABLE_TITLE = "somata count";
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Area-of-Axonal-Projections-Tool";
 
 macro "area of axonal projections tools help [f4]" {
@@ -34,21 +48,68 @@ macro "area of axonal projections tools help Action Tool (f4) - C655D00C654L1040
 	run('URL...', 'url='+helpURL);
 }
 
-macro "measure area of projections [f1]" {
+macro "measure area of projections [f5]" {
 	measureAreaOfAxonalProjections();
 }
 
-macro "measure area of projections Action Tool (f1) - C000T4b12m" {
+macro "measure area of projections Action Tool (f5) - C000T4b12a" {
 	measureAreaOfAxonalProjections();
 }
 
-
-macro "measure area of projections Action Tool (f1) Options" {
+macro "measure area of projections Action Tool (f5) Options" {
 	displayOptionsDialog();
 }
 
+macro "detect zone [f6]" {
+	title = getTitle();
+	imageID = getImageID();
+	blueTitle = title+"-("+_BLUE_CHANNEL+")";
+	doColorDeconvolution(imageID);
+	detectZone(imageID, blueTitle);
+	run("Create Mask");
+}
+
+macro "detect zone Action Tool (f6) - C000T4b12d" {
+	title = getTitle();
+	imageID = getImageID();
+	blueTitle = title+"-("+_BLUE_CHANNEL+")";
+	doColorDeconvolution(imageID);
+	detectZone(imageID, blueTitle);
+	run("Create Mask");
+}
+
+macro "make band [f7]" {
+	makeBand();
+}
+
+macro "make band Action Tool (f7) - C000T4b12m" {
+	makeBand();
+}
+
+macro "count somata [f8]" {
+	countSomata();
+}
+
+macro "count somata Action Tool (f8) - C000T4b12b" {
+	countSomata();
+}
+
+
+function countSomata() {
+	title = getTitle();
+	imageID = getImageID();
+	brownTitle = title+"-("+_BROWN_CHANNEL+")";
+	selectImage(brownTitle);
+	detectSpotsDoG(_BLOBS_MIN_DIAMETER, _BLOBS_MAX_DIAMETER);
+	filterRoisNotInBand();
+	filterRoisNotTouchingZone(imageID);
+	createTable(_TABLE_TITLE);
+	nrOfSomata = roiManager("count");
+	report(_TABLE_TITLE, title, nrOfSomata);
+}
+
 function displayOptionsDialog() {
-		Dialog.create("Measure area of projections Options");
+	Dialog.create("Measure area of projections Options");
 	parts = split(_BLUE_CHANNEL,"_");
 	blueChannelID = parts[1];
 	parts = split(_BROWN_CHANNEL,"_");
@@ -85,6 +146,15 @@ function displayOptionsDialog() {
 	_GREEN_CHANNEL = "Colour_" + greenChannelID;
 }
 
+function doColorDeconvolution(imageID) {
+	selectImage(imageID)
+	greenTitle = title+"-("+_GREEN_CHANNEL+")";
+	run("Colour Deconvolution", "vectors=["+_COLOR_VECTORS+"] hide");
+	selectImage(greenTitle);
+	close();
+	selectImage(imageID);
+}
+
 function measureAreaOfAxonalProjections() {
 	createTable(_TABLE_TITLE);
 	run("Set Measurements...", "area limit display redirect=None decimal=3");
@@ -92,11 +162,7 @@ function measureAreaOfAxonalProjections() {
 	imageID = getImageID();
 	brownTitle = title+"-("+_BROWN_CHANNEL+")";
 	blueTitle = title+"-("+_BLUE_CHANNEL+")";
-	greenTitle = title+"-("+_GREEN_CHANNEL+")";
-	run("Colour Deconvolution", "vectors=["+_COLOR_VECTORS+"] hide");
-	selectImage(greenTitle);
-	close();
-	selectImage(imageID);
+	doColorDeconvolution(imageID);
 	
 	zoneArea = detectZone(imageID, blueTitle);
 	selectImage(blueTitle);
@@ -218,3 +284,122 @@ function getMaxIntensityAround(x, y, mean, radius, width, height) {
     return max;
 }
 
+function init() {
+	run("Select None");
+	roiManager("reset");
+	run("Clear Results");
+}
+function detectSpotsDoG(minDiameter, maxDiameter) {
+	init();
+	run("Duplicate...", " ");
+	sigmaMin = 	floor((minDiameter)/2.5);
+	sigmaMax =  ceil((maxDiameter)/2.5);
+	run("16-bit");
+	DoGFilter(sigmaMin, sigmaMax);
+	resetThreshold();
+	setAutoThreshold(_BLOLBS_THRESHOLD_METHOD + " dark");
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
+	run("Close-");
+	run("Fill Holes");
+	run("Analyze Particles...", "size="+_BLOBS_MIN_SIZE+"-Infinity show=Masks in_situ");
+	run("Watershed");
+	run("Analyze Particles...", "size="+_BLOBS_MIN_SIZE+"-Infinity circularity="+_BLOBS_MIN_CIRCULARITY+"-1.00 show=Nothing exclude add");
+	if (_FIT_ELLIPSE) fitEllipses();
+	roiManager("Show All");
+	roiManager("measure");
+	close();
+	roiManager("Show All without labels")
+}
+
+function ceil(number) {
+	result =  floor(number)+1;
+	if ((result - (number) == 1)) result = result - 1;
+	return result
+}
+
+function DoGFilter(sigmaMin, sigmaMax) {
+	imageID = getImageID();
+	run("Duplicate...", " ");
+	run("Gaussian Blur...", "sigma="+sigmaMin);
+	rename("DoGImageSmallSigma");
+	selectImage(imageID);
+	run("Duplicate...", " ");
+	run("Gaussian Blur...", "sigma="+sigmaMax);
+	rename("DoGImageBigSigma");
+	imageCalculator("Subtract create", "DoGImageBigSigma","DoGImageSmallSigma");
+	selectImage("DoGImageSmallSigma");
+	close();
+	selectImage("DoGImageBigSigma");
+	close();
+}
+
+function fitEllipses() {
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		run("Fit Ellipse");
+		roiManager("select", i);
+		run("Restore Selection");
+		roiManager("Update");
+	}
+}
+
+function makeBand() {
+	selectImage("Mask");
+	run("Enlarge...", "enlarge=-40");
+	run("Make Band...", "band=80");
+}
+
+function filterRoisNotInBand() {
+	run("MRI Roi Util");
+	selectImage("Mask");
+	getSelectionCoordinates(bandPointsX, bandPointsY);
+	count = roiManager("count");
+	indicesToBeRemoved = newArray(0);
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		getSelectionCoordinates(blopPointsX, blobPointsY);
+		if (Ext.doRoisHaveNoOverlap(bandPointsX, bandPointsY, blopPointsX, blobPointsY)=="true") indicesToBeRemoved = Array.concat(indicesToBeRemoved, i);
+	}
+	roiManager("select", indicesToBeRemoved);
+	roiManager("delete");
+	run("Select None");
+}
+
+function filterRoisNotTouchingZone(imageID) {
+	run("MRI Roi Util");
+	selectImage(imageID);
+	Overlay.activateSelection(0);
+	run("Enlarge...", "enlarge=20");
+	getSelectionCoordinates(zonePointsX, zonePointsY);
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		getStatistics(area, mean, min, max, std, histogram);
+		getSelectionCoordinates(blopPointsX, blobPointsY);
+		if (Ext.doRoisHaveNoOverlap(zonePointsX, zonePointsY, blopPointsX, blobPointsY)=="true") indicesToBeRemoved = Array.concat(indicesToBeRemoved, i);
+		else {
+			if (min>_SOMA_MIN_INTENSITY_THRESHOLD) indicesToBeRemoved = Array.concat(indicesToBeRemoved, i);
+		}
+	}
+	roiManager("select", indicesToBeRemoved);
+	roiManager("delete");
+	run("Select None");
+}
+
+function createTable(title) {
+	if (!isOpen(title)) {
+		Table.create(title);
+	}
+}
+
+function report(tableTitle, image, nrOfSomata) {
+	selectWindow(tableTitle);
+	counter = Table.size;
+	if (counter<0) counter=0;
+	Table.update;	
+	Table.set("image", counter, image);
+	Table.set("nr. of somas", counter, nrOfSomata);
+	Table.update;
+}
