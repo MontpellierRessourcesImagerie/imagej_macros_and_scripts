@@ -1,13 +1,13 @@
-/**
+/**            
   * MRI Area of Axonal Projections Tools
   * 
-  * Measure the area of the axonal projections relative to the zone they are in.
+  * Measure the area of the axonal projections relative to the zone they are in. Count the somata.
   *   
   * (c) 2019, INSERM
   * 
   * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
- *
-*/
+  *
+**/
 
 var _METHODS = getList("threshold.methods");
 var _STAININGS = newArray("H&E", "H&E 2","H DAB", "Feulgen Light Green", "Giemsa", "FastRed FastBlue DAB", "Methyl Green DAB", "H&E DAB", "H AEC","Azan-Mallory","Alcian blue & H","H PAS","RGB","CMY");
@@ -33,10 +33,11 @@ var _FEATURES = "Area";
 var _PARTS = split(_FEATURES, ",");
 var _MAIN_FEATURE = _PARTS[0];
 var _FIT_ELLIPSE = false;
-
 var _SOMA_MIN_INTENSITY_THRESHOLD = 42; 
 
-var _TABLE_TITLE = "somata count";
+var _RADIUS_OF_BAND = 40;
+
+var _TABLE_TITLE_SOMATA = "somata count";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Area-of-Axonal-Projections-Tool";
 
@@ -86,12 +87,37 @@ macro "make band Action Tool (f7) - C000T4b12m" {
 	makeBand();
 }
 
+macro "make band Action Tool (f7) Options" {
+	Dialog.create("Make Band Options");
+	Dialog.addNumber("radius:", _RADIUS_OF_BAND);
+	Dialog.show();
+	_RADIUS_OF_BAND = Dialog.getNumber();
+}
+
+
 macro "count somata [f8]" {
 	countSomata();
 }
 
-macro "count somata Action Tool (f8) - C000T4b12b" {
+macro "count somata Action Tool (f8) - C000T4b12s" {
 	countSomata();
+}
+
+macro "count somata Action Tool (f8) Options" {
+	Dialog.create("Count Somata Options");
+	Dialog.addChoice("thresholding method somas", _METHODS, _BLOLBS_THRESHOLD_METHOD);
+	Dialog.addNumber("min area soma:", _BLOBS_MIN_SIZE);
+	Dialog.addNumber("min circularity soma:", _BLOBS_MIN_CIRCULARITY);
+	Dialog.addNumber("min. diamater soma:", _BLOBS_MIN_DIAMETER);
+	Dialog.addNumber("max. diamater soma:", _BLOBS_MAX_DIAMETER);
+	Dialog.addNumber("min intensity soma:", _SOMA_MIN_INTENSITY_THRESHOLD);
+	Dialog.show();
+	_BLOLBS_THRESHOLD_METHOD = Dialog.getChoice();
+	_BLOBS_MIN_SIZE = Dialog.getNumber();
+	_BLOBS_MIN_CIRCULARITY = Dialog.getNumber();
+	_BLOBS_MIN_DIAMETER = Dialog.getNumber();
+	_BLOBS_MAX_DIAMETER = Dialog.getNumber();
+	_SOMA_MIN_INTENSITY_THRESHOLD = Dialog.getNumber();
 }
 
 
@@ -99,13 +125,20 @@ function countSomata() {
 	title = getTitle();
 	imageID = getImageID();
 	brownTitle = title+"-("+_BROWN_CHANNEL+")";
+	blueTitle = title+"-("+_BLUE_CHANNEL+")";
 	selectImage(brownTitle);
 	detectSpotsDoG(_BLOBS_MIN_DIAMETER, _BLOBS_MAX_DIAMETER);
 	filterRoisNotInBand();
 	filterRoisNotTouchingZone(imageID);
-	createTable(_TABLE_TITLE);
+	createTable(_TABLE_TITLE_SOMATA);
 	nrOfSomata = roiManager("count");
-	report(_TABLE_TITLE, title, nrOfSomata);
+	reportSomata(_TABLE_TITLE_SOMATA, title, nrOfSomata);
+	selectImage(brownTitle);
+	close();
+	selectImage(blueTitle);
+	close();
+	selectImage("Mask");
+	close();
 }
 
 function displayOptionsDialog() {
@@ -147,7 +180,7 @@ function displayOptionsDialog() {
 }
 
 function doColorDeconvolution(imageID) {
-	selectImage(imageID)
+	selectImage(imageID);
 	greenTitle = title+"-("+_GREEN_CHANNEL+")";
 	run("Colour Deconvolution", "vectors=["+_COLOR_VECTORS+"] hide");
 	selectImage(greenTitle);
@@ -309,7 +342,9 @@ function detectSpotsDoG(minDiameter, maxDiameter) {
 	roiManager("Show All");
 	roiManager("measure");
 	close();
+	close();
 	roiManager("Show All without labels")
+	roiManager("Set Color", "cyan");
 }
 
 function ceil(number) {
@@ -347,8 +382,8 @@ function fitEllipses() {
 
 function makeBand() {
 	selectImage("Mask");
-	run("Enlarge...", "enlarge=-40");
-	run("Make Band...", "band=80");
+	run("Enlarge...", "enlarge=-"+_RADIUS_OF_BAND);
+	run("Make Band...", "band="+(2*_RADIUS_OF_BAND));
 }
 
 function filterRoisNotInBand() {
@@ -394,7 +429,7 @@ function createTable(title) {
 	}
 }
 
-function report(tableTitle, image, nrOfSomata) {
+function reportSomata(tableTitle, image, nrOfSomata) {
 	selectWindow(tableTitle);
 	counter = Table.size;
 	if (counter<0) counter=0;
