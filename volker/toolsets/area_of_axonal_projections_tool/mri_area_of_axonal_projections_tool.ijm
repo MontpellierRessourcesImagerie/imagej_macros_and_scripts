@@ -25,8 +25,8 @@ var _TABLE_TITLE = "area of axonal projections";
 var _EXLUCDE_ON_EDGES_ZONE = true;
 
 var _BLOLBS_THRESHOLD_METHOD = "Default";
-var _BLOBS_MIN_SIZE = 12160;
-var _BLOBS_MIN_CIRCULARITY = 0.3;
+var _BLOBS_MIN_SIZE = 2500;
+var _BLOBS_MIN_CIRCULARITY = 0.1;
 var _BLOBS_MIN_DIAMETER = 90;
 var _BLOBS_MAX_DIAMETER = 144;
 var _FEATURES = "Area";
@@ -35,9 +35,11 @@ var _MAIN_FEATURE = _PARTS[0];
 var _FIT_ELLIPSE = false;
 var _SOMA_MIN_INTENSITY_THRESHOLD = 42; 
 
-var _RADIUS_OF_BAND = 40;
+var _RADIUS_OF_BAND = 80;
 
 var _TABLE_TITLE_SOMATA = "somata count";
+
+var _SUFFIX = ".tif";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Area-of-Axonal-Projections-Tool";
 
@@ -97,10 +99,12 @@ macro "make band Action Tool (f7) Options" {
 
 macro "count somata [f8]" {
 	countSomata();
+	roiManager("Set Color", "green");
 }
 
 macro "count somata Action Tool (f8) - C000T4b12s" {
 	countSomata();
+	roiManager("Set Color", "green");
 }
 
 macro "count somata Action Tool (f8) Options" {
@@ -120,6 +124,25 @@ macro "count somata Action Tool (f8) Options" {
 	_SOMA_MIN_INTENSITY_THRESHOLD = Dialog.getNumber();
 }
 
+macro "batch measure area of projections Action Tool (f9) - C037T1d13bT9d13aC555" {
+	inputFolder = getDirectory("Please select the input folder");
+	processFolderAreaOfProjections(inputFolder);
+}
+
+macro 'batch measure area of projections [f9]' {
+	inputFolder = getDirectory("Please select the input folder");
+	processFolderAreaOfProjections(inputFolder);
+}
+
+macro "batch count somata Action Tool (f11) - C037T1d13bT9d13sC555" {
+	inputFolder = getDirectory("Please select the input folder");
+	processFolderCountSomata(inputFolder);
+}
+
+macro 'batch count somata [f11]' {
+	inputFolder = getDirectory("Please select the input folder");
+	processFolderCountSomata(inputFolder);
+}
 
 function countSomata() {
 	title = getTitle();
@@ -135,8 +158,10 @@ function countSomata() {
 	reportSomata(_TABLE_TITLE_SOMATA, title, nrOfSomata);
 	selectImage(brownTitle);
 	close();
-	selectImage(blueTitle);
-	close();
+	if (isOpen(blueTitle)) {
+		selectImage(blueTitle);
+		close();
+	}
 	selectImage("Mask");
 	close();
 }
@@ -220,8 +245,11 @@ function detectZone(imageID, channelTitle) {
 	excludeText = "";
 	if (_EXLUCDE_ON_EDGES_ZONE) excludeText = "exclude";
 	run("Analyze Particles...", "size="+_MIN_SIZE_ZONE+"-Infinity show=Masks "+excludeText+" in_situ");
+	getStatistics(area, mean);
+	if (mean==0) return 0;
 	run("Fill Holes");
 	run("Options...", "iterations="+_CLOSE_RADIUS+" count=1 do=Close");
+	run("Options...", "iterations=1 count=1 do=Nothing");
 	run("Create Selection");
 	getStatistics(area);
 	selectImage(imageID);
@@ -437,4 +465,92 @@ function reportSomata(tableTitle, image, nrOfSomata) {
 	Table.set("image", counter, image);
 	Table.set("nr. of somas", counter, nrOfSomata);
 	Table.update;
+}
+
+function processFolderAreaOfProjections(input) {
+	setBatchMode(true);
+	list = getFileList(input);
+	list = Array.sort(list);
+	output = input+"/"+"zones";
+	File.makeDirectory(output);
+	File.makeDirectory(input+"/"+"projections");
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]) && indexOf(list[i], "zones")==-1 && indexOf(list[i], "projections")==-1 && indexOf(list[i], "somas")==-1)
+			processFolderAreaOfProjections(input + File.separator + list[i]);
+		if(endsWith(list[i], _SUFFIX))
+			processFileAreaOfProjections(input, output, list[i]);
+	}
+	setBatchMode(false);
+	print("FINISHED - batch measure area of projections");
+}
+
+function processFileAreaOfProjections(input, output, file) {
+	print("Processing: " + input + File.separator + file);
+	createTable(_TABLE_TITLE);
+	run("Set Measurements...", "area limit display redirect=None decimal=3");
+	open(input + "/" + file);
+	title = getTitle();
+	imageID = getImageID();
+	brownTitle = title+"-("+_BROWN_CHANNEL+")";
+	blueTitle = title+"-("+_BLUE_CHANNEL+")";
+	doColorDeconvolution(imageID);
+
+	selectImage(brownTitle);
+	save(input+"/projections/"+brownTitle);
+	
+	zoneArea = detectZone(imageID, blueTitle);
+	if (zoneArea==0) {
+		run("Close All");
+		return;
+	}
+	selectImage(blueTitle);
+	close();
+	projectionsArea = detectProjections(imageID, brownTitle);
+
+	report(_TABLE_TITLE, title, zoneArea, projectionsArea);
+	run("Select None");
+	print("Saving to: " + output);
+	Overlay.activateSelection(0);
+	run("Create Mask");
+	save(output+"/"+file);
+	close();
+	save(input+"/"+"projections"+"/"+file);
+	close();
+}
+
+function processFolderCountSomata(input) {
+	setBatchMode(true);
+	list = getFileList(input);
+	list = Array.sort(list);
+	output = input+"/"+"zones";
+	File.makeDirectory(input+"/"+"somas");
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]) && indexOf(list[i], "zones")==-1 && indexOf(list[i], "projections")==-1 && indexOf(list[i], "somas")==-1)
+			processFolderCountSomata(input + File.separator + list[i]);
+		if(endsWith(list[i], _SUFFIX))
+			processFileCountSomata(input, output, list[i]);
+	}
+	setBatchMode(false);
+	print("FINISHED - batch count somas");
+}
+
+function processFileCountSomata(input, output, file) {
+	print("Processing: " + input + File.separator + file);
+	open(input + "/" + "zones" + "/" + file);
+	rename("Mask");
+	makeBand();
+	open(input + "/projections/" + file);
+	inputImageID = getImageID();
+	title = getTitle();
+	brownTitle = title+"-("+_BROWN_CHANNEL+")";
+	open(input + "/projections/" + brownTitle + ".tif");
+	rename(brownTitle);
+	selectImage(inputImageID);
+	countSomata();
+	selectImage(inputImageID);
+	roiManager("Set Color", "green");
+	run("From ROI Manager");
+	print("Saving to: " + input+"/"+"somas"+"/"+file);
+	save(input+"/"+"somas"+"/"+file);
+	run("Close All");
 }
