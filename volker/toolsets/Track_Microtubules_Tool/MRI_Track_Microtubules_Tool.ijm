@@ -191,14 +191,57 @@ function trackEnds() {
 	run("Select None");
 	mX = getResult("X", nResults-1);
 	mY = getResult("Y", nResults-1);
+	START_X1=newArray(0);
+	START_Y1=newArray(0);
+	START_X2=newArray(0);
+	START_Y2=newArray(0);
+	// FIND end points again START
+
+	run("Points from Mask");
+	getSelectionCoordinates(xpoints, ypoints);
+	run("Select None");
+	nr = 0;
+	X1=-1;
+	Y1=-1;
+	X2=-1;
+	Y2=-1; 
+	for(i=0; i<xpoints.length; i++) {
+		x = xpoints[i];
+		y = ypoints[i];
+	
+		makeRectangle(x-1, y-1, 3, 3);
+		getStatistics(area, mean);
+		if(mean>56 && mean<57) {
+			if (nr==0) {
+				X1 = x;
+				Y1 = y;
+			} else {
+				X2 = x;
+				Y2 = y;
+			}
+			nr++;
+		}
+	}
+	if (nr==2) {
+			START_X1 = Array.concat(START_X1, X1);
+			START_Y1 = Array.concat(START_Y1, Y1);
+			START_X2 = Array.concat(START_X2, X2);
+			START_Y2 = Array.concat(START_Y2, Y2);
+	}
+		
+	// FIND end points again END
 	trackX1 = newArray(nSlices);
 	trackY1 = newArray(nSlices);
-	trackX1[0] = x1;
-	trackY1[0] = y1;
+	trackX1[0] = START_X1[0];
+	trackY1[0] = START_Y1[0];
 	trackX2 = newArray(nSlices);
 	trackY2 = newArray(nSlices);
-	trackX2[0] = x2;
-	trackY2[0] = y2;
+	trackX2[0] = START_X2[0];
+	trackY2[0] = START_Y2[0];
+	x1 = trackX1[0];
+	y1 = trackY1[0];
+	x2 = trackX2[0];
+	y2 = trackY2[0];
 	for (i = 2; i <= nSlices; i++) {
 		setSlice(i);
 		
@@ -228,6 +271,16 @@ function trackEnds() {
 		y2 = trackY2[i-1];
 	}
 	close();
+	for (i = 0; i < trackX1.length; i++) {
+		trackX1[i] = trackX1[i] + bx;
+		trackY1[i] = trackY1[i] + by;
+	}
+	
+	for (i = 0; i < trackX2.length; i++) {
+		trackX2[i] = trackX2[i] + bx;
+		trackY2[i] = trackY2[i] + by;
+	}
+	
 	selectImage(_CURRENT_IMAGE_ID);
 	makeSelection("polyline", trackX1, trackY1);
 	Overlay.addSelection;
@@ -262,7 +315,7 @@ function setNextPoint(x, y, xM, yM, endX, endY, trackX, trackY, pos) {
 		if(endX1.length==1) {
 			print("mark2");
 			trackX[pos] = endX1[0];
-			trackY[pos] = enyY1[0];
+			trackY[pos] = endY1[0];
 			return;
 		}
 		// otherwise find the nearest endPoint to the last endPoint
@@ -275,38 +328,4 @@ function setNextPoint(x, y, xM, yM, endX, endY, trackX, trackY, pos) {
 		indexSmallest = ranks[0];
 		trackX[pos] = endX1[indexSmallest];
 		trackY[pos] = enyY1[indexSmallest];
-}
-
-function setLocalEndPoints(START_X1, START_Y1, START_X2, START_Y2) {
-    run("Points from Mask");
-	getSelectionCoordinates(xpoints, ypoints);
-	run("Select None");
-	nr = 0;
-	X1=-1;
-	Y1=-1;
-	X2=-1;
-	Y2=-1; 
-	for(i=0; i<xpoints.length; i++) {
-		x = xpoints[i];
-		y = ypoints[i];
-	
-		makeRectangle(x-1, y-1, 3, 3);
-		getStatistics(area, mean);
-		if(mean>56 && mean<57) {
-			if (nr==0) {
-				X1 = x;
-				Y1 = y;
-			} else {
-				X2 = x;
-				Y2 = y;
-			}
-			nr++;
-		}
-	}
-	if (nr==2) {
-			START_X1 = Array.concat(START_X1, bx+X1-1);
-			START_Y1 = Array.concat(START_Y1, by+Y1-1);
-			START_X2 = Array.concat(START_X2, bx+X2-1);
-			START_Y2 = Array.concat(START_Y2, by+Y2-1);
-	}
 }
