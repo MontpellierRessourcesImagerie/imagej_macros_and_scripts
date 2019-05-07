@@ -15,27 +15,28 @@ var _BROWN_CHANNEL = "Colour_2";
 var _BLUE_CHANNEL = "Colour_1";
 var _GREEN_CHANNEL = "Colour_3";
 var _THRESHOLDING_METHOD_PROJECTIONS = "Yen";
-var _TRESHOLDING_METHOD_ZONE = "MaxEntropy";
+var _TRESHOLDING_METHOD_ZONE = "Otsu";
 var _COLOR_VECTORS = "H DAB";
 var _MIN_SIZE_ZONE = 1000000;
 var _MIN_SIZE_PROJECTIONS = 500;
 var _SIGMA_BLUR = 2;
-var _CLOSE_RADIUS = 40;
+var _CLOSE_RADIUS = 10;
 var _TABLE_TITLE = "area of axonal projections";
 var _EXLUCDE_ON_EDGES_ZONE = true;
+var _ENLARGE_ZONE = 200;
 
 var _BLOLBS_THRESHOLD_METHOD = "Default";
-var _BLOBS_MIN_SIZE = 2500;
+var _BLOBS_MIN_SIZE = 12000;
 var _BLOBS_MIN_CIRCULARITY = 0.1;
-var _BLOBS_MIN_DIAMETER = 90;
+var _BLOBS_MIN_DIAMETER = 65;
 var _BLOBS_MAX_DIAMETER = 144;
 var _FEATURES = "Area";
 var _PARTS = split(_FEATURES, ",");
 var _MAIN_FEATURE = _PARTS[0];
 var _FIT_ELLIPSE = false;
-var _SOMA_MIN_INTENSITY_THRESHOLD = 42; 
-
-var _RADIUS_OF_BAND = 80;
+var _SOMA_MIN_INTENSITY_THRESHOLD = 70; 
+var _DO_WATERSHED = false;
+var _RADIUS_OF_BAND = 20;
 
 var _TABLE_TITLE_SOMATA = "somata count";
 
@@ -115,6 +116,7 @@ macro "count somata Action Tool (f8) Options" {
 	Dialog.addNumber("min. diamater soma:", _BLOBS_MIN_DIAMETER);
 	Dialog.addNumber("max. diamater soma:", _BLOBS_MAX_DIAMETER);
 	Dialog.addNumber("min intensity soma:", _SOMA_MIN_INTENSITY_THRESHOLD);
+	Dialog.addCheckbox("separate somas", _DO_WATERSHED);
 	Dialog.show();
 	_BLOLBS_THRESHOLD_METHOD = Dialog.getChoice();
 	_BLOBS_MIN_SIZE = Dialog.getNumber();
@@ -122,6 +124,7 @@ macro "count somata Action Tool (f8) Options" {
 	_BLOBS_MIN_DIAMETER = Dialog.getNumber();
 	_BLOBS_MAX_DIAMETER = Dialog.getNumber();
 	_SOMA_MIN_INTENSITY_THRESHOLD = Dialog.getNumber();
+	_DO_WATERSHED = Dialog.getCheckbox();
 }
 
 macro "batch measure area of projections Action Tool (f9) - C037T1d13bT9d13aC555" {
@@ -364,7 +367,7 @@ function detectSpotsDoG(minDiameter, maxDiameter) {
 	run("Close-");
 	run("Fill Holes");
 	run("Analyze Particles...", "size="+_BLOBS_MIN_SIZE+"-Infinity show=Masks in_situ");
-	run("Watershed");
+	if (_DO_WATERSHED) run("Watershed");
 	run("Analyze Particles...", "size="+_BLOBS_MIN_SIZE+"-Infinity circularity="+_BLOBS_MIN_CIRCULARITY+"-1.00 show=Nothing exclude add");
 	if (_FIT_ELLIPSE) fitEllipses();
 	roiManager("Show All");
@@ -434,9 +437,10 @@ function filterRoisNotTouchingZone(imageID) {
 	run("MRI Roi Util");
 	selectImage(imageID);
 	Overlay.activateSelection(0);
-	run("Enlarge...", "enlarge=20");
+	run("Enlarge...", "enlarge="+ _ENLARGE_ZONE);
 	getSelectionCoordinates(zonePointsX, zonePointsY);
 	count = roiManager("count");
+	indicesToBeRemoved = newArray(0);
 	for (i = 0; i < count; i++) {
 		roiManager("select", i);
 		getStatistics(area, mean, min, max, std, histogram);
