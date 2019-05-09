@@ -24,20 +24,29 @@ macro "stack registration Action Tool (f1) - C000T4b12s" {
 
 macro 'find end points [f2]' {
 	skeletonizeMicrotubules();
-	findEndPoints();
+	findEndPoints(_CURRENT_IMAGE_ID);
 }
 
 
 macro "find end points Action Tool (f2) - C000T4b12f" {
 	skeletonizeMicrotubules();
-	findEndPoints();
+	findEndPoints(_CURRENT_IMAGE_ID);
 }
 
-macro 'track ends [f3]' {
+
+macro "add to selection Action Tool (f3) - C000T4b12a" {
+	addToSelection();
+}
+
+macro 'add to selection [f3]' {
+	addToSelection();
+}
+
+macro 'track ends [f4]' {
 	trackEnds();
 }
 
-macro "track ends Action Tool (f3) - C000T4b12t" {
+macro "track ends Action Tool (f4) - C000T4b12t" {
 	trackEnds();
 }
 
@@ -71,7 +80,7 @@ function skeletonizeMicrotubules() {
 	run("Remove Overlay");
 	run("FeatureJ Laplacian", "compute smoothing=2");
 	run("Convert to Mask", "method=Default background=Light calculate");
-	run("Analyze Particles...", "size=1.5-Infinity add slice exclude");
+	run("Analyze Particles...", "size=1.0-Infinity add slice exclude");
 	roiManager("Combine");
 	run("Clear Outside", "stack");
 	run("Select None");
@@ -90,63 +99,17 @@ function filterFiles(files) {
 	return newFiles;
 }
 
-function findEndPoints() {
-	START_X1=newArray(0);
-	START_Y1=newArray(0);
-	START_X2=newArray(0);
-	START_Y2=newArray(0);
+function findEndPoints(imageID) {
+
+	runPythonScript("microtubule-tracking.py", "exec=findEndPoints,imageID="+imageID+",maskID="+_CURRENT_SKELETON_ID);
+
+	selectImage(imageID);
+	Overlay.activateSelection(0);
+	getSelectionCoordinates(START_X1, START_Y1)
+	Overlay.activateSelection(1);
+	getSelectionCoordinates(START_X2, START_Y2)
+	run("Select None");
 	
-	setSlice(1);
-	count = roiManager("count");
-	for (r = 0; r < count; r++) {
-		roiManager("select", r);
-		getBoundingRect(bx, by, bwidth, bheight);
-		run("Duplicate...", " ");
-		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
-		run("Select None");
-		width = getWidth();
-		height = getHeight();
-		run("Canvas Size...", "width="+(width+2)+" height="+(height+2)+" position=Center zero");
-		run("Points from Mask");
-		getSelectionCoordinates(xpoints, ypoints);
-		run("Select None");
-		nr = 0;
-		X1=-1;
-		Y1=-1;
-		X2=-1;
-		Y2=-1; 
-		for(i=0; i<xpoints.length; i++) {
-			x = xpoints[i];
-			y = ypoints[i];
-		
-			makeRectangle(x-1, y-1, 3, 3);
-			getStatistics(area, mean);
-			if(mean>56 && mean<57) {
-				if (nr==0) {
-					X1 = x;
-					Y1 = y;
-				} else {
-					X2 = x;
-					Y2 = y;
-				}
-				nr++;
-			}
-		}
-		if (nr==2) {
-				START_X1 = Array.concat(START_X1, bx+X1-1);
-				START_Y1 = Array.concat(START_Y1, by+Y1-1);
-				START_X2 = Array.concat(START_X2, bx+X2-1);
-				START_Y2 = Array.concat(START_Y2, by+Y2-1);
-		}
-		close();
-	}
-	selectImage(_CURRENT_IMAGE_ID);
-	run("Point Tool...", "type=Circle color=Magenta size=Medium label");
-	makeSelection("point", START_X1, START_Y1);
-	Overlay.addSelection("magenta");
-	makeSelection("point", START_X2, START_Y2);
-	Overlay.addSelection("cyan");
-	Overlay.show;
 	roiManager("Deselect");
 	roiManager("reset");
 	for (i = 0; i < START_X1.length; i++) {
@@ -154,7 +117,7 @@ function findEndPoints() {
 		roiManager("add");
 	}
 	run("Select None");
-	roiManager("Set Color", "green");
+	roiManager("Set Color", "yellow");
 	roiManager("Show None");
 	roiManager("Show All");
 }
@@ -165,6 +128,8 @@ function trackEnds() {
 		print("You need to select a roi in the roi-manager for the tracking.");
 		return;
 	}
+	runPythonScript("microtubule-tracking.py", "exec=trackEnds,imageID="+_CURRENT_IMAGE_ID+",maskID="+_CURRENT_SKELETON_ID);
+	/*
 	selectImage(_CURRENT_IMAGE_ID);
 	Overlay.activateSelection(0);
 	getSelectionCoordinates(xpoints1, ypoints1);
@@ -287,6 +252,7 @@ function trackEnds() {
 	makeSelection("polyline", trackX2, trackY2);
 	Overlay.addSelection;
 	Overlay.show;
+	*/
 }
 
 function setNextPoint(x, y, xM, yM, endX, endY, trackX, trackY, pos) {
@@ -328,4 +294,14 @@ function setNextPoint(x, y, xM, yM, endX, endY, trackX, trackY, pos) {
 		indexSmallest = ranks[0];
 		trackX[pos] = endX1[indexSmallest];
 		trackY[pos] = enyY1[indexSmallest];
+}
+
+function addToSelection() {
+	roiManager("Set Color", "green");
+}
+
+function runPythonScript(name, parameters) {
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/"+name);
+    call("ij.plugin.Macro_Runner.runPython", script, parameters); 
 }
