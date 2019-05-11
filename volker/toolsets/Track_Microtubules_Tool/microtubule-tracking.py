@@ -1,7 +1,8 @@
 from ij import IJ, WindowManager
 from ij.plugin.frame import RoiManager
-from ij.gui import Roi, PointRoi, Line
+from ij.gui import Roi, PointRoi, Line, PolygonRoi
 from java.awt import Color
+from math import sqrt
 
 imageID = -1
 maskID = -1
@@ -22,11 +23,33 @@ def trackEnds(imageID, maskID):
     roi = maskIMP.getOverlay().get(index)
     outerBounds = roi.getBounds()
     impMT, innerBounds = duplicateMaskInRoi(maskIMP, roi, True)
+    print(outerBounds, innerBounds)
     centroid = impMT.getOverlay().get(0).getContourCentroid()
     nr, endPoint1, endPoint2 = findEndPointsInSkeleton(impMT)
-    print(nr, endPoint1, endPoint2)
     impMT.show()
-        
+    track1 = trackEnd(impMT, endPoint1, centroid);
+    print(track1)
+    track2 = trackEnd(impMT, endPoint2, centroid);
+    impMT.changes=False
+    impMT.close()
+    newTrack1 = []
+    for point in track1:
+        newTrack1.append((point.x + outerBounds.x + innerBounds.x - 1,
+                         point.y + outerBounds.y + innerBounds.y - 1))
+    newTrack2 = []
+    for point in track2:
+        newTrack2.append((point.x + outerBounds.x + innerBounds.x - 1,
+                          point.y + outerBounds.y + innerBounds.y - 1))
+    track1X = [point[0] for point in newTrack1]
+    track1Y = [point[1] for point in newTrack1]
+    roiTrack1 = PolygonRoi(track1X, track1Y, Roi.POLYLINE)
+    inputIMP.getOverlay().add(roiTrack1)
+    track2X = [point[0] for point in newTrack2]
+    track2Y = [point[1] for point in newTrack2]
+    roiTrack2 = PolygonRoi(track2X, track2Y, Roi.POLYLINE)
+    inputIMP.getOverlay().add(roiTrack2)
+    inputIMP.repaintWindow()            
+    
 def findEndPoints(imageID, maskID):
     endPoints1 = []
     endPoints2 = []
@@ -42,7 +65,6 @@ def findEndPoints(imageID, maskID):
        outerBounds = roi.getBounds()
        impMT, innerBounds = duplicateMaskInRoi(imp, roi)
        nr, endPoint1, endPoint2 = findEndPointsInSkeleton(impMT)
-       print(nr, endPoint1, endPoint2)
        if (nr==2):
            endPoint1.x = endPoint1.x + outerBounds.x + innerBounds.x - 1
            endPoint1.y = endPoint1.y + outerBounds.y + innerBounds.y - 1
@@ -63,6 +85,34 @@ def findEndPoints(imageID, maskID):
     otherPoints.setStrokeColor(Color.cyan)
     otherPoints.setFillColor(Color.cyan)
     inputIMP.getOverlay().add(otherPoints)
+
+def trackEnd(imp, endPoint, centroid):
+    stackSize = imp.getStackSize()
+    track = [endPoint]
+    for i in range(2, stackSize+1):
+        imp.setSlice(i)
+        points = findAllEndPointInSkeleton(imp)
+        track.append(getNextPoint(track, points, centroid))
+    return track
+
+def getNextPoint(track, points, centroid):
+    candidates = []
+    point = track[-1]
+    distLastToMiddle = sqrt(((centroid[0]-point.x)**2) + ((centroid[1]-point.y)**2))
+    for p in points:
+        distCurrentToMiddle = sqrt(((centroid[0]-p.x)**2) + ((centroid[1]-p.y)**2))
+        distCurrentToLast = sqrt(((point.x-p.x)**2) + ((point.y-p.y)**2))
+        if ((distCurrentToMiddle<distLastToMiddle) and (distCurrentToLast<=distCurrentToMiddle)):
+            candidates.append(p)
+    if len(candidates)==0:
+        return point
+    if len(candidates)==1:        
+        return candidates[0]
+    distances = []
+    for candidate in candidates:
+        distances.append(sqrt(((candidate.x-point.x)**2) + ((candidate.y-point.y)**2)))
+    index = distances.index(min(distances))
+    return candidates[index]	
     
 def findEndPointsInSkeleton(impMT):
     points = getPointsFromSekelton(impMT)
@@ -80,7 +130,18 @@ def findEndPointsInSkeleton(impMT):
                 endPoint2 = point
             nr = nr + 1
     return nr, endPoint1, endPoint2
-               
+
+def findAllEndPointInSkeleton(impMT):
+    points = getPointsFromSekelton(impMT)
+    endPoints = []
+    for point in points:
+        rect = Roi(point.x-1, point.y-1, 3, 3)
+        impMT.setRoi(rect)
+        stats = impMT.getStatistics	()
+        if (stats.mean > 56 and stats.mean<57):
+            endPoints.append(point)
+    return endPoints
+
 # duplicates the mask in the roi with a border of 1 pixel
 def duplicateMaskInRoi(imp, roi, duplicateStack=False):
     imp.setRoi(roi)
