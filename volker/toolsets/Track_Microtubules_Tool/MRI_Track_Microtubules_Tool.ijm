@@ -100,7 +100,6 @@ function filterFiles(files) {
 }
 
 function findEndPoints(imageID) {
-
 	runPythonScript("microtubule-tracking.py", "exec=findEndPoints,imageID="+imageID+",maskID="+_CURRENT_SKELETON_ID);
 
 	selectImage(imageID);
@@ -120,184 +119,27 @@ function findEndPoints(imageID) {
 	roiManager("Set Color", "yellow");
 	roiManager("Show None");
 	roiManager("Show All");
+	trackEnds();
 }
 
 function trackEnds() {
-	index = roiManager("index");
+/*	index = roiManager("index");
 	if (index<0) {
 		print("You need to select a roi in the roi-manager for the tracking.");
 		return;
+	} */
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("Select", i);
+	    runPythonScript("microtubule-tracking.py", "exec=trackEnds,imageID="+_CURRENT_IMAGE_ID+",maskID="+_CURRENT_SKELETON_ID);
 	}
-	runPythonScript("microtubule-tracking.py", "exec=trackEnds,imageID="+_CURRENT_IMAGE_ID+",maskID="+_CURRENT_SKELETON_ID);
-	/*
-	selectImage(_CURRENT_IMAGE_ID);
-	Overlay.activateSelection(0);
-	getSelectionCoordinates(xpoints1, ypoints1);
-	Overlay.activateSelection(1);
-	getSelectionCoordinates(xpoints2, ypoints2);
-	selectImage(_CURRENT_SKELETON_ID);
-	x1 = minOf(xpoints1[index], xpoints2[index]);
-	x2 = maxOf(xpoints1[index], xpoints2[index]);
-	y1 = minOf(ypoints1[index], ypoints2[index]);
-	y2 = maxOf(ypoints1[index], ypoints2[index]);
-	makeLine(x1-1, y1-1, x2+2, y2+2);
-	run("To Bounding Box");
-	getBoundingRect(bx, by, bwidth, bheight);
-	run("Duplicate...", "duplicate");
-	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
-	width = getWidth();
-	height = getHeight();
-	run("Canvas Size...", "width="+(width+2)+" height="+(height+2)+" position=Center zero");
-	// get the middle
-	setSlice(1);
-	run("Set Measurements...", "centroid redirect=None decimal=3");
-	run("Create Selection");
-	run("Measure");
+	roiManager("Deselect");
 	run("Select None");
-	mX = getResult("X", nResults-1);
-	mY = getResult("Y", nResults-1);
-	START_X1=newArray(0);
-	START_Y1=newArray(0);
-	START_X2=newArray(0);
-	START_Y2=newArray(0);
-	// FIND end points again START
-
-	run("Points from Mask");
-	getSelectionCoordinates(xpoints, ypoints);
-	run("Select None");
-	nr = 0;
-	X1=-1;
-	Y1=-1;
-	X2=-1;
-	Y2=-1; 
-	for(i=0; i<xpoints.length; i++) {
-		x = xpoints[i];
-		y = ypoints[i];
-	
-		makeRectangle(x-1, y-1, 3, 3);
-		getStatistics(area, mean);
-		if(mean>56 && mean<57) {
-			if (nr==0) {
-				X1 = x;
-				Y1 = y;
-			} else {
-				X2 = x;
-				Y2 = y;
-			}
-			nr++;
-		}
-	}
-	if (nr==2) {
-			START_X1 = Array.concat(START_X1, X1);
-			START_Y1 = Array.concat(START_Y1, Y1);
-			START_X2 = Array.concat(START_X2, X2);
-			START_Y2 = Array.concat(START_Y2, Y2);
-	}
-		
-	// FIND end points again END
-	trackX1 = newArray(nSlices);
-	trackY1 = newArray(nSlices);
-	trackX1[0] = START_X1[0];
-	trackY1[0] = START_Y1[0];
-	trackX2 = newArray(nSlices);
-	trackY2 = newArray(nSlices);
-	trackX2[0] = START_X2[0];
-	trackY2[0] = START_Y2[0];
-	x1 = trackX1[0];
-	y1 = trackY1[0];
-	x2 = trackX2[0];
-	y2 = trackY2[0];
-	for (i = 2; i <= nSlices; i++) {
-		setSlice(i);
-		
-		// get all end-points on the new slice
-		
-		endX = newArray(0);
-		endY = newArray(0);
-		run("Points from Mask");
-		getSelectionCoordinates(xpoints, ypoints);
-		run("Select None");
-		for(p=0; p<xpoints.length; p++) {
-			x = xpoints[p];
-			y = ypoints[p];	
-			makeRectangle(x-1, y-1, 3, 3);
-			getStatistics(area, mean);
-			if(mean>56 && mean<57) {
-				endX = Array.concat(endX, x);
-				endY = Array.concat(endY, y);
-			}
-		}
-		// filter out points further away from the middle than the last point that are on this side of the middle.
-		setNextPoint(x1, y1, mX, mY, endX, endY, trackX1, trackY1, i-1);
-		setNextPoint(x2, y2, mX, mY, endX, endY, trackX2, trackY2, i-1);
-		x1 = trackX1[i-1];
-		y1 = trackY1[i-1];
-		x2 = trackX2[i-1];
-		y2 = trackY2[i-1];
-	}
-	close();
-	for (i = 0; i < trackX1.length; i++) {
-		trackX1[i] = trackX1[i] + bx;
-		trackY1[i] = trackY1[i] + by;
-	}
-	
-	for (i = 0; i < trackX2.length; i++) {
-		trackX2[i] = trackX2[i] + bx;
-		trackY2[i] = trackY2[i] + by;
-	}
-	
-	selectImage(_CURRENT_IMAGE_ID);
-	makeSelection("polyline", trackX1, trackY1);
-	Overlay.addSelection;
-	makeSelection("polyline", trackX2, trackY2);
-	Overlay.addSelection;
-	Overlay.show;
-	*/
-}
-
-function setNextPoint(x, y, xM, yM, endX, endY, trackX, trackY, pos) {
-	// filter out points further away from the middle than the last point that are on this side of the middle.
-		endX1 = newArray(0);
-		endY1 = newArray(0);
-		distLastToMiddle = sqrt(((xM-x1)*(xM-x1))+((yM-y1)*(yM-y1)));
-		for (p = 0; p < endX.length; p++) {
-			xC = endX[p];
-			yC = endY[p];
-			distCurrentToMiddle = sqrt(((xM-xC)*(xM-xC))+((yM-yC)*(yM-yC)));
-			distCurrentToLast = sqrt(((x1-xC)*(x1-xC))+((y1-yC)*(y1-yC)));
-			if (distCurrentToMiddle<distLastToMiddle && distCurrentToLast<=distCurrentToMiddle) {
-				endX1 = Array.concat(endX1, xC);
-				endY1 = Array.concat(endY1, yC);
-			}
-		}
-		// No nearer point found, keep the last one
-		if(endX1.length==0) {
-			print("mark1");
-			trackX[pos] = x1;
-			trackY[pos] = y1;
-			return;
-		}
-		// If only one found, take that one
-		if(endX1.length==1) {
-			print("mark2");
-			trackX[pos] = endX1[0];
-			trackY[pos] = endY1[0];
-			return;
-		}
-		// otherwise find the nearest endPoint to the last endPoint
-		print("mark3");
-		distances = newArray(endX1.length);
-		for (p = 0; p < endX1.length; p++) {
-			distances[p] = sqrt(((x1-endX1[p])*(x1-endX1[p]))+((y1-endY1[p])*(y1-endY1[p])));
-		}
-		ranks = Array.rankPositions(distances);
-		indexSmallest = ranks[0];
-		trackX[pos] = endX1[indexSmallest];
-		trackY[pos] = enyY1[indexSmallest];
 }
 
 function addToSelection() {
 	roiManager("Set Color", "green");
+	run("Select None");
 }
 
 function runPythonScript(name, parameters) {
