@@ -1,8 +1,10 @@
 var _EXT = ".nd";
+var _LINE_HALF_WIDTH_KYMOGRAPH = 7;
+var	_RECTANGLE_WIDTH = 10;
+var _COLUMNS = 5
 var _CURRENT_IMAGE_ID = -1;
 var _CURRENT_SKELETON_ID = -1;
-var	_RECTANGLE_WIDTH = 10;
-var _PRECISION_RADIUS = 1;
+
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Track_Microtubules_Tool";
 
@@ -22,13 +24,13 @@ macro "stack registration Action Tool (f2) - C000T4b12s" {
 	registerStacks();	
 }
 
-macro 'find end points [f3]' {
+macro 'track microtubules [f3]' {
 	skeletonizeMicrotubules();
 	findEndPoints(_CURRENT_IMAGE_ID);
 }
 
 
-macro "find end points Action Tool (f3) - C000T4b12f" {
+macro "track microtubules Action Tool (f3) - C000T4b12t" {
 	skeletonizeMicrotubules();
 	findEndPoints(_CURRENT_IMAGE_ID);
 }
@@ -42,12 +44,12 @@ macro 'add to selection [f4]' {
 	addToSelection();
 }
 
-macro 'track ends [f5]' {
-	trackEnds();
+macro "measure selected microtubules Action Tool (f5) - C000T4b12m" {
+	measureSelectedMicrotubules();
 }
 
-macro "track ends Action Tool (f5) - C000T4b12t" {
-	trackEnds();
+macro 'measure selected microtubules [f5]' {
+	measureSelectedMicrotubules();
 }
 
 
@@ -123,11 +125,6 @@ function findEndPoints(imageID) {
 }
 
 function trackEnds() {
-/*	index = roiManager("index");
-	if (index<0) {
-		print("You need to select a roi in the roi-manager for the tracking.");
-		return;
-	} */
 	count = roiManager("count");
 	for (i = 0; i < count; i++) {
 		roiManager("Select", i);
@@ -140,6 +137,127 @@ function trackEnds() {
 function addToSelection() {
 	roiManager("Set Color", "green");
 	run("Select None");
+}
+
+function measureSelectedMicrotubules() {
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("Select", i);
+		color = Roi.getStrokeColor;
+		if (color=="green") {
+			index = roiManager("index");
+			measureMicrotubule(index);
+		}
+	}
+	titles = getList("image.titles");
+	maxWidth = -1;
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];
+		if (indexOf(title, "Kymograph") >= 0) {
+			selectImage(title);
+			width = getWidth();
+			if (width>maxWidth) maxWidth = width;
+		}
+	}
+	for (i = 0; i < titles.length; i++) {
+		if (indexOf(title, "Kymograph") >= 0) {
+			height = getHeight();
+			run("Canvas Size...", "width="+maxWidth+" height="+height+" position=Center zero");
+		}
+	}
+	run("Images to Stack", "name=kymos title=Kymograph");
+	stackID = getImageID();
+	rows = floor(nSlices / _COLUMNS);
+	if ((nSlices % _COLUMNS)>0) rows++;
+	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
+	selectImage(stackID);
+	close();
+}
+
+function measureMicrotubule(index) {
+	imageID = getImageID();
+	title = getTitle();
+	Overlay.activateSelection(0);
+	getSelectionCoordinates(xpoints1, ypoints1);
+	Overlay.activateSelection(1);
+	getSelectionCoordinates(xpoints2, ypoints2);
+	x1 = xpoints1[index];
+	y1 = ypoints1[index];
+	x2 = xpoints2[index];
+	y2 = ypoints2[index];
+	makeLine(x1, y1, x2, y2);
+	run("Multi Kymograph", "linewidth="+_LINE_HALF_WIDTH_KYMOGRAPH);
+	selectImage(imageID);
+	setSlice(1);
+	trackIndex1 = index + 2;
+	trackIndex2 = trackIndex1 + 1;
+	Overlay.activateSelection(trackIndex1);
+	getSelectionCoordinates(xpoints, ypoints);
+	speedStats1 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
+	measureSpeed(xpoints, ypoints, speedStats1);
+	Overlay.activateSelection(trackIndex2);
+	getSelectionCoordinates(xpoints, ypoints);
+	speedStats2 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
+	measureSpeed(xpoints, ypoints, speedStats2);
+	reportStats(title, index+1, speedStats1, speedStats2); 
+}
+
+function reportStats(title, index, speedStats1, speedStats2) {
+	title = "speed of microtubule ends";
+	if (!isOpen(title)) {
+		Table.create(title);
+	}
+	selectWindow("speed of microtubule ends");
+	row = Table.size;
+	Table.set("image", row, title);
+	Table.set("microtubule nr.", row, index);
+	
+	Table.set("avg. speed side 1", row, speedStats1[0]);
+	Table.set("stdDev side 1", row, speedStats1[1]);
+	Table.set("min. speed side 1", row, speedStats1[2]);
+	Table.set("max. speed side 1", row, speedStats1[3]);
+	Table.set("track length side 1", row, speedStats1[4]);
+	Table.set("distance side 1", row, speedStats1[5]);
+
+	Table.set("avg. speed side 2", row, speedStats2[0]);
+	Table.set("stdDev side 2", row, speedStats2[1]);
+	Table.set("min. speed side 2", row, speedStats2[2]);
+	Table.set("max. speed side 2", row, speedStats2[3]);
+	Table.set("track length side 2", row, speedStats2[4]);
+	Table.set("distance side 2", row, speedStats2[5]);
+	Table.update;
+}
+
+function measureSpeed(xpoints, ypoints, speedStats) {
+	run("Set Measurements...", "area bounding limit display redirect=None decimal=6");
+	speeds = newArray(xpoints.length-1);
+	length = 0;
+	deltaT = Stack.getFrameInterval();
+	for (i = 0; i < xpoints.length-1; i++) {
+		x1 = xpoints[i];
+		y1 = ypoints[i];
+		x2 = xpoints[i+1];
+		y2 = ypoints[i+1];
+		toScaled(x1,y1);
+		toScaled(x2,y2);
+		dist = sqrt(pow(x2-x1,2)+pow(y2-y1,2));
+		speeds[i] = dist / deltaT;
+		length = length + dist;
+	}
+	Array.getStatistics(speeds, min, max, mean, stdDev);
+	x1 = xpoints[0];
+	y1 = ypoints[0];
+	x2 = xpoints[xpoints.length-1];
+	y2 = ypoints[ypoints.length-1];
+	toScaled(x1,y1);
+    toScaled(x2,y2);
+	distance = sqrt(pow(x2-x1,2)+pow(y2-y1,2));
+	speedStats[0] = mean;
+	speedStats[1] = stdDev;
+	speedStats[2] = min;
+	speedStats[3] = max;
+	speedStats[4] = length;
+	speedStats[5] = distance;
 }
 
 function runPythonScript(name, parameters) {

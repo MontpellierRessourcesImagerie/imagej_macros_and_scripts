@@ -23,12 +23,10 @@ def trackEnds(imageID, maskID):
     roi = maskIMP.getOverlay().get(index)
     outerBounds = roi.getBounds()
     impMT, innerBounds = duplicateMaskInRoi(maskIMP, roi, True)
-    print(outerBounds, innerBounds)
     centroid = impMT.getOverlay().get(0).getContourCentroid()
     nr, endPoint1, endPoint2 = findEndPointsInSkeleton(impMT)
     impMT.show()
     track1 = trackEnd(impMT, endPoint1, centroid);
-    print(track1)
     track2 = trackEnd(impMT, endPoint2, centroid);
     impMT.changes=False
     impMT.close()
