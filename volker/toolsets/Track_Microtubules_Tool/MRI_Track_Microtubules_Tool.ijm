@@ -150,6 +150,32 @@ function measureSelectedMicrotubules() {
 		}
 	}
 	titles = getList("image.titles");
+	yMaxGlobal = 0;
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];	
+		if (indexOf(title, "Plot of MT") >= 0) {
+			selectImage(title);
+			Plot.getValues(xpoints, ypoints);
+			Array.getStatistics(ypoints, min, max);
+			if (max>yMaxGlobal) {
+				yMaxGlobal = max;
+			}
+		}
+	}
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];	
+		selectImage(title);
+		if (indexOf(title, "Plot of MT") >= 0) {
+			Plot.setLimits(NaN, NaN, 0, yMaxGlobal);
+		}
+	}
+	run("Images to Stack", "name=plots title=Plot of MT keep");
+	stackID = getImageID();
+	rows = floor(nSlices / _COLUMNS);
+	if ((nSlices % _COLUMNS)>0) rows++;
+	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
+	selectImage(stackID);
+	close();
 	maxWidth = -1;
 	for (i = 0; i < titles.length; i++) {
 		title = titles[i];
@@ -194,11 +220,11 @@ function measureMicrotubule(index) {
 	Overlay.activateSelection(trackIndex1);
 	getSelectionCoordinates(xpoints, ypoints);
 	speedStats1 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
-	measureSpeed(xpoints, ypoints, speedStats1);
+	measureSpeed(xpoints, ypoints, speedStats1, index+1, "end 1");
 	Overlay.activateSelection(trackIndex2);
 	getSelectionCoordinates(xpoints, ypoints);
 	speedStats2 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
-	measureSpeed(xpoints, ypoints, speedStats2);
+	measureSpeed(xpoints, ypoints, speedStats2, index+1, "end 2");
 	reportStats(title, index+1, speedStats1, speedStats2); 
 }
 
@@ -228,11 +254,16 @@ function reportStats(title, index, speedStats1, speedStats2) {
 	Table.update;
 }
 
-function measureSpeed(xpoints, ypoints, speedStats) {
+function measureSpeed(xpoints, ypoints, speedStats, index, side) {
 	run("Set Measurements...", "area bounding limit display redirect=None decimal=6");
 	speeds = newArray(xpoints.length-1);
-	length = 0;
+	distances = newArray(xpoints.length-1);
 	deltaT = Stack.getFrameInterval();
+	time = newArray(xpoints.length-1);
+	for (i = 0; i < time.length; i++) {
+		time[i] = i * deltaT;
+	}
+	length = 0;
 	for (i = 0; i < xpoints.length-1; i++) {
 		x1 = xpoints[i];
 		y1 = ypoints[i];
@@ -242,6 +273,10 @@ function measureSpeed(xpoints, ypoints, speedStats) {
 		toScaled(x2,y2);
 		dist = sqrt(pow(x2-x1,2)+pow(y2-y1,2));
 		speeds[i] = dist / deltaT;
+		distances[i] = dist;
+		if (i>0) {
+			distances[i] = distances[i] +  distances[i-1];
+		}
 		length = length + dist;
 	}
 	Array.getStatistics(speeds, min, max, mean, stdDev);
@@ -258,6 +293,10 @@ function measureSpeed(xpoints, ypoints, speedStats) {
 	speedStats[3] = max;
 	speedStats[4] = length;
 	speedStats[5] = distance;
+	imageID = getImageID();
+	Plot.create("Plot of MT "+ index + " - " + side, "time", "distance", time, distances);
+	Plot.show();
+	selectImage(imageID);
 }
 
 function runPythonScript(name, parameters) {
