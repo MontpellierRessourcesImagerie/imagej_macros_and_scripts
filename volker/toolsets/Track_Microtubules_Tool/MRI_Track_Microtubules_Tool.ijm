@@ -1,7 +1,13 @@
-var _EXT = ".nd";
-var _LINE_HALF_WIDTH_KYMOGRAPH = 7;
+var _EXT = "nd";
+
 var	_RECTANGLE_WIDTH = 10;
+
+var _LINE_WIDTH_KYMOGRAPH = 7;
 var _COLUMNS = 5
+var _CREATE_PLOTS = true;
+var _CREATE_KYMOGRAPHS = true;
+var _KEEP_PLOT = false;
+var _ADDITIONAL_KYMOGRAPH_LENGTH = 20;
 var _CURRENT_IMAGE_ID = -1;
 var _CURRENT_SKELETON_ID = -1;
 
@@ -24,6 +30,17 @@ macro "stack registration Action Tool (f2) - C000T4b12s" {
 	registerStacks();	
 }
 
+macro "stack registration Action Tool (f2) - C000T4b12s" {
+	registerStacks();	
+}
+
+macro "stack registration Action Tool (f2) Options" {
+	Dialog.create("Stack Registration Options");
+	Dialog.addString("image file extension: ", _EXT);
+	Dialog.show();
+	_EXT = Dialog.getString();
+}
+
 macro 'track microtubules [f3]' {
 	skeletonizeMicrotubules();
 	findEndPoints(_CURRENT_IMAGE_ID);
@@ -35,6 +52,12 @@ macro "track microtubules Action Tool (f3) - C000T4b12t" {
 	findEndPoints(_CURRENT_IMAGE_ID);
 }
 
+macro "track microtubules Action Tool (f3) Options" {
+	Dialog.create("Track Microtubules Options");
+	Dialog.addNumber("width of rectangle: ", _RECTANGLE_WIDTH)
+	Dialog.show();
+	_RECTANGLE_WIDTH = Dialog.getNumber();
+}
 
 macro "add to selection Action Tool (f4) - C000T4b12a" {
 	addToSelection();
@@ -48,10 +71,26 @@ macro "measure selected microtubules Action Tool (f5) - C000T4b12m" {
 	measureSelectedMicrotubules();
 }
 
+macro "measure selected microtubules Action Tool (f5) Options" {
+	Dialog.create("Measure Selected Microtubules Options");
+	Dialog.addNumber("additional line length for kymographs: ", _ADDITIONAL_KYMOGRAPH_LENGTH);
+	Dialog.addNumber("line width kymograph: ", _LINE_WIDTH_KYMOGRAPH);
+	Dialog.addNumber("columns montage: ", _COLUMNS);
+	Dialog.addCheckbox("create plots", _CREATE_PLOTS);
+	Dialog.addCheckbox("create kymographs", _CREATE_KYMOGRAPHS);
+	Dialog.addCheckbox("keep plots", _KEEP_PLOT);
+	Dialog.show();
+	_ADDITIONAL_KYMOGRAPH_LENGTH = Dialog.getNumber();
+	_LINE_WIDTH_KYMOGRAPH = Dialog.getNumber();
+	_COLUMNS = Dialog.getNumber();
+	_CREATE_PLOTS = Dialog.getCheckbox();
+	_CREATE_KYMOGRAPHS = Dialog.getCheckbox();
+	_KEEP_PLOT = Dialog.getCheckbox();
+}
+
 macro 'measure selected microtubules [f5]' {
 	measureSelectedMicrotubules();
 }
-
 
 function registerStacks() {
 	inDir = getDirectory("Please select the input directory!");
@@ -94,7 +133,7 @@ function filterFiles(files) {
 	newFiles = newArray(0);
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
-		if (indexOf(file, _EXT)!=-1) {
+		if (indexOf(file, "."+_EXT)!=-1) {
 			newFiles = Array.concat(newFiles, file);
 		}
 	}
@@ -149,33 +188,12 @@ function measureSelectedMicrotubules() {
 			measureMicrotubule(index);
 		}
 	}
-	titles = getList("image.titles");
-	yMaxGlobal = 0;
-	for (i = 0; i < titles.length; i++) {
-		title = titles[i];	
-		if (indexOf(title, "Plot of MT") >= 0) {
-			selectImage(title);
-			Plot.getValues(xpoints, ypoints);
-			Array.getStatistics(ypoints, min, max);
-			if (max>yMaxGlobal) {
-				yMaxGlobal = max;
-			}
-		}
-	}
-	for (i = 0; i < titles.length; i++) {
-		title = titles[i];	
-		selectImage(title);
-		if (indexOf(title, "Plot of MT") >= 0) {
-			Plot.setLimits(NaN, NaN, 0, yMaxGlobal);
-		}
-	}
-	run("Images to Stack", "name=plots title=Plot of MT keep");
-	stackID = getImageID();
-	rows = floor(nSlices / _COLUMNS);
-	if ((nSlices % _COLUMNS)>0) rows++;
-	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
-	selectImage(stackID);
-	close();
+    if (_CREATE_PLOTS) createPlots();
+    if (_CREATE_KYMOGRAPHS) createKymographs();
+}
+
+function createKymographs() {
+    titles = getList("image.titles");
 	maxWidth = -1;
 	for (i = 0; i < titles.length; i++) {
 		title = titles[i];
@@ -197,9 +215,40 @@ function measureSelectedMicrotubules() {
 	if ((nSlices % _COLUMNS)>0) rows++;
 	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
 	selectImage(stackID);
-	close();
+	close();	
 }
 
+function createPlots() {
+	titles = getList("image.titles");
+	yMaxGlobal = 0;
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];	
+		if (indexOf(title, "Plot of MT") >= 0) {
+			selectImage(title);
+			Plot.getValues(xpoints, ypoints);
+			Array.getStatistics(ypoints, min, max);
+			if (max>yMaxGlobal) {
+				yMaxGlobal = max;
+			}
+		}
+	}
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];	
+		selectImage(title);
+		if (indexOf(title, "Plot of MT") >= 0) {
+			Plot.setLimits(NaN, NaN, 0, yMaxGlobal);
+		}
+	}
+	keepOption = "";
+	if (_KEEP_PLOT) keepOption = "keep";
+	run("Images to Stack", "name=plots title=Plot of MT "+keepOption);
+	stackID = getImageID();
+	rows = floor(nSlices / _COLUMNS);
+	if ((nSlices % _COLUMNS)>0) rows++;
+	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
+	selectImage(stackID);
+	close();
+}
 function measureMicrotubule(index) {
 	imageID = getImageID();
 	title = getTitle();
@@ -212,7 +261,11 @@ function measureMicrotubule(index) {
 	x2 = xpoints2[index];
 	y2 = ypoints2[index];
 	makeLine(x1, y1, x2, y2);
-	run("Multi Kymograph", "linewidth="+_LINE_HALF_WIDTH_KYMOGRAPH);
+	length = sqrt(pow(x2-x1, 2) + pow(y2-y1, 2));
+	newLength = length + _ADDITIONAL_KYMOGRAPH_LENGTH;
+	scaleFactor = newLength / length;
+	run("Scale... ", "x="+scaleFactor+" y="+scaleFactor+ " centered");
+	run("Multi Kymograph", "linewidth="+_LINE_WIDTH_KYMOGRAPH);
 	selectImage(imageID);
 	setSlice(1);
 	trackIndex1 = index + 2;
@@ -304,3 +357,4 @@ function runPythonScript(name, parameters) {
 	script = File.openAsString(macrosDir + "/toolsets/"+name);
     call("ij.plugin.Macro_Runner.runPython", script, parameters); 
 }
+
