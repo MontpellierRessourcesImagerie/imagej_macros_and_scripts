@@ -88,8 +88,11 @@ def trackEnd(imp, endPoint, centroid):
     track = [endPoint]
     for i in range(2, stackSize+1):
         imp.setSlice(i)
+        if (imp.getStatistics().max==0): 
+            break
         points = findAllEndPointInSkeleton(imp)
         track.append(getNextPoint(track, points, centroid))
+    print("timepoints: " + str(len(track)))
     return track
 
 def getNextPoint(track, points, centroid):

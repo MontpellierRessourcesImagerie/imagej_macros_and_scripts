@@ -44,12 +44,14 @@ macro "stack registration Action Tool (f2) Options" {
 macro 'track microtubules [f3]' {
 	skeletonizeMicrotubules();
 	findEndPoints(_CURRENT_IMAGE_ID);
+	trackEnds();
 }
 
 
 macro "track microtubules Action Tool (f3) - C000T4b12t" {
 	skeletonizeMicrotubules();
 	findEndPoints(_CURRENT_IMAGE_ID);
+	trackEnds();
 }
 
 macro "track microtubules Action Tool (f3) Options" {
@@ -67,11 +69,19 @@ macro 'add to selection [f4]' {
 	addToSelection();
 }
 
-macro "measure selected microtubules Action Tool (f5) - C000T4b12m" {
+macro "remove from selection Action Tool (f5) - C000T4b12r" {
+	removeFromSelection();
+}
+
+macro 'remove from selection [f5]' {
+	removeFromSelection();
+}
+
+macro "measure selected microtubules Action Tool (f6) - C000T4b12m" {
 	measureSelectedMicrotubules();
 }
 
-macro "measure selected microtubules Action Tool (f5) Options" {
+macro "measure selected microtubules Action Tool (f6) Options" {
 	Dialog.create("Measure Selected Microtubules Options");
 	Dialog.addNumber("additional line length for kymographs: ", _ADDITIONAL_KYMOGRAPH_LENGTH);
 	Dialog.addNumber("line width kymograph: ", _LINE_WIDTH_KYMOGRAPH);
@@ -88,7 +98,7 @@ macro "measure selected microtubules Action Tool (f5) Options" {
 	_KEEP_PLOT = Dialog.getCheckbox();
 }
 
-macro 'measure selected microtubules [f5]' {
+macro 'measure selected microtubules [f6]' {
 	measureSelectedMicrotubules();
 }
 
@@ -160,7 +170,6 @@ function findEndPoints(imageID) {
 	roiManager("Set Color", "yellow");
 	roiManager("Show None");
 	roiManager("Show All");
-	trackEnds();
 }
 
 function trackEnds() {
@@ -175,6 +184,11 @@ function trackEnds() {
 
 function addToSelection() {
 	roiManager("Set Color", "green");
+	run("Select None");
+}
+
+function removeFromSelection() {
+	roiManager("Set Color", "yellow");
 	run("Select None");
 }
 
@@ -195,9 +209,11 @@ function measureSelectedMicrotubules() {
 function createKymographs() {
     titles = getList("image.titles");
 	maxWidth = -1;
+	nrOfMTs = 0;
 	for (i = 0; i < titles.length; i++) {
 		title = titles[i];
 		if (indexOf(title, "Kymograph") >= 0) {
+			nrOfMTs++;
 			selectImage(title);
 			width = getWidth();
 			if (width>maxWidth) maxWidth = width;
@@ -213,22 +229,29 @@ function createKymographs() {
 	stackID = getImageID();
 	rows = floor(nSlices / _COLUMNS);
 	if ((nSlices % _COLUMNS)>0) rows++;
-	run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
-	selectImage(stackID);
-	close();	
+	if (nrOfMTs>1) {
+	    run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
+		selectImage(stackID);
+		close();	
+	}
 }
 
 function createPlots() {
 	titles = getList("image.titles");
 	yMaxGlobal = 0;
+	xMaxGlobal = 0;
 	for (i = 0; i < titles.length; i++) {
 		title = titles[i];	
 		if (indexOf(title, "Plot of MT") >= 0) {
 			selectImage(title);
 			Plot.getValues(xpoints, ypoints);
-			Array.getStatistics(ypoints, min, max);
-			if (max>yMaxGlobal) {
-				yMaxGlobal = max;
+			Array.getStatistics(ypoints, ymin, ymax);
+			if (ymax>yMaxGlobal) {
+				yMaxGlobal = ymax;
+			}
+			Array.getStatistics(xpoints, xmin, xmax);
+			if (xmax>xMaxGlobal) {
+				xMaxGlobal = xmax;
 			}
 		}
 	}
@@ -236,7 +259,7 @@ function createPlots() {
 		title = titles[i];	
 		selectImage(title);
 		if (indexOf(title, "Plot of MT") >= 0) {
-			Plot.setLimits(NaN, NaN, 0, yMaxGlobal);
+			Plot.setLimits(0, xMaxGlobal, 0, yMaxGlobal);
 		}
 	}
 	keepOption = "";
@@ -268,7 +291,7 @@ function measureMicrotubule(index) {
 	run("Multi Kymograph", "linewidth="+_LINE_WIDTH_KYMOGRAPH);
 	selectImage(imageID);
 	setSlice(1);
-	trackIndex1 = index + 2;
+	trackIndex1 = (2*index) + 2;
 	trackIndex2 = trackIndex1 + 1;
 	Overlay.activateSelection(trackIndex1);
 	getSelectionCoordinates(xpoints, ypoints);
@@ -310,26 +333,24 @@ function reportStats(title, index, speedStats1, speedStats2) {
 function measureSpeed(xpoints, ypoints, speedStats, index, side) {
 	run("Set Measurements...", "area bounding limit display redirect=None decimal=6");
 	speeds = newArray(xpoints.length-1);
-	distances = newArray(xpoints.length-1);
+	distances = newArray(xpoints.length);
 	deltaT = Stack.getFrameInterval();
-	time = newArray(xpoints.length-1);
+	time = newArray(xpoints.length);
 	for (i = 0; i < time.length; i++) {
 		time[i] = i * deltaT;
 	}
 	length = 0;
-	for (i = 0; i < xpoints.length-1; i++) {
-		x1 = xpoints[i];
-		y1 = ypoints[i];
-		x2 = xpoints[i+1];
-		y2 = ypoints[i+1];
+	distances[0] = 0;
+	for (i = 1; i < xpoints.length; i++) {
+		x1 = xpoints[i-1];
+		y1 = ypoints[i-1];
+		x2 = xpoints[i];
+		y2 = ypoints[i];
 		toScaled(x1,y1);
 		toScaled(x2,y2);
 		dist = sqrt(pow(x2-x1,2)+pow(y2-y1,2));
-		speeds[i] = dist / deltaT;
-		distances[i] = dist;
-		if (i>0) {
-			distances[i] = distances[i] +  distances[i-1];
-		}
+		speeds[i-1] = dist / deltaT;
+		distances[i] = dist +  distances[i-1];
 		length = length + dist;
 	}
 	Array.getStatistics(speeds, min, max, mean, stdDev);
