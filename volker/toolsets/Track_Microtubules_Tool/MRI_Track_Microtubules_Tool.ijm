@@ -198,20 +198,28 @@ function removeFromSelection() {
 }
 
 function measureSelectedMicrotubules() {
+	title = getTitle();
+	if (indexOf(title, "Laplacian")>=0) {
+		parts = split(title, " ");
+		title = parts[0];
+		selectImage(title);
+	}
 	count = roiManager("count");
+	counter = 1;
 	for (i = 0; i < count; i++) {
 		roiManager("Select", i);
 		color = Roi.getStrokeColor;
 		if (color=="green") {
 			index = roiManager("index");
-			measureMicrotubule(index);
+			measureMicrotubule(index, counter);
+			counter++;
 		}
 	}
-    if (_CREATE_PLOTS) createPlots();
-    if (_CREATE_KYMOGRAPHS) createKymographs();
+    if (_CREATE_PLOTS) makeMontageOfPlots();
+    if (_CREATE_KYMOGRAPHS) makeMontageOfKymographs();
 }
 
-function createKymographs() {
+function makeMontageOfKymographs() {
     titles = getList("image.titles");
 	maxWidth = -1;
 	nrOfMTs = 0;
@@ -230,18 +238,18 @@ function createKymographs() {
 			run("Canvas Size...", "width="+maxWidth+" height="+height+" position=Center zero");
 		}
 	}
-	run("Images to Stack", "name=kymos title=Kymograph");
-	stackID = getImageID();
-	rows = floor(nSlices / _COLUMNS);
-	if ((nSlices % _COLUMNS)>0) rows++;
 	if (nrOfMTs>1) {
+  	    run("Images to Stack", "name=kymos title=Kymograph");
+	    stackID = getImageID();
+	    rows = floor(nSlices / _COLUMNS);
+	    if ((nSlices % _COLUMNS)>0) rows++;
 	    run("Make Montage...", "columns="+_COLUMNS+" rows="+rows+" scale=1 border=2 label");
 		selectImage(stackID);
 		close();	
 	}
 }
 
-function createPlots() {
+function makeMontageOfPlots() {
 	titles = getList("image.titles");
 	yMaxGlobal = 0;
 	xMaxGlobal = 0;
@@ -277,7 +285,7 @@ function createPlots() {
 	selectImage(stackID);
 	close();
 }
-function measureMicrotubule(index) {
+function measureMicrotubule(index, number) {
 	imageID = getImageID();
 	title = getTitle();
 	Overlay.activateSelection(0);
@@ -290,34 +298,40 @@ function measureMicrotubule(index) {
 	y2 = ypoints2[index];
 	makeLine(x1, y1, x2, y2);
 	length = sqrt(pow(x2-x1, 2) + pow(y2-y1, 2));
-	newLength = length + _ADDITIONAL_KYMOGRAPH_LENGTH;
-	scaleFactor = newLength / length;
-	run("Scale... ", "x="+scaleFactor+" y="+scaleFactor+ " centered");
-	run("Multi Kymograph", "linewidth="+_LINE_WIDTH_KYMOGRAPH);
+	if (_CREATE_KYMOGRAPHS) {
+		newLength = length + _ADDITIONAL_KYMOGRAPH_LENGTH;
+		scaleFactor = newLength / length;
+	    run("Scale... ", "x="+scaleFactor+" y="+scaleFactor+ " centered");
+	    run("Multi Kymograph", "linewidth="+_LINE_WIDTH_KYMOGRAPH);
+	}
 	selectImage(imageID);
 	setSlice(1);
 	trackIndex1 = (2*index) + 2;
 	trackIndex2 = trackIndex1 + 1;
 	Overlay.activateSelection(trackIndex1);
-	getSelectionCoordinates(xpoints, ypoints);
+	getSelectionCoordinates(xpointsLeft, ypoints);
 	speedStats1 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
-	measureSpeed(xpoints, ypoints, speedStats1, index+1, "end 1");
+	measureSpeed(xpointsLeft, ypoints, speedStats1, index+1, "end 1");
 	Overlay.activateSelection(trackIndex2);
-	getSelectionCoordinates(xpoints, ypoints);
+	getSelectionCoordinates(xpointsRight, ypoints);
 	speedStats2 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
-	measureSpeed(xpoints, ypoints, speedStats2, index+1, "end 2");
-	reportStats(title, index+1, speedStats1, speedStats2); 
+	measureSpeed(xpointsRight, ypoints, speedStats2, index+1, "end 2");
+	selectImage(imageID);
+	deltaT = Stack.getFrameInterval();
+	reportStats(title, index+1, speedStats1, speedStats2, length, xpointsLeft.length * deltaT, number); 
 }
 
-function reportStats(title, index, speedStats1, speedStats2) {
-	title = "speed of microtubule ends";
-	if (!isOpen(title)) {
-		Table.create(title);
+function reportStats(title, index, speedStats1, speedStats2, mtLength, lastFrame, number) {
+	tableTitle = "speed of microtubule ends";
+	toScaled(mtLength);
+	if (!isOpen(tableTitle)) {
+		Table.create(tableTitle);
 	}
-	selectWindow("speed of microtubule ends");
+	selectWindow(tableTitle);
 	row = Table.size;
 	Table.set("image", row, title);
 	Table.set("microtubule nr.", row, index);
+	Table.set("kymograph nr.", row, number);
 	
 	Table.set("avg. speed side 1", row, speedStats1[0]);
 	Table.set("stdDev side 1", row, speedStats1[1]);
@@ -332,6 +346,10 @@ function reportStats(title, index, speedStats1, speedStats2) {
 	Table.set("max. speed side 2", row, speedStats2[3]);
 	Table.set("track length side 2", row, speedStats2[4]);
 	Table.set("distance side 2", row, speedStats2[5]);
+
+	Table.set("length of MT", row, mtLength);
+	Table.set("last timepoint", row, lastFrame);
+	
 	Table.update;
 }
 
@@ -373,8 +391,10 @@ function measureSpeed(xpoints, ypoints, speedStats, index, side) {
 	speedStats[4] = length;
 	speedStats[5] = distance;
 	imageID = getImageID();
-	Plot.create("Plot of MT "+ index + " - " + side, "time", "distance", time, distances);
-	Plot.show();
+	if (_CREATE_PLOTS) {
+		Plot.create("Plot of MT "+ index + " - " + side, "time", "distance", time, distances);
+		Plot.show();
+	}
 	selectImage(imageID);
 }
 
