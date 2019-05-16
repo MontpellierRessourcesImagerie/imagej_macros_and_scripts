@@ -92,7 +92,6 @@ def trackEnd(imp, endPoint, centroid):
             break
         points = findAllEndPointInSkeleton(imp)
         track.append(getNextPoint(track, points, centroid))
-    print("timepoints: " + str(len(track)))
     return track
 
 def getNextPoint(track, points, centroid):
@@ -122,7 +121,8 @@ def findEndPointsInSkeleton(impMT):
     for point in points:
         rect = Roi(point.x-1, point.y-1, 3, 3)
         impMT.setRoi(rect)
-        stats = impMT.getStatistics	()
+        stats = impMT.getStatistics()
+        impMT.killRoi()
         if (stats.mean > 56 and stats.mean<57):
             if (nr==0):
                 endPoint1 = point
@@ -138,6 +138,7 @@ def findAllEndPointInSkeleton(impMT):
         rect = Roi(point.x-1, point.y-1, 3, 3)
         impMT.setRoi(rect)
         stats = impMT.getStatistics	()
+        impMT.killRoi()
         if (stats.mean > 56 and stats.mean<57):
             endPoints.append(point)
     return endPoints

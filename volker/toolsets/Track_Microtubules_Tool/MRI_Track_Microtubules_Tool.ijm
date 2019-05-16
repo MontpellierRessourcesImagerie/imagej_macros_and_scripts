@@ -10,7 +10,7 @@ var _KEEP_PLOT = false;
 var _ADDITIONAL_KYMOGRAPH_LENGTH = 20;
 var _CURRENT_IMAGE_ID = -1;
 var _CURRENT_SKELETON_ID = -1;
-
+var _SMOOTHING_SCALE = 2;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Track_Microtubules_Tool";
 
@@ -56,8 +56,10 @@ macro "track microtubules Action Tool (f3) - C000T4b12t" {
 
 macro "track microtubules Action Tool (f3) Options" {
 	Dialog.create("Track Microtubules Options");
-	Dialog.addNumber("width of rectangle: ", _RECTANGLE_WIDTH)
+	Dialog.addNumber("smoothing scale: ", _SMOOTHING_SCALE);
+	Dialog.addNumber("width of rectangle: ", _RECTANGLE_WIDTH);
 	Dialog.show();
+	_SMOOTHING_SCALE = Dialog.getNumber();
 	_RECTANGLE_WIDTH = Dialog.getNumber();
 }
 
@@ -129,11 +131,14 @@ function skeletonizeMicrotubules() {
 	roiManager("reset");
 	run("Remove Overlay");
 	run("Remove Overlay");
-	run("FeatureJ Laplacian", "compute smoothing=2");
+	run("FeatureJ Laplacian", "compute smoothing="+_SMOOTHING_SCALE);
 	run("Convert to Mask", "method=Default background=Light calculate");
 	run("Analyze Particles...", "size=1.0-Infinity add slice exclude");
-	roiManager("Combine");
+	count = roiManager("count");
+	if (count>1) roiManager("Combine");
+	else roiManager("select", 0);
 	run("Clear Outside", "stack");
+	roiManager("deselect");
 	run("Select None");
 	run("Skeletonize", "stack");
 	_CURRENT_SKELETON_ID = getImageID();
@@ -155,9 +160,9 @@ function findEndPoints(imageID) {
 
 	selectImage(imageID);
 	Overlay.activateSelection(0);
-	getSelectionCoordinates(START_X1, START_Y1)
+	getSelectionCoordinates(START_X1, START_Y1);
 	Overlay.activateSelection(1);
-	getSelectionCoordinates(START_X2, START_Y2)
+	getSelectionCoordinates(START_X2, START_Y2);
 	run("Select None");
 	
 	roiManager("Deselect");
