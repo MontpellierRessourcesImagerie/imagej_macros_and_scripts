@@ -215,6 +215,7 @@ function measureSelectedMicrotubules() {
 			counter++;
 		}
 	}
+	if (counter<2) return;
     if (_CREATE_PLOTS) makeMontageOfPlots();
     if (_CREATE_KYMOGRAPHS) makeMontageOfKymographs();
 }
@@ -309,12 +310,24 @@ function measureMicrotubule(index, number) {
 	trackIndex1 = (2*index) + 2;
 	trackIndex2 = trackIndex1 + 1;
 	Overlay.activateSelection(trackIndex1);
-	getSelectionCoordinates(xpointsLeft, ypoints);
 	speedStats1 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
+    type = selectionType();
+    if (type==-1) {
+		xpointsLeft=newArray(0,0);
+		ypoints=newArray(0,0);
+    } else {
+    	getSelectionCoordinates(xpointsLeft, ypoints);
+    }
 	measureSpeed(xpointsLeft, ypoints, speedStats1, index+1, "end 1");
 	Overlay.activateSelection(trackIndex2);
-	getSelectionCoordinates(xpointsRight, ypoints);
 	speedStats2 = newArray(6);	// avg., stdDev., min. and max. speed, length, distance
+	type = selectionType();
+    if (type==-1) {
+		xpointsRight=newArray(0,0);
+		ypoints=newArray(0,0);
+    } else {
+    	 getSelectionCoordinates(xpointsRight, ypoints);	
+    }
 	measureSpeed(xpointsRight, ypoints, speedStats2, index+1, "end 2");
 	selectImage(imageID);
 	deltaT = Stack.getFrameInterval();

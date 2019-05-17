@@ -56,7 +56,7 @@ def findEndPoints(imageID, maskID):
 
     roiManager = RoiManager.getInstance2()
     rois = roiManager.getRoisAsArray()
-    roisRoBeRemoved = []
+    roisToBeRemoved = []
     index = 0
     for roi in rois:
        outerBounds = roi.getBounds()
@@ -70,11 +70,12 @@ def findEndPoints(imageID, maskID):
            endPoints1.append(endPoint1)
            endPoints2.append(endPoint2)
        else:
-           roisRoBeRemoved.append(index)
+           roisToBeRemoved.append(index)
        impMT.close()
        index = index + 1
-    roiManager.setSelectedIndexes(roisRoBeRemoved)
-    roiManager.runCommand("Delete")
+    if (len(roisToBeRemoved)>0):
+        roiManager.setSelectedIndexes(roisToBeRemoved)
+        roiManager.runCommand("Delete")
     roiManager.moveRoisToOverlay(WindowManager.getImage(maskID))
     inputIMP = WindowManager.getImage(imageID)
     inputIMP.setOverlay(PointRoi([seq.x for seq in endPoints1], [seq.y for seq in endPoints1]), Color.magenta, 1, Color.magenta)
