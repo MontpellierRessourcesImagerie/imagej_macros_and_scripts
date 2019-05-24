@@ -188,7 +188,7 @@ function plotCurve() {
 function getCurve() {
 	run("Duplicate...", "duplicate");
 	run("32-bit");
-	run("Clear Results");
+	Table.create("Results");
 	roiManager("reset");
 	roiManager("add");
 	intensities = newArray(0);
