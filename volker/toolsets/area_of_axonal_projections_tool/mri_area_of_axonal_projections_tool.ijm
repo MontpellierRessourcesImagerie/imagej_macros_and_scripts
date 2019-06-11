@@ -14,16 +14,17 @@ var _STAININGS = newArray("H&E", "H&E 2","H DAB", "Feulgen Light Green", "Giemsa
 var _BROWN_CHANNEL = "Colour_2";
 var _BLUE_CHANNEL = "Colour_1";
 var _GREEN_CHANNEL = "Colour_3";
-var _THRESHOLDING_METHOD_PROJECTIONS = "Yen";
+var _THRESHOLDING_METHOD_PROJECTIONS = "RenyiEntropy";
 var _TRESHOLDING_METHOD_ZONE = "Otsu";
 var _COLOR_VECTORS = "H DAB";
 var _MIN_SIZE_ZONE = 1000000;
-var _MIN_SIZE_PROJECTIONS = 500;
+var _MIN_SIZE_PROJECTIONS = 100;
 var _SIGMA_BLUR = 2;
 var _CLOSE_RADIUS = 10;
 var _TABLE_TITLE = "area of axonal projections";
 var _EXLUCDE_ON_EDGES_ZONE = true;
 var _ENLARGE_ZONE = 200;
+var _INCLUDE_INNER_AREA = true;
 
 var _BLOLBS_THRESHOLD_METHOD = "Default";
 var _BLOBS_MIN_SIZE = 12000;
@@ -186,7 +187,7 @@ function displayOptionsDialog() {
 	
 	Dialog.addNumber("detect axonal projections in channel:", brownChannelID);
 	Dialog.addChoice("thresholding method projections", _METHODS, _THRESHOLDING_METHOD_PROJECTIONS);
-	Dialog.addNumber("min. size zone:", _MIN_SIZE_PROJECTIONS);
+	Dialog.addNumber("min. size projections:", _MIN_SIZE_PROJECTIONS);
 	
     Dialog.show();
 
@@ -228,8 +229,22 @@ function measureAreaOfAxonalProjections() {
 	zoneArea = detectZone(imageID, blueTitle);
 	selectImage(blueTitle);
 	close();
-	projectionsArea = detectProjections(imageID, brownTitle);
 
+	selectImage(imageID);
+	Overlay.activateSelection(0)
+	
+	projectionsAreaOuter = detectProjections(imageID, brownTitle);
+	projectionsAreaInner = 0;
+	
+	if (_INCLUDE_INNER_AREA) {	
+		selectImage(imageID);
+		Overlay.activateSelection(1)
+		projectionsAreaInner = detectProjections(imageID, brownTitle);
+	}
+
+	selectImage(brownTitle);
+	close();
+	projectionsArea = projectionsAreaOuter + projectionsAreaInner;
 	report(_TABLE_TITLE, title, zoneArea, projectionsArea);
 	run("Select None");
 }
@@ -248,29 +263,42 @@ function detectZone(imageID, channelTitle) {
 	excludeText = "";
 	if (_EXLUCDE_ON_EDGES_ZONE) excludeText = "exclude";
 	run("Analyze Particles...", "size="+_MIN_SIZE_ZONE+"-Infinity show=Masks "+excludeText+" in_situ");
-	getStatistics(area, mean);
+	getStatistics(tmp_area, mean);
 	if (mean==0) return 0;
 	run("Fill Holes");
 	run("Options...", "iterations="+_CLOSE_RADIUS+" count=1 do=Close");
 	run("Options...", "iterations=1 count=1 do=Nothing");
 	run("Create Selection");
-	getStatistics(area);
+	getStatistics(outerArea);
 	selectImage(imageID);
 	run("Restore Selection");
 	Overlay.addSelection;
+	run("Select None");
+	selectImage(maskID);
+	innerArea = 0;
+	if (_INCLUDE_INNER_AREA) {
+		includeInnerArea(imageID, maskID);
+		getStatistics(innerArea);
+		selectImage(imageID);
+		run("Restore Selection");
+		Overlay.addSelection;
+		run("Select None");
+	}
 	Overlay.show;
 	selectImage(maskID);
 	close();
+	area = innerArea + outerArea; 
 	return area;
 }
 
 function detectProjections(imageID, channelTitle) {
 	selectImage(channelTitle);
+	run("Duplicate...", " ");
 	run("8-bit");
 	channelID = getImageID();
 	run("Restore Selection");
 	getStatistics(area, mean);
-	selectImage(channelTitle);
+	selectImage(channelID);
 	run("Make Inverse");
 	fillValue = round(mean);
 	setColor(fillValue, fillValue, fillValue);
@@ -288,9 +316,35 @@ function detectProjections(imageID, channelTitle) {
 	selectImage(imageID);
 	run("Restore Selection");
 	Overlay.addSelection("cyan");
-	selectImage(channelTitle);
+	selectImage(channelID);
 	close();
 	return areaProjections;
+}
+
+function includeInnerArea(imageID, maskID) {
+	run("Grays");
+	run("Set Measurements...", "area centroid limit display redirect=None decimal=3");
+	setForegroundColor(255,255,255);
+	run("Measure");
+	xc = getResult("X", nResults-1);
+	yc = getResult("Y", nResults-1);
+	run("Convex Hull");
+	setLineWidth(7);
+	run("Draw", "slice");
+	run("Select None");
+	doWand(xc, yc);
+	run("Invert LUT");
+/*	
+	run("Fill", "slice");
+	run("Restore Selection");
+	setForegroundColor(0,0,0);
+	run("Draw", "slice");
+	setColor(255,255,255);
+	run("Select None");
+	run("Invert LUT");
+	run("Fill Holes");	
+	run("Create Selection"); 
+*/
 }
 
 function createTable(title) {
