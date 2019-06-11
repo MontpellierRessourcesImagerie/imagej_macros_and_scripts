@@ -233,18 +233,8 @@ function measureAreaOfAxonalProjections() {
 	selectImage(imageID);
 	Overlay.activateSelection(0)
 	
-	projectionsAreaOuter = detectProjections(imageID, brownTitle);
-	projectionsAreaInner = 0;
+	projectionsArea = detectProjections(imageID, brownTitle);
 	
-	if (_INCLUDE_INNER_AREA) {	
-		selectImage(imageID);
-		Overlay.activateSelection(1)
-		projectionsAreaInner = detectProjections(imageID, brownTitle);
-	}
-
-	selectImage(brownTitle);
-	close();
-	projectionsArea = projectionsAreaOuter + projectionsAreaInner;
 	report(_TABLE_TITLE, title, zoneArea, projectionsArea);
 	run("Select None");
 }
@@ -292,6 +282,24 @@ function detectZone(imageID, channelTitle) {
 }
 
 function detectProjections(imageID, channelTitle) {
+	selectImage(imageID);
+	Overlay.activateSelection(0)
+	
+	projectionsAreaOuter = detectProjectionsInZone(imageID, channelTitle);
+	projectionsAreaInner = 0;
+	
+	if (_INCLUDE_INNER_AREA) {	
+		selectImage(imageID);
+		Overlay.activateSelection(1)
+		projectionsAreaInner = detectProjectionsInZone(imageID, channelTitle);
+	}
+	projectionArea = projectionsAreaInner + projectionsAreaOuter;
+	selectImage(channelTitle);
+	close();
+	return projectionArea
+}
+
+function detectProjectionsInZone(imageID, channelTitle) {
 	selectImage(channelTitle);
 	run("Duplicate...", " ");
 	run("8-bit");
@@ -334,17 +342,6 @@ function includeInnerArea(imageID, maskID) {
 	run("Select None");
 	doWand(xc, yc);
 	run("Invert LUT");
-/*	
-	run("Fill", "slice");
-	run("Restore Selection");
-	setForegroundColor(0,0,0);
-	run("Draw", "slice");
-	setColor(255,255,255);
-	run("Select None");
-	run("Invert LUT");
-	run("Fill Holes");	
-	run("Create Selection"); 
-*/
 }
 
 function createTable(title) {
