@@ -340,7 +340,9 @@ function includeInnerArea(imageID, maskID) {
 	setLineWidth(7);
 	run("Draw", "slice");
 	run("Select None");
+	setAutoThreshold("Default dark");
 	doWand(xc, yc);
+	resetThreshold();
 	run("Invert LUT");
 }
 
