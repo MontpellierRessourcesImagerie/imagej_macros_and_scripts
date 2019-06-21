@@ -4,18 +4,14 @@ var _CIRCLE_ORIGIN_Y = 7;
 var _CIRCLE_INITIAL_RADIUS = 50;
 var _DELTA_RADIUS = 200;
 var _FACTOR = 1.1;
+var _CREATE_DISTANCE_MAP = true;
+
+var _MAXIMA_TOLERANCE = 2;
+var _PLOT_MAX_RADIUS = true;
+var _PLOT_MAXIMA_PER_DISTANCE = true;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
  
-// segmentRoot();
-// makeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y, _CIRCLE_INITIAL_RADIUS, _DELTA_RADIUS);
-// getValuesInCirleNr(7);
-/*
-maxValues = getMaxPerDistance();
-Plot.create("max radius per dist.", "step nr.", "radius", maxValues);
-Plot.show();
-*/
-
 exit();
 
 macro "analyze complex roots tools help [f1]" {
@@ -33,7 +29,6 @@ macro "create mask Action Tool (f2) - C000T4b12m" {
 	segmentRoot();
 }
 
-
 macro "make circles [f3]" {
 	doMakeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y);
 }
@@ -43,12 +38,68 @@ macro "make circles Tool (f3) - C000T4b12c" {
 	doMakeCircles(x,y);
 }
 
-macro "plot max. radius [f4]" {
-	plotMaxRadius();
+macro "make circles Tool (f3) Options" {
+	Dialog.create("make circles options");
+	Dialog.addNumber("initial radius: ", _CIRCLE_INITIAL_RADIUS);
+	Dialog.addNumber("initial delta: ", _DELTA_RADIUS);
+	Dialog.addNumber("factor: ", _FACTOR);
+	Dialog.show();
+	_CIRCLE_INITIAL_RADIUS = Dialog.getNumber();
+	_DELTA_RADIUS = Dialog.getNumber();
+	_FACTOR = Dialog.getNumber();
 }
 
-macro "plot max. radius Action Tool (f4) - C000T4b12r" {
-	plotMaxRadius();
+macro "plot features [f4]" {
+	doPlotFeatures();
+}
+
+macro "plot features Action Tool (f4) - C000T4b12p" {
+	doPlotFeatures();
+}
+
+macro "plot features Action Tool (f4) Options" {
+	Dialog.create("plot features options");
+	Dialog.addCheckbox("plot max. radius per distance", _PLOT_MAX_RADIUS);
+	Dialog.addCheckbox("plot nr. of max. per distance", _PLOT_MAXIMA_PER_DISTANCE);
+	Dialog.addNumber("tolerance: ", _MAXIMA_TOLERANCE);
+	Dialog.show();
+	_PLOT_MAX_RADIUS = Dialog.getCheckbox();
+	_PLOT_MAXIMA_PER_DISTANCE = Dialog.getCheckbox();
+	_MAXIMA_TOLERANCE = Dialog.getNumber();
+}
+
+
+function doPlotFeatures() {
+	imageID = getImageID();
+	if (_PLOT_MAX_RADIUS) plotMaxRadius();
+	selectImage(imageID);
+	if (_PLOT_MAXIMA_PER_DISTANCE) plotMaximaPerDistance();
+}
+
+function plotMaximaPerDistance() {
+	maximaCount = getMaximaPerDistance();
+	distances = getDistances();
+	Plot.create("nr. of maxima per dist.", "distance [cm]", "nr.[1]", distances, maximaCount);
+	Plot.show();	
+}
+
+function getMaximaPerDistance() {
+	roiManager("Reset");
+	count = Overlay.size;
+	maximaCount = newArray(count);
+	for (i = 0; i < count; i++) {
+		Overlay.activateSelection(i);
+		getSelectionCoordinates(xpoints, ypoints);
+		values = getValuesInSelection(xpoints, ypoints);
+		maxima = Array.findMaxima(values, _MAXIMA_TOLERANCE);
+		maximaCount[i] = maxima.length;
+		for (j = 0; j < maxima.length; j++) {
+			makePoint(xpoints[maxima[j]], ypoints[maxima[j]]);
+			roiManager("Add");
+			run("Select None");
+		}	
+	}
+	return maximaCount;
 }
 
 function getDistances() {
@@ -75,6 +126,7 @@ function doMakeCircles(x,y) {
 	_CIRCLE_ORIGIN_X = x;
 	_CIRCLE_ORIGIN_Y = y;
 	makeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y, _CIRCLE_INITIAL_RADIUS, _DELTA_RADIUS, _FACTOR);
+	run("Properties...", "origin="+_CIRCLE_ORIGIN_X+","+_CIRCLE_ORIGIN_Y);
 }
 
 function getMaxPerDistance() {
@@ -92,7 +144,6 @@ function getMaxPerDistance() {
 
 function getValuesInCircleNr(i) {
 		Overlay.activateSelection(i);
-		run("Area to Line");
 		getSelectionCoordinates(xpoints, ypoints);
 		values = getValuesInSelection(xpoints, ypoints);
 		return values;
@@ -142,4 +193,12 @@ function segmentRoot() {
 	run("Analyze Particles...", "size=50000-Infinity pixel show=Masks exclude in_situ");
 	run("Canvas Size...", "width="+width+" height="+height+" position=Center");
 	setLineWidth(1);
+	if (_CREATE_DISTANCE_MAP) createDistanceMap();
+}
+
+function createDistanceMap() {
+	getVoxelSize(width, height, depth, unit);
+	run("Exact Euclidean Distance Transform (3D)");
+	setVoxelSize(width, height, depth, unit);
+	run("16 colors");
 }
