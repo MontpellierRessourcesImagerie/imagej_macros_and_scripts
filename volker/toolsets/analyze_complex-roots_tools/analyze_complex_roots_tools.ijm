@@ -3,6 +3,7 @@ var _CIRCLE_ORIGIN_X = 3226;
 var _CIRCLE_ORIGIN_Y = 7;
 var _CIRCLE_INITIAL_RADIUS = 50;
 var _DELTA_RADIUS = 200;
+var _FACTOR = 1.1;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
  
@@ -50,17 +51,30 @@ macro "plot max. radius Action Tool (f4) - C000T4b12r" {
 	plotMaxRadius();
 }
 
+function getDistances() {
+	count = Overlay.size;
+	distances = newArray(count);
+	for (i = 0; i < count; i++) {
+		Overlay.activateSelection(i);
+		getSelectionBounds(x, y, width, height);
+		run("Select None");
+		distances[i] = width / 2.0;
+		toScaled(distances[i]);
+	}
+	return distances;
+}
 
 function plotMaxRadius() {
 	maxValues = getMaxPerDistance();
-	Plot.create("max radius per dist.", "step nr.", "radius", maxValues);
+	distances = getDistances();
+	Plot.create("max radius per dist.", "distance [cm]", "radius [cm]", distances, maxValues);
 	Plot.show();	
 }
 
 function doMakeCircles(x,y) {
 	_CIRCLE_ORIGIN_X = x;
 	_CIRCLE_ORIGIN_Y = y;
-	makeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y, _CIRCLE_INITIAL_RADIUS, _DELTA_RADIUS);
+	makeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y, _CIRCLE_INITIAL_RADIUS, _DELTA_RADIUS, _FACTOR);
 }
 
 function getMaxPerDistance() {
@@ -69,6 +83,7 @@ function getMaxPerDistance() {
 	for (i = 0; i < count; i++) {
 		values = getValuesInCircleNr(i);
 		Array.getStatistics(values, min, max);
+		toScaled(max);
 		maxValues[i] = max;
 	}
 	run("Select None");
@@ -84,7 +99,7 @@ function getValuesInCircleNr(i) {
 }
 
 
-function makeCircles(centerX, centerY, initialRadius, deltaRadius) {
+function makeCircles(centerX, centerY, initialRadius, deltaRadius, factor) {
 	Overlay.remove;
 	height = getHeight();
 	currentRadius = initialRadius;
@@ -92,6 +107,7 @@ function makeCircles(centerX, centerY, initialRadius, deltaRadius) {
 		circleWidth = currentRadius*2;
 		makeOval(centerX-currentRadius, centerY-currentRadius, circleWidth, circleWidth);
 		Overlay.addSelection;
+		deltaRadius *= factor;
 		currentRadius += deltaRadius;
 	}
 	Overlay.show;
@@ -109,6 +125,7 @@ function getValuesInSelection(xpoints, ypoints) {
 }
 
 function segmentRoot() {
+	run("Options...", "iterations=1 count=1 do=Nothing");
 	width = getWidth();
 	height = getHeight();
 	run("RGB Color");
