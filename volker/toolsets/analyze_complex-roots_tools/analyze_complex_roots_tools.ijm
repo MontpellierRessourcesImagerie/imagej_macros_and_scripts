@@ -74,6 +74,9 @@ function doPlotFeatures() {
 	if (_PLOT_MAX_RADIUS) plotMaxRadius();
 	selectImage(imageID);
 	if (_PLOT_MAXIMA_PER_DISTANCE) plotMaximaPerDistance();
+	selectImage(imageID);
+	roiManager("Show None");
+	roiManager("Show All");
 }
 
 function plotMaximaPerDistance() {
@@ -192,8 +195,16 @@ function segmentRoot() {
 	run("Select None");
 	run("Analyze Particles...", "size=50000-Infinity pixel show=Masks exclude in_situ");
 	run("Canvas Size...", "width="+width+" height="+height+" position=Center");
-	setLineWidth(1);
+	maskID = getImageID();
+	run("Create Selection");
 	if (_CREATE_DISTANCE_MAP) createDistanceMap();
+	edtID = getImageID();
+	run("Restore Selection");
+	run("Clear Outside");
+	selectImage(maskID);
+	run("Select None");
+	selectImage(edtID);
+	run("Select None");
 }
 
 function createDistanceMap() {
