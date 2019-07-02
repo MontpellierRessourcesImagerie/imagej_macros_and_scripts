@@ -1,8 +1,10 @@
 var _SSF = sqrt(2);
-var _SIGMA_START = 0.8;
+// var _SIGMA_START = 0.8;
+var _SIGMA_START = 4;
 var _SIGMA_DELTA = 0.4;
 var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
-var _MAXIMA_PROMINENCE = 200;
+// var _MAXIMA_PROMINENCE = 200;
+var _MAXIMA_PROMINENCE = 5;
 
 setBatchMode(true);
 Overlay.remove;
@@ -57,6 +59,9 @@ function findMaxima(sigmas, imageID, scaleSpaceID) {
 	getSelectionCoordinates(xpoints, ypoints);
 	run("Select None");
 	for (i = 0; i < xpoints.length; i++) {
+	
+		
+	
 		selectImage(scaleSpaceID);
 		x = xpoints[i];
 		y = ypoints[i];
