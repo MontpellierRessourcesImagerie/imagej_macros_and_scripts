@@ -1,10 +1,11 @@
 var _SSF = sqrt(2);
 var _SIGMA_START = 0.8;
+//var _SIGMA_START = 1.2;
 // var _SIGMA_START = 4;
 var _SIGMA_DELTA = 0.4;
 var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
 var _MAXIMA_PROMINENCE = 200;
-// var _MAXIMA_PROMINENCE = 5;
+//var _MAXIMA_PROMINENCE = 100;
 
 setBatchMode(true);
 Overlay.remove;
