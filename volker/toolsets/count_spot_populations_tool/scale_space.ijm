@@ -50,6 +50,7 @@ function createScaleSpace() {
 		close();
 	}
 	run("Select None");
+	resetMinAndMax();
 	return sigmas;
 }
 
@@ -84,7 +85,7 @@ function findMaxima(sigmas, imageID, scaleSpaceID) {
 
 			setSlice(minIndex);
 			makeRectangle(x-radius, y-radius, 2*radius+1, 2*radius+1);
-			getSelectionCoordinates(rxpoints, rypoints);
+			Roi.getContainedPoints(rxpoints, rypoints);
 			oldMin = currentMin;
 			for(j=0; j<rxpoints.length; j++) {
 				for(k=0; k<rypoints.length; k++) {
@@ -99,6 +100,7 @@ function findMaxima(sigmas, imageID, scaleSpaceID) {
 			}
 			
 		}
+		run("Select None");
 		selectImage(imageID);
 		if (round(radius)%2==1) makeOval((x+0.5)-radius, (y+0.5)-radius, (2*radius), (2*radius));
 		else makeOval((x+0.5)-radius, (y+0.5)-radius, (2*radius), (2*radius));
