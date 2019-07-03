@@ -14,8 +14,8 @@ var _GAUSSIAN_BLUR = 4;
 var _DO_NOT_TOUCH_EDGES = true;
 var _CREATE_GT_IMAGE = true;
 var _CREATE_GT_TABLE = true;
-var _ADD_GRADIANT = true;
-var _GRADIANT = 1/200;
+var _ADD_GRADIENT = true;
+var _GRADIENT = 1/200;
 var _IMAGE_TYPES = newArray("8-bit", "16-bit", "32-bit");
 var _IMAGE_TYPE = "16-bit";
 var _COUNT = 0;
@@ -24,32 +24,30 @@ var _PARAMETER_FILE_EXTENSION = ".ini";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Create_Synthetic_Spots_Tool";
 
-macro "Create Synthetic Spots Action Tool (f11) - C000D01D10D14D20D30C111D16D4dD7dD9bDaaDb9De3De8C111D06D07D08D09D0aD0fD15D1cD24D2cD2dD32D3dD43D53D61D63D6dD6eD71D73D7eD80D82D83D8dD92D93D9cD9dD9fDa0Da2DbaDc1Dc2Dc9DccDd1Dd2Dd9DdaDe0De1DeaDeeDf0Df4Df5Df6Df7Df9DfaDfcDfeC555D27D3bD45D86D98Da5Da6Db4Db7Dc4C000D00D02D03D04D05D0bD0cD0dD0eD11D12D13D1dD1eD1fD21D22D23D2eD2fD31D33D3eD3fD40D41D42D4eD4fD50D51D52D5eD5fD60D62D6fD70D72D7fD81D8eD8fD90D91D9eDa1DabDacDadDaeDafDb0Db1Db2DbbDbcDbdDbeDbfDc0DcaDcbDcdDceDcfDd0DdbDdcDddDdeDdfDe2De9DebDecDedDefDf1Df2Df3Df8DfbDfdDffC333D2bD85D95Dc3De5De6C999D37D46D5bD88D89Dc6C222D17D19D3cD44D54D64Da9Db8Dc8Dd3De7C888D28D36D7bD87D8aDb5Dc5C444D2aD4cD5cD6cD75D8bD96D97D99Da4Da7Dd4Dd7CeeeD47D48D49D57D58D59D5aD67D68D69D6aD78D79C222D1aD1bD25D34D5dD74D84D8cD94Da3Db3Dd8De4C666D29D55D65Dc7Dd5Dd6C333D18D26D35D7cD9aDa8CbbbD38D39D4aD56D66D77D7aC999D3aD4bD6bD76Db6" {
+macro "Create Synthetic Spots Action Tool (f1) - C000D01D10D14D20D30C111D16D4dD7dD9bDaaDb9De3De8C111D06D07D08D09D0aD0fD15D1cD24D2cD2dD32D3dD43D53D61D63D6dD6eD71D73D7eD80D82D83D8dD92D93D9cD9dD9fDa0Da2DbaDc1Dc2Dc9DccDd1Dd2Dd9DdaDe0De1DeaDeeDf0Df4Df5Df6Df7Df9DfaDfcDfeC555D27D3bD45D86D98Da5Da6Db4Db7Dc4C000D00D02D03D04D05D0bD0cD0dD0eD11D12D13D1dD1eD1fD21D22D23D2eD2fD31D33D3eD3fD40D41D42D4eD4fD50D51D52D5eD5fD60D62D6fD70D72D7fD81D8eD8fD90D91D9eDa1DabDacDadDaeDafDb0Db1Db2DbbDbcDbdDbeDbfDc0DcaDcbDcdDceDcfDd0DdbDdcDddDdeDdfDe2De9DebDecDedDefDf1Df2Df3Df8DfbDfdDffC333D2bD85D95Dc3De5De6C999D37D46D5bD88D89Dc6C222D17D19D3cD44D54D64Da9Db8Dc8Dd3De7C888D28D36D7bD87D8aDb5Dc5C444D2aD4cD5cD6cD75D8bD96D97D99Da4Da7Dd4Dd7CeeeD47D48D49D57D58D59D5aD67D68D69D6aD78D79C222D1aD1bD25D34D5dD74D84D8cD94Da3Db3Dd8De4C666D29D55D65Dc7Dd5Dd6C333D18D26D35D7cD9aDa8CbbbD38D39D4aD56D66D77D7aC999D3aD4bD6bD76Db6" {
 	createSpotsImage();
 }
 
-macro 'create synthetic spots [f11]' {
+macro 'create synthetic spots [f1]' {
 	createSpotsImage();
 }
 
-macro "Create Synthetic Spots Action Tool (f11) Options" {
+macro "Create Synthetic Spots Action Tool (f1) Options" {
 
-	 parameterSets = getParameterSets();
+
 	
 	 Dialog.createNonBlocking("Create Synthetic Spots Options");
 
-	 Dialog.addMessage("Parameter Set"); 
-	 Dialog.addChoice("parameter set: ", parameterSets, _CURRENT_PARAMETER_SET);
-
+	 Dialog.addMessage("Parameter set: " + _CURRENT_PARAMETER_SET);
 	 Dialog.addMessage("Image"); 
 	 Dialog.addChoice("type: ", _IMAGE_TYPES, _IMAGE_TYPE);
 	 Dialog.addNumber("image size: ", _WIDTH);
 	 Dialog.addToSameRow();
 	 Dialog.addNumber("x ", _HEIGHT);
-	 Dialog.addNumber("background level: ", _BACKGROUND_LEVEL);
-	 Dialog.addNumber("background noise: ", _BACKGROUND_NOISE);
-	 Dialog.addCheckbox("add gradient", _ADD_GRADIANT);
-	 Dialog.addNumber("gradiant: ", _GRADIANT);
+	 Dialog.addNumber("background_level: ", _BACKGROUND_LEVEL);
+	 Dialog.addNumber("background_noise: ", _BACKGROUND_NOISE);
+	 Dialog.addCheckbox("add gradient", _ADD_GRADIENT);
+	 Dialog.addNumber("gradient: ", _GRADIENT);
 	 
 	 Dialog.addMessage("Spots") 
 	 Dialog.addNumber("number population 1: ", _NUMBER_SPOTS1);
@@ -73,15 +71,13 @@ macro "Create Synthetic Spots Action Tool (f11) Options" {
 	 Dialog.addHelp(helpURL);
  	 Dialog.show();
 
-	 _NEW_PARAMETER_SET = Dialog.getChoice();
-
 	 _IMAGE_TYPE = Dialog.getChoice();
  	 _WIDTH = Dialog.getNumber();
  	 _HEIGHT = Dialog.getNumber();
  	 _BACKGROUND_LEVEL = Dialog.getNumber();
  	 _BACKGROUND_NOISE = Dialog.getNumber();
-	 _ADD_GRADIANT = Dialog.getCheckbox();
-	 _GRADIANT = Dialog.getNumber();
+	 _ADD_GRADIENT = Dialog.getCheckbox();
+	 _GRADIENT = Dialog.getNumber();
  	 
  	 _NUMBER_SPOTS1 = Dialog.getNumber();
  	 _NUMBER_SPOTS2 = Dialog.getNumber();
@@ -95,19 +91,52 @@ macro "Create Synthetic Spots Action Tool (f11) Options" {
  	 _DO_NOT_TOUCH_EDGES = Dialog.getCheckbox();
 
  	 _CREATE_GT_IMAGE = Dialog.getCheckbox();
-
- 	 if (_NEW_PARAMETER_SET!=_CURRENT_PARAMETER_SET) {
- 	 	_CURRENT_PARAMETER_SET = _NEW_PARAMETER_SET;
- 	 	loadParameters(_CURRENT_PARAMETER_SET);
- 	 }
 }
 
-macro "save parameters [f2]" {
-	saveParameters(true);
+macro "create new parameter set [f2]" {
+	createNewParameterSet();
 }
 
-macro "save parameters Action Tool (f2) - C000T4b12s" {
-	saveParameters(true);
+macro "create new parameter set Action Tool (f2) - C000T4b12n" {
+	createNewParameterSet();
+}
+
+macro "open parameter set [f3]" {
+	openParameterSet();
+}
+
+macro "open parameter set Action Tool (f3) - C000T4b12o" {
+	openParameterSet();
+}
+
+function openParameterSet() {
+	 parameterSets = getParameterSets();
+	
+	 Dialog.createNonBlocking("Open parameter set");
+
+	 Dialog.addMessage("Open parameter Set"); 
+	 Dialog.addChoice("parameter set: ", parameterSets, _CURRENT_PARAMETER_SET);
+
+	 Dialog.show();
+
+	 _CURRENT_PARAMETER_SET = Dialog.getChoice();
+	 loadParameters(_CURRENT_PARAMETER_SET);
+}
+
+function createNewParameterSet() {
+	baseFolder = getDirectory("imagej");
+	paramFolder = baseFolder + "/csst";
+	parameterSets = getParameterSets();
+	newName = "new-parameter-set";
+	Dialog.createNonBlocking("Create new parameter set");
+	Dialog.addString("name: ", newName);
+	Dialog.show();	
+	newName = Dialog.getString();
+	if (File.exists(paramFolder+"/"+newName+_PARAMETER_FILE_EXTENSION)) {
+		showMessageWithCancel("continue?", "Do you really want to overwrite the existing parameter set?");
+	}
+	_CURRENT_PARAMETER_SET = newName;
+	saveParameters(false);
 }
 
 function getParameterSets() {
@@ -137,8 +166,8 @@ function saveParameters(askFileName) {
 	iniContent += "HEIGHT="+_HEIGHT+"\n"; 
 	iniContent += "BACKGROUND_LEVEL="+_BACKGROUND_LEVEL+"\n"; 
 	iniContent += "BACKGROUND_NOISE="+_BACKGROUND_NOISE+"\n"; 
-	iniContent += "ADD_GRADIANT="+_ADD_GRADIANT+"\n"; 
-	iniContent += "GRADIANT ="+_GRADIANT+"\n"; 
+	iniContent += "ADD_GRADIENT="+_ADD_GRADIENT+"\n"; 
+	iniContent += "GRADIENT="+_GRADIENT+"\n"; 
 
 	iniContent += "[Spots]"+"\n";
 	iniContent += "NUMBER_SPOTS1="+_NUMBER_SPOTS1+"\n"; 
@@ -176,21 +205,21 @@ function loadParameters(name) {
 		variable = toUpperCase(variable);
 		if (variable == "CURRENT_PARAMETER_SET") _CURRENT_PARAMETER_SET=value;
 		if (variable == "IMAGE_TYPE") _IMAGE_TYPE=value;		
-		if (variable == "WIDTH") _WIDTH=value;
-		if (variable == "HEIGHT") _HEIGHT=value;
-		if (variable == "BACKGROUND_LEVEL") _BACKGROUND_LEVEL=value;
-		if (variable == "BACKGROUND_NOISE") _BACKGROUND_NOISE=value;
-		if (variable == "ADD_GRADIANT") _ADD_GRADIANT=value;
-		if (variable == "GRADIANT") _GRADIANT=value;
-		if (variable == "NUMBER_SPOTS1") _NUMBER_SPOTS1=value;
-		if (variable == "NUMBER_SPOTS2") _NUMBER_SPOTS2=value;
-		if (variable == "MEAN1") _MEAN1=value;
-		if (variable == "MEAN2") _MEAN2=value;
-		if (variable == "STD_DEV1") _STD_DEV1=value;
-		if (variable == "STD_DEV2") _STD_DEV2=value;
-		if (variable == "FOREGROUND_LEVEL") _FOREGROUND_LEVEL=value;
-		if (variable == "GAUSSIAN_BLUR") _GAUSSIAN_BLUR=value;
-		if (variable == "FOREGROUND_NOISE") _FOREGROUND_NOISE=value;
+		if (variable == "WIDTH") _WIDTH=parseInt(value);
+		if (variable == "HEIGHT") _HEIGHT=parseInt(value);
+		if (variable == "BACKGROUND_LEVEL") _BACKGROUND_LEVEL=parseFloat(value);
+		if (variable == "BACKGROUND_NOISE") _BACKGROUND_NOISE=parseFloat(value);
+		if (variable == "ADD_GRADIENT") _ADD_GRADIENT=value;
+		if (variable == "GRADIENT") _GRADIENT=parseFloat(value);
+		if (variable == "NUMBER_SPOTS1") _NUMBER_SPOTS1=parseInt(value);
+		if (variable == "NUMBER_SPOTS2") _NUMBER_SPOTS2=parseInt(value);
+		if (variable == "MEAN1") _MEAN1=parseFloat(value);
+		if (variable == "MEAN2") _MEAN2=parseFloat(value);
+		if (variable == "STD_DEV1") _STD_DEV1=parseFloat(value);
+		if (variable == "STD_DEV2") _STD_DEV2=parseFloat(value);
+		if (variable == "FOREGROUND_LEVEL") _FOREGROUND_LEVEL = parseFloat(value);
+		if (variable == "GAUSSIAN_BLUR") _GAUSSIAN_BLUR=parseFloat(value);
+		if (variable == "FOREGROUND_NOISE") _FOREGROUND_NOISE=parseFloat(value);
 		if (variable == "DO_NOT_TOUCH_EDGES") _DO_NOT_TOUCH_EDGES=value;
 		if (variable == "CREATE_GT_IMAGE") _CREATE_GT_IMAGE=value;
 	}
@@ -215,8 +244,8 @@ function createSpotsImage(){
 	drawSpots(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
 	convolveAndAddNoise(_GAUSSIAN_BLUR, _BACKGROUND_LEVEL, _BACKGROUND_NOISE, _FOREGROUND_NOISE);
 	
-	if (_ADD_GRADIANT) {
-		run("Macro...", "code=v=v+((x+y)*"+_GRADIANT+")");
+	if (_ADD_GRADIENT) {
+		run("Macro...", "code=v=v+((x+y)*"+_GRADIENT+")");
 	}
 	if (_CREATE_GT_IMAGE) {
 		newImage("spots ground-truth "+_COUNT, "16-bit composite-mode", _WIDTH, _HEIGHT, 2, 1, 1);
@@ -261,11 +290,8 @@ function drawGroundTruth(xCoords, yCoords, diameters, channel) {
 	}
 }
 
-function createBackground(backgroudLevel) {
-	run("Select All");
-	setColor(backgroudLevel);
-	run("Fill", "slice");
-	run("Select None");	
+function createBackground(backgroundLevel) {
+	run("Macro...", "code=v="+backgroundLevel);
 }
 
 function convolveAndAddNoise(gaussianBlur, backgroudLevel, backgroundNoise, foregroundNoise) {
@@ -294,8 +320,10 @@ function drawSpots(xCoords, yCoords, diameters, backgroudLevel, width, height) {
 }
 
 function createSpots(number, stdDev, mean, width, height, doNotTouchEdges, xList, yList, dList) {
-	for (i = 0; i < number; i++) {
-		dList[i] = stdDev*random("gaussian")+mean;	
+	for (i = 0; i < number; i++) {			
+	 	do {
+			dList[i] = stdDev*random("gaussian")+mean;			
+	 	} while (dList[i]<=0);
 	}
 	dList=Array.sort(dList);
 	for (i = 0; i < number; i++) {
