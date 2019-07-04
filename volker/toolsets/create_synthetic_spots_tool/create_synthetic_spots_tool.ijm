@@ -262,16 +262,16 @@ function createSpotsImage(){
 		Table.showRowNumbers(true);
 		for (i = 0; i < xCoordinatesSmall.length; i++) {		
 			Table.set("Class", i, 0);
-			Table.set("XC", i, xCoordinatesSmall[i]+(diametersSmall[i]/2));
-			Table.set("YC", i, yCoordinatesSmall[i]+(diametersSmall[i]/2));
+			Table.set("XC", i, xCoordinatesSmall[i]);
+			Table.set("YC", i, yCoordinatesSmall[i]);
 			Table.set("Diameter", i, diametersSmall[i]);
 			Table.set("Radius", i, diametersSmall[i]/2);
 			Table.set("Area", i, PI*pow(diametersSmall[i]/2,2));
 		}
 		for (j = 0; j < xCoordinatesBig.length; j++) {		
 			Table.set("Class", j+i, 1);
-			Table.set("XC", j+i, xCoordinatesBig[j]+(diametersBig[j]/2));
-			Table.set("YC", j+i, yCoordinatesBig[j]+(diametersBig[j]/2));
+			Table.set("XC", j+i, xCoordinatesBig[j]);
+			Table.set("YC", j+i, yCoordinatesBig[j]);
 			Table.set("Diameter", j+i, diametersBig[j]);
 			Table.set("Radius", j+i, diametersBig[j]/2);
 			Table.set("Area", j+i, PI*pow(diametersBig[j]/2,2));
@@ -335,7 +335,7 @@ function createSpots(number, stdDev, mean, width, height, doNotTouchEdges, xList
 			x = random*width;
 			y = random*height;
 		}
-		xList[i] = x;
-		yList[i] = y;
+		xList[i] = x+(diameter/2);
+		yList[i] = y+(diameter/2);
 	}
 }
