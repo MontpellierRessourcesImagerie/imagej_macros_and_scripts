@@ -22,6 +22,14 @@ var _COUNT = 0;
 var _CURRENT_PARAMETER_SET = "default";
 var _PARAMETER_FILE_EXTENSION = ".ini";
 
+var _FALSE_NEGATIVE_COLOR = "yellow";
+var _FALSE_POSITIVE_COLOR = "red";
+var _TRUE_POSITIVE_COLOR = "green";
+
+var _MEASURE_POPULATION = "false positive";
+var _MEASURE_POPULATIONS = newArray("false positive", "true positive", "false negative");
+
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Create_Synthetic_Spots_Tool";
 
 macro "Create Synthetic Spots Action Tool (f1) - C000D01D10D14D20D30C111D16D4dD7dD9bDaaDb9De3De8C111D06D07D08D09D0aD0fD15D1cD24D2cD2dD32D3dD43D53D61D63D6dD6eD71D73D7eD80D82D83D8dD92D93D9cD9dD9fDa0Da2DbaDc1Dc2Dc9DccDd1Dd2Dd9DdaDe0De1DeaDeeDf0Df4Df5Df6Df7Df9DfaDfcDfeC555D27D3bD45D86D98Da5Da6Db4Db7Dc4C000D00D02D03D04D05D0bD0cD0dD0eD11D12D13D1dD1eD1fD21D22D23D2eD2fD31D33D3eD3fD40D41D42D4eD4fD50D51D52D5eD5fD60D62D6fD70D72D7fD81D8eD8fD90D91D9eDa1DabDacDadDaeDafDb0Db1Db2DbbDbcDbdDbeDbfDc0DcaDcbDcdDceDcfDd0DdbDdcDddDdeDdfDe2De9DebDecDedDefDf1Df2Df3Df8DfbDfdDffC333D2bD85D95Dc3De5De6C999D37D46D5bD88D89Dc6C222D17D19D3cD44D54D64Da9Db8Dc8Dd3De7C888D28D36D7bD87D8aDb5Dc5C444D2aD4cD5cD6cD75D8bD96D97D99Da4Da7Dd4Dd7CeeeD47D48D49D57D58D59D5aD67D68D69D6aD78D79C222D1aD1bD25D34D5dD74D84D8cD94Da3Db3Dd8De4C666D29D55D65Dc7Dd5Dd6C333D18D26D35D7cD9aDa8CbbbD38D39D4aD56D66D77D7aC999D3aD4bD6bD76Db6" {
@@ -33,8 +41,6 @@ macro 'create synthetic spots [f1]' {
 }
 
 macro "Create Synthetic Spots Action Tool (f1) Options" {
-
-
 	
 	 Dialog.createNonBlocking("Create Synthetic Spots Options");
 
@@ -107,6 +113,40 @@ macro "open parameter set [f3]" {
 
 macro "open parameter set Action Tool (f3) - C000T4b12o" {
 	openParameterSet();
+}
+
+macro "mark false positive and true positive detections [f4]" {
+	markFalseDetections();
+}
+
+macro "mark false and true detections Action Tool (f4) - C000T4b12d" {
+	markFalseDetections();
+}
+
+macro "marc false negatives [f5]" {
+	markFalseNegatives();
+}
+
+macro "marc false negatives Action Tool (f5) - C000T4b12f" {
+	markFalseNegatives();
+}
+
+macro "measure [f6]" {
+	measure();	
+}
+
+macro "measure Action Tool (f6) - C000T4b12m" {
+	measure();
+}
+
+macro "measure Action Tool (f6) Options" {
+	 Dialog.create("Measure Options");
+
+	 Dialog.addChoice("population: ", _MEASURE_POPULATIONS, _MEASURE_POPULATION);
+
+	 Dialog.show();
+
+	 _MEASURE_POPULATION = Dialog.getChoice();
 }
 
 function openParameterSet() {
@@ -337,5 +377,87 @@ function createSpots(number, stdDev, mean, width, height, doNotTouchEdges, xList
 		}
 		xList[i] = x+(diameter/2);
 		yList[i] = y+(diameter/2);
+	}
+}
+
+function markFalseDetections() {
+	count = Overlay.size;
+	for (i = 0; i < count; i++) {
+		setSlice(1);
+		Overlay.activateSelection(i);
+		getStatistics(area, mean1, min);
+		setSlice(2);
+		getStatistics(area, mean2, min);
+		if ((mean1+mean2)==0) Roi.setStrokeColor(_FALSE_POSITIVE_COLOR);
+		else Roi.setStrokeColor(_TRUE_POSITIVE_COLOR);
+	}
+	setSlice(1);
+}
+
+function markFalseNegatives() {
+	
+	gtImageID = getImageID();
+	
+	roiManager("Reset");
+	run("To ROI Manager");
+	roiManager("Show None");
+	roiManager("Show All");
+	roiManager("Show All without labels");
+	roiManager("Combine");
+	run("Create Mask");
+	maskID = getImageID();
+	
+	selectImage(gtImageID);
+	run("Select None");
+	selectImage(maskID);
+	
+	selectWindow("spots ground-truth table");
+	XC = Table.getColumn("XC");
+	YC = Table.getColumn("YC");
+	R = Table.getColumn("Radius");
+	selectImage(maskID);
+	indices = newArray(0);
+	for (i = 0; i < XC.length; i++) {
+		makeOval(XC[i]-1.5, YC[i]-1.5, 3,3);
+		getStatistics(area, mean);
+		if (mean==0) {
+			indices = Array.concat(indices, i);
+		}
+	}
+	
+	selectImage(gtImageID);
+	for (i = 0; i < indices.length; i++) {
+		makeOval(XC[indices[i]]-1.5, YC[indices[i]]-1.5, 3, 3);
+		Overlay.addSelection(_FALSE_NEGATIVE_COLOR);
+	}
+	run("Select None");
+}
+
+function measure() {
+	if (_MEASURE_POPULATION=="false positive") measureFalsePositives();
+	if (_MEASURE_POPULATION=="true positive") measureTruePositives();
+	if (_MEASURE_POPULATION=="false negative") measureFalseNegatives();
+}
+
+function measureFalseNegatives() {
+	measureRoisWithColor(_FALSE_NEGATIVE_COLOR);
+}
+
+function measureFalsePositives() {
+	measureRoisWithColor(_FALSE_POSITIVE_COLOR);
+}
+
+function measureTruePositives() {
+	measureRoisWithColor(_TRUE_POSITIVE_COLOR);
+}
+
+function measureRoisWithColor(color) {
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		currentColor = Roi.getStrokeColor;
+		if (currentColor==color) {
+			run("Measure");
+		}
 	}
 }
