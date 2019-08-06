@@ -6,10 +6,11 @@ var _FIRST_TIME_POINT = 25;
 var _CHANNEL = 1;
 var _SIGMA = 1.4;
 var _THRESHOLDING_METHOD = "Minimum";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _MIN_SPOT_SIZE = 5;
 var _MEASURE_REGION = true;
 var _MEASURE_SPOTS = true;
-var _DISPLAY_PLOTS = true;
+var _DISPLAY_PLOTS = false;
 var _TABLE_TITLE = "Calcium Signal Measurements";
 var _FILE_EXTENSION = "czi";
 var _OUT_FOLDER = "control-images";
@@ -31,6 +32,18 @@ macro "Find Region Action Tool (f2) - C000T4b12f" {
 	placeRegion();
 }
 
+macro "Find Region Action Tool (f2) Options" {
+	Dialog.create("Find Region Options");
+	
+	Dialog.addNumber("width of region: ", _WIDTH_OF_ROI);
+	Dialog.addNumber("height of region: ", _HEIGHT_OF_ROI);
+	
+	Dialog.show();
+	
+	_WIDTH_OF_ROI = Dialog.getNumber();
+	_HEIGHT_OF_ROI = Dialog.getNumber();
+}
+
 macro 'find region [f2]' {
 	placeRegion();
 }
@@ -39,8 +52,35 @@ macro 'analyze calcium spots [f3]' {
 	runAnalysis();
 }
 
+
 macro "Analyze Calcium Spots Action Tool (f3) - C000T4b12a" {
 	runAnalysis();
+}
+
+macro "Analyze Calcium Spots Action Tool (f3) Options" {
+	Dialog.create("Analyze Calcium Spots Options");
+	
+	Dialog.addNumber("first timepoint: ", _FIRST_TIME_POINT);
+	Dialog.addNumber("channel: ", _CHANNEL);
+	Dialog.addNumber("sigma Gaussian blur: ", _SIGMA);
+	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
+	Dialog.addNumber("min. spot size: ", _MIN_SPOT_SIZE);
+	Dialog.addCheckbox("measure whole region", _MEASURE_REGION);
+	Dialog.addCheckbox("measure spots", _MEASURE_SPOTS);
+	Dialog.addCheckbox("display plots", _DISPLAY_PLOTS);
+	Dialog.addString("file extension: ", _FILE_EXTENSION);
+	
+	Dialog.show();
+	
+	_FIRST_TIME_POINT = Dialog.getNumber();
+	_CHANNEL = Dialog.getNumber();
+	_SIGMA = Dialog.getNumber();
+	_THRESHOLDING_METHOD = Dialog.getChoice();
+	_MIN_SPOT_SIZE = Dialog.getNumber();
+	_MEASURE_REGION = Dialog.getCheckbox();
+	_MEASURE_SPOTS = Dialog.getCheckbox();
+	_DISPLAY_PLOTS = Dialog.getCheckbox();
+	_FILE_EXTENSION = Dialog.getString();
 }
 
 macro 'batch process images [f4]' {
@@ -270,7 +310,14 @@ function batchProcessImages() {
 		roiManager("reset");
 		if (endsWith(file, _FILE_EXTENSION)) {
 			run("Bio-Formats", "open=["+dir+"/"+file+"] autoscale color_mode=Default display_rois rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
-			close();
+			if (nImages>1) close();
+			Stack.getDimensions(width, height, channels, slices, frames);
+			count = roiManager("count");
+			if (frames<2 || count<1) {
+				print("skipped image " + file);
+				if (nImages>0) close();
+				continue;
+			}
 		} else {
 			open(dir+"/"+file);
 		}
@@ -315,7 +362,14 @@ function batchFindRegions() {
 		file = files[i];
 		roiManager("reset");
 		run("Bio-Formats", "open=["+dir+"/"+file+"] autoscale color_mode=Default display_rois rois_import=[ROI manager] split_channels view=Hyperstack stack_order=XYCZT");
-		close();
+		if (nImages>1) close();
+		Stack.getDimensions(width, height, channels, slices, frames);
+		count = roiManager("count");
+		if (frames<2 || count<1) {
+			print("skipped image " + file);
+			if (nImages>0) close();
+			continue;
+		}
 		rect = placeRegion();
 		makeRectangle(rect[0], rect[1], rect[2], rect[3]);
 		selectWindow("Log");
