@@ -1,4 +1,11 @@
+var _HEIGHT_IN_CM = 29.7;
+
+var _ENHANCE_CONTRAST = true;
 var _DIST_BORDER = 5;
+var _THRESHOLDING_METHOD = "MaxEntropy";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
+var _MIN_AREA = "50000";
+
 var _CIRCLE_ORIGIN_X = 3226;
 var _CIRCLE_ORIGIN_Y = 7;
 var _CIRCLE_INITIAL_RADIUS = 50;
@@ -7,6 +14,7 @@ var _FACTOR = 1.1;
 var _CREATE_DISTANCE_MAP = true;
 
 var _MAXIMA_TOLERANCE = 2;
+var _EDGE_MODE = 2;
 var _PLOT_MAX_RADIUS = true;
 var _PLOT_MAXIMA_PER_DISTANCE = true;
 
@@ -27,6 +35,19 @@ macro "create mask [f2]" {
 
 macro "create mask Action Tool (f2) - C000T4b12m" {
 	segmentRoot();
+}
+
+macro "create mask Action Tool (f2) Options" {
+	Dialog.create("create mask options");
+	Dialog.addCheckbox("enhance contrast", _ENHANCE_CONTRAST);
+	Dialog.addNumber("distance to border: ", _DIST_BORDER);
+	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
+	Dialog.addNumber("min area: ", _MIN_AREA);
+	Dialog.show();
+	_ENHANCE_CONTRAST = Dialog.getCheckbox();
+	_DIST_BORDER = Dialog.getNumber();
+	_THRESHOLDING_METHOD = Dialog.getChoice();
+	_MIN_AREA = Dialog.getNumber();
 }
 
 macro "make circles [f3]" {
@@ -90,16 +111,27 @@ function getMaximaPerDistance() {
 	roiManager("Reset");
 	count = Overlay.size;
 	maximaCount = newArray(count);
+	origonX = 0;
+	origonY = 0;
+	toUnscaled(origonX, origonY);
+	makePoint(origonX, origonY);
+	roiManager("Add");
+	run("Select None");
 	for (i = 0; i < count; i++) {
 		Overlay.activateSelection(i);
 		getSelectionCoordinates(xpoints, ypoints);
 		values = getValuesInSelection(xpoints, ypoints);
-		maxima = Array.findMaxima(values, _MAXIMA_TOLERANCE);
+		maxima = Array.findMaxima(values, _MAXIMA_TOLERANCE, _EDGE_MODE);
 		maximaCount[i] = maxima.length;
 		for (j = 0; j < maxima.length; j++) {
-			makePoint(xpoints[maxima[j]], ypoints[maxima[j]]);
-			roiManager("Add");
-			run("Select None");
+			x = ypoints[maxima[j]];
+			y = ypoints[maxima[j]];
+			toScaled(x, y);
+			if (y>=0) { 
+				makePoint(xpoints[maxima[j]], ypoints[maxima[j]]);
+				roiManager("Add");
+				run("Select None");
+			}
 		}	
 	}
 	return maximaCount;
@@ -179,12 +211,14 @@ function getValuesInSelection(xpoints, ypoints) {
 }
 
 function segmentRoot() {
-	run("Options...", "iterations=1 count=1 do=Nothing");
 	width = getWidth();
 	height = getHeight();
+	run("Set Scale...", "distance="+height+" known="+_HEIGHT_IN_CM+" pixel=1 unit=cm");
+	run("Options...", "iterations=1 count=1 do=Nothing");
+	if (_ENHANCE_CONTRAST) enhanceContrast();
 	run("RGB Color");
 	run("16-bit");
-	setAutoThreshold("MaxEntropy dark");
+	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
 	run("Convert to Mask");
 	border = 2 * _DIST_BORDER;
 	run("Canvas Size...", "width="+width+" height="+(height+border)+" position=Center");
@@ -193,13 +227,14 @@ function segmentRoot() {
 	setForegroundColor(255, 255, 255);
 	run("Fill", "slice");
 	run("Select None");
-	run("Analyze Particles...", "size=50000-Infinity pixel show=Masks exclude in_situ");
+	run("Analyze Particles...", "size="+_MIN_AREA+"-Infinity pixel show=Masks exclude in_situ");
 	run("Canvas Size...", "width="+width+" height="+height+" position=Center");
 	maskID = getImageID();
 	run("Create Selection");
 	if (_CREATE_DISTANCE_MAP) createDistanceMap();
 	edtID = getImageID();
 	run("Restore Selection");
+	setBackgroundColor(0, 0, 0);
 	run("Clear Outside");
 	selectImage(maskID);
 	run("Select None");
@@ -212,4 +247,14 @@ function createDistanceMap() {
 	run("Exact Euclidean Distance Transform (3D)");
 	setVoxelSize(width, height, depth, unit);
 	run("16 colors");
+}
+
+function enhanceContrast() {
+	setSlice(1);
+	run("Enhance Contrast...", "saturated=0.3 equalize");
+	setSlice(2);
+	run("Enhance Contrast...", "saturated=0.3 equalize");
+	setSlice(3);
+	run("Enhance Contrast...", "saturated=0.3 equalize");
+	setSlice(1);
 }
