@@ -26,8 +26,41 @@ macro 'measure current image [f2]' {
 	measurePositions();
 }
 
+macro "Measure current image Action Tool (f2) Options" {
+
+	Dialog.create("Measure current image options");
+	
+	Dialog.addNumber("nuclei channel: ", _NUCLEI_CHANNEL);
+	Dialog.addNumber("signal channel: ", _SIGNAL_CHANNEL);
+	Dialog.addNumber("min. area cell: " , _MIN_CELL_SIZE);
+	Dialog.addNumber("min. area nuclei: ", _MIN_NUCLEUS_SIZE);
+	Dialog.addNumber("min. area signal: ", _MIN_SIGNAL_SIZE);
+	Dialog.addString("title of table: ", _TITLE_OF_TABLE);
+	
+	Dialog.show();
+	
+	_NUCLEI_CHANNEL = Dialog.getNumber();
+	_SIGNAL_CHANNEL = Dialog.getNumber();
+	_MIN_CELL_SIZE = Dialog.getNumber();
+	_MIN_NUCLEUS_SIZE = Dialog.getNumber();
+	_MIN_SIGNAL_SIZE = Dialog.getNumber();
+	_TITLE_OF_TABLE = Dialog.getString();
+}
+
 macro "Batch measure images Action Tool (f3) - C000T4b12b" {
 	batchMeasurePositions();	
+}
+
+macro "Batch measure images Action Tool (f3) Options" {
+	Dialog.create("Batch measure images options");
+
+	Dialog.addString("file extension: ", _FILE_EXTENSION);
+	Dialog.addString("output folder: ", _OUT_FOLDER);
+	
+	Dialog.show();
+
+	_FILE_EXTENSION = Dialog.getString();
+	_OUT_FOLDER = Dialog.getString();
 }
 
 macro 'batch measure positions [f3]' {
