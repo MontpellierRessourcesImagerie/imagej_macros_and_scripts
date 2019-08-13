@@ -13,6 +13,11 @@ var _DELTA_RADIUS = 200;
 var _FACTOR = 1.1;
 var _CREATE_DISTANCE_MAP = true;
 
+var _LINE_ORIGIN_X = 3226;
+var _LINE_ORIGIN_Y = 7;
+var _LINE_DELTA_DISTANCE = 200;
+var _LINE_DISTANCE_FACTOR = 1;
+
 var _MAXIMA_TOLERANCE = 2;
 var _EDGE_MODE = 2;
 var _PLOT_MAX_RADIUS = true;
@@ -70,15 +75,35 @@ macro "make circles Tool (f3) Options" {
 	_FACTOR = Dialog.getNumber();
 }
 
-macro "plot features [f4]" {
+macro "make lines [f4]" {
+	doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+}
+
+macro "make lines Tool (f4) - C000T4b12l" {
+	getCursorLoc(x, y, z, modifiers);
+	doMakeLines(x,y);
+}
+
+macro "make lines Tool (f4) Options" {
+	Dialog.create("make lines options");
+	Dialog.addNumber("initial y: ", _LINE_ORIGIN_Y);
+	Dialog.addNumber("initial distance: ", _LINE_DELTA_DISTANCE);
+	Dialog.addNumber("factor: ", _LINE_DISTANCE_FACTOR);
+	Dialog.show();
+	_LINE_ORIGIN_Y = Dialog.getNumber();
+	_LINE_DELTA_DISTANCE = Dialog.getNumber();
+	_LINE_DISTANCE_FACTOR = Dialog.getNumber();
+}
+
+macro "plot features [f5]" {
 	doPlotFeatures();
 }
 
-macro "plot features Action Tool (f4) - C000T4b12p" {
+macro "plot features Action Tool (f5) - C000T4b12p" {
 	doPlotFeatures();
 }
 
-macro "plot features Action Tool (f4) Options" {
+macro "plot features Action Tool (f5) Options" {
 	Dialog.create("plot features options");
 	Dialog.addCheckbox("plot max. radius per distance", _PLOT_MAX_RADIUS);
 	Dialog.addCheckbox("plot nr. of max. per distance", _PLOT_MAXIMA_PER_DISTANCE);
@@ -120,11 +145,17 @@ function getMaximaPerDistance() {
 	for (i = 0; i < count; i++) {
 		Overlay.activateSelection(i);
 		getSelectionCoordinates(xpoints, ypoints);
+		if (selectionType() == 5) {
+			xpoints = Array.getSequence(xpoints[1]);
+			y = ypoints[0];
+			ypoints = newArray(xpoints.length);
+			Array.fill(ypoints, y);
+		}
 		values = getValuesInSelection(xpoints, ypoints);
 		maxima = Array.findMaxima(values, _MAXIMA_TOLERANCE, _EDGE_MODE);
 		maximaCount[i] = maxima.length;
 		for (j = 0; j < maxima.length; j++) {
-			x = ypoints[maxima[j]];
+			x = xpoints[maxima[j]];
 			y = ypoints[maxima[j]];
 			toScaled(x, y);
 			if (y>=0) { 
@@ -143,8 +174,12 @@ function getDistances() {
 	for (i = 0; i < count; i++) {
 		Overlay.activateSelection(i);
 		getSelectionBounds(x, y, width, height);
+		if (selectionType() == 5) {
+			distances[i] = y;
+		} else {
+			distances[i] = width / 2.0;
+		}
 		run("Select None");
-		distances[i] = width / 2.0;
 		toScaled(distances[i]);
 	}
 	return distances;
@@ -164,6 +199,13 @@ function doMakeCircles(x,y) {
 	run("Properties...", "origin="+_CIRCLE_ORIGIN_X+","+_CIRCLE_ORIGIN_Y);
 }
 
+function doMakeLines(x,y) {
+	_LINE_ORIGIN_X = x;
+	_LINE_ORIGIN_Y = y;
+	makeLines(_LINE_ORIGIN_Y, _LINE_DELTA_DISTANCE, _LINE_DISTANCE_FACTOR);
+	run("Properties...", "origin="+_LINE_ORIGIN_X+","+_LINE_ORIGIN_Y);
+}
+
 function getMaxPerDistance() {
 	count = Overlay.size;
 	maxValues = newArray(count);
@@ -180,6 +222,12 @@ function getMaxPerDistance() {
 function getValuesInCircleNr(i) {
 		Overlay.activateSelection(i);
 		getSelectionCoordinates(xpoints, ypoints);
+		if (selectionType() == 5) {
+			xpoints = Array.getSequence(xpoints[1]);
+			y = ypoints[0];
+			ypoints = newArray(xpoints.length);
+			Array.fill(ypoints, y);
+		}
 		values = getValuesInSelection(xpoints, ypoints);
 		return values;
 }
@@ -257,4 +305,19 @@ function enhanceContrast() {
 	setSlice(3);
 	run("Enhance Contrast...", "saturated=0.3 equalize");
 	setSlice(1);
+}
+
+function makeLines(initialY, deltaDistance, factor) {
+	Overlay.remove;
+	height = getHeight();
+	width = getWidth();
+	currentY = initialY;
+	while(currentY<height) {
+		makeLine(0, currentY, width, currentY);
+		Overlay.addSelection;
+		deltaDistance *= factor;
+		currentY += deltaDistance;
+	}
+	Overlay.show;
+	run("Select None");
 }
