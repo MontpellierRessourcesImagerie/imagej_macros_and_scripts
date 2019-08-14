@@ -221,6 +221,7 @@ function getMaxPerDistance() {
 
 function getValuesInCircleNr(i) {
 		Overlay.activateSelection(i);
+		run("Area to Line");
 		getSelectionCoordinates(xpoints, ypoints);
 		if (selectionType() == 5) {
 			xpoints = Array.getSequence(xpoints[1]);
@@ -253,6 +254,8 @@ function getValuesInSelection(xpoints, ypoints) {
 	for(i=0; i<xpoints.length; i++) {
 		x = xpoints[i];
 		y = ypoints[i];
+		x = round(x);
+		y = round(y);
 		values[i] = getPixel(x, y);
 	}
 	return values;
@@ -320,4 +323,26 @@ function makeLines(initialY, deltaDistance, factor) {
 	}
 	Overlay.show;
 	run("Select None");
+}
+
+function plotAreaPerDistance() {
+	run("Set Measurements...", "area limit redirect=None decimal=9");
+	run("Clear Results")
+	setAutoThreshold("Triangle");
+	Overlay.measure
+	selectWindow("Results");
+	sumOfAreas = Table.getColumn("Area");
+	areaPerDistance = newArray(sumOfAreas.length);
+	relativeAreaPerDistance = newArray(sumOfAreas.length);
+	areaPerDistance[0] = sumOfAreas[0];
+	relativeAreaPerDistance[0] = areaPerDistance[0]/sumOfAreas[sumOfAreas.length-1];
+	for (i = 1; i < sumOfAreas.length; i++) {
+		areaPerDistance[i] = sumOfAreas[i]-sumOfAreas[i-1];
+		relativeAreaPerDistance[i] = areaPerDistance[i]/sumOfAreas[sumOfAreas.length-1];
+	}	
+	distances = getDistances();
+	Plot.create("area per dist.", "distance [cm]", "area [cm^2]", distances, areaPerDistance);
+	Plot.show();	
+	Plot.create("relative area per dist.", "distance [cm]", "relative area [1]", distances, relativeAreaPerDistance);
+	Plot.show();	
 }
