@@ -20,8 +20,9 @@ var _LINE_DISTANCE_FACTOR = 1;
 
 var _MAXIMA_TOLERANCE = 2;
 var _EDGE_MODE = 2;
-var _PLOT_MAX_RADIUS = true;
-var _PLOT_MAXIMA_PER_DISTANCE = true;
+var _PLOT_AREA_PER_DISTANCE = true;
+var _PLOT_MAX_RADIUS = false;
+var _PLOT_MAXIMA_PER_DISTANCE = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
  
@@ -105,10 +106,12 @@ macro "plot features Action Tool (f5) - C000T4b12p" {
 
 macro "plot features Action Tool (f5) Options" {
 	Dialog.create("plot features options");
+	Dialog.addCheckbox("plot area per distance", _PLOT_AREA_PER_DISTANCE);
 	Dialog.addCheckbox("plot max. radius per distance", _PLOT_MAX_RADIUS);
 	Dialog.addCheckbox("plot nr. of max. per distance", _PLOT_MAXIMA_PER_DISTANCE);
 	Dialog.addNumber("tolerance: ", _MAXIMA_TOLERANCE);
 	Dialog.show();
+	_PLOT_AREA_PER_DISTANCE = Dialog.getCheckbox();
 	_PLOT_MAX_RADIUS = Dialog.getCheckbox();
 	_PLOT_MAXIMA_PER_DISTANCE = Dialog.getCheckbox();
 	_MAXIMA_TOLERANCE = Dialog.getNumber();
@@ -117,6 +120,8 @@ macro "plot features Action Tool (f5) Options" {
 
 function doPlotFeatures() {
 	imageID = getImageID();
+	if (_PLOT_AREA_PER_DISTANCE) plotAreaPerDistance();
+	selectImage(imageID);
 	if (_PLOT_MAX_RADIUS) plotMaxRadius();
 	selectImage(imageID);
 	if (_PLOT_MAXIMA_PER_DISTANCE) plotMaximaPerDistance();
@@ -326,23 +331,57 @@ function makeLines(initialY, deltaDistance, factor) {
 }
 
 function plotAreaPerDistance() {
+	sumOfAreas = getSumOfAreas();
+	areaPerDistance = getAreaPerDistance(sumOfAreas);
+	relativeAreaPerDistance = getRelativeAreas(areaPerDistance, sumOfAreas[sumOfAreas.length-1]);
+	distances = getDistances();
+	yAxis = "distance";
+	Overlay.activateSelection(0);
+	if (selectionType()==5) yAxis = "depth";
+	run("Select None");
+	Plot.create("area per "+yAxis, ""+yAxis+" [cm]", "area [cm^2]", distances, areaPerDistance);
+	Plot.show();	
+	Plot.create("relative area per "+yAxis, ""+yAxis+" [cm]", "relative area [1]", distances, relativeAreaPerDistance);
+	Plot.show();	
+}
+
+function getSumOfAreas() {
 	run("Set Measurements...", "area limit redirect=None decimal=9");
-	run("Clear Results")
+	run("Clear Results");
 	setAutoThreshold("Triangle");
-	Overlay.measure
+	Overlay.activateSelection(0);
+	if (selectionType() == 5) {
+		Overlay.activateSelection(0);
+		getSelectionBounds(x0, y0, width0, height0);
+		for (i = 1; i < Overlay.size; i++) {
+			Overlay.activateSelection(i);
+			getSelectionBounds(x, y, width, height);
+			makeRectangle(x0, y0, width0, y);
+			run("Measure");
+		}
+		run("Select None");
+	} else {
+		Overlay.measure;	
+	}
 	selectWindow("Results");
 	sumOfAreas = Table.getColumn("Area");
+	return sumOfAreas;
+}
+
+function getAreaPerDistance(sumOfAreas) {
 	areaPerDistance = newArray(sumOfAreas.length);
-	relativeAreaPerDistance = newArray(sumOfAreas.length);
 	areaPerDistance[0] = sumOfAreas[0];
-	relativeAreaPerDistance[0] = areaPerDistance[0]/sumOfAreas[sumOfAreas.length-1];
 	for (i = 1; i < sumOfAreas.length; i++) {
 		areaPerDistance[i] = sumOfAreas[i]-sumOfAreas[i-1];
-		relativeAreaPerDistance[i] = areaPerDistance[i]/sumOfAreas[sumOfAreas.length-1];
 	}	
-	distances = getDistances();
-	Plot.create("area per dist.", "distance [cm]", "area [cm^2]", distances, areaPerDistance);
-	Plot.show();	
-	Plot.create("relative area per dist.", "distance [cm]", "relative area [1]", distances, relativeAreaPerDistance);
-	Plot.show();	
+	return areaPerDistance;
+}
+
+function getRelativeAreas(areas, total) {
+	relativeAreaPerDistance = newArray(areas.length);
+	relativeAreaPerDistance[0] = areas[0]/total;
+	for (i = 1; i < sumOfAreas.length; i++) {
+		relativeAreaPerDistance[i] = areaPerDistance[i]/total;
+	}	
+	return relativeAreaPerDistance;
 }
