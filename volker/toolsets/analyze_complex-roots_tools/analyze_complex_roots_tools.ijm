@@ -23,6 +23,7 @@ var _EDGE_MODE = 2;
 var _PLOT_AREA_PER_DISTANCE = true;
 var _PLOT_MAX_RADIUS = false;
 var _PLOT_MAXIMA_PER_DISTANCE = false;
+var _PLOT_HORIZONTAL_DISTANCES = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
  
@@ -109,11 +110,14 @@ macro "plot features Action Tool (f5) Options" {
 	Dialog.addCheckbox("plot area per distance", _PLOT_AREA_PER_DISTANCE);
 	Dialog.addCheckbox("plot max. radius per distance", _PLOT_MAX_RADIUS);
 	Dialog.addCheckbox("plot nr. of max. per distance", _PLOT_MAXIMA_PER_DISTANCE);
+	Dialog.addCheckbox("plot horizontal distances", _PLOT_HORIZONTAL_DISTANCES);
+	
 	Dialog.addNumber("tolerance: ", _MAXIMA_TOLERANCE);
 	Dialog.show();
 	_PLOT_AREA_PER_DISTANCE = Dialog.getCheckbox();
 	_PLOT_MAX_RADIUS = Dialog.getCheckbox();
 	_PLOT_MAXIMA_PER_DISTANCE = Dialog.getCheckbox();
+	_PLOT_HORIZONTAL_DISTANCES = Dialog.getCheckbox();
 	_MAXIMA_TOLERANCE = Dialog.getNumber();
 }
 
@@ -125,6 +129,8 @@ function doPlotFeatures() {
 	if (_PLOT_MAX_RADIUS) plotMaxRadius();
 	selectImage(imageID);
 	if (_PLOT_MAXIMA_PER_DISTANCE) plotMaximaPerDistance();
+	selectImage(imageID);
+	if (_PLOT_HORIZONTAL_DISTANCES) plotHorizontalDistances();
 	selectImage(imageID);
 	roiManager("Show None");
 	roiManager("Show All");
@@ -345,6 +351,19 @@ function plotAreaPerDistance() {
 	Plot.show();	
 }
 
+function plotHorizontalDistances() {
+	hDist = getHorizontalDistances();
+	length = hDist.length;
+	leftDist = Array.slice(hDist, 0, (length/2)-1);
+	rightDist =  Array.slice(hDist, length/2, (length-1));
+	distances = getDistances();
+	
+	Plot.create("left horiz. dist.", "dist. [cm]", "max. horiz. dist. [cm]", distances, leftDist);
+	Plot.show();	
+	Plot.create("right horiz. dist.", "dist. [cm]", "max. horiz. dist. [cm]", distances, rightDist);
+	Plot.show();	
+}
+
 function getSumOfAreas() {
 	run("Set Measurements...", "area limit redirect=None decimal=9");
 	run("Clear Results");
@@ -384,4 +403,55 @@ function getRelativeAreas(areas, total) {
 		relativeAreaPerDistance[i] = areaPerDistance[i]/total;
 	}	
 	return relativeAreaPerDistance;
+}
+
+function getHorizontalDistances() {
+	roiManager("reset");
+	setBackgroundColor(255,255,255);
+	size = Overlay.size;
+	leftDistance = newArray(size);
+	rightDistance = newArray(size);
+	for (i = 0; i < size; i++) {
+		run("Duplicate...", " ");
+
+		if (selectionType() == 5) {
+			
+		} else {
+		
+			if (i>0) {
+				Overlay.activateSelection(i-1);
+				run("Clear", "slice");
+			}
+			Overlay.activateSelection(i);
+			getSelectionBounds(x0, y0, width0, height0);
+			radius = width0/2.0;
+			
+			run("Clear Outside");
+			run("Create Selection");
+			getSelectionBounds(x, y, width, height);
+		}
+		x1 = x+width;
+
+		toScaled(x,y);
+		toScaled(x1,y1);
+		toScaled(radius);
+
+		leftDistance[i] = x;
+		rightDistance[i] = x1;
+		
+		y = sqrt(pow(radius,2)-pow(x,2));
+		y1 = sqrt(pow(radius,2)-pow(x1,2));
+
+		toUnscaled(x, y);
+		toUnscaled(x1, y1);		
+		
+		makePoint(x, y, "hybrid magenta");
+		roiManager("add");
+		makePoint(x1, y1, "hybrid red");
+		roiManager("add");
+
+		close();
+	}
+	hDist = Array.concat(leftDistance, rightDistance);
+	return hDist;
 }
