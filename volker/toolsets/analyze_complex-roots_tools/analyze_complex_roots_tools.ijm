@@ -405,45 +405,52 @@ function getRelativeAreas(areas, total) {
 	return relativeAreaPerDistance;
 }
 
+
 function getHorizontalDistances() {
+	Overlay.activateSelection(0);
+	selType = selectionType();
+	if (selType == 5) hDist = getHorizontalDistacesLines();
+	else hDist = getHorizontalDistancesCircles();
+	return hDist;
+}
+
+function getHorizontalDistacesLines() {
+	imageWidth = getWidth();
+	imageHeight = getHeight();
 	roiManager("reset");
 	setBackgroundColor(255,255,255);
 	size = Overlay.size;
 	leftDistance = newArray(size);
 	rightDistance = newArray(size);
-	for (i = 0; i < size; i++) {
+	leftDistance[0] = 0;
+	rightDistance[0] = 0;
+	for (i = 0; i < size-1; i++) {
 		run("Duplicate...", " ");
-
-		if (selectionType() == 5) {
-			
-		} else {
-		
-			if (i>0) {
-				Overlay.activateSelection(i-1);
-				run("Clear", "slice");
-			}
-			Overlay.activateSelection(i);
-			getSelectionBounds(x0, y0, width0, height0);
-			radius = width0/2.0;
-			
-			run("Clear Outside");
-			run("Create Selection");
-			getSelectionBounds(x, y, width, height);
+		Overlay.activateSelection(i);
+		getSelectionBounds(x1, y1, width1, height1);
+		makeRectangle(0, 0, imageWidth, y1);
+		run("Clear", "slice");
+		if (i<size-1) {
+			Overlay.activateSelection(i+1);
+			getSelectionBounds(x1, y1, width1, height1);
+			makeRectangle(x1, y1, imageWidth, imageHeight-y1);
+			run("Clear", "slice");
 		}
+		run("Create Selection");
+		getSelectionBounds(x, y, width, height);
 		x1 = x+width;
-
+		Overlay.activateSelection(i+1);
+		getSelectionBounds(x2, y, width, height);
+		y1 = y;
+		
 		toScaled(x,y);
 		toScaled(x1,y1);
-		toScaled(radius);
 
-		leftDistance[i] = x;
-		rightDistance[i] = x1;
+		leftDistance[i+1] = x;
+		rightDistance[i+1] = x1;
 		
-		y = sqrt(pow(radius,2)-pow(x,2));
-		y1 = sqrt(pow(radius,2)-pow(x1,2));
-
-		toUnscaled(x, y);
-		toUnscaled(x1, y1);		
+		toUnscaled(x,y);
+		toUnscaled(x1,y1);		
 		
 		makePoint(x, y, "hybrid magenta");
 		roiManager("add");
@@ -455,3 +462,70 @@ function getHorizontalDistances() {
 	hDist = Array.concat(leftDistance, rightDistance);
 	return hDist;
 }
+
+function getHorizontalDistancesCircles() {
+	roiManager("reset");
+	setBackgroundColor(255,255,255);
+	size = Overlay.size;
+	leftDistance = newArray(size);
+	rightDistance = newArray(size);
+	for (i = 0; i < size; i++) {
+		run("Duplicate...", " ");
+		Overlay.activateSelection(i);
+		if (i>0) {
+			Overlay.activateSelection(i-1);
+			run("Clear", "slice");
+		}
+		Overlay.activateSelection(i);
+		getSelectionBounds(x0, y0, width0, height0);
+		radius = width0/2.0;
+		
+		run("Clear Outside");
+		run("Create Selection");
+		getSelectionBounds(x, y, width, height);
+		x1 = x+width;
+	
+		toScaled(x,y);
+		toScaled(x1,y1);
+		toScaled(radius);
+	
+		leftDistance[i] = x;
+		rightDistance[i] = x1;
+		
+		y = sqrt(pow(radius,2)-pow(x,2));
+		y1 = sqrt(pow(radius,2)-pow(x1,2));
+		toUnscaled(x, y);
+		toUnscaled(x1, y1);		
+	
+		makePoint(x, y, "hybrid magenta");
+		roiManager("add");
+		makePoint(x1, y1, "hybrid red");
+		roiManager("add");
+	
+		close();
+	}
+	hDist = Array.concat(leftDistance, rightDistance);
+	return hDist;
+}
+
+function countBorderPixels() {
+	roiManager("reset");
+	run("Points from Mask");
+	getSelectionCoordinates(x, y);
+	run("Select None");
+	counter = 0;
+	for(i=0; i<x.length; i++) {
+		xp = x[i];
+		yp = y[i];
+		v = getPixel(xp, yp);
+		if (v==0) continue;
+		sum = (getPixel(xp, yp-1)>0) + (getPixel(xp-1, yp)>0) + (getPixel(xp+1, yp)>0) + (getPixel(xp, yp+1)>0);
+		if (sum<4) {
+			counter++;
+			makePoint(xp, yp, "hybrid red");
+			roiManager("add");
+		}
+	}
+	return counter;
+}
+
