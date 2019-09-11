@@ -21,9 +21,12 @@ var _LINE_DISTANCE_FACTOR = 1;
 var _MAXIMA_TOLERANCE = 2;
 var _EDGE_MODE = 2;
 var _PLOT_AREA_PER_DISTANCE = true;
+var _PLOT_BORDER_PIXEL_PER_DISTANCE = false;
 var _PLOT_MAX_RADIUS = false;
 var _PLOT_MAXIMA_PER_DISTANCE = false;
 var _PLOT_HORIZONTAL_DISTANCES = false;
+
+var _FILE_EXTENSION = "tif";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
  
@@ -108,6 +111,7 @@ macro "plot features Action Tool (f5) - C000T4b12p" {
 macro "plot features Action Tool (f5) Options" {
 	Dialog.create("plot features options");
 	Dialog.addCheckbox("plot area per distance", _PLOT_AREA_PER_DISTANCE);
+	Dialog.addCheckbox("plot nr. of border-pixel per distance", _PLOT_BORDER_PIXEL_PER_DISTANCE);
 	Dialog.addCheckbox("plot max. radius per distance", _PLOT_MAX_RADIUS);
 	Dialog.addCheckbox("plot nr. of max. per distance", _PLOT_MAXIMA_PER_DISTANCE);
 	Dialog.addCheckbox("plot horizontal distances", _PLOT_HORIZONTAL_DISTANCES);
@@ -115,16 +119,170 @@ macro "plot features Action Tool (f5) Options" {
 	Dialog.addNumber("tolerance: ", _MAXIMA_TOLERANCE);
 	Dialog.show();
 	_PLOT_AREA_PER_DISTANCE = Dialog.getCheckbox();
+	_PLOT_BORDER_PIXEL_PER_DISTANCE = Dialog.getCheckbox();
 	_PLOT_MAX_RADIUS = Dialog.getCheckbox();
 	_PLOT_MAXIMA_PER_DISTANCE = Dialog.getCheckbox();
 	_PLOT_HORIZONTAL_DISTANCES = Dialog.getCheckbox();
 	_MAXIMA_TOLERANCE = Dialog.getNumber();
 }
 
+macro "batch measure roots Action Tool (f6) - C000T4b12b" {
+	batchMeasureRoots();
+}
+
+
+macro "batch measure roots [f6]" {
+	batchMeasureRoots();
+}
+
+
+function batchMeasureRoots() {
+
+	createDistanceMapOption = _CREATE_DISTANCE_MAP;
+
+	_CREATE_DISTANCE_MAP = false;
+	
+	inputDir = getDirectory("Choose the directory containing the input images!");
+	fileList = getFileList(inputDir);
+	fileList = filterImages(fileList);
+
+	xAxis = "distance";
+	for (i = 0; i < fileList.length; i++) {
+		file = fileList[i];
+		open(inputDir+"/"+file);
+		print(inputDir+"/"+file);
+		retrieveMetadata();
+		doCirclesOrLines();
+		inputImageID = getImageID();
+		segmentRoot();
+		maskID = getImageID();
+		run("Create Selection");
+		createDistanceMap();
+		edtID = getImageID();
+		selectImage(maskID);
+		run("Select None");	
+
+		if (i==0) {
+			Overlay.activateSelection(0);
+			
+			if (selectionType()==5) xAxis = "depth";
+			run("Select None");
+			distances = getDistances();
+			if (_PLOT_AREA_PER_DISTANCE) {
+				Table.create("root area per "+xAxis);
+				Table.setColumn(xAxis, distances);
+				Table.create("root rel. area per "+xAxis);
+				Table.setColumn(xAxis, distances);
+			}
+			if (_PLOT_BORDER_PIXEL_PER_DISTANCE) {
+				Table.create("nr. pixel in touch with earth "+xAxis);
+				Table.setColumn(xAxis, distances);
+				Table.create("rel. number of pixel in touch with earth "+xAxis);
+				Table.setColumn(xAxis, distances);
+			}
+			if (_PLOT_MAX_RADIUS) {
+				Table.create("max. radius per "+xAxis);
+				Table.setColumn(xAxis, distances);
+			}
+			if (_PLOT_MAXIMA_PER_DISTANCE) {
+				Table.create("nr. of maxima per "+xAxis);
+				Table.setColumn(xAxis, distances);
+			}
+		}
+		
+		if (_PLOT_AREA_PER_DISTANCE) {
+			
+			sumOfAreas = getSumOfAreas();
+			areaPerDistance = getAreaPerDistance(sumOfAreas);
+			relativeAreaPerDistance = getRelativeAreas(areaPerDistance, sumOfAreas[sumOfAreas.length-1]);
+			selectWindow("root area per "+xAxis);
+			Table.setColumn(file, areaPerDistance);
+
+			selectWindow("root rel. area per "+xAxis);
+			Table.setColumn(file, relativeAreaPerDistance);
+		}
+
+		if (_PLOT_BORDER_PIXEL_PER_DISTANCE) {
+			run("Points from Mask");
+			getSelectionCoordinates(x, y);
+			run("Select None");
+			totalNrOfPixel = x.length;
+		
+			nrOfBorderPixel = getNrOfBorderPixelPerDistance();
+			relNrOfBorderPixel = newArray(nrOfBorderPixel.length);
+			for (j = 0; j < relNrOfBorderPixel.length; j++) {
+				relNrOfBorderPixel[j] = nrOfBorderPixel[j] / totalNrOfPixel;
+			}
+			selectWindow("nr. pixel in touch with earth "+xAxis);
+			Table.setColumn(file, nrOfBorderPixel);
+
+			selectWindow("rel. number of pixel in touch with earth "+xAxis);
+			Table.setColumn(file, relNrOfBorderPixel);
+		}
+
+		if (_PLOT_MAX_RADIUS) {
+			selectImage(maskID);
+			run("To ROI Manager");
+			run("From ROI Manager");
+			selectImage(edtID);
+			run("From ROI Manager");
+			roiManager("Delete");
+			selectImage(edtID);
+			
+			maxValues = getMaxPerDistance();
+			selectWindow("max. radius per "+xAxis);
+			Table.setColumn(file, maxValues);
+			
+			selectImage(maskID);
+		}
+
+		close();
+		close();
+		close();
+	}
+
+	_CREATE_DISTANCE_MAP = createDistanceMapOption;
+}
+
+function doCirclesOrLines() {
+	Overlay.activateSelection(0);
+	if (selectionType()==5) {
+		 doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+	} else {
+		doMakeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y);
+	}
+	run("Select None");
+}
+
+function retrieveMetadata() {
+	metadataString = getMetadata("Info");
+	metadata = split(metadataString, ";");
+	data = split(metadata[0], "=");
+	if (data[0]=="origin_x") {
+		_CIRCLE_ORIGIN_X=parseFloat(data[1]);
+		data=split(metadata[1], "=");
+		_CIRCLE_ORIGIN_Y=parseFloat(data[1]);
+		data=split(metadata[2], "=");
+		_CIRCLE_INITIAL_RADIUS=parseFloat(data[1]);
+		data=split(metadata[3], "=");
+		_DELTA_RADIUS=parseFloat(data[1]);
+		data=split(metadata[4], "=");
+		_FACTOR=parseFloat(data[1]);
+	} else {
+		data=split(metadata[0], "=");
+		_LINE_ORIGIN_Y = parseFloat(data[1]);
+		data=split(metadata[1], "=");
+		_LINE_DELTA_DISTANCE = parseFloat(data[1]);
+		data=split(metadata[2], "=");
+		_LINE_DISTANCE_FACTOR = parseFloat(data[1]);
+	}
+}
 
 function doPlotFeatures() {
 	imageID = getImageID();
 	if (_PLOT_AREA_PER_DISTANCE) plotAreaPerDistance();
+	selectImage(imageID);
+	if (_PLOT_BORDER_PIXEL_PER_DISTANCE) plotNrOfBorderPixel();
 	selectImage(imageID);
 	if (_PLOT_MAX_RADIUS) plotMaxRadius();
 	selectImage(imageID);
@@ -134,6 +292,30 @@ function doPlotFeatures() {
 	selectImage(imageID);
 	roiManager("Show None");
 	roiManager("Show All");
+}
+
+function plotNrOfBorderPixel() {
+	
+	run("Points from Mask");
+	getSelectionCoordinates(x, y);
+	run("Select None");
+	totalNrOfPixel = x.length;
+
+	nrOfBorderPixel = getNrOfBorderPixelPerDistance();
+	relNrOfBorderPixel = newArray(nrOfBorderPixel.length);
+	for (i = 0; i < relNrOfBorderPixel.length; i++) {
+		relNrOfBorderPixel[i] = nrOfBorderPixel[i] / totalNrOfPixel;
+	}
+	distances = getDistances();
+	
+	Overlay.activateSelection(0);
+	xAxis = "distance";
+	if (selectionType()==5) xAxis = "depth";
+	run("Select None");
+	Plot.create("nr. of pixels in touch with earth per"+xAxis, ""+xAxis+" [cm]", "numer of pixel [1]", distances, nrOfBorderPixel);
+	Plot.show();	
+	Plot.create("relative nr. of pixels in touch with earth per "+xAxis, ""+xAxis+" [cm]", "relative numer of pixel [1]", distances, relNrOfBorderPixel);
+	Plot.show();	
 }
 
 function plotMaximaPerDistance() {
@@ -207,13 +389,23 @@ function doMakeCircles(x,y) {
 	_CIRCLE_ORIGIN_X = x;
 	_CIRCLE_ORIGIN_Y = y;
 	makeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y, _CIRCLE_INITIAL_RADIUS, _DELTA_RADIUS, _FACTOR);
-	run("Properties...", "origin="+_CIRCLE_ORIGIN_X+","+_CIRCLE_ORIGIN_Y);
+	metadata = "origin_x="+_CIRCLE_ORIGIN_X + ";" +
+			   "origin_y="+_CIRCLE_ORIGIN_Y + ";" +
+			   "initial_radius=" + _CIRCLE_INITIAL_RADIUS + ";" +
+			   "delta_radius="+_DELTA_RADIUS + ";" +
+			   "factor="+ _FACTOR;
+	 setMetadata("Info", metadata);
+	 run("Properties...", "origin="+_CIRCLE_ORIGIN_X+","+_CIRCLE_ORIGIN_Y);
 }
 
 function doMakeLines(x,y) {
 	_LINE_ORIGIN_X = x;
 	_LINE_ORIGIN_Y = y;
 	makeLines(_LINE_ORIGIN_Y, _LINE_DELTA_DISTANCE, _LINE_DISTANCE_FACTOR);
+	metadata = "line_origin_y="+_LINE_ORIGIN_Y + ";" +
+			   "delta_line="+_LINE_DELTA_DISTANCE + ";" +
+			   "line_factor="+ _LINE_DISTANCE_FACTOR;
+	setMetadata("Info", metadata);
 	run("Properties...", "origin="+_LINE_ORIGIN_X+","+_LINE_ORIGIN_Y);
 }
 
@@ -294,13 +486,7 @@ function segmentRoot() {
 	maskID = getImageID();
 	run("Create Selection");
 	if (_CREATE_DISTANCE_MAP) createDistanceMap();
-	edtID = getImageID();
-	run("Restore Selection");
-	setBackgroundColor(0, 0, 0);
-	run("Clear Outside");
 	selectImage(maskID);
-	run("Select None");
-	selectImage(edtID);
 	run("Select None");
 }
 
@@ -309,6 +495,10 @@ function createDistanceMap() {
 	run("Exact Euclidean Distance Transform (3D)");
 	setVoxelSize(width, height, depth, unit);
 	run("16 colors");
+	run("Restore Selection");
+	setBackgroundColor(0, 0, 0);
+	run("Clear Outside");
+	run("Select None");
 }
 
 function enhanceContrast() {
@@ -385,6 +575,46 @@ function getSumOfAreas() {
 	selectWindow("Results");
 	sumOfAreas = Table.getColumn("Area");
 	return sumOfAreas;
+}
+
+function getNrOfBorderPixelPerDistance() {
+	Overlay.activateSelection(0);
+	selType = selectionType();
+	run("Select None");
+	if (selType == 5) pixelPerDist = getNrOfBorderPixelPerDepth();
+	else pixelPerDist = getNrOfBorderPixelCircles();
+	return pixelPerDist;
+}
+
+function getNrOfBorderPixelPerDepth() {
+	
+}
+
+function getNrOfBorderPixelCircles() {
+	roiManager("reset");
+	setBackgroundColor(255,255,255);
+	createOutlineImage();
+	size = Overlay.size;
+	nrOfBorderPixel = newArray(size);
+	for (i = 0; i < size; i++) {
+		run("Duplicate...", " ");
+		Overlay.activateSelection(i);
+		if (i>0) {
+			Overlay.activateSelection(i-1);
+			run("Clear", "slice");
+		}
+		Overlay.activateSelection(i);
+		getSelectionBounds(x0, y0, width0, height0);
+		radius = width0/2.0;
+		
+		run("Clear Outside");
+
+		nrOfPixels = countBorderPixels();
+		nrOfBorderPixel[i] = nrOfPixels;
+		close();
+	}
+	close();
+	return nrOfBorderPixel;
 }
 
 function getAreaPerDistance(sumOfAreas) {
@@ -511,9 +741,18 @@ function getHorizontalDistancesCircles() {
 function countBorderPixels() {
 	roiManager("reset");
 	run("Points from Mask");
+	roiManager("add");
 	getSelectionCoordinates(x, y);
 	run("Select None");
-	counter = 0;
+	counter = x.length;
+	return counter;
+}
+
+function createOutlineImage() {
+	run("Duplicate...", " ");
+	run("Points from Mask");
+	getSelectionCoordinates(x, y);
+	run("Select None");
 	for(i=0; i<x.length; i++) {
 		xp = x[i];
 		yp = y[i];
@@ -521,11 +760,21 @@ function countBorderPixels() {
 		if (v==0) continue;
 		sum = (getPixel(xp, yp-1)>0) + (getPixel(xp-1, yp)>0) + (getPixel(xp+1, yp)>0) + (getPixel(xp, yp+1)>0);
 		if (sum<4) {
-			counter++;
-			makePoint(xp, yp, "hybrid red");
-			roiManager("add");
+			setPixel(xp, yp, 128);
 		}
 	}
-	return counter;
+	setThreshold(10, 254);
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
 }
 
+function filterImages(files) {
+	images = newArray();
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (endsWith(file, "."+_FILE_EXTENSION)) {
+			images = Array.concat(images, file);
+		}
+	}
+	return images;
+}
