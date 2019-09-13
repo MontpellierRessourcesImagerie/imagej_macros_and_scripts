@@ -49,11 +49,13 @@ macro "create mask Action Tool (f2) - C000T4b12m" {
 
 macro "create mask Action Tool (f2) Options" {
 	Dialog.create("create mask options");
+	Dialog.addNumber("height of the image in cm: ", _HEIGHT_IN_CM);
 	Dialog.addCheckbox("enhance contrast", _ENHANCE_CONTRAST);
 	Dialog.addNumber("distance to border: ", _DIST_BORDER);
 	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	Dialog.addNumber("min area: ", _MIN_AREA);
 	Dialog.show();
+	_HEIGHT_IN_CM = Dialog.getNumber();
 	_ENHANCE_CONTRAST = Dialog.getCheckbox();
 	_DIST_BORDER = Dialog.getNumber();
 	_THRESHOLDING_METHOD = Dialog.getChoice();
@@ -529,10 +531,14 @@ function createDistanceMap() {
 function enhanceContrast() {
 	setSlice(1);
 	run("Enhance Contrast...", "saturated=0.3 equalize");
-	setSlice(2);
-	run("Enhance Contrast...", "saturated=0.3 equalize");
-	setSlice(3);
-	run("Enhance Contrast...", "saturated=0.3 equalize");
+	if (nSlices>1) {
+		setSlice(2);
+		run("Enhance Contrast...", "saturated=0.3 equalize");
+	}
+	if (nSlices>2) {
+		setSlice(3);
+		run("Enhance Contrast...", "saturated=0.3 equalize");
+	}
 	setSlice(1);
 }
 
