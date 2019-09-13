@@ -188,6 +188,12 @@ function batchMeasureRoots() {
 				Table.create("nr. of maxima per "+xAxis);
 				Table.setColumn(xAxis, distances);
 			}
+			if (_PLOT_HORIZONTAL_DISTANCES) {
+				Table.create("horiz. distance left per "+xAxis);
+				Table.setColumn(xAxis, distances);
+				Table.create("horiz. distance right per "+xAxis);
+				Table.setColumn(xAxis, distances);
+			}
 		}
 		
 		if (_PLOT_AREA_PER_DISTANCE) {
@@ -236,6 +242,25 @@ function batchMeasureRoots() {
 			selectImage(maskID);
 		}
 
+		if (_PLOT_MAXIMA_PER_DISTANCE) {
+			maximaCount = getMaximaPerDistance();
+			selectWindow("nr. of maxima per "+xAxis);
+			Table.setColumn(file, maximaCount);
+		}
+
+		if (_PLOT_HORIZONTAL_DISTANCES) {
+			hDist = getHorizontalDistances();
+			length = hDist.length;
+			leftDist = Array.slice(hDist, 0, (length/2)-1);
+			rightDist =  Array.slice(hDist, length/2, (length-1));
+			
+			selectWindow("horiz. distance left per "+xAxis);
+			Table.setColumn(file, leftDist);
+
+			selectWindow("horiz. distance right per "+xAxis);
+			Table.setColumn(file, rightDist);
+		}
+		
 		close();
 		close();
 		close();
@@ -639,6 +664,7 @@ function getRelativeAreas(areas, total) {
 function getHorizontalDistances() {
 	Overlay.activateSelection(0);
 	selType = selectionType();
+	run("Select None");
 	if (selType == 5) hDist = getHorizontalDistacesLines();
 	else hDist = getHorizontalDistancesCircles();
 	return hDist;
