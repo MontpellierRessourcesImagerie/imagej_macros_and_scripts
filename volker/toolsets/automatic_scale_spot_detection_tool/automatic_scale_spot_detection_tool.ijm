@@ -1,11 +1,13 @@
 var _SSF = sqrt(2);
 //var _SIGMA_START = 0.8;
-var _SIGMA_START = 1.2;
+var _SIGMA_START = 1.6;
 // var _SIGMA_START = 4;
 var _SIGMA_DELTA = 0.4;
 var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
 //var _MAXIMA_PROMINENCE = 200;
 var _MAXIMA_PROMINENCE = 100;
+var _AUTO_MAXIMA_PROMINENCE = true;
+var _RADIUS_VARIANCE_FILTER = 2;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Automatic_Scale_Spot_Detection_Tool";
  
@@ -36,6 +38,8 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addNumber("fraction of width: ", _SCALE_SPACE_PARTS_OF_WIDTH);
 	
 	Dialog.addMessage("Initial Spot Detection Options");
+	Dialog.addCheckbox("auto detect noise tolerance", _AUTO_MAXIMA_PROMINENCE);
+	Dialog.addNumber("radius of variance filter:", _RADIUS_VARIANCE_FILTER);
 	Dialog.addNumber("noise tolerance: ", _MAXIMA_PROMINENCE);
 	
 	Dialog.show();
@@ -43,7 +47,9 @@ macro "Detect Spots Action Tool (f2) Options" {
 	_SIGMA_START = Dialog.getNumber();
 	_SIGMA_DELTA = Dialog.getNumber();
 	_SCALE_SPACE_PARTS_OF_WIDTH = Dialog.getNumber();
-	
+
+	_AUTO_MAXIMA_PROMINENCE = Dialog.getCheckbox();
+	_RADIUS_VARIANCE_FILTER = Dialog.getNumber();
 	_MAXIMA_PROMINENCE = Dialog.getNumber();
 }
 
@@ -97,6 +103,10 @@ function createScaleSpace() {
 }
 
 function findMaxima(sigmas, imageID, scaleSpaceID) {
+	if (_AUTO_MAXIMA_PROMINENCE) {
+		selectImage(imageID);
+		_MAXIMA_PROMINENCE = estimateSTD(_RADIUS_VARIANCE_FILTER);
+	}
 	selectImage(scaleSpaceID);
 	Stack.setSlice(1);
 	run("Find Maxima...", "prominence="+_MAXIMA_PROMINENCE+" exclude light output=[Point Selection]");
@@ -177,4 +187,15 @@ function filterMaxima(imageID, scaleSpaceID) {
 	Overlay.remove;
 	Overlay.paste;
 	roiManager("reset");
+}
+
+function estimateSTD(radius) {
+	run("Duplicate...", " ");
+	run("Variance...", "radius="+radius);
+	setAutoThreshold("Triangle");
+	run("Create Selection");
+	getStatistics(area, mean);
+	close();
+	stDev = sqrt(mean);
+	return stDev;
 }
