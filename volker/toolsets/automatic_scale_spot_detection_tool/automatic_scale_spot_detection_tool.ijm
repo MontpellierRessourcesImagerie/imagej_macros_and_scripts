@@ -64,7 +64,7 @@ macro "Detect Spots Action Tool (f2) Options" {
 }
 
 function detectSpots() {
-	setBatchMode(true);
+//	setBatchMode(true);
 	Overlay.remove;
 	run("Select None");
 	imageID = getImageID();
@@ -75,7 +75,7 @@ function detectSpots() {
 	if (_MERGE_SPOTS) {
 		mergeSpots();
 	}
-	setBatchMode("exit and display");
+//	setBatchMode("exit and display");
 	print("Done!");
 }
 
@@ -220,6 +220,8 @@ function mergeSpots() {
 	run("To ROI Manager");
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/merge_overlapping_spots.py");
-	parameter = "";
+	parameter = "minOverlap="+_MIN_COVERAGE;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
+	run("From ROI Manager");
+	roiManager("Delete");
 }
