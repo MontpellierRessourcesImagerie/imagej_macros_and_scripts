@@ -9,6 +9,9 @@ var _MAXIMA_PROMINENCE = 100;
 var _AUTO_MAXIMA_PROMINENCE = true;
 var _RADIUS_VARIANCE_FILTER = 2;
 
+var _MERGE_SPOTS = false;
+var _MIN_COVERAGE = 50;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Automatic_Scale_Spot_Detection_Tool";
  
 exit();
@@ -41,6 +44,10 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addCheckbox("auto detect noise tolerance", _AUTO_MAXIMA_PROMINENCE);
 	Dialog.addNumber("radius of variance filter:", _RADIUS_VARIANCE_FILTER);
 	Dialog.addNumber("noise tolerance: ", _MAXIMA_PROMINENCE);
+
+	Dialog.addMessage("Post processing");
+	Dialog.addCheckbox("Merge spots", _MERGE_SPOTS);
+	Dialog.addNumber("min. % of coverage", _MIN_COVERAGE);
 	
 	Dialog.show();
 	
@@ -51,6 +58,9 @@ macro "Detect Spots Action Tool (f2) Options" {
 	_AUTO_MAXIMA_PROMINENCE = Dialog.getCheckbox();
 	_RADIUS_VARIANCE_FILTER = Dialog.getNumber();
 	_MAXIMA_PROMINENCE = Dialog.getNumber();
+
+	_MERGE_SPOTS = Dialog.getCheckbox();
+	_MIN_COVERAGE = Dialog.getNumber();
 }
 
 function detectSpots() {
@@ -61,7 +71,10 @@ function detectSpots() {
 	sigmas = createScaleSpace();
 	scaleSpaceID = getImageID();
 	findMaxima(sigmas, imageID, scaleSpaceID);
-	// filterMaxima(imageID, scaleSpaceID);
+	selectImage(imageID);
+	if (_MERGE_SPOTS) {
+		mergeSpots();
+	}
 	setBatchMode("exit and display");
 	print("Done!");
 }
@@ -198,4 +211,15 @@ function estimateSTD(radius) {
 	close();
 	stDev = sqrt(mean);
 	return stDev;
+}
+
+function mergeSpots() {
+	run("Set Measurements...", "area mean standard modal min centroid center shape feret's integrated display redirect=None decimal=9");
+	run("Clear Results");
+	Overlay.measure;
+	run("To ROI Manager");
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/merge_overlapping_spots.py");
+	parameter = "";
+	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
 }
