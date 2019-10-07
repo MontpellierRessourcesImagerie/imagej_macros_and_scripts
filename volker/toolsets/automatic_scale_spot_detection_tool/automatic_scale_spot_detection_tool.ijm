@@ -72,6 +72,7 @@ macro "Detect Spots Action Tool (f2) Options" {
 }
 
 function detectSpots() {
+	run("ROI Manager...");
 	setBatchMode(true);
 	Overlay.remove;
 	run("Select None");
@@ -235,7 +236,6 @@ function mergeSpots() {
 	run("Set Measurements...", "area mean standard modal min centroid center shape feret's integrated display redirect=None decimal=9");
 	run("Clear Results");
 	Overlay.measure;
-	run("ROI Manager...");
 	run("To ROI Manager");
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/merge_overlapping_spots.py");
