@@ -1,16 +1,23 @@
+/**********************************************************************************
+*
+* Find spots with automatic scale selection.
+*
+*
+* (c) 2019, INSERM
+* written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr), Biocampus Montpellier
+*
+**********************************************************************************/
 var _SSF = sqrt(2);
-//var _SIGMA_START = 0.8;
 var _SIGMA_START = 1.6;
-// var _SIGMA_START = 4;
 var _SIGMA_DELTA = 0.4;
 var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
-//var _MAXIMA_PROMINENCE = 200;
 var _MAXIMA_PROMINENCE = 100;
 var _AUTO_MAXIMA_PROMINENCE = true;
 var _RADIUS_VARIANCE_FILTER = 2;
 
-var _MERGE_SPOTS = false;
-var _MIN_COVERAGE = 50;
+var _MERGE_SPOTS = true;
+var _MIN_COVERAGE = 100;
+var _DISPLAY_SCALE_SPACE = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Automatic_Scale_Spot_Detection_Tool";
  
@@ -39,7 +46,7 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addNumber("sigma min.: ", _SIGMA_START);
 	Dialog.addNumber("delta sigma: ", _SIGMA_DELTA);
 	Dialog.addNumber("fraction of width: ", _SCALE_SPACE_PARTS_OF_WIDTH);
-	
+	Dialog.addCheckbox("display scale-space", _DISPLAY_SCALE_SPACE);
 	Dialog.addMessage("Initial Spot Detection Options");
 	Dialog.addCheckbox("auto detect noise tolerance", _AUTO_MAXIMA_PROMINENCE);
 	Dialog.addNumber("radius of variance filter:", _RADIUS_VARIANCE_FILTER);
@@ -48,12 +55,13 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addMessage("Post processing");
 	Dialog.addCheckbox("Merge spots", _MERGE_SPOTS);
 	Dialog.addNumber("min. % of coverage", _MIN_COVERAGE);
-	
+
 	Dialog.show();
 	
 	_SIGMA_START = Dialog.getNumber();
 	_SIGMA_DELTA = Dialog.getNumber();
 	_SCALE_SPACE_PARTS_OF_WIDTH = Dialog.getNumber();
+	_DISPLAY_SCALE_SPACE = Dialog.getCheckbox();
 
 	_AUTO_MAXIMA_PROMINENCE = Dialog.getCheckbox();
 	_RADIUS_VARIANCE_FILTER = Dialog.getNumber();
@@ -64,18 +72,22 @@ macro "Detect Spots Action Tool (f2) Options" {
 }
 
 function detectSpots() {
-//	setBatchMode(true);
+	setBatchMode(true);
 	Overlay.remove;
 	run("Select None");
 	imageID = getImageID();
 	sigmas = createScaleSpace();
 	scaleSpaceID = getImageID();
-	findMaxima(sigmas, imageID, scaleSpaceID);
+	findMinima(sigmas, imageID, scaleSpaceID);
 	selectImage(imageID);
 	if (_MERGE_SPOTS) {
 		mergeSpots();
 	}
-//	setBatchMode("exit and display");
+	if (!_DISPLAY_SCALE_SPACE) {
+		selectImage(scaleSpaceID);
+		close();
+	}
+	setBatchMode("exit and display");
 	print("Done!");
 }
 
@@ -115,7 +127,10 @@ function createScaleSpace() {
 	return sigmas;
 }
 
-function findMaxima(sigmas, imageID, scaleSpaceID) {
+/*
+ * Find the minima in scale-space.
+ */
+function findMinima(sigmas, imageID, scaleSpaceID) {
 	if (_AUTO_MAXIMA_PROMINENCE) {
 		selectImage(imageID);
 		_MAXIMA_PROMINENCE = estimateSTD(_RADIUS_VARIANCE_FILTER);
@@ -173,6 +188,9 @@ function findMaxima(sigmas, imageID, scaleSpaceID) {
 	Overlay.show;
 }
 
+/*
+ * Currently unused
+ */
 function filterMaxima(imageID, scaleSpaceID) {
 	selectImage(imageID);
 	Overlay.copy;
@@ -217,6 +235,7 @@ function mergeSpots() {
 	run("Set Measurements...", "area mean standard modal min centroid center shape feret's integrated display redirect=None decimal=9");
 	run("Clear Results");
 	Overlay.measure;
+	run("ROI Manager...", "");
 	run("To ROI Manager");
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/merge_overlapping_spots.py");
