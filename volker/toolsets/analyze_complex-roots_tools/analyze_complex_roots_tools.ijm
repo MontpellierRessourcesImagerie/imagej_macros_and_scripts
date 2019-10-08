@@ -137,6 +137,20 @@ macro "batch measure roots [f6]" {
 	batchMeasureRoots();
 }
 
+macro "batch measure roots Action Tool (f6) Options" {
+	Dialog.create("batch measure options");
+	Dialog.addString("file extension", _FILE_EXTENSION);
+	Dialog.show();
+	_FILE_EXTENSION = Dialog.getString();
+}
+
+macro "calculate statistics Action Tool (f7) - C000T4b12s" {
+	calculateStatistics();	
+}
+
+macro "calculate statistics [f7]" {
+	calculateStatistics();	
+}
 
 function batchMeasureRoots() {
 
@@ -265,10 +279,36 @@ function batchMeasureRoots() {
 		
 		close();
 		close();
-		close();
+		if (nImages>0) close();
 	}
 
 	_CREATE_DISTANCE_MAP = createDistanceMapOption;
+	if (_PLOT_AREA_PER_DISTANCE) {
+		selectWindow("root area per "+xAxis);
+		calculateStatistics();
+		selectWindow("root rel. area per "+xAxis);
+		calculateStatistics();
+	}
+	if (_PLOT_BORDER_PIXEL_PER_DISTANCE) {
+		selectWindow("nr. pixel in touch with earth "+xAxis);
+		calculateStatistics();
+		Table.create("rel. number of pixel in touch with earth "+xAxis);
+		calculateStatistics();
+	}
+	if (_PLOT_MAX_RADIUS) {
+		selectWindow("max. radius per "+xAxis);
+		calculateStatistics();
+	}
+	if (_PLOT_MAXIMA_PER_DISTANCE) {
+		selectWindow("nr. of maxima per "+xAxis);
+		calculateStatistics();
+	}
+	if (_PLOT_HORIZONTAL_DISTANCES) {
+		selectWindow("horiz. distance left per "+xAxis);
+		calculateStatistics();
+		selectWindow("horiz. distance right per "+xAxis);
+		calculateStatistics();
+	}
 }
 
 function doCirclesOrLines() {
@@ -809,4 +849,33 @@ function filterImages(files) {
 		}
 	}
 	return images;
+}
+
+function calculateStatistics() {
+	headings = Table.headings;
+	if (indexOf(headings, "Average")>0) {
+		Table.deleteColumn("Average");
+	}
+	if (indexOf(headings, "SD")>0) {
+		Table.deleteColumn("SD");
+	}
+	if (indexOf(headings, "SE")>0) {
+		Table.deleteColumn("SE");
+	}
+	headings = split(Table.headings,"\t");
+	images = headings.length-1;
+	size = Table.size;
+	for (row = 0; row < size; row++) {
+		values = newArray(0);
+		for(column = 1; column<=images; column++) {
+			value = Table.get(headings[column], row);
+			values = Array.concat(values, value);
+		}
+		Array.getStatistics(values, min, max, mean, stdDev);
+		Table.set("Average", row, mean);
+		Table.set("SD", row, stdDev);
+		se = stdDev / sqrt(images);
+		Table.set("SE", row, se);
+	}
+	Table.update;
 }
