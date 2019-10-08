@@ -138,8 +138,17 @@ function findMinima(sigmas, imageID, scaleSpaceID) {
 	}
 	selectImage(scaleSpaceID);
 	Stack.setSlice(1);
+	run("Z Project...", "projection=[Min Intensity]");
 	run("Find Maxima...", "prominence="+_MAXIMA_PROMINENCE+" exclude light output=[Point Selection]");
 	getSelectionCoordinates(xpoints, ypoints);
+	close();
+	run("Select None");
+	selectImage(scaleSpaceID);
+	Stack.setSlice(1);
+	run("Find Maxima...", "prominence="+_MAXIMA_PROMINENCE+" exclude light output=[Point Selection]");
+	getSelectionCoordinates(xpoints2, ypoints2);
+	xpoints = Array.concat(xpoints, xpoints2);
+	ypoints = Array.concat(ypoints, ypoints2);
 	run("Select None");
 	
 	for (i = 0; i < xpoints.length; i++) {
@@ -187,6 +196,23 @@ function findMinima(sigmas, imageID, scaleSpaceID) {
 		run("Select None");
 	}
 	Overlay.show;
+}
+
+function findAndLinkScaleSpaceSpots() {
+	roiManager("reset");
+	sigmas = newArray(nSlices);
+	for (i = 1; i <= nSlices; i++) {
+		sigma = _SIGMA_START + (i-1) * _SIGMA_DELTA;
+		radius = sigma*_SSF;
+		Stack.setSlice(i);
+		run("Find Maxima...", "prominence=160 exclude light output=[Point Selection]");
+		getSelectionCoordinates(xpoints, ypoints);
+		for (j = 0; j < xpoints.length; j++) {
+			makeOval(xpoints[j]+0.5-radius, ypoints[j]+0.5-radius, (2*radius), (2*radius));
+			roiManager("add");
+		}
+		run("Select None");
+	}
 }
 
 /*
