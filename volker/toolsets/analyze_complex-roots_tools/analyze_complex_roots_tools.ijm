@@ -144,12 +144,32 @@ macro "batch measure roots Action Tool (f6) Options" {
 	_FILE_EXTENSION = Dialog.getString();
 }
 
-macro "calculate statistics Action Tool (f7) - C000T4b12s" {
+macro "delete column Action Tool (f7) - C000T4b12d" {
+	removeColumn();	
+}
+
+macro "delete column [f7]" {
+	removeColumn();	
+}
+
+macro "calculate statistics Action Tool (f8) - C000T4b12s" {
 	calculateStatistics();	
 }
 
-macro "calculate statistics [f7]" {
+macro "calculate statistics [f8]" {
 	calculateStatistics();	
+}
+
+function removeColumn() {
+	headings = Table.headings;
+	headings = split(headings, "\t");
+	Dialog.createNonBlocking("Delete Column");
+	Dialog.addChoice("column: ", headings, headings[1]);
+	Dialog.show();
+	selectedColumn = Dialog.getChoice();
+	showMessageWithCancel("Confirm delete column","Are you sure you want to delete the column\n" + selectedColumn);
+	Table.deleteColumn(selectedColumn);
+	Table.update;
 }
 
 function batchMeasureRoots() {
