@@ -120,6 +120,8 @@ function batchDetectSpots() {
 	images = filterImageFiles(files, dir, _FILE_EXTENSION);
 	out = "";
 	summary = "";
+	outPath = dir + File.separator + "out";
+	if (!File.exists(outPath)) File.makeDirectory(outPath);
 	for (i = 0; i < images.length; i++) {
 		image = images[i];
 		path = dir + File.separator + images[i];
@@ -149,6 +151,7 @@ function batchDetectSpots() {
 			line = substring(line, index+1, lengthOf(line));
 			summary = summary + "\t\t" + line + "\n";
 		}
+		saveAs("Tiff", outPath + File.separator + image);
 		close();
 		close();
 	}
@@ -167,27 +170,6 @@ function batchDetectSpots() {
 	run("Table... ", "open=["+path+"]");
 }
 
-function createSummaryTable() {
-	headings = String.getResultsHeadings;
-	nrOfSpots = nResults;
-	title = getTitle();
-	run("Summarize");
-	size = Table.size;
-	Table.setSelection(size-4, size-1, "Results");
-	String.copyResults;
-	summary = String.paste;
-	lines = split(summary, "\n");
-	summary = "image\tnr. of spots" + headings + "\n";
-	summary = summary + title + "\t" + nrOfSpots + "\n";
-	for (i = 0; i < lines.length; i++) {
-		line = lines[i];
-		index = indexOf(line, "\t");
-		line = substring(line, index+1, lengthOf(line));
-		summary = summary + "\t\t" + line + "\n";
-	}
-	String.show("spots summary", summary);
-
-}
 function filterImageFiles(list, dir, extension) {
 	images = newArray(0);
 	for (i = 0; i < list.length; i++) {
