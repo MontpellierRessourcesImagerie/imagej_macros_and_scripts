@@ -14,6 +14,7 @@ var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
 var _MAXIMA_PROMINENCE = 100;
 var _AUTO_MAXIMA_PROMINENCE = true;
 var _RADIUS_VARIANCE_FILTER = 2;
+var _EXCLUDE_ON_EDGES = true;
 
 var _MERGE_SPOTS = true;
 var _MIN_COVERAGE = 100;
@@ -49,6 +50,7 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addNumber("sigma min.: ", _SIGMA_START);
 	Dialog.addNumber("delta sigma: ", _SIGMA_DELTA);
 	Dialog.addNumber("fraction of width: ", _SCALE_SPACE_PARTS_OF_WIDTH);
+	Dialog.addCheckbox("exclude on edges", _EXCLUDE_ON_EDGES);
 	Dialog.addCheckbox("display scale-space", _DISPLAY_SCALE_SPACE);
 	Dialog.addMessage("Initial Spot Detection Options");
 	Dialog.addCheckbox("auto detect noise tolerance", _AUTO_MAXIMA_PROMINENCE);
@@ -64,6 +66,7 @@ macro "Detect Spots Action Tool (f2) Options" {
 	_SIGMA_START = Dialog.getNumber();
 	_SIGMA_DELTA = Dialog.getNumber();
 	_SCALE_SPACE_PARTS_OF_WIDTH = Dialog.getNumber();
+	_EXCLUDE_ON_EDGES = Dialog.getCheckbox();
 	_DISPLAY_SCALE_SPACE = Dialog.getCheckbox();
 
 	_AUTO_MAXIMA_PROMINENCE = Dialog.getCheckbox();
@@ -103,6 +106,9 @@ function detectSpots() {
 	selectImage(imageID);
 	if (_MERGE_SPOTS) {
 		mergeSpots();
+	}
+	if (_EXCLUDE_ON_EDGES) {
+		removeEdgeSpots();
 	}
 	if (!_DISPLAY_SCALE_SPACE) {
 		selectImage(scaleSpaceID);
@@ -349,6 +355,27 @@ function estimateSTD(radius) {
 	close();
 	stDev = sqrt(mean);
 	return stDev;
+}
+
+function removeEdgeSpots() {
+	toBeDeleted = newArray(0);
+	size = Overlay.size;
+	imageWidth = getWidth();
+	imageHeight = getHeight();
+	for (i = 0; i < size; i++) {
+		Overlay.activateSelection(i);
+		getSelectionBounds(x, y, width, height);
+		x2 = x+width;
+		y2 = y+height;
+		if (x<=0 || y<=0 || x2>=imageWidth || y2>=imageHeight) {
+			toBeDeleted = Array.concat(toBeDeleted, i);
+		}
+	}
+	
+	run("To ROI Manager");
+	roiManager("select", toBeDeleted);
+	roiManager("delete");
+	run("From ROI Manager");
 }
 
 function mergeSpots() {
