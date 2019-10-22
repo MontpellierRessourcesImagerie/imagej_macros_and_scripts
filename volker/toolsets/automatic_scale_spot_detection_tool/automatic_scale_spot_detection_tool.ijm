@@ -19,6 +19,9 @@ var _MERGE_SPOTS = true;
 var _MIN_COVERAGE = 100;
 var _DISPLAY_SCALE_SPACE = false;
 
+var _FILE_EXTENSION = "nd";
+var _CHANNEL = 2;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Automatic_Scale_Spot_Detection_Tool";
  
 exit();
@@ -71,6 +74,14 @@ macro "Detect Spots Action Tool (f2) Options" {
 	_MIN_COVERAGE = Dialog.getNumber();
 }
 
+macro "Batch Detect Spots Action Tool (f3) - C000T4b12b" {
+	batchDetectSpots();
+}
+
+macro "batch detect spots [f3]" {
+	batchDetectSpots();
+}
+
 function detectSpots() {
 	run("ROI Manager...");
 	setBatchMode(true);
@@ -89,7 +100,96 @@ function detectSpots() {
 		close();
 	}
 	setBatchMode("exit and display");
+	run("Clear Results");
+	Overlay.measure;
 	print("Done!");
+}
+
+function batchDetectSpots() {
+	dir = getDirectory("Select the input folder!");
+	files = getFileList(dir);
+	images = filterImageFiles(files, dir, _FILE_EXTENSION);
+	out = "";
+	summary = "";
+	for (i = 0; i < images.length; i++) {
+		image = images[i];
+		path = dir + File.separator + images[i];
+		run("Bio-Formats", "open=["+path+"] autoscale color_mode=Composite view=Hyperstack stack_order=XYCZT");
+		Stack.setChannel(_CHANNEL);
+		run("Duplicate...", " ");
+		detectSpots();
+		selectWindow("Results");
+		if (i==0) {
+			out = out + Table.headings;
+			summary = "image\tnr. of spots" + Table.headings + "\n";
+		}
+		results = getInfo("window.contents");
+		index = indexOf(results, "\n");
+		results = substring(results, index+1, lengthOf(results));
+		out = out + "\n" + results;
+		
+		nrOfSpots = nResults;
+		run("Summarize");
+		results = getInfo("window.contents");
+		results = split(results, "\n");
+		lines = Array.slice(results, results.length-4 , results.length-1);
+		summary = summary + image + "\t" + nrOfSpots + "\n";
+		for (j = 0; j < lines.length; j++) {
+			line = lines[j];
+			index = indexOf(line, "\t");
+			line = substring(line, index+1, lengthOf(line));
+			summary = summary + "\t\t" + line + "\n";
+		}
+		close();
+		close();
+	}
+	run("Clear Results");
+	String.show("spots", out);
+	path = dir + File.separator + "spots.csv";
+	saveAs("Text", path);
+	selectWindow("spots.csv");
+	run("Close");
+	run("Table... ", "open=["+path+"]");
+	String.show("spots summary", summary);
+	path = dir + File.separator + "spots-summary.csv";
+	saveAs("Text", path);
+	selectWindow("spots-summary.csv");
+	run("Close");
+	run("Table... ", "open=["+path+"]");
+}
+
+function createSummaryTable() {
+	headings = String.getResultsHeadings;
+	nrOfSpots = nResults;
+	title = getTitle();
+	run("Summarize");
+	size = Table.size;
+	Table.setSelection(size-4, size-1, "Results");
+	String.copyResults;
+	summary = String.paste;
+	lines = split(summary, "\n");
+	summary = "image\tnr. of spots" + headings + "\n";
+	summary = summary + title + "\t" + nrOfSpots + "\n";
+	for (i = 0; i < lines.length; i++) {
+		line = lines[i];
+		index = indexOf(line, "\t");
+		line = substring(line, index+1, lengthOf(line));
+		summary = summary + "\t\t" + line + "\n";
+	}
+	String.show("spots summary", summary);
+
+}
+function filterImageFiles(list, dir, extension) {
+	images = newArray(0);
+	for (i = 0; i < list.length; i++) {
+		file = list[i];
+		path = dir + File.separator + file;
+		if (File.isDirectory(path)) continue;
+		if (endsWith(file, "."+_FILE_EXTENSION)) {
+			images = Array.concat(images, file);
+		}
+	}
+	return images;
 }
 
 function createScaleSpace() {
