@@ -82,6 +82,15 @@ macro "batch detect spots [f3]" {
 	batchDetectSpots();
 }
 
+macro "Batch Detect Spots Action Tool (f3) Options" {
+	Dialog.create("Batch Spots Detection Options");
+	Dialog.addString("file extension: ", _FILE_EXTENSION);
+	Dialog.addNumber("channel: ", _CHANNEL);
+	Dialog.show();
+	_FILE_EXTENSION = Dialog.getString();
+	_CHANNEL = Dialog.getNumber();
+}
+
 function detectSpots() {
 	run("ROI Manager...");
 	setBatchMode(true);
