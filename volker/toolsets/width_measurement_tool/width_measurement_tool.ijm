@@ -11,9 +11,9 @@
  *
 */
 var _TOLERANCE=2000;
-var _DISPLAY_PLOT=false;
+var _DISPLAY_PLOT=true;
 var _NUMBER_OF_LINES = 11;
-var _LINE_WIDTH = 27;
+var _LINE_WIDTH = 366;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Width_Measurement_Tool";
 
@@ -79,6 +79,7 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 	print("tolerance: ", tolerance);
 	print("number of lines: ", numberOfLines);
 	print("line width", widthOfLine);
+	print("\n");
 	averageDistances = newArray(0);
 	leftCrossings = newArray(0);
 	rightCrossings = newArray(0);
@@ -86,12 +87,13 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 	for (i = 0; i < numberOfLines; i++) {
 		x = (deltaLines / 2.0) + (i*deltaLines);
 		xPositions = Array.concat(xPositions, x);
-		print("Position: " + x);
+		print("" + i + ". Position: " + x);
 		makeProfilePlotAtPosition(x, 0, x, height, widthOfLine);
 		Plot.getValues(xpoints, profile);
 		if (!_DISPLAY_PLOT) run("Close");
 		else selectImage(imageID);
 		maximaPositions = findMiddleMaxima(xpoints, profile, tolerance);
+		Array.sort(maximaPositions);
 		print("Maxima: ");
 		Array.print(maximaPositions);
 		delta=xpoints[1] - xpoints[0];
@@ -101,10 +103,12 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 		crossings = valuesBetween(crossings, maximaPositions[0], maximaPositions[1]);
 		print("Inflection points: ");
 		Array.print(crossings);
-		averageDistance = abs(crossings[1]-crossings[0]);
+		averageDistance = abs(crossings[crossings.length-1]-crossings[0]);
 		averageDistances = Array.concat(averageDistances, averageDistance);
 		leftCrossings = Array.concat(leftCrossings, crossings[0]);
-		rightCrossings = Array.concat(rightCrossings, crossings[1]);
+		rightCrossings = Array.concat(rightCrossings, crossings[crossings.length-1]);
+		print("\n");
+		selectImage(imageID);
 	}
 	reportDistances(averageDistances);
 	reportSummaryOfDistances(averageDistances);
@@ -180,11 +184,12 @@ function makeProfilePlotAtPosition(x1, y1, x2, y2, lineWidth) {
 function findMiddleMaxima(xpoints, profile, tolerance) {
 	result = newArray(2);
 	maxima = Array.findMaxima(profile, tolerance);
-	middleIndex = profile.length / 2.0;
+	middleIndex = findLowestMinimumBetweenHighestMaxima(xpoints, profile, tolerance);
 	maximaIndicesByMiddle = Array.copy(maxima);
 	for (i = 0; i < maximaIndicesByMiddle.length; i++) {
 		maximaIndicesByMiddle[i] = abs(maximaIndicesByMiddle[i] - middleIndex);
 	}
+	Array.print(maximaIndicesByMiddle);
 	rankPositions = Array.rankPositions(maximaIndicesByMiddle);
 	if (maximaIndicesByMiddle.length>=2) {
 		result[0] = xpoints[maxima[rankPositions[0]]];
@@ -236,4 +241,13 @@ function valuesBetween(values, min, max) {
 		}
 	}
 	return valuesInInterval;
+}
+
+function findLowestMinimumBetweenHighestMaxima(xpoints, profile, tolerance) {
+	result = -1;
+	maxima = Array.findMaxima(profile, tolerance);
+	minima = Array.findMinima(profile, tolerance);
+	minima = valuesBetween(minima, maxima[0], maxima[1]);
+	result = minima[0];
+	return result;
 }
