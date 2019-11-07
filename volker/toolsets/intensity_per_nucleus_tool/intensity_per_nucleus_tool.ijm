@@ -35,6 +35,7 @@ macro "measure intensity per nucleus (f5) Action Tool - C000T4b12m" {
 exit();
 
 function measureIntensityPerNucleus() {
+	run("Set Measurements...", "area mean redirect=None decimal=3");
 	path = File.directory;
 	filename = File.name;
 	channelNames = getChannelNames();	
@@ -45,9 +46,35 @@ function measureIntensityPerNucleus() {
 	selectNuclei();
 	close();
 	roiManager("Show All");
-	
+	for (i = 0; i < indicesOfChannelsToBeMeasured.length; i++) {
+		run("Clear Results");
+		Stack.setChannel(indicesOfChannelsToBeMeasured[i]);
+		roiManager("Measure");
+		headings = split(Table.headings, "\t");
+		for(c=1; c<headings.length; c++) {
+			data = Table.getColumn(headings[c]);
+			addResultsColumnToTable(headings[c], data, channelNames[indicesOfChannelsToBeMeasured[i]-1], path, filename);
+		}
+	}
 }
 
+function addResultsColumnToTable(columnName, data, tableName, path, filename) {
+	if (isOpen(tableName)) {
+		selectWindow(tableName);
+	} else {
+		Table.create(tableName);
+	}
+	rowIndex = Table.size;
+	for (i = 0; i < data.length; i++) {
+		Table.set("path", rowIndex, path);
+		Table.set("filename", rowIndex, filename);
+		Table.set("nucleus nr.", rowIndex, i+1);
+		Table.set(columnName, rowIndex, data[i]);
+		Table.update;
+		rowIndex++;
+	}
+	selectWindow("Results");
+}
 function selectNuclei() {
 	imageID = getImageID();
 	run("Scale...", "x="+(1.0/_SCALE_FACTOR)+" y="+(1.0/_SCALE_FACTOR)+" interpolation=Bilinear create title=small_tmp");
@@ -57,9 +84,7 @@ function selectNuclei() {
 	run("Watershed");
 	run("Scale...", "x="+_SCALE_FACTOR+" y="+_SCALE_FACTOR+" interpolation=Bilinear create title=big_tmp");
 	setAutoThreshold("Huang");
-	run("Set Measurements...", "area stack display redirect=None decimal=3");	
-	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing exclude clear summarize add");
-	run("Clear Results");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing exclude");
 	selectWindow("small_tmp");
 	close();
 	selectWindow("big_tmp");
