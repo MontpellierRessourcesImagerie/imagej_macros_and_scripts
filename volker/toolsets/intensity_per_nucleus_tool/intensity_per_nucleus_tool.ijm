@@ -37,6 +37,7 @@ macro "measure intensity per nucleus [f5]" {
 macro "measure intensity per nucleus (f5) Action Tool - C000T4b12m" {
 	measureIntensityPerNucleus();
 }
+
 macro "batch measure intensity (f6) Action Tool - C000T4b12b" {
 	batchMeasureIntensity(_FILE_EXT);
 }
@@ -47,13 +48,41 @@ macro "batch measure intensity [f6]" {
 
 macro "measure intensity per nucleus (f5) Action Tool Options" {
 	Dialog.create("measure intensity options");
+	nucleiChannels = arrayToString(_NUCLEI_CHANNELS);
+	Dialog.addString("nuclei channels: ", nucleiChannels);
 	Dialog.addNumber("scale factor: ", _SCALE_FACTOR);
 	Dialog.addNumber("min. size: ", _MIN_SIZE);
 	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	Dialog.show();
+	nucleiChannels = Dialog.getString();
+	_NUCLEI_CHANNELS = stringToArray(nucleiChannels);
 	_SCALE_FACTOR = Dialog.getNumber();
 	_MIN_SIZE = Dialog.getNumber();
 	_THRESHOLDING_METHOD = Dialog.getChoice();
+}
+
+macro "batch measure intensity (f6) Options" {
+	Dialog.create("batch processing options");
+	Dialog.addString("file ext.: ", _FILE_EXT);
+	Dialog.show();
+	_FILE_EXT = Dialog.getString();
+}
+
+function arrayToString(anArray) {
+	aString = "";
+	for (i = 0; i < anArray.length; i++) {
+		aString = aString + anArray[i];
+		if (i<anArray.length-1) aString = aString + ", ";
+	}
+	return aString;
+}
+
+function stringToArray(aString) {
+	anArray = split(aString, ",");
+	for (i = 0; i < anArray.length; i++) {
+		anArray[i] = replace(anArray[i], " ", "");
+	}
+	return anArray;
 }
 
 function batchMeasureIntensity(fileExt) {
