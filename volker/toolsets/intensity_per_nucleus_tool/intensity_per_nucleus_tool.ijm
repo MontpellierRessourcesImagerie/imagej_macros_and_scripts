@@ -5,16 +5,22 @@
  * Segment the nuclei in the Hoechst or Dapi channel and measure the intensities
  * for each nucleus in the remaining channels.
  * 
- * (c) 2018, INSERM
+ * (c) 2019, INSERM
  * 
  * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
  * 
 **/
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Intensity-Per-Nucleus-Tool";
-var nucleiChannels = newArray("hoechst", "dapi");
+var _NUCLEI_CHANNELS = newArray("hoechst", "dapi");
 var	_SCALE_FACTOR = 5.0;
 var	_MIN_SIZE = 50;
+var _THRESHOLDING_METHOD = "Huang";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
+var _FILE_EXT = "nd";
+var _TABLES = newArray(0);
+
+exit();
 
 macro "intensity per nucleus tool help [f4]" {
 	run('URL...', 'url='+helpURL);
@@ -31,11 +37,43 @@ macro "measure intensity per nucleus [f5]" {
 macro "measure intensity per nucleus (f5) Action Tool - C000T4b12m" {
 	measureIntensityPerNucleus();
 }
+macro "batch measure intensity (f6) Action Tool - C000T4b12b" {
+	batchMeasureIntensity(_FILE_EXT);
+}
 
-exit();
+macro "batch measure intensity [f6]" {
+	batchMeasureIntensity(_FILE_EXT);
+}
+
+macro "measure intensity per nucleus (f5) Action Tool Options" {
+	Dialog.create("measure intensity options");
+	Dialog.addNumber("scale factor: ", _SCALE_FACTOR);
+	Dialog.addNumber("min. size: ", _MIN_SIZE);
+	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
+	Dialog.show();
+	_SCALE_FACTOR = Dialog.getNumber();
+	_MIN_SIZE = Dialog.getNumber();
+	_THRESHOLDING_METHOD = Dialog.getChoice();
+}
+
+function batchMeasureIntensity(fileExt) {
+	print("\\Clear");
+	print("batch measure intensities started...");
+	_TABLES = newArray(0);
+	dir = getDirectory("Choose the input folder!");
+	processFolder(dir, dir, fileExt);
+	Array.print(_TABLES);
+	for (i = 0; i < _TABLES.length; i++) {
+		table = _TABLES[i];
+		selectWindow(table);
+		saveAs("Results", dir + File.separator + table + ".xls");
+	}
+	print("batch measure intensities finished!");
+	selectWindow("Log");
+}
 
 function measureIntensityPerNucleus() {
-	run("Set Measurements...", "area mean redirect=None decimal=3");
+	run("Clear Results");
 	path = File.directory;
 	filename = File.name;
 	channelNames = getChannelNames();	
@@ -50,41 +88,58 @@ function measureIntensityPerNucleus() {
 		run("Clear Results");
 		Stack.setChannel(indicesOfChannelsToBeMeasured[i]);
 		roiManager("Measure");
+		selectWindow("Results");
 		headings = split(Table.headings, "\t");
 		for(c=1; c<headings.length; c++) {
 			data = Table.getColumn(headings[c]);
-			addResultsColumnToTable(headings[c], data, channelNames[indicesOfChannelsToBeMeasured[i]-1], path, filename);
+			newRows = false;
+			if (c==1) newRows = true;
+			addResultsColumnToTable(headings[c], data, channelNames[indicesOfChannelsToBeMeasured[i]-1], path, filename, newRows);
 		}
 	}
+	run("Close");
 }
 
-function addResultsColumnToTable(columnName, data, tableName, path, filename) {
+function addResultsColumnToTable(columnName, data, tableName, path, filename, newRows) {
 	if (isOpen(tableName)) {
 		selectWindow(tableName);
 	} else {
 		Table.create(tableName);
+		_TABLES = Array.concat(_TABLES,tableName);
+		getLocationAndSize(x, y, width, height);
+		Table.setLocationAndSize(x, y, 1100, 600);
 	}
-	rowIndex = Table.size;
+	Table.update;
+	if (newRows) {
+		rowIndex = Table.size;
+	} else {
+		rowIndex = Table.size - data.length;
+	}
 	for (i = 0; i < data.length; i++) {
-		Table.set("path", rowIndex, path);
-		Table.set("filename", rowIndex, filename);
-		Table.set("nucleus nr.", rowIndex, i+1);
+		if (newRows) {
+			selectWindow(tableName);
+			Table.set("path", rowIndex, path);
+			Table.set("filename", rowIndex, filename);
+			Table.set("nucleus nr.", rowIndex, i+1);
+		}
 		Table.set(columnName, rowIndex, data[i]);
 		Table.update;
 		rowIndex++;
 	}
 	selectWindow("Results");
 }
+
 function selectNuclei() {
 	imageID = getImageID();
 	run("Scale...", "x="+(1.0/_SCALE_FACTOR)+" y="+(1.0/_SCALE_FACTOR)+" interpolation=Bilinear create title=small_tmp");
-	setAutoThreshold("Huang dark");
+	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
 	run("Convert to Mask");
 	run("Fill Holes");
 	run("Watershed");
 	run("Scale...", "x="+_SCALE_FACTOR+" y="+_SCALE_FACTOR+" interpolation=Bilinear create title=big_tmp");
-	setAutoThreshold("Huang");
-	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing exclude");
+	setAutoThreshold(_THRESHOLDING_METHOD);
+	roiManager("reset");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing add exclude");
 	selectWindow("small_tmp");
 	close();
 	selectWindow("big_tmp");
@@ -111,7 +166,7 @@ function getIndexOfNucleiChannel(channelNames) {
 	for (i = 0; i < channelNames.length; i++) {
 		channelName = channelNames[i];
 		channelName = toLowerCase(channelName);
-		if (contains(nucleiChannels, channelName, true)) return i+1;
+		if (contains(_NUCLEI_CHANNELS, channelName, true)) return i+1;
 	}
 	return -1;
 }
@@ -133,4 +188,30 @@ function getIndicesOfChannelsToBeMeasured(excludedChannel, nrOfChannels) {
 		if (i!=excludedChannel) indices = Array.concat(indices, i);
 	}
 	return indices;
+}
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input, output, fileExt) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i], output, fileExt);
+		if(endsWith(toLowerCase(list[i]), toLowerCase(fileExt)))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+	path = input + File.separator + file;
+	print("Processing: " + path);
+	
+	run("Bio-Formats", "open=["+path+"] autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
+	measureIntensityPerNucleus();
+	run("From ROI Manager");
+	path = input + File.separator + "control";
+	if (!File.exists(path)) File.makeDirectory(path);
+	newFileName = replace(file, "."+_FILE_EXT, ".tif");
+	saveAs("Tiff", path + File.separator + file);
+	close();
 }
