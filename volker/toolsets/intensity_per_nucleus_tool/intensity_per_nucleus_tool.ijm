@@ -61,7 +61,7 @@ macro "measure intensity per nucleus (f5) Action Tool Options" {
 	_THRESHOLDING_METHOD = Dialog.getChoice();
 }
 
-macro "batch measure intensity (f6) Options" {
+macro "batch measure intensity (f6) Action Tool Options" {
 	Dialog.create("batch processing options");
 	Dialog.addString("file ext.: ", _FILE_EXT);
 	Dialog.show();
