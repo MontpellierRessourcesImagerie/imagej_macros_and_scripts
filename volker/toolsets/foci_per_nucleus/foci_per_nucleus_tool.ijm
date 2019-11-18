@@ -54,6 +54,7 @@ function reportResults() {
 	startIndexFoci = Table.size("Foci");
 	nrNuclei = 0;
 	counter = 0;
+	setBatchMode(true);
 	for (i = 0; i < nResults; i++) {
 		print("\\Update0: processing line " + (i+1) + " of " + nResults);
 		label = Table.getString("Label", i, "Results");
@@ -110,14 +111,15 @@ function reportResults() {
 			counter++;
 		}
 		//if (i%100==0) waitForUser("ok");
-		if (i%100==0) run("Collect Garbage");
+		if (i%1000==0) run("Collect Garbage");
 	}
 	for (i = 0; i < nrNuclei; i++) {
-		Table.set("foci with area <"+ _THRESHOLD_1, startIndexNuclei+i, fociBelow[i]);
-		Table.set("foci with "+ _THRESHOLD_1 +"<=area<"+  _THRESHOLD_2, startIndexNuclei+i, fociBetween[i]);
-		Table.set("foci with area >="+ _THRESHOLD_2, startIndexNuclei+i, fociAbove[i]);
+		Table.set("foci with area <"+ _THRESHOLD_1, startIndexNuclei+i, fociBelow[i], "Nuclei");
+		Table.set("foci with "+ _THRESHOLD_1 +"<=area<"+  _THRESHOLD_2, startIndexNuclei+i, fociBetween[i], "Nuclei");
+		Table.set("foci with area >="+ _THRESHOLD_2, startIndexNuclei+i, fociAbove[i], "Nuclei");
 		Table.update("Nuclei");
 	}
+	setBatchMode(false);
 }
 
 function measureFociPerNucleus() {
