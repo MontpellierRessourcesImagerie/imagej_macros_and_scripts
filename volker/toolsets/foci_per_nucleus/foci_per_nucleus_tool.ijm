@@ -7,6 +7,7 @@
  * (c) 2019, INSERM
  * 
  * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
+ * in cooperation with Liliana Krasinska, IGMM, INSERM
  * 
 **/
 
