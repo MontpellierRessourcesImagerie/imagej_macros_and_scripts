@@ -18,7 +18,7 @@ var _THRESHOLDING_METHOD = "Huang";
 var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _SIGMA_BLUR_FILTER = 12;
 var _FOCI_THRESHOLDING_METHOD = "Otsu";
-var _PROEMINENCE_OF_MAXIMA = 250;
+var _PROMINENCE_OF_MAXIMA = 250;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 
@@ -55,7 +55,7 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	Dialog.addChoice("nuclei thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	Dialog.addMessage("Foci Segmentation:");
 	Dialog.addNumber("sigma of Gaussian blur filter: ", _SIGMA_BLUR_FILTER);
-	Dialog.addNumber("min. proeminence of maxima: ", _PROEMINENCE_OF_MAXIMA);
+	Dialog.addNumber("min. prominence of maxima: ", _PROMINENCE_OF_MAXIMA);
 	Dialog.addChoice("foci thresholding method: ", _THRESHOLDING_METHODS, _FOCI_THRESHOLDING_METHOD);
 	
 	Dialog.show();
@@ -68,7 +68,7 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	_THRESHOLDING_METHOD = Dialog.getChoice();
 
 	_SIGMA_BLUR_FILTER = Dialog.getNumber();
-	_PROEMINENCE_OF_MAXIMA = Dialog.getNumber();
+	_PROMINENCE_OF_MAXIMA = Dialog.getNumber();
 	_FOCI_THRESHOLDING_METHOD = Dialog.getChoice();
 }
 
@@ -218,7 +218,7 @@ function measureFociPerNucleus() {
 	setAutoThreshold(_FOCI_THRESHOLDING_METHOD + " dark");
 	run("Convert to Mask");
 	selectImage(damsID);
-	run("Find Maxima...", "prominence="+_PROEMINENCE_OF_MAXIMA+" output=[Segmented Particles]");
+	run("Find Maxima...", "prominence="+_PROMINENCE_OF_MAXIMA+" output=[Segmented Particles]");
 	selectImage(damsID);
 	close();
 	damsID = getImageID();
