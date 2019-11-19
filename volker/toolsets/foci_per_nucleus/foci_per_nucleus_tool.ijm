@@ -21,6 +21,8 @@ var _PROEMINENCE_OF_MAXIMA = 250;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 
+var _FILE_EXTENSION = "tif";
+
 measureFociPerNucleus();
 
 exit();
@@ -39,6 +41,82 @@ macro "measure foci per nucleus [f5]" {
 
 macro "measure foci per nucleus (f5) Action Tool - C000T4b12m" {
 	measureFociPerNucleus();
+}
+
+macro "measure foci per nucleus (f5) Action Tool Options" {
+	Dialog.create("Measure Foci Options");
+	Dialog.addMessage("Foci area thresholds:");
+	Dialog.addNumber("threshold one: ", _THRESHOLD_1);
+	Dialog.addNumber("threshold two: ", _THRESHOLD_2);
+	Dialog.addMessage("Nuclei Segmentation:");
+	Dialog.addNumber("scale factor: ", _SCALE_FACTOR);
+	Dialog.addNumber("min. area: ", _MIN_SIZE);
+	Dialog.addChoice("nuclei thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
+	Dialog.addMessage("Foci Segmentation:");
+	Dialog.addNumber("sigma of Gaussian blur filter: ", _SIGMA_BLUR_FILTER);
+	Dialog.addNumber("min. proeminence of maxima: ", _PROEMINENCE_OF_MAXIMA);
+	Dialog.addChoice("foci thresholding method: ", _THRESHOLDING_METHODS, _FOCI_THRESHOLDING_METHOD);
+	
+	Dialog.show();
+	
+	_THRESHOLD_1 = Dialog.getNumber();
+	_THRESHOLD_2 = Dialog.getNumber();
+
+	_SCALE_FACTOR = Dialog.getNumber();
+	_MIN_SIZE = Dialog.getNumber();
+	_THRESHOLDING_METHOD = Dialog.getChoice();
+
+	_SIGMA_BLUR_FILTER = Dialog.getNumber();
+	_PROEMINENCE_OF_MAXIMA = Dialog.getNumber();
+	_FOCI_THRESHOLDING_METHOD = Dialog.getChoice();
+}
+
+macro "batch measure foci per nucleus [f6]" {
+	batchMeasureFociPerNucleus();
+}
+
+macro "batch measure foci per nucleus (f6) Action Tool - C000T4b12b" {
+	batchMeasureFociPerNucleus();
+}
+
+macro "batch measure foci per nucleus (f6) Action Tool Options" {
+	Dialog.create("Batch Measure Foci Options")
+	Dialog.addString("file extension: ", _FILE_EXTENSION);
+	Dialog.show();
+	_FILE_EXTENSION = Dialog.getString();
+}
+
+function batchMeasureFociPerNucleus() {
+	dir = getDirectory("Choose the input folder !");
+	File.makeDirectory(dir+File.separator+"out");
+	files = getFileList(dir);
+	images = filterImages(files);
+	Table.reset("Nuclei");
+	Table.reset("Foci");
+	for (i = 0; i < images.length; i++) {
+		image = images[i];
+		print("\\Update1: processing file " + (i+1) + " of " + images.length);
+		open(dir + File.separator + image);
+		measureFociPerNucleus();
+		save(dir + File.separator+"out" + File.separator + image);
+		close();
+	}
+	Table.save(dir + File.separator + "Nuclei.xls", "Nuclei");
+	Table.save(dir + File.separator + "Foci.xls", "Foci");
+}
+
+
+function filterImages(files) {
+	images = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		fileLowerCase = toLowerCase(file);
+		ext = toLowerCase(_FILE_EXTENSION);
+		if (endsWith(fileLowerCase, "."+ext)) {
+			images = Array.concat(images, file);
+		}
+	}
+	return images;
 }
 
 function reportResults() {
@@ -110,7 +188,6 @@ function reportResults() {
 			}
 			counter++;
 		}
-		//if (i%100==0) waitForUser("ok");
 		if (i%1000==0) run("Collect Garbage");
 	}
 	for (i = 0; i < nrNuclei; i++) {
