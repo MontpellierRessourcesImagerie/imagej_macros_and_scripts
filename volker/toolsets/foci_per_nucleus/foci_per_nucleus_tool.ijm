@@ -87,7 +87,7 @@ macro "batch measure foci per nucleus (f6) Action Tool Options" {
 }
 
 function batchMeasureFociPerNucleus() {
-	dir = getDirectory("Choose the input folder !");
+	dir = getDirectory("Choose the input folder!");
 	File.makeDirectory(dir+File.separator+"out");
 	files = getFileList(dir);
 	images = filterImages(files);
