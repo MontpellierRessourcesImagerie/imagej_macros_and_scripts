@@ -12,9 +12,11 @@
 */
 var _TOLERANCE=2000;
 var _DISPLAY_PLOT=true;
+var _DO_Z_STACK = true;
+
 var _NUMBER_OF_LINES = 11;
 var _LINE_WIDTH = 27;
-var _DO_Z_STACK = true;
+
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Width_Measurement_Tool";
 
@@ -46,12 +48,32 @@ macro "measure average width [f6]" {
 	measureWidth(1, width, _TOLERANCE);
 }
 
+macro "measure average width (f6) Action Tool Options" {
+	Dialog.create("measure average width options");
+	Dialog.addNumber("tolerance for the maxima detection: ", _TOLERANCE);
+	Dialog.addCheckbox("display plot", _DISPLAY_PLOT);
+	Dialog.addCheckbox("measure stack", _DO_Z_STACK);
+	Dialog.show();
+	_TOLERANCE = Dialog.getNumber();
+	_DISPLAY_PLOT = Dialog.getCheckbox();
+	_DO_Z_STACK = Dialog.getCheckbox();
+}
+
 macro "measure width (f7) Action Tool - C000T4b12m" {
 	measureWidth(_NUMBER_OF_LINES, _LINE_WIDTH, _TOLERANCE);
 }
 
 macro "measure width [f7]" {
 	measureWidth(_NUMBER_OF_LINES, _LINE_WIDTH, _TOLERANCE);
+}
+
+macro "measure width (f7) Action Tool Options" {
+	Dialog.create("measure average width options");
+	Dialog.addNumber("nr. of lines: ", _NUMBER_OF_LINES);
+	Dialog.addNumber("line width: ", _LINE_WIDTH);
+	Dialog.show();
+	_NUMBER_OF_LINES = Dialog.getNumber();
+	_LINE_WIDTH = Dialog.getNumber();
 }
 
 function rotateImage() {	
@@ -86,11 +108,11 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 	Stack.getPosition(channel, slice, frame);
 	startSlice = slice;
 	nrOfSlices = 1;
+	displayPlot = _DISPLAY_PLOT;
 	Stack.getDimensions(width, height, channels, slices, frames);
-	if (_DO_Z_STACK) {
+	if (_DO_Z_STACK && slices>1) {
 		nrOfSlices = slices;
 		startSlice = 1;
-		displayPlot = _DISPLAY_PLOT;
 		_DISPLAY_PLOT = false;
 	}
 	for (s = 0; s < nrOfSlices; s++) {
