@@ -13,7 +13,7 @@
 var _TOLERANCE=2000;
 var _DISPLAY_PLOT=true;
 var _NUMBER_OF_LINES = 11;
-var _LINE_WIDTH = 366;
+var _LINE_WIDTH = 27;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Width_Measurement_Tool";
 
@@ -93,16 +93,22 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 		if (!_DISPLAY_PLOT) run("Close");
 		else selectImage(imageID);
 		maximaPositions = findMiddleMaxima(xpoints, profile, tolerance);
-		Array.sort(maximaPositions);
-		print("Maxima: ");
-		Array.print(maximaPositions);
-		delta=xpoints[1] - xpoints[0];
-		first = firstDerivative(delta, profile);
-		second = firstDerivative(delta, first);
-		crossings = zeroCrossings(xpoints, second);	
-		crossings = valuesBetween(crossings, maximaPositions[0], maximaPositions[1]);
-		print("Inflection points: ");
-		Array.print(crossings);
+		if (maximaPositions[0]<0) {
+			crossings = newArray(2);
+			crossings[0] = 0;
+			crossings[1] = 0;
+		} else {
+			Array.sort(maximaPositions);
+			print("Maxima: ");
+			Array.print(maximaPositions);
+			delta=xpoints[1] - xpoints[0];
+			first = firstDerivative(delta, profile);
+			second = firstDerivative(delta, first);
+			crossings = zeroCrossings(xpoints, second);	
+			crossings = valuesBetween(crossings, maximaPositions[0], maximaPositions[1]);
+			print("Inflection points: ");
+			Array.print(crossings);
+		}
 		averageDistance = abs(crossings[crossings.length-1]-crossings[0]);
 		averageDistances = Array.concat(averageDistances, averageDistance);
 		leftCrossings = Array.concat(leftCrossings, crossings[0]);
@@ -185,6 +191,10 @@ function findMiddleMaxima(xpoints, profile, tolerance) {
 	result = newArray(2);
 	maxima = Array.findMaxima(profile, tolerance);
 	middleIndex = findLowestMinimumBetweenHighestMaxima(xpoints, profile, tolerance);
+	if (middleIndex<0) {
+		result[0] = -1;
+		return result;
+	}
 	maximaIndicesByMiddle = Array.copy(maxima);
 	for (i = 0; i < maximaIndicesByMiddle.length; i++) {
 		maximaIndicesByMiddle[i] = abs(maximaIndicesByMiddle[i] - middleIndex);
@@ -247,6 +257,7 @@ function findLowestMinimumBetweenHighestMaxima(xpoints, profile, tolerance) {
 	result = -1;
 	maxima = Array.findMaxima(profile, tolerance);
 	minima = Array.findMinima(profile, tolerance);
+	if (maxima.length<2 || minima.length<1) return -1;
 	minima = valuesBetween(minima, maxima[0], maxima[1]);
 	result = minima[0];
 	return result;
