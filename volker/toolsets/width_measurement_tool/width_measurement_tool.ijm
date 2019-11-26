@@ -14,6 +14,7 @@ var _TOLERANCE=2000;
 var _DISPLAY_PLOT=true;
 var _NUMBER_OF_LINES = 11;
 var _LINE_WIDTH = 27;
+var _DO_Z_STACK = true;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Width_Measurement_Tool";
 
@@ -65,7 +66,7 @@ function rotateImage() {
 	row = nResults-1;
 	angle = getResult("Angle", row);
 	run("Select None");
-	run("Rotate... ", "angle="+angle+" grid=1 interpolation=Bilinear enlarge");
+	run("Rotate... ", "angle="+angle+" grid=1 interpolation=Bilinear enlarge stack");
 }
 
 function measureWidth(numberOfLines, widthOfLine, tolerance) {
@@ -80,48 +81,67 @@ function measureWidth(numberOfLines, widthOfLine, tolerance) {
 	print("number of lines: ", numberOfLines);
 	print("line width", widthOfLine);
 	print("\n");
-	averageDistances = newArray(0);
-	leftCrossings = newArray(0);
-	rightCrossings = newArray(0);
-	xPositions = newArray(0);
-	for (i = 0; i < numberOfLines; i++) {
-		x = (deltaLines / 2.0) + (i*deltaLines);
-		xPositions = Array.concat(xPositions, x);
-		print("" + i + ". Position: " + x);
-		makeProfilePlotAtPosition(x, 0, x, height, widthOfLine);
-		Plot.getValues(xpoints, profile);
-		if (!_DISPLAY_PLOT) run("Close");
-		else selectImage(imageID);
-		maximaPositions = findMiddleMaxima(xpoints, profile, tolerance);
-		if (maximaPositions[0]<0) {
-			crossings = newArray(2);
-			crossings[0] = 0;
-			crossings[1] = 0;
-		} else {
-			Array.sort(maximaPositions);
-			print("Maxima: ");
-			Array.print(maximaPositions);
-			delta=xpoints[1] - xpoints[0];
-			first = firstDerivative(delta, profile);
-			second = firstDerivative(delta, first);
-			crossings = zeroCrossings(xpoints, second);	
-			crossings = valuesBetween(crossings, maximaPositions[0], maximaPositions[1]);
-			print("Inflection points: ");
-			Array.print(crossings);
-		}
-		averageDistance = abs(crossings[crossings.length-1]-crossings[0]);
-		averageDistances = Array.concat(averageDistances, averageDistance);
-		leftCrossings = Array.concat(leftCrossings, crossings[0]);
-		rightCrossings = Array.concat(rightCrossings, crossings[crossings.length-1]);
-		print("\n");
-		selectImage(imageID);
+
+	Overlay.remove;
+	Stack.getPosition(channel, slice, frame);
+	startSlice = slice;
+	nrOfSlices = 1;
+	Stack.getDimensions(width, height, channels, slices, frames);
+	if (_DO_Z_STACK) {
+		nrOfSlices = slices;
+		startSlice = 1;
+		displayPlot = _DISPLAY_PLOT;
+		_DISPLAY_PLOT = false;
 	}
-	reportDistances(averageDistances);
-	reportSummaryOfDistances(averageDistances);
-	displayMeasurementPoints(xPositions, leftCrossings, rightCrossings);
+	for (s = 0; s < nrOfSlices; s++) {
+		selectImage(imageID);
+		if (slices>1) Stack.setSlice(startSlice+s);
+		averageDistances = newArray(0);
+		leftCrossings = newArray(0);
+		rightCrossings = newArray(0);
+		xPositions = newArray(0);
+		for (i = 0; i < numberOfLines; i++) {
+			x = (deltaLines / 2.0) + (i*deltaLines);
+			xPositions = Array.concat(xPositions, x);
+			print("" + i + ". Position: " + x);
+			makeProfilePlotAtPosition(x, 0, x, height, widthOfLine);
+			Plot.getValues(xpoints, profile);
+			if (!_DISPLAY_PLOT) run("Close");
+			else selectImage(imageID);
+			maximaPositions = findMiddleMaxima(xpoints, profile, tolerance);
+			if (maximaPositions[0]<0) {
+				crossings = newArray(2);
+				crossings[0] = 0;
+				crossings[1] = 0;
+			} else {
+				Array.sort(maximaPositions);
+				print("Maxima: ");
+				Array.print(maximaPositions);
+				delta=xpoints[1] - xpoints[0];
+				first = firstDerivative(delta, profile);
+				second = firstDerivative(delta, first);
+				crossings = zeroCrossings(xpoints, second);	
+				crossings = valuesBetween(crossings, maximaPositions[0], maximaPositions[1]);
+				print("Inflection points: ");
+				Array.print(crossings);
+			}
+			averageDistance = abs(crossings[crossings.length-1]-crossings[0]);
+			averageDistances = Array.concat(averageDistances, averageDistance);
+			leftCrossings = Array.concat(leftCrossings, crossings[0]);
+			rightCrossings = Array.concat(rightCrossings, crossings[crossings.length-1]);
+			print("\n");
+			selectImage(imageID);
+		}
+		reportDistances(averageDistances, startSlice + s);
+		reportSummaryOfDistances(averageDistances);
+		displayMeasurementPoints(xPositions, leftCrossings, rightCrossings);
+	}
+	if (_DO_Z_STACK) {
+		_DISPLAY_PLOT = displayPlot;
+	}
 }
 
-function reportDistances(averageDistances) {
+function reportDistances(averageDistances, slice) {
 	if (!isOpen("width_measurements")) {
 		Table.create("width_measurements");
 		getLocationAndSize(x, y, width, height);
@@ -134,16 +154,17 @@ function reportDistances(averageDistances) {
 		row = Table.size;
 		Table.set("image", row, title);
 		Table.set("width", row, averageDistances[i]);
+		Table.set("slice", row, slice);
 	}	
 	Table.update;
 }
 
 function displayMeasurementPoints(xPositions, leftCrossings, rightCrossings) {
 	width = getWidth();
-	Overlay.remove;
 	unscaledLeftCrossings = Array.copy(leftCrossings);
 	unscaledRightCrossings = Array.copy(rightCrossings);
 	a = 0;
+	Stack.getPosition(channel, slice, frame);
 	for (i = 0; i < leftCrossings.length; i++) {
 		toUnscaled(a, unscaledLeftCrossings[i]);
 		toUnscaled(a, unscaledRightCrossings[i]);
@@ -151,11 +172,14 @@ function displayMeasurementPoints(xPositions, leftCrossings, rightCrossings) {
 	if (xPositions.length==1) {
 		makeLine(xPositions[0], unscaledLeftCrossings[0], xPositions[0], unscaledRightCrossings[0], width);
 		Overlay.addSelection;
+		Overlay.setPosition(slice);
 	} else {
 		makeSelection("polyline", xPositions, unscaledLeftCrossings);
 		Overlay.addSelection;
+		Overlay.setPosition(slice);
 		makeSelection("polyline", xPositions, unscaledRightCrossings);
 		Overlay.addSelection;		
+		Overlay.setPosition(slice);
 	}
 	run("Select None");
 	Overlay.show;
