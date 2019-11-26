@@ -10,7 +10,7 @@
   * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
  *
 */
-var _TOLERANCE=2000;
+var _TOLERANCE=8000;
 var _DISPLAY_PLOT=true;
 var _DO_Z_STACK = true;
 
