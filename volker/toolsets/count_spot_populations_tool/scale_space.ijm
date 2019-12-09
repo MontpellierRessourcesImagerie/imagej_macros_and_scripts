@@ -7,16 +7,23 @@ var _SCALE_SPACE_PARTS_OF_WIDTH = 15;
 var _MAXIMA_PROMINENCE = 200;
 //var _MAXIMA_PROMINENCE = 100;
 
-setBatchMode(true);
-Overlay.remove;
-run("Select None");
-imageID = getImageID();
-sigmas = createScaleSpace();
-scaleSpaceID = getImageID();
-findMaxima(sigmas, imageID, scaleSpaceID);
-// filterMaxima(imageID, scaleSpaceID);
-setBatchMode("exit and display");
-print("Done!");
+
+macro "Automatic scale spot detector Action Tool - C444D10D19D2cD69D72D82D97Db0Db3Db8Dc1C666D07D09D1eD1fD22D2bD2dD2fD31D32D42D4aD4cD60D6fD77D81D86D8dD90D9aD9bDa2Da6Da7DaeDb5Db6Db9Dc5DcdDceDd0Dd5Dd6Dd7DeaDeeDf2Df5Df6Df9DffC3bbD13D17D24D27D53D54C777D05D18D2eD39D3cD3dD76D8bD99Dd9DddDf4C466D63C777D08D12D1bD29D41D4eD52D5aD6bD75D87D88D89D91D92D93D94Da0Da1Da4Db2Db4DbeDc0Dc8Dc9DcfDd8De0De6Df0Df1DfcDfdC0ffD15D16D33D38D43D65DabDbaDbcDc3DcbDd2Dd4De3C8aaD34D46D47D56D58D67Dd3DdaDdcDfaC555D01D0eD0fD11D21D2aD3bD3fD40D51D5cD5fD62D71D7aD7bD7eD7fD80D8fD95D9fDadDc6Dd1DedDefDf3Df8DfbC1eeD14D23D28D64D66C888D06D68D6aD74D84DbdDdeDdfDebDecDfeC666D02D03D04D0aD0bD0cD1dD20D3aD3eD49D4bD4dD4fD5bD5dD5eD61D6eD70D79D7dD83D85D8cD8eD96D9dD9eDa3Da5Da8DafDb1DbfDe8De9C1eeD48D57DcaDccCbbbD25D26D35D36D37D44D45D55DbbDdbC555D00D0dD1aD1cD30D50D59D6cD6dD73D78D7cD8aD98D9cDa9Db7Dc7De1De5De7Df7C1eeDaaDacDc2Dc4De2De4"{
+
+}
+
+function detectSpots() {
+	setBatchMode(true);
+	Overlay.remove;
+	run("Select None");
+	imageID = getImageID();
+	sigmas = createScaleSpace();
+	scaleSpaceID = getImageID();
+	findMaxima(sigmas, imageID, scaleSpaceID);
+	// filterMaxima(imageID, scaleSpaceID);
+	setBatchMode("exit and display");
+	print("Done!");
+}
 
 function createScaleSpace() {
 	width = getWidth();
@@ -94,7 +101,6 @@ function findMaxima(sigmas, imageID, scaleSpaceID) {
 						currentMin = v;
 						xpoints[i] = rxpoints[j];
 						ypoints[i] = rypoints[k];
-						print("min adjusted: ", xpoints[i], ypoints[i]);
 					}			
 				}
 			}
