@@ -199,6 +199,7 @@ function fitEllipses() {
 		roiManager("Update");
 	}
 }
+
 function autoSetContrast() {
 	getStatistics(area, mean);
 	mode = getMode();
