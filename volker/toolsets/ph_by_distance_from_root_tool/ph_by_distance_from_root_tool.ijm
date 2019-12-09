@@ -12,6 +12,8 @@ var _MIN_BOX_AREA = 2000000;
 var _PROBE_LENGTH_FACTOR = 1/4.5;
 var _PROBE_POS_PERCENTAGE = 80;
 var _FLIP_IMAGE_TO_RIGHT = true;
+var _SEARCH_POS_DIAMETER = 1;
+var _OPTODE_NR = 1;
 
 var _BOX_NR = 14;
 
@@ -34,6 +36,52 @@ macro "find positions of optodes [f2]" {
 
 macro "find positions of optodes (f2) Action Tool - C000T4b12o" {
 	findPositionsOfOptodes();
+}
+
+macro "find positions of optodes (f2) Action Tool Options" {
+	Dialog.create("Positions of optodes Options");
+	Dialog.addNumber("diameter of optodes: ", _OPTODE_DIAMETER);
+	Dialog.addNumber("distance x between optodes [cm]: ", _OPTODE_DISTANCE_X);
+	Dialog.addNumber("distance y between optodes [cm]: ", _OPTODE_DISTANCE_Y);
+	Dialog.addCheckbox("flip image to the right", _FLIP_IMAGE_TO_RIGHT);
+	Dialog.show();
+	_OPTODE_DIAMETER = Dialog.getNumber();
+	_OPTODE_DISTANCE_X = Dialog.getNumber();
+	_OPTODE_DISTANCE_Y = Dialog.getNumber();
+	_FLIP_IMAGE_TO_RIGHT = Dialog.getCheckbox();
+}
+
+macro "position optode [f3]" {
+	doPositionOptode();
+}
+
+macro "position optode (f3) Action Tool - C000T4b12p" {
+	doPositionOptode();
+}
+
+
+function doPositionOptode() {
+	inputImageID = getImageID();
+	_OPTODE_NR = getNumber("Enter the number of the optode: ", _OPTODE_NR);
+	waitForUser("Select the optode image");
+	optodeImageID = getImageID();
+	selectImage(inputImageID);
+	Overlay.activateSelection(1+_OPTODE_NR);
+	run("Enlarge...", "enlarge="+_SEARCH_POS_DIAMETER);
+	run("Duplicate...", " ");
+	inputSelectionID = getImageID();
+	getPixelSize(unit, pixelWidth, pixelHeight);
+	selectImage(optodeImageID);
+	getPixelSize(unit2, pixelWidth2, pixelHeight2);
+	factor = pixelWidth / pixelWidth2;
+	print(pixelWidth, pixelWidth2, factor);
+	selectImage(inputSelectionID);
+	width = getWidth();
+	height = getHeight()
+	run("Scale...", "x="+factor+" y="+factor+" width="+width*factor+" height="+height*factor+" interpolation=Bilinear create");
+	run("Canvas Size...", "width=4096 height=4096 position=Center");
+	selectImage(optodeImageID);
+	run("Canvas Size...", "width=4096 height=4096 position=Center");
 }
 
 function findPositionsOfOptodes() {
