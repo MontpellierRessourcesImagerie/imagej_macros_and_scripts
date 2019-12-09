@@ -38,6 +38,7 @@ def main():
 					parent[childRoi] = roi
 			children[roi] = siblings
 	colorizeTrees(treeOfRois, children)
+	print(treeOfRois)
 		
 def colorizeTrees(tree, children):
 	RoiManager()
