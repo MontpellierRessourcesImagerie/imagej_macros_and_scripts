@@ -102,15 +102,23 @@ macro "make lines Tool (f4) Options" {
 	_LINE_DISTANCE_FACTOR = Dialog.getNumber();
 }
 
-macro "plot features [f5]" {
+macro 'circles to lines [f5]' {
+	circlesToLines();
+}
+
+macro "circles to lines Action Tool (f5) - C000T4b122" {
+	circlesToLines();
+}
+
+macro "plot features [f6]" {
 	doPlotFeatures();
 }
 
-macro "plot features Action Tool (f5) - C000T4b12p" {
+macro "plot features Action Tool (f6) - C000T4b12p" {
 	doPlotFeatures();
 }
 
-macro "plot features Action Tool (f5) Options" {
+macro "plot features Action Tool (f6) Options" {
 	Dialog.create("plot features options");
 	Dialog.addCheckbox("plot area per distance", _PLOT_AREA_PER_DISTANCE);
 	Dialog.addCheckbox("plot nr. of border-pixel per distance", _PLOT_BORDER_PIXEL_PER_DISTANCE);
@@ -128,35 +136,35 @@ macro "plot features Action Tool (f5) Options" {
 	_MAXIMA_TOLERANCE = Dialog.getNumber();
 }
 
-macro "batch measure roots Action Tool (f6) - C000T4b12b" {
+macro "batch measure roots Action Tool (f7) - C000T4b12b" {
 	batchMeasureRoots();
 }
 
 
-macro "batch measure roots [f6]" {
+macro "batch measure roots [f7]" {
 	batchMeasureRoots();
 }
 
-macro "batch measure roots Action Tool (f6) Options" {
+macro "batch measure roots Action Tool (f7) Options" {
 	Dialog.create("batch measure options");
 	Dialog.addString("file extension", _FILE_EXTENSION);
 	Dialog.show();
 	_FILE_EXTENSION = Dialog.getString();
 }
 
-macro "delete column Action Tool (f7) - C000T4b12d" {
+macro "delete column Action Tool (f8) - C000T4b12d" {
 	removeColumn();	
 }
 
-macro "delete column [f7]" {
+macro "delete column [f8]" {
 	removeColumn();	
 }
 
-macro "calculate statistics Action Tool (f8) - C000T4b12s" {
+macro "calculate statistics Action Tool (f9) - C000T4b12s" {
 	calculateStatistics();	
 }
 
-macro "calculate statistics [f8]" {
+macro "calculate statistics [f9]" {
 	calculateStatistics();	
 }
 
@@ -341,6 +349,27 @@ function doCirclesOrLines() {
 	run("Select None");
 }
 
+function circlesToLines() {
+	if (Overlay.size<1) return;
+	Overlay.activateSelection(0);
+	type = Roi.getType;
+	run("Select None");
+	if (type=="oval") convertCirclesToLines();
+}
+
+function convertCirclesToLines() {
+	_LINE_ORIGIN_X = _CIRCLE_ORIGIN_X;
+	_LINE_ORIGIN_Y = _CIRCLE_ORIGIN_Y + _CIRCLE_INITIAL_RADIUS;
+	_LINE_DELTA_DISTANCE = _DELTA_RADIUS;
+	_LINE_DISTANCE_FACTOR = _FACTOR;
+	Overlay.remove;
+	doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+}
+
+function convertLinesToCircles() {
+	
+}
+
 function retrieveMetadata() {
 	metadataString = getMetadata("Info");
 	metadata = split(metadataString, ";");
@@ -455,7 +484,10 @@ function getDistances() {
 		Overlay.activateSelection(i);
 		getSelectionBounds(x, y, width, height);
 		if (selectionType() == 5) {
-			distances[i] = y;
+			if (i==0) distances[i] = 0;
+			else {
+				distances[i] = y;
+			}
 		} else {
 			distances[i] = width / 2.0;
 		}
@@ -647,12 +679,16 @@ function plotHorizontalDistances() {
 
 function getSumOfAreas() {
 	run("Set Measurements...", "area limit redirect=None decimal=9");
+	Table.create("Results");
 	run("Clear Results");
 	setAutoThreshold("Triangle");
 	Overlay.activateSelection(0);
 	if (selectionType() == 5) {
 		Overlay.activateSelection(0);
 		getSelectionBounds(x0, y0, width0, height0);
+		run("Measure");
+		setResult("Area", 0, 0);
+		Table.update("Results");
 		for (i = 1; i < Overlay.size; i++) {
 			Overlay.activateSelection(i);
 			getSelectionBounds(x, y, width, height);
