@@ -118,6 +118,7 @@ function detectSpots() {
 	setBatchMode("exit and display");
 	run("Clear Results");
 	roiManager("reset");
+	selectImage(imageID);
 	Overlay.measure;
 	print("Done!");
 }
