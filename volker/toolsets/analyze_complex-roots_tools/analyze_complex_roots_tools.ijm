@@ -13,6 +13,8 @@ var _DELTA_RADIUS = 200;
 var _FACTOR = 1.1;
 var _CREATE_DISTANCE_MAP = true;
 
+var _IMAGE_ORIGIN_X = 3226;
+var _IMAGE_ORIGIN_Y = 7;
 var _LINE_ORIGIN_X = 3226;
 var _LINE_ORIGIN_Y = 7;
 var _LINE_DELTA_DISTANCE = 200;
@@ -83,12 +85,12 @@ macro "make circles Tool (f3) Options" {
 }
 
 macro "make lines [f4]" {
-	doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+	doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y, _LINE_ORIGIN_X, _LINE_ORIGIN_Y);
 }
 
 macro "make lines Tool (f4) - C000T4b12l" {
 	getCursorLoc(x, y, z, modifiers);
-	doMakeLines(x,y);
+	doMakeLines(x,y, x, y);
 }
 
 macro "make lines Tool (f4) Options" {
@@ -342,7 +344,7 @@ function batchMeasureRoots() {
 function doCirclesOrLines() {
 	Overlay.activateSelection(0);
 	if (selectionType()==5) {
-		 doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+		 doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y, _LINE_ORIGIN_X, _LINE_ORIGIN_Y);
 	} else {
 		doMakeCircles(_CIRCLE_ORIGIN_X, _CIRCLE_ORIGIN_Y);
 	}
@@ -358,12 +360,14 @@ function circlesToLines() {
 }
 
 function convertCirclesToLines() {
+	_IMAGE_ORIGIN_X = _CIRCLE_ORIGIN_X;
+	_IMAGE_ORIGIN_Y = _CIRCLE_ORIGIN_Y;
 	_LINE_ORIGIN_X = _CIRCLE_ORIGIN_X;
 	_LINE_ORIGIN_Y = _CIRCLE_ORIGIN_Y + _CIRCLE_INITIAL_RADIUS;
 	_LINE_DELTA_DISTANCE = _DELTA_RADIUS;
 	_LINE_DISTANCE_FACTOR = _FACTOR;
 	Overlay.remove;
-	doMakeLines(_LINE_ORIGIN_X, _LINE_ORIGIN_Y);
+	doMakeLines(_IMAGE_ORIGIN_X, _IMAGE_ORIGIN_Y, _LINE_ORIGIN_X, _LINE_ORIGIN_Y);
 }
 
 function convertLinesToCircles() {
@@ -480,6 +484,7 @@ function getMaximaPerDistance() {
 function getDistances() {
 	count = Overlay.size;
 	distances = newArray(count);
+	zero = 0;
 	for (i = 0; i < count; i++) {
 		Overlay.activateSelection(i);
 		getSelectionBounds(x, y, width, height);
@@ -487,12 +492,13 @@ function getDistances() {
 			if (i==0) distances[i] = 0;
 			else {
 				distances[i] = y;
+				toScaled(zero, distances[i]);
 			}
 		} else {
 			distances[i] = width / 2.0;
+			toScaled(distances[i]);
 		}
 		run("Select None");
-		toScaled(distances[i]);
 	}
 	return distances;
 }
@@ -517,15 +523,15 @@ function doMakeCircles(x,y) {
 	 run("Properties...", "origin="+_CIRCLE_ORIGIN_X+","+_CIRCLE_ORIGIN_Y);
 }
 
-function doMakeLines(x,y) {
-	_LINE_ORIGIN_X = x;
-	_LINE_ORIGIN_Y = y;
+function doMakeLines(originX, originY, lineOriginX, lineOriginY) {
+	_LINE_ORIGIN_X = lineOriginX;
+	_LINE_ORIGIN_Y = lineOriginY;
 	makeLines(_LINE_ORIGIN_Y, _LINE_DELTA_DISTANCE, _LINE_DISTANCE_FACTOR);
 	metadata = "line_origin_y="+_LINE_ORIGIN_Y + ";" +
 			   "delta_line="+_LINE_DELTA_DISTANCE + ";" +
 			   "line_factor="+ _LINE_DISTANCE_FACTOR;
 	setMetadata("Info", metadata);
-	run("Properties...", "origin="+_LINE_ORIGIN_X+","+_LINE_ORIGIN_Y);
+	run("Properties...", "origin="+originX+","+originX);
 }
 
 function getMaxPerDistance() {
