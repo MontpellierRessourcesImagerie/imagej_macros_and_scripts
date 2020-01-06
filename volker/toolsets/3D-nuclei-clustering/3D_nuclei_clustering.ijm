@@ -15,6 +15,7 @@ var _RADIUS_XY = 1.50;
 var _RADIUS_Z = 1.50;
 var _NOISE = 500;
 var _EXCLUDE_ON_EDGES = true;
+var _RADIUS_SPHERE = 3 	// in scaled units (for exampel µm)
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
@@ -39,6 +40,7 @@ macro "detect nuclei [f5]" {
 
 function detectNuclei() {
 	imageID = getImageID();
+	getVoxelSize(width, height, depth, unit);
 	run("FeatureJ Laplacian", "compute smoothing="+_SCALE);
 	run("Invert", "stack");
 	run("3D Maxima Finder", "radiusxy="+_RADIUS_XY+" radiusz="+_RADIUS_Z+" noise="+_NOISE);
@@ -53,17 +55,17 @@ function detectNuclei() {
 		run("Clear", "slice");
 		run("Select None");
 		Stack.setSlice(1);
-		// delete rows where Z=0 or MAx
+		// delete rows where Z=0 or MAX
 		X= newArray(0);
 		Y= newArray(0);
 		Z= newArray(0);
 		V= newArray(0);
 		
 		for(row=0; row<nResults; row++) {
-			zPos = getResult("Z", row);
+			zPos = getResult("Z", row) * depth;
 			if (zPos>0 && zPos<(nSlices-1)) {
-				xPos = getResult("X", row);
-				yPos = getResult("Y", row);
+				xPos = getResult("X", row) * width;
+				yPos = getResult("Y", row) * height;
 				vObj = getResult("V", row);
 				Z = Array.concat(Z, zPos);
 				X = Array.concat(X, xPos);
@@ -79,6 +81,7 @@ function detectNuclei() {
 		Table.setColumn("V", V);
 	}
 	selectWindow("peaks");
+	setVoxelSize(width, height, depth, unit);
 	run("3D Manager");
 	Ext.Manager3D_AddImage();
 	selectImage(imageID);
@@ -86,6 +89,28 @@ function detectNuclei() {
 	Ext.Manager3D_Select(1);
 }
 
+function drawClusters() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	newImage("clusters-indexed-mask", "16-bit black", width, height, slices);
+	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	
+	X = Table.getColumn("X", "clusters");
+	Y = Table.getColumn("Y", "clusters");
+	Z = Table.getColumn("Z", "clusters");
+	C = Table.getColumn("C", "clusters");
+	
+	for (i = 0; i < X.length; i++) {
+		x = X[i];
+		y = Y[i];
+		z = Z[i];
+		c = C[i];
+	//	toUnscaled(x, y, z);
+		r = _RADIUS;
+	//	toUnscaled(r);
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+",3 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+}
+	
 // run("Bio-Formats", "open=/media/baecker/DONNEES/mri/in/Azam/clustering/Mixed-mChesiEp50%-mYFPsiCtrl50%_CONF_1CAM_561-620_CONF_1CAM_488-525_CONF_1CAM_405-450_1_FusionStitcher.ims color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_2");
 
 // imageID = getImageID();
