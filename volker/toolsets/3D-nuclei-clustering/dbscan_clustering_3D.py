@@ -9,6 +9,7 @@ def run():
 	points = pointList3DFromRT()
 	clusterer = DBSCANClusterer(maxDist, minPts)
 	clusters = clusterer.cluster(points)
+	print(clusters.size())
 	reportClustersAsTable(clusters)
 
 def pointList3DFromRT():
@@ -30,8 +31,8 @@ def pointList3DFromRT():
 def reportClustersAsTable(clusters):
 	rt = ResultsTable()
 	counter = 1;
+	clusterCounter = 1
 	for c in clusters:
-		clusterCounter = 1
 		for dp in c.getPoints():
 			rt.incrementCounter()
 			p = dp.getPoint()
@@ -51,5 +52,5 @@ if 'getArgument' in globals():
   minPts = int(args[1].split("=")[1])
 else:
   minPts = 5
-  maxDist = 50
+  maxDist = 18
 run()

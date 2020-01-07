@@ -16,7 +16,7 @@ var _RADIUS_Z = 1.50;
 var _NOISE = 500;
 var _EXCLUDE_ON_EDGES = true;
 var _RADIUS_SPHERE = 3 	// in scaled units (for exampel µm)
-
+var _LOOKUP_TABLE = "glasbey on dark";
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
 exit();
@@ -94,11 +94,13 @@ function drawClusters() {
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	newImage("clusters-indexed-mask", "16-bit black", width, height, slices);
 	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
-	
+
+	Table.sort("Z");
 	X = Table.getColumn("X", "clusters");
 	Y = Table.getColumn("Y", "clusters");
 	Z = Table.getColumn("Z", "clusters");
 	C = Table.getColumn("C", "clusters");
+	Table.sort("C");
 	
 	for (i = 0; i < X.length; i++) {
 		x = X[i];
@@ -106,9 +108,10 @@ function drawClusters() {
 		z = Z[i];
 		c = C[i];
 	//	toUnscaled(x, y, z);
-		r = _RADIUS;
+		r = _RADIUS_SPHERE;
 	//	toUnscaled(r);
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+",3 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+		run("3D Draw Shpe", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+",3 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+		run(_LOOKUP_TABLE);
 }
 	
 // run("Bio-Formats", "open=/media/baecker/DONNEES/mri/in/Azam/clustering/Mixed-mChesiEp50%-mYFPsiCtrl50%_CONF_1CAM_561-620_CONF_1CAM_488-525_CONF_1CAM_405-450_1_FusionStitcher.ims color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_2");
