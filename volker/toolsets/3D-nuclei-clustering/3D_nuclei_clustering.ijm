@@ -18,10 +18,16 @@ var _NOISE = 500;
 var _EXCLUDE_ON_EDGES = true;
 var _RADIUS_SPHERE = 3 	// in scaled units (for exampel µm)
 var _LOOKUP_TABLE = "glasbey on dark";
-var _CREATE_RESULTS_CHANNEL = false;
+var _CREATE_RESULTS_CHANNEL = true;
+
+// parameters for filtering the nuclei according to the signal in another channel
 var _SIGNAL_CHANNEL = 1;
 var _RADIUS_MEASUREMENT = 1;
 var _THRESHOLD = 700;
+
+// parameters for the clustering of the nuclei
+var _MAX_DIST = 18;
+var _MIN_PTS = 5;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
@@ -64,6 +70,20 @@ macro "filter above threshold (f6) Action Tool - C000T4b12f" {
 	filterAboveThreshold();
 }
 
+macro "filter above threshold (f6) Action Tool Options" {
+	Dialog.create("Filter nuclei options");
+	Dialog.addNumber("signal channel: ", _SIGNAL_CHANNEL);
+	Dialog.addNumber("radius: ", _RADIUS_MEASUREMENT);
+	Dialog.addNumber("threshold: ", _THRESHOLD);
+	Dialog.show();
+	_SIGNAL_CHANNEL = Dialog.getNumber();
+	_RADIUS_MEASUREMENT = Dialog.getNumber();
+	_THRESHOLD = Dialog.getNumber();
+}
+
+macro "cluster nuclei (f7) Action Tool - C000T4b12c" {
+	clusterNuclei(_MAX_DIST, _MIN_PTS);
+}
 
 function detectNuclei() {
 	inputStackID = getImageID();
@@ -75,9 +95,9 @@ function detectNuclei() {
 	run("Invert", "stack");
 	filteredID = getImageID();
 	run("3D Maxima Finder", "radiusxy="+_RADIUS_XY+" radiusz="+_RADIUS_Z+" noise="+_NOISE);
+	selectWindow("peaks");
+	peaksID = getImageID();
 	if (_EXCLUDE_ON_EDGES) {
-		selectWindow("peaks");
-		peaksID = getImageID();
 		Stack.setSlice(1);
 		run("Select All");
 		run("Clear", "slice");
@@ -95,7 +115,7 @@ function detectNuclei() {
 		
 		for(row=0; row<nResults; row++) {
 			zPos = getResult("Z", row) * depth;
-			if (zPos>0 && zPos<(nSlices-1)) {
+			if (zPos>0 && zPos<(nSlices-1)*depth) {
 				xPos = getResult("X", row) * width;
 				yPos = getResult("Y", row) * height;
 				vObj = getResult("V", row);
@@ -107,11 +127,12 @@ function detectNuclei() {
 		}
 		run("Clear Results");
 		Table.create("Results");
-		Table.setColumn("X", X);
-		Table.setColumn("Y", Y);
-		Table.setColumn("Z", Z);
-		Table.setColumn("V", V);
+		Table.setColumn("X", X, "Results");
+		Table.setColumn("Y", Y, "Results");
+		Table.setColumn("Z", Z, "Results");
+		Table.setColumn("V", V, "Results");
 	}
+	Table.applyMacro("NR=row+1 ", "Results");
 	selectWindow("peaks");
 	setVoxelSize(width, height, depth, unit);
 	run("3D Manager");
@@ -176,9 +197,12 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 		}
 	}
 	run(_LOOKUP_TABLE);
+	Table.sort("NR");
 }
 
 function filterAboveThreshold() {
+	inputStackID = getImageID();
+	inputStackTitle = getTitle();
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	measureIntensityInOtherChannel();	
 	X = Table.getColumn("X");
@@ -206,7 +230,17 @@ function filterAboveThreshold() {
 	Table.setColumn("Y", YN);
 	Table.setColumn("Z", ZN);
 	Table.setColumn("Mean", MN);
-	drawNuclei();
+	Table.applyMacro("NR=row+1 ", "Results");
+
+	
+	if (_CREATE_RESULTS_CHANNEL) {
+		drawNuclei();
+		selectImage(inputStackID);
+		run("To ROI Manager");
+		run("Split Channels");
+		run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[Results-indexed-mask] create ");
+		run("From ROI Manager");
+	}
 }
 
 function measureIntensityInOtherChannel() {
@@ -221,7 +255,7 @@ function measureIntensityInOtherChannel() {
 		z = Z[i];
 		toUnscaled(x, y, z);
 		Stack.setSlice(z);
-		makeOval(x, y, _RADIUS_MEASUREMENT, _RADIUS_MEASUREMENT);
+		makeOval(x-_RADIUS_MEASUREMENT, y-_RADIUS_MEASUREMENT, 2*_RADIUS_MEASUREMENT+1, 2*_RADIUS_MEASUREMENT+1);
 		Overlay.addSelection;
 		Overlay.setPosition(_SIGNAL_CHANNEL, z, 1);
 	}
@@ -233,4 +267,12 @@ function measureIntensityInOtherChannel() {
 		run("Measure");
 	}
 	Overlay.show;
+}
+
+function clusterNuclei(maxDist, minPts) {
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/dbscan_clustering_3D.py");
+	parameter = "maxDist="+maxDist+",minPts="+minPts;
+	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
+	drawClusters();
 }

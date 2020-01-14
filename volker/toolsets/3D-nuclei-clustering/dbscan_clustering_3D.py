@@ -9,7 +9,6 @@ def run():
 	points = pointList3DFromRT()
 	clusterer = DBSCANClusterer(maxDist, minPts)
 	clusters = clusterer.cluster(points)
-	print(clusters.size())
 	reportClustersAsTable(clusters)
 
 def pointList3DFromRT():
@@ -36,7 +35,7 @@ def reportClustersAsTable(clusters):
 		for dp in c.getPoints():
 			rt.incrementCounter()
 			p = dp.getPoint()
-			rt.addValue("N", counter)
+			rt.addValue("NR", counter)
 			rt.addValue("X", p[0])
 			rt.addValue("Y", p[1])
 			rt.addValue("Z", p[2])
@@ -44,8 +43,9 @@ def reportClustersAsTable(clusters):
 			counter = counter + 1;
 		clusterCounter = clusterCounter + 1
 	rt.show("clusters")
-	
+
 if 'getArgument' in globals():
+  del zip 	# the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
   parameter = getArgument()
   args = parameter.split(",")
   maxDist =  float(args[0].split("=")[1])
