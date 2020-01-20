@@ -166,7 +166,7 @@ function selectNuclei() {
 	run("Fill Holes");
 	run("Watershed");
 	run("Scale...", "x="+_SCALE_FACTOR+" y="+_SCALE_FACTOR+" interpolation=Bilinear create title=big_tmp");
-	setAutoThreshold(_THRESHOLDING_METHOD);
+	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
 	roiManager("reset");
 	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing add exclude");
 	selectWindow("small_tmp");
