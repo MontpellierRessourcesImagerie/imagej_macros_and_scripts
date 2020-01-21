@@ -23,7 +23,7 @@ var _CREATE_RESULTS_CHANNEL = true;
 // parameters for filtering the nuclei according to the signal in another channel
 var _SIGNAL_CHANNEL = 1;
 var _RADIUS_MEASUREMENT = 1;
-var _THRESHOLD = 700;
+var _THRESHOLD = 900;
 
 // parameters for the clustering of the nuclei
 var _MAX_DIST = 18;
@@ -39,6 +39,19 @@ macro "3D nuclei clustering tool help [f4]" {
 
 macro "3D nuclei clustering tool help (f4) Action Tool - Cf00L0010Le0f0L0111C555D51C666L6181C444D91Cf00Ld1e1L0212C555D32C999D42CaaaL5282C999D92C777Da2Cf00Lc2d2L0313C555D23C999D33CbbbD43CcccL5383CbbbD93CaaaDa3C666Lb3c3Cf00L0414C999D24CbbbD34CcccD44CdddL5494CcccDa4CbbbDb4C666Dc4Cf00L0515CaaaD25CcccD35CdddD45CfffL5585CdddL95a5CbbbDb5C777Dc5Cf00L0616CaaaD26CcccD36CdddD46CfffL5696CdddDa6CbbbDb6C999Dc6Cf00L0717CaaaD27CcccD37CdddD47CfffL5797CdddDa7CbbbDb7C999Dc7C111Dd7Cf00L0818CaaaD28CcccD38CdddD48CfffL5898CdddDa8CbbbDb8C999Dc8Cf00L0919C999D29CbbbD39CdddL4959CfffL6989CdddD99CcccDa9CbbbDb9C777Dc9Cf00L0a1aC777D2aCaaaD3aCcccD4aCdddL5a8aCcccD9aCbbbDaaC999DbaC444DcaCf00L0b1bC666D3bCbbbL4b9bC999DabC666DbbCf00L0c2cC666L3c4cC777D5cC999L6c8cC777D9cC444DacCf00L0d2dC111D7dCf00L0efeL0fff"{
 	run('URL...', 'url='+helpURL);
+}
+
+
+macro "process image (f9) Action Tool - C000T4b12p" {
+	processImage();
+}
+
+macro "process image [f9]" {
+	processImage();
+}
+
+
+macro " Action Tool - " {
 }
 
 macro "detect nuclei (f5) Action Tool - C000T4b12d" {
@@ -70,6 +83,10 @@ macro "filter above threshold (f6) Action Tool - C000T4b12f" {
 	filterAboveThreshold();
 }
 
+macro "filter above threshold [f6]" {
+	filterAboveThreshold();
+}
+
 macro "filter above threshold (f6) Action Tool Options" {
 	Dialog.create("Filter nuclei options");
 	Dialog.addNumber("signal channel: ", _SIGNAL_CHANNEL);
@@ -85,6 +102,42 @@ macro "cluster nuclei (f7) Action Tool - C000T4b12c" {
 	clusterNuclei(_MAX_DIST, _MIN_PTS);
 }
 
+macro "cluster nuclei [f7]" {
+	clusterNuclei(_MAX_DIST, _MIN_PTS);
+}
+
+macro "cluster nuclei (f7) Action Tool Options" {
+	Dialog.create("Clustering options");
+	Dialog.addNumber("max. distance: ", _MAX_DIST);
+	Dialog.addNumber("min. nr. points: ", _MIN_PTS);
+	Dialog.show();
+	_MAX_DIST = Dialog.getNumber();
+	_MIN_PTS = Dialog.getNumber();
+}
+
+macro "nearest neighbors (f8) Action Tool - C000T4b12n" {
+	calculateNearestNeighbors();
+}
+
+macro "nearest neighbors [f8]" {
+	calculateNearestNeighbors();
+}
+
+function processImage() {
+	totalNumberOfNuclei = 0;	  		// The total number of nuclei detected in the image
+	numberOfredNuclei = 0;		  		// The number of nuclei with a signal above the threshold in the red channel
+	numberOfClusters = 0;		  		// The number of clusters
+	numberOfNucleiInClusters = 0;  		// The number of nuclei that belong to a cluster
+	numberOfNucleiOutsideClusters = 0; 	// The number of nuclei outside of clusters 
+	meanNNDistAll = 0;					// The mean of the nearest neighbor distance for all nuclei (above the red threshold)
+	stdDevNNDistAll = 0;				// The standard deviation of the nearest neighbor distances
+	meanNNDistUnclustered = 0;			// The mean of the nearest neighbor distance for all unclustered nuclei
+	stdDevNNDistUnclustered = 0;		// The standard deviation of the nearest neighbor distances
+	meanNNDistClustered = 0;			// The mean of the nearest neighbor distance for all clustered nuclei.
+	stdDevNNDistClustered = 0;			// The standard deviation of the nearest neighbor distances
+	detectNuclei();
+	
+}
 function detectNuclei() {
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
@@ -135,11 +188,11 @@ function detectNuclei() {
 	Table.applyMacro("NR=row+1 ", "Results");
 	selectWindow("peaks");
 	setVoxelSize(width, height, depth, unit);
-	run("3D Manager");
-	Ext.Manager3D_AddImage();
-	selectImage(imageID);
-	Ext.Manager3D_Select(1);
-	Ext.Manager3D_Select(1);
+//	run("3D Manager");
+//	Ext.Manager3D_AddImage();
+//	selectImage(imageID);
+//	Ext.Manager3D_Select(1);
+//	Ext.Manager3D_Select(1);
 
 	if (_CREATE_RESULTS_CHANNEL) {
 		drawNuclei();
@@ -275,4 +328,30 @@ function clusterNuclei(maxDist, minPts) {
 	parameter = "maxDist="+maxDist+",minPts="+minPts;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
 	drawClusters();
+}
+
+function calculateNearestNeighbors() {
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/nearest_neighbor_distances_3D.py");
+	parameter = "";
+	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
+	drawNearestNeighborConnections();
+}
+
+function drawNearestNeighborConnections() {
+	tableName = "clusters";
+	Stack.getDimensions(width, height, channels, slices, frames);
+	size = Table.size("clusters");
+	for (row = 0; row < size; row++) {
+		x1 = Table.get("X", row, tableName);
+		y1 = Table.get("Y", row, tableName);
+		z1 = Table.get("Z", row, tableName);
+		neighbor = Table.get("neighbor", row, tableName)-1;
+		x2 = Table.get("X", neighbor, tableName);
+		y2 = Table.get("Y", neighbor, tableName);
+		z2 = Table.get("Z", neighbor, tableName);
+		toUnscaled(x1, y1, z1);
+		toUnscaled(x2, y2, z2);
+		run("3D Draw Line", "size_x="+width+" size_y="+height+" size_z="+slices+" x0="+x1+" y0="+y1+" z0="+z1+" x1="+x2+" y1="+y2+" z1="+z2+" thickness=1.000 value=65535 display=Overwrite");
+	}
 }

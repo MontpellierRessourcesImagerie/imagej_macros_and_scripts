@@ -4,8 +4,7 @@ from org.apache.commons.math3.ml.clustering import DoublePoint
 from org.apache.commons.math3.ml.clustering import DBSCANClusterer
 import jarray
 
-def run():
-	global maxDist, minPts
+def run(maxDist, minPts):
 	points = pointList3DFromRT()
 	clusterer = DBSCANClusterer(maxDist, minPts)
 	clusters = clusterer.cluster(points)
@@ -53,4 +52,4 @@ if 'getArgument' in globals():
 else:
   minPts = 5
   maxDist = 18
-run()
+run(maxDist, minPts)
