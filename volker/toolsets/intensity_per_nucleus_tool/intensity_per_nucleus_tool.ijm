@@ -185,7 +185,7 @@ function getChannelNames() {
 	channelString = parts[1];
 	parts = split(channelString, ")");
 	channelString = parts[0];
-	channelString = replace(channelString, " ", "")
+	channelString = replace(channelString, " ", "");
 	channelNames = split(channelString, "/");
 	return channelNames;
 }
