@@ -125,7 +125,7 @@ macro "nearest neighbors [f8]" {
 
 function processImage() {
 	totalNumberOfNuclei = 0;	  		// The total number of nuclei detected in the image
-	numberOfredNuclei = 0;		  		// The number of nuclei with a signal above the threshold in the red channel
+	numberOfRedNuclei = 0;		  		// The number of nuclei with a signal above the threshold in the red channel
 	numberOfClusters = 0;		  		// The number of clusters
 	numberOfNucleiInClusters = 0;  		// The number of nuclei that belong to a cluster
 	numberOfNucleiOutsideClusters = 0; 	// The number of nuclei outside of clusters 
@@ -135,9 +135,63 @@ function processImage() {
 	stdDevNNDistUnclustered = 0;		// The standard deviation of the nearest neighbor distances
 	meanNNDistClustered = 0;			// The mean of the nearest neighbor distance for all clustered nuclei.
 	stdDevNNDistClustered = 0;			// The standard deviation of the nearest neighbor distances
-	detectNuclei();
+
+	imageID = getImageID();
+	title = getTitle();
 	
+	print(title);
+
+	totalNumberOfNuclei = detectNuclei();
+	print("total number of nuclei: " + totalNumberOfNuclei);
+
+	numberOfRedNuclei = filterAboveThreshold();
+	print("number of nuclei above threshold ("+_THRESHOLD+") in red channel ("+_SIGNAL_CHANNEL+"): " + numberOfRedNuclei);
+
+	numberOfClusters = clusterNuclei(_MAX_DIST, _MIN_PTS);
+	print("number of clusters (maxDist="+_MAX_DIST+", minPts="+_MIN_PTS+"): " + numberOfClusters);
+
+	numberOfNucleiInClusters = Table.size("clusters");
+	print("number of nuclei in clusters: " + numberOfNucleiInClusters);
+	
+	numberOfNucleiOutsideClusters = numberOfRedNuclei - numberOfNucleiInClusters;
+	print("number of nuclei outside of clusters: " + numberOfNucleiOutsideClusters);
+
+	nnDistancesAll = calculateNearestNeighbors("Results");
+	Array.getStatistics(nnDistancesAll, min, max, meanNNDistAll, stdDevNNDistAll);
+	print("mean nn-distance all nuclei: " + meanNNDistAll); 
+	print("stdDev nn-distance all nuclei: " + stdDevNNDistAll); 
+
+	NNDistancesUnclustered = calculateNearestNeighbors("unclustered");
+	Array.getStatistics(NNDistancesUnclustered, min, max, meanNNDistUnclustered, stdDevNNDistUnclustered);
+	print("mean nn-distance unclustered nuclei: " + meanNNDistUnclustered); 
+	print("stdDev nn-distance unclustered nuclei: " + stdDevNNDistUnclustered); 
+
+	NNDistancesClustered = calculateNearestNeighbors("clusters");
+	Array.getStatistics(NNDistancesClustered, min, max, meanNNDistClustered, stdDevNNDistClustered);
+	print("mean nn-distance clustered nuclei: " + meanNNDistClustered); 
+	print("stdDev nn-distance clustered nuclei: " + stdDevNNDistClustered); 
+
+	tableTitle = "cluster analysis of nuclei";
+	if (!isOpen(tableTitle)) {
+		Table.create(tableTitle);
+	}else {
+		selectWindow(tableTitle);
+	}
+	row = Table.size;
+	Table.set("title", row, title);
+	Table.set("total nr. of nuclei", row, totalNumberOfNuclei);
+	Table.set("nr. of nuclei above thr.", row, numberOfRedNuclei);
+	Table.set("nr. of clusters", row, numberOfClusters);
+	Table.set("clustered", row, numberOfNucleiInClusters);
+	Table.set("unclustered", row, numberOfNucleiOutsideClusters);
+	Table.set("mean nn-distance all", row, meanNNDistAll);
+	Table.set("stddev. all", row, stdDevNNDistAll);
+	Table.set("mean nn-distance unclustered", row, meanNNDistUnclustered);
+	Table.set("stddev. unclustered", row, stdDevNNDistUnclustered);
+	Table.set("mean nn-distance clustered", row, meanNNDistClustered);
+	Table.set("stddev. clustered", row, stdDevNNDistClustered);
 }
+
 function detectNuclei() {
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
@@ -188,11 +242,6 @@ function detectNuclei() {
 	Table.applyMacro("NR=row+1 ", "Results");
 	selectWindow("peaks");
 	setVoxelSize(width, height, depth, unit);
-//	run("3D Manager");
-//	Ext.Manager3D_AddImage();
-//	selectImage(imageID);
-//	Ext.Manager3D_Select(1);
-//	Ext.Manager3D_Select(1);
 
 	if (_CREATE_RESULTS_CHANNEL) {
 		drawNuclei();
@@ -207,6 +256,7 @@ function detectNuclei() {
 	close();
 	selectImage(imageID);
 	close();
+	return X.length;
 }
 
 function drawClusters() {
@@ -222,7 +272,7 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	newImage(nameOfTable + "-indexed-mask", "16-bit black", width, height, slices);
 	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
-	Table.sort("Z");
+	Table.sort("Z", nameOfTable);
 	X = Table.getColumn("X", nameOfTable);
 	Y = Table.getColumn("Y", nameOfTable);
 	Z = Table.getColumn("Z", nameOfTable);
@@ -250,7 +300,7 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 		}
 	}
 	run(_LOOKUP_TABLE);
-	Table.sort("NR");
+	Table.sort("NR", nameOfTable);
 }
 
 function filterAboveThreshold() {
@@ -289,18 +339,19 @@ function filterAboveThreshold() {
 	if (_CREATE_RESULTS_CHANNEL) {
 		drawNuclei();
 		selectImage(inputStackID);
-		run("To ROI Manager");
+//		run("To ROI Manager");
 		run("Split Channels");
-		run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[Results-indexed-mask] create ");
-		run("From ROI Manager");
+		run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=[Results-indexed-mask] create ");
+//		run("From ROI Manager");
 	}
+	return XN.length;
 }
 
 function measureIntensityInOtherChannel() {
 	X = Table.getColumn("X", "Results");
 	Y = Table.getColumn("Y", "Results");
 	Z = Table.getColumn("Z", "Results");
-	Table.sort("Z");
+	Table.sort("Z", "Results");
 	Overlay.remove;
 	for (i = 0; i < X.length; i++) {
 		x = X[i];
@@ -323,23 +374,32 @@ function measureIntensityInOtherChannel() {
 }
 
 function clusterNuclei(maxDist, minPts) {
+	inputStackID = getImageID();
+	inputStackTitle = getTitle();
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/dbscan_clustering_3D.py");
 	parameter = "maxDist="+maxDist+",minPts="+minPts;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
 	drawClusters();
+	selectImage(inputStackID);
+	run("Split Channels");
+	run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=clusters-indexed-mask");
+	C = Table.getColumn("C", "clusters");
+	ranks = Array.rankPositions(C);
+	nrOfClusters = C[ranks[ranks.length-1]];
+	return nrOfClusters;
 }
 
-function calculateNearestNeighbors() {
+function calculateNearestNeighbors(tableName) {
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/nearest_neighbor_distances_3D.py");
-	parameter = "";
+	parameter = "tableName="+tableName;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
-	drawNearestNeighborConnections();
+	nnDistances = Table.getColumn("nn. dist", tableName);
+	return nnDistances;
 }
 
-function drawNearestNeighborConnections() {
-	tableName = "clusters";
+function drawNearestNeighborConnections(tableName) {
 	Stack.getDimensions(width, height, channels, slices, frames);
 	size = Table.size("clusters");
 	for (row = 0; row < size; row++) {

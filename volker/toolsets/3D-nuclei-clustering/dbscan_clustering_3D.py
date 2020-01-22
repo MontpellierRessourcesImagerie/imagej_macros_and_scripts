@@ -42,6 +42,38 @@ def reportClustersAsTable(clusters):
 			counter = counter + 1;
 		clusterCounter = clusterCounter + 1
 	rt.show("clusters")
+	win = WindowManager.getWindow("Results")
+	rt = win.getResultsTable()
+	X = rt.getColumn(0)
+	Y = rt.getColumn(1)
+	Z = rt.getColumn(2)
+	NR = rt.getColumn(4)
+	
+	allPoints = list(zip(NR,X,Y,Z))
+	
+	win = WindowManager.getWindow("clusters")
+	rt = win.getResultsTable()
+	XC = rt.getColumn(1)
+	YC = rt.getColumn(2)
+	ZC = rt.getColumn(3)
+	
+	clusteredPoints = list(zip(XC,YC,ZC))
+	
+	unclusteredPoints = [point for point in allPoints if (point[1], point[2], point[3]) not in clusteredPoints] 
+	
+	counter = 1;
+	rt = ResultsTable()
+	for p in unclusteredPoints:
+		rt.incrementCounter()
+		rt.addValue("NR", counter)
+		rt.addValue("X", p[1])
+		rt.addValue("Y", p[2])
+		rt.addValue("Z", p[3])
+		counter = counter + 1;
+	
+	rt.show("unclustered")
+	WindowManager.setWindow(win)
+
 
 if 'getArgument' in globals():
   del zip 	# the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
