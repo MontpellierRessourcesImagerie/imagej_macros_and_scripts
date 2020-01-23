@@ -26,6 +26,7 @@ def calculateNNDsByCluster(tableName):
 	points.sort(key = itemgetter(4))
 	groups = groupby(points, itemgetter(4))
 	clusters = [[(item[1], item[2], item[3], item[0]) for item in data] for (key, data) in groups]
+	offset = 0;
 	for cluster in clusters:
 		dplist = []
 		for nr, x, y, z in cluster:
@@ -43,8 +44,9 @@ def calculateNNDsByCluster(tableName):
 		for point in cluster:
 			row = int(point[3]) - 1
 			rt.setValue("nn. dist", row, nearestNeighborsDist[index])
-			rt.setValue("neighbor", row, nearestNeighborsInd[index]+1)
+			rt.setValue("neighbor", row, nearestNeighborsInd[index]+1+offset)
 			index = index + 1
+		offset = offset + len(cluster);
 	win.rename("tmp")
 	win.rename(tableName)
 		

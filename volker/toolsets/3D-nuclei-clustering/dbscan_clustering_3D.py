@@ -1,4 +1,4 @@
-from ij import IJ
+from ij import IJ, WindowManager
 from ij.measure import ResultsTable
 from org.apache.commons.math3.ml.clustering import DoublePoint
 from org.apache.commons.math3.ml.clustering import DBSCANClusterer

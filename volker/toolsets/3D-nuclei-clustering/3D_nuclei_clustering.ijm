@@ -28,6 +28,9 @@ var _THRESHOLD = 900;
 // parameters for the clustering of the nuclei
 var _MAX_DIST = 18;
 var _MIN_PTS = 5;
+// parameters for batch processing
+var _FILE_EXTENSION = "ims";
+var _SERIES = "series_2"
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
@@ -42,14 +45,30 @@ macro "3D nuclei clustering tool help (f4) Action Tool - Cf00L0010Le0f0L0111C555
 }
 
 
-macro "process image (f9) Action Tool - C000T4b12p" {
+macro "process image (f2) Action Tool - C000T4b12p" {
 	processImage();
 }
 
-macro "process image [f9]" {
+macro "process image [f2]" {
 	processImage();
 }
 
+macro "run batch analysis (f3) Action Tool - C000T4b12b" {
+	batchProcessImages();
+}
+
+macro "run batch analysis [f3]" {
+	batchProcessImages();
+}
+
+macro "run batch analysis (f3) Action Tool Options" {
+	Dialog.create("Batch processing options");
+	Dialog.addString("image file-extension: ", _FILE_EXTENSION);
+	Dialog.addString("name of image series (empty if none): ", _SERIES);
+	Dialog.show();
+	_FILE_EXTENSION = Dialog.getString();
+	_SERIES = Dialog.getString();
+}
 
 macro " Action Tool - " {
 }
@@ -69,6 +88,7 @@ macro "detect nuclei (f5) Action Tool Options" {
 	Dialog.addNumber("radius z: ", _RADIUS_Z);
 	Dialog.addNumber("noise: ", _NOISE);
 	Dialog.addCheckbox("exclude on edges ", _EXCLUDE_ON_EDGES);
+	Dialog.addNumber("nuclei channel: ", _NUCLEI_CHANNEL);
 	Dialog.addCheckbox("create results channel ", _CREATE_RESULTS_CHANNEL);
 	Dialog.show();
 	_SCALE = Dialog.getNumber();
@@ -76,6 +96,7 @@ macro "detect nuclei (f5) Action Tool Options" {
 	_RADIUS_Z = Dialog.getNumber();
 	_NOISE = Dialog.getNumber();
 	_EXCLUDE_ON_EDGES = Dialog.getCheckbox();
+	_NUCLEI_CHANNEL = Dialog.getNumber();
 	_CREATE_RESULTS_CHANNEL = Dialog.getCheckbox();
 }
 
@@ -116,11 +137,81 @@ macro "cluster nuclei (f7) Action Tool Options" {
 }
 
 macro "nearest neighbors (f8) Action Tool - C000T4b12n" {
-	calculateNearestNeighbors();
+	winTitle = getInfo("window.title");
+	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
+		calculateNearestNeighbors(winTitle);
+	} else {
+		showMessage("Please select a table (clusters, unclustered or Results)!");
+	}
 }
 
 macro "nearest neighbors [f8]" {
-	calculateNearestNeighbors();
+	winTitle = getInfo("window.title");
+	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
+		calculateNearestNeighbors(winTitle);
+	} else {
+		showMessage("Please select a table (clusters, unclustered or Results)!");
+	}
+}
+
+macro "visualize nn_connections (f11) Action Tool - C000T4b12v;" {
+	winTitle = getInfo("window.title");
+	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
+		drawNearestNeighborConnections(winTitle);
+	} else {
+		showMessage("Please select a table (clusters, unclustered or Results)!");
+	}
+}
+
+macro "visualize nn-connections [f11]" {
+	winTitle = getInfo("window.title");
+	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
+		drawNearestNeighborConnections(winTitle);
+	} else {
+		showMessage("Please select a table (clusters, unclustered or Results)!");
+	}
+}
+
+function batchProcessImages() {
+	inputFolder = getDirectory("Choose the input folder!");
+	files = getFileList(inputFolder);
+	images = filterImages(files, _FILE_EXTENSION);
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	ctrlFolder = inputFolder + "clustering-"+year+"-"+month+"-"+dayOfMonth+"-"+hour+"_"+minute+"_"+second+"/";
+	if (images.length > 0 && !File.exists(ctrlFolder)) {
+		File.makeDirectory(ctrlFolder)
+	}
+	for (i = 0; i < images.length; i++) {
+		image = images[i];
+		path = inputFolder + image;
+		run("Bio-Formats Importer", "open="+path+" color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+_SERIES);
+		imageID = getImageID();
+		title = getTitle();
+		processImage();
+		saveAs("tiff", ctrlFolder + title);
+		close();
+		selectWindow("unclustered");
+		saveAs("results", ctrlFolder + "unclustered-" + title+".xls");
+		selectWindow("clusters");
+		saveAs("results", ctrlFolder + "clusters-" + title+".xls");
+		selectWindow("Results");
+		saveAs("results", ctrlFolder + "above_thr-" + title+".xls");		
+	}
+	selectWindow("Log");
+	saveAs("text", ctrlFolder + "Log.txt");
+	selectWindow("cluster analysis of nuclei");
+	saveAs("results", ctrlFolder + "results.xls");
+}
+
+function filterImages(files, ext) {
+	images = newArray();
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (endsWith(file, "."+ext)) {
+			images = Array.concat(images, file);
+		}
+	}
+	return images;
 }
 
 function processImage() {
@@ -140,7 +231,28 @@ function processImage() {
 	title = getTitle();
 	
 	print(title);
-
+	print("parameter values:");
+	print("-----------------");
+	print("detect nuclei:");
+	print("---");
+	print("scale: \t" + _SCALE);
+	print("radius xy: \t" + _RADIUS_XY);
+	print("radius z: \t" + _RADIUS_Z);
+	print("noise: \t" + _NOISE);
+	print("excluse on edges: \t" + _EXCLUDE_ON_EDGES);
+	print("nuclei channel \t" + _NUCLEI_CHANNEL);
+	print("---");
+	print("filtering:");
+	print("---");
+	print("signal channel: \t" + _SIGNAL_CHANNEL);
+	print("radius: \t" + _RADIUS_MEASUREMENT);
+	print("threshold: \t" + _THRESHOLD);
+	print("---");
+	print("dbscan clustering:");
+	print("---");
+	print("max. distance: \t" + _MAX_DIST);
+	print("min nr. of points: \t" + _MIN_PTS);
+	print("-----------------");
 	totalNumberOfNuclei = detectNuclei();
 	print("total number of nuclei: " + totalNumberOfNuclei);
 
@@ -242,14 +354,10 @@ function detectNuclei() {
 	Table.applyMacro("NR=row+1 ", "Results");
 	selectWindow("peaks");
 	setVoxelSize(width, height, depth, unit);
-
 	if (_CREATE_RESULTS_CHANNEL) {
 		drawNuclei();
-		selectImage(inputStackID);
-		run("Split Channels");
-		run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[Results-indexed-mask] create ");
+		addImageAtEndOfStack(inputStackID, "Results-indexed-mask");		
 	}
-
 	selectImage(filteredID);
 	close();
 	selectImage(peaksID);
@@ -257,6 +365,19 @@ function detectNuclei() {
 	selectImage(imageID);
 	close();
 	return X.length;
+}
+
+function addImageAtEndOfStack(stackID, title) {
+	selectImage(stackID);
+	stackTitle = getTitle();
+	Stack.getDimensions(width, height, channels, slices, frames);
+	run("Split Channels");
+	mergeString = "";
+	for (i = 0; i < channels; i++) {
+		mergeString += "c"+(i+1)+"=[C"+(i+1)+"-"+stackTitle+"] ";
+	}
+	mergeString += "c"+(channels+1)+"=["+title+"] create ";
+	run("Merge Channels...", mergeString);
 }
 
 function drawClusters() {
@@ -278,7 +399,7 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 	Z = Table.getColumn("Z", nameOfTable);
 	if (nameOfColorColumn != "none"){
 		C = Table.getColumn(nameOfColorColumn, nameOfTable);
-		Table.sort(nameOfColorColumn);
+		Table.sort(nameOfColorColumn, nameOfTable);
 	}
 	if (nameOfColorColumn != "none") {
 		for (i = 0; i < X.length; i++) {
@@ -380,10 +501,10 @@ function clusterNuclei(maxDist, minPts) {
 	script = File.openAsString(macrosDir + "/toolsets/dbscan_clustering_3D.py");
 	parameter = "maxDist="+maxDist+",minPts="+minPts;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
-	drawClusters();
-	selectImage(inputStackID);
-	run("Split Channels");
-	run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=clusters-indexed-mask");
+	if (_CREATE_RESULTS_CHANNEL) {
+		drawClusters();
+		addImageAtEndOfStack(inputStackID, "clusters-indexed-mask");		
+	}
 	C = Table.getColumn("C", "clusters");
 	ranks = Array.rankPositions(C);
 	nrOfClusters = C[ranks[ranks.length-1]];
@@ -400,8 +521,12 @@ function calculateNearestNeighbors(tableName) {
 }
 
 function drawNearestNeighborConnections(tableName) {
+	inputStackID = getImageID();
 	Stack.getDimensions(width, height, channels, slices, frames);
-	size = Table.size("clusters");
+	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	size = Table.size(tableName);
+	newImage(tableName + "-neighbors", "16-bit black", width, height, slices);
+	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	for (row = 0; row < size; row++) {
 		x1 = Table.get("X", row, tableName);
 		y1 = Table.get("Y", row, tableName);
@@ -414,4 +539,5 @@ function drawNearestNeighborConnections(tableName) {
 		toUnscaled(x2, y2, z2);
 		run("3D Draw Line", "size_x="+width+" size_y="+height+" size_z="+slices+" x0="+x1+" y0="+y1+" z0="+z1+" x1="+x2+" y1="+y2+" z1="+z2+" thickness=1.000 value=65535 display=Overwrite");
 	}
+	addImageAtEndOfStack(inputStackID, tableName+"-neighbors");	
 }
