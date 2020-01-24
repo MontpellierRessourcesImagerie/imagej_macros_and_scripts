@@ -22,6 +22,8 @@ var _PROMINENCE_OF_MAXIMA = 250;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 
+var _CHANNEL = 1;
+
 var _FILE_EXTENSION = "tif";
 
 measureFociPerNucleus();
@@ -46,6 +48,8 @@ macro "measure foci per nucleus (f5) Action Tool - C000T4b12m" {
 
 macro "measure foci per nucleus (f5) Action Tool Options" {
 	Dialog.create("Measure Foci Options");
+	Dialog.addMessage("Image:");
+	Dialog.addNumber("channel: ", _CHANNEL);
 	Dialog.addMessage("Foci area thresholds:");
 	Dialog.addNumber("threshold one: ", _THRESHOLD_1);
 	Dialog.addNumber("threshold two: ", _THRESHOLD_2);
@@ -59,6 +63,8 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	Dialog.addChoice("foci thresholding method: ", _THRESHOLDING_METHODS, _FOCI_THRESHOLDING_METHOD);
 	
 	Dialog.show();
+
+	_CHANNEL = Dialog.getNumber();
 	
 	_THRESHOLD_1 = Dialog.getNumber();
 	_THRESHOLD_2 = Dialog.getNumber();
@@ -97,9 +103,9 @@ function batchMeasureFociPerNucleus() {
 	for (i = 0; i < images.length; i++) {
 		image = images[i];
 		print("\\Update1: processing file " + (i+1) + " of " + images.length);
-		open(dir + File.separator + image);
+		run("Bio-Formats Importer", "open=["+dir + File.separator + image+"] autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 		measureFociPerNucleus();
-		save(dir + File.separator+"out" + File.separator + image);
+		save(dir + File.separator+"out" + File.separator + File.nameWithoutExtension + ".tif");
 		close();
 	}
 	Table.save(dir + File.separator + "Nuclei.xls", "Nuclei");
@@ -204,6 +210,11 @@ function measureFociPerNucleus() {
 	setForegroundColor(255,255,255);
 	setBackgroundColor(0,0,0);
 	roiManager("reset");
+	Stack.getDimensions(width, height, channels, slices, frames);
+	if (channels>1) {
+		Stack.setSlice(_CHANNEL);
+		run("Duplicate...", " ");
+	}
 	inputImageID = getImageID();
 	run("Remove Overlay");
 	roiManager("reset");
@@ -254,6 +265,11 @@ function measureFociPerNucleus() {
 	}
 	selectImage(maskID);
 	close();
+	if (channels>1) {
+		run("To ROI Manager");
+		close();
+		run("From ROI Manager");
+	}
 	reportResults();
 }
 
@@ -265,7 +281,7 @@ function selectNuclei() {
 	run("Fill Holes");
 	run("Watershed");
 	run("Scale...", "x="+_SCALE_FACTOR+" y="+_SCALE_FACTOR+" interpolation=Bilinear create title=big_tmp");
-	setAutoThreshold(_THRESHOLDING_METHOD);
+	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
 	roiManager("reset");
 	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity circularity=0.00-1.00 show=Nothing add exclude");
 	selectWindow("small_tmp");
