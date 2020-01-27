@@ -346,7 +346,7 @@ function cropCenterCell() {
 	setAutoThreshold("Li dark");
 	run("Convert to Mask");
 	run("Fill Holes");
-	run("Analyze Particles...", "size=0.005-Infinity exclude add");
+	run("Analyze Particles...", "size="+_MIN_CELL_SIZE+"-Infinity exclude add");
 	count = roiManager("count");
 	if (count==0) return false;
 	minDist = getWidth()+getHeight();
