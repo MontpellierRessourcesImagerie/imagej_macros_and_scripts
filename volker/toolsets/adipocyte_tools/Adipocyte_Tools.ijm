@@ -3,17 +3,22 @@
   * 
   * The Adipocytes Tools help to analyze fat cells in images from histological sections.
   * 
-  * written 2012-2016 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
+  * (c) 2020, INSERM
+  * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+  * 
   * in collaboration with Matthieu Lacroix and Patricia Cavelier
   */
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Adipocytes-Tools"
-var preMinSize = 40;
+
+// Preprocessing options
+var preMinSize = 80;
 var preMaxSize = 20000;
 var preThresholdMethod = "Percentile";
 var preNumberOfDilates = 10;
 var preRemoveScale = true;
 
+// Simple segmentation options
 var simpleMinSize = 40;
 var simpleMaxSize = 6000;
 var simpleThresholdMethod = "Huang";
@@ -22,6 +27,7 @@ var simpleFindEdges = true;
 var simpleClearBackground = true;
 var simpleRemoveScale = true
 
+// Watershed segmentation options
 var waterMinSize = 50;
 var waterMaxSize = 20000;
 var waterSigma = 4;
@@ -29,22 +35,23 @@ var waterFindEdges = true;
 var waterClearBackground = true;
 var waterRemoveScale = true;
 
+// Large magnification segmentation options
 var largeMinSize = 10000;
 var largeMaxSize = "Infinity";
 var largeRemoveScale = true;
 var largeNumberOfErodes = 3;
 
+// Internal variables to set and reset the colors
 var oldForeground;
 var oldBackground;
 
-macro "Unused Tool - C037" { }
+// <run a function here>
+exit();
 
-macro "Adipocytes Tools Help Action Tool - C98aD00D01D02D03D04D05D06D07D08D09D0aD4fDd0De0Df8Df9CfffD1dD29D2eD34D49D51D56D6cD85D8bD9aDa1Dc6DdaDe2CddeD14D15D16D17D18D1cD2aD2dD4aD5dD5eD62D65D66D67D68D72D75D76D77D82D83D84D8aD92D93D94D98D99Da2Da3Da7Da8Da9Db1Db7Db8Db9Dc7Dc8Dc9CfffD0bD0cD0dD0eD0fD10D1eD1fD20D24D25D26D27D28D2fD30D35D36D37D38D39D3fD40D45D46D47D48D50D57D58D5fD60D61D6dD6eD6fD70D71D7cD7dD7eD7fD80D81D8cD8dD8eD8fD90D91D95D96D9bD9cD9dD9eD9fDa0Da5Da6DaaDabDacDadDaeDafDb0Db5Db6DbaDbbDbcDbdDbeDbfDc0DcaDcbDccDcdDceDcfDdbDdcDddDdeDdfDebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7DfaDfbDfcDfdDfeDffCccdD13D19D21D22D31D33D3eD42D43D4eD52D5aD5cD63D6bD73D78D7aD87Db3Dc1Dc4Dd1Dd2Dd3Dd5Dd6Dd9De4De5De6CeeeD23D3aD41D44D55D59D7bD86D97Da4Db4Dc5De1De3DeaCcbcD1aD1bD2bD2cD32D3bD4bD4dD53D54D5bD64D69D6aD74D79D88D89Db2Dc2Dc3Dd4Dd7Dd8De7De9CaabD11D12D3cD3dD4cDe8"{
-	run('URL...', 'url='+helpURL);
-}
+// Main functions start
 
-macro "Preprocessing Clear Background Action Tool - C000T4b12p" {
-    setBatchMode(true);
+// <p> - preprocessing clear background
+function preProcessImage() {
     roiManager("reset");
     storeColors();
     setWhiteOnBlack();
@@ -53,18 +60,41 @@ macro "Preprocessing Clear Background Action Tool - C000T4b12p" {
     resetColors();
     setBatchMode("exit and display");
     if (isOpen("Results")) {
-	selectWindow("Results");
-	run("Close");
+		selectWindow("Results");
+		run("Close");
     }
 }
 
-macro "Simple Adipocytes Segmentation Action Tool- C000T4b12s" {
-    run("ROI Manager...");
+function clearBackground(minSize, maxSize, thresholdMethod,  numberOfDilates, keepSelection) {
+	run("Duplicate...", " ");
+    saveSettings();
+    setOption("black background", false);
+    title = getTitle();
+    run("Find Edges");
+    run("8-bit");
+    run("Smooth");
+    run("Invert");
+    setAutoThreshold(thresholdMethod + " dark");
+    run("Analyze Particles...", "size="+minSize+"-"+maxSize+" circularity=0.00-1.00 show=Masks exclude in_situ");
+    run("Create Selection");
+    run("Enlarge...", "enlarge=" + numberOfDilates);
+    close();
+    run("Restore Selection");
+    run("Clear Outside");
+    roiManager("reset");
+    if (!keepSelection) run("Select None");
+    restoreSettings();
+}
+
+// <s> - simple adipocytes segmentation
+function simpleSegmentation() {
+	run("Duplicate...", " ");
+	run("ROI Manager...");
     roiManager("Show All with labels");
     setBatchMode(true);
     roiManager("reset");
     storeColors();
-   setWhiteOnBlack();
+    setWhiteOnBlack();
     if (simpleRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
     if (simpleUseBinaryWatershed && simpleClearBackground) clearBackground(preMinSize, preMaxSize, preThresholdMethod, preNumberOfDilates, true);
     if (simpleRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
@@ -79,18 +109,20 @@ macro "Simple Adipocytes Segmentation Action Tool- C000T4b12s" {
     if (simpleUseBinaryWatershed) run("Watershed");
     run("Clear Results");
     run("Analyze Particles...", "size="+simpleMinSize+"-"+simpleMaxSize+" circularity=0.00-1.00 show=Nothing add exclude");
-    run("Revert");
-     if (simpleRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
+    close();
+    if (simpleRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
     resetColors();
     setBatchMode("exit and display");
     if (isOpen("Results")) {
 	    selectWindow("Results");
 	    run("Close");
    }
-    roiManager("Show All with labels");
+   roiManager("Show All with labels");
 }
 
-macro "Watershed Adipocytes Segmentation Action Tool- C000T4b12w" {
+// <w> - watershed adipocytes segmentation
+function watershedAdipocytesSegmentation() {
+   run("Duplicate...", " ");	
    run("ROI Manager...");
    roiManager("Show All with labels");
    setBatchMode(true);
@@ -115,10 +147,10 @@ macro "Watershed Adipocytes Segmentation Action Tool- C000T4b12w" {
    setThreshold(1, 255);
    run("Convert to Mask");
    run("Clear Results");
-    run("Analyze Particles...", "size="+waterMinSize+"-"+waterMaxSize+" circularity=0.00-1.00 show=Nothing add exclude");
+   run("Analyze Particles...", "size="+waterMinSize+"-"+waterMaxSize+" circularity=0.00-1.00 show=Nothing add exclude");
    selectImage(titleResult); 
    close();
-   run("Revert");
+   close();
    if (waterRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
    resetColors();
    setBatchMode("exit and display");
@@ -129,7 +161,9 @@ macro "Watershed Adipocytes Segmentation Action Tool- C000T4b12w" {
    roiManager("Show All with labels");
 }
 
-macro "Large Magnification Adipocytes Segmentation Action Tool- C000T4b12l" {
+// <l> - large magnification adipocytes segmentation
+function largeMagnificationSegmentation() {
+   run("Duplicate...", " ");	
    run("ROI Manager...");
    roiManager("Show All with labels");
    setBatchMode(true);
@@ -153,7 +187,7 @@ macro "Large Magnification Adipocytes Segmentation Action Tool- C000T4b12l" {
     run("Select None");
     run("Analyze Particles...", "size="+largeMinSize+"-"+largeMaxSize+" exclude add");
 
-   run("Revert");
+   close();
    if (largeRemoveScale) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
    resetColors();
    setBatchMode("exit and display");
@@ -163,8 +197,64 @@ macro "Large Magnification Adipocytes Segmentation Action Tool- C000T4b12l" {
    }
    roiManager("Show All with labels");
 }
+// Main functions end
 
-macro "Preprocessing Clear Background Action Tool Options" {
+// Macros tools
+macro "Adipocytes Tools Help (f1) Action Tool - C98aD00D01D02D03D04D05D06D07D08D09D0aD4fDd0De0Df8Df9CfffD1dD29D2eD34D49D51D56D6cD85D8bD9aDa1Dc6DdaDe2CddeD14D15D16D17D18D1cD2aD2dD4aD5dD5eD62D65D66D67D68D72D75D76D77D82D83D84D8aD92D93D94D98D99Da2Da3Da7Da8Da9Db1Db7Db8Db9Dc7Dc8Dc9CfffD0bD0cD0dD0eD0fD10D1eD1fD20D24D25D26D27D28D2fD30D35D36D37D38D39D3fD40D45D46D47D48D50D57D58D5fD60D61D6dD6eD6fD70D71D7cD7dD7eD7fD80D81D8cD8dD8eD8fD90D91D95D96D9bD9cD9dD9eD9fDa0Da5Da6DaaDabDacDadDaeDafDb0Db5Db6DbaDbbDbcDbdDbeDbfDc0DcaDcbDccDcdDceDcfDdbDdcDddDdeDdfDebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7DfaDfbDfcDfdDfeDffCccdD13D19D21D22D31D33D3eD42D43D4eD52D5aD5cD63D6bD73D78D7aD87Db3Dc1Dc4Dd1Dd2Dd3Dd5Dd6Dd9De4De5De6CeeeD23D3aD41D44D55D59D7bD86D97Da4Db4Dc5De1De3DeaCcbcD1aD1bD2bD2cD32D3bD4bD4dD53D54D5bD64D69D6aD74D79D88D89Db2Dc2Dc3Dd4Dd7Dd8De7De9CaabD11D12D3cD3dD4cDe8"{
+	run('URL...', 'url='+helpURL);
+}
+
+macro "Preprocessing Clear Background (f2) Action Tool - C000T4b12p" {
+	preProcessImage();
+}
+
+macro "Simple Adipocytes Segmentation (f3) Action Tool- C000T4b12s" {
+	simpleSegmentation();
+}
+
+macro "Watershed Adipocytes Segmentation (f4) Action Tool- C000T4b12w" {
+	watershedAdipocytesSegmentation();
+}
+
+macro "Large Magnification Adipocytes Segmentation (f5) Action Tool- C000T4b12l" {
+	largeMagnificationSegmentation();
+}
+
+// Extras menu
+   var extraCmds = newMenu("Extras Menu Tool",
+      newArray("Download example image","Open help page"));
+      
+   macro "Extras Menu Tool - C000T4b12e" {
+       cmd = getArgument();
+       if (cmd=="Download example image")
+           open("http://dev.mri.cnrs.fr/attachments/190/0178_x5_3.tif");
+       else if (cmd=="Open help page")
+           run('URL...', 'url='+helpURL);
+   }
+
+// keyboard shortcuts
+macro 'Adipocytes Tools Help [f1]' {
+	 run('URL...', 'url='+helpURL);
+}
+
+macro 'Preprocessing Clear Background [f2]' {
+	preProcessImage();
+}
+
+macro 'Simple Adipocytes Segmentation [f3]' {
+	simpleSegmentation();
+}
+
+macro 'Watershed Adipocytes Segmentation [f4]' {
+	watershedAdipocytesSegmentation();
+}
+
+macro 'Large Magnification Adipocytes Segmentation [f5]' {
+	largeMagnificationSegmentation();
+}
+
+// Option dialogs
+macro "Preprocessing Clear Background (f2) Action Tool Options" {
         Dialog.create("Preprocessing Adipocytes Segmentation Options");
         Dialog.addNumber("min. size", preMinSize);	
         Dialog.addNumber("max. size", preMaxSize);
@@ -179,7 +269,7 @@ macro "Preprocessing Clear Background Action Tool Options" {
         preRemoveScale = Dialog.getCheckbox();
 }
 
-macro "Simple Adipocytes Segmentation Action Tool Options" {
+macro "Simple Adipocytes Segmentation (f3) Action Tool Options" {
        Dialog.create("Simple Adipocytes Segmentation Options");
        Dialog.addNumber("min. size", simpleMinSize);	
        Dialog.addNumber("max. size", simpleMaxSize);
@@ -198,7 +288,7 @@ macro "Simple Adipocytes Segmentation Action Tool Options" {
        simpleRemoveScale = Dialog.getCheckbox();
 }
 
-macro "Watershed Adipocytes Segmentation Action Tool Options" {
+macro "Watershed Adipocytes Segmentation (f4) Action Tool Options" {
         Dialog.create("Watershed Adipocytes Segmentation Options");
         Dialog.addNumber("min. size", waterMinSize);	
         Dialog.addNumber("max. size", waterMaxSize);
@@ -215,7 +305,7 @@ macro "Watershed Adipocytes Segmentation Action Tool Options" {
         waterRemoveScale = Dialog.getCheckbox();
 }
 
-macro "Large Magnification Adipocytes Segmentation Action Tool Options" {
+macro "Large Magnification Adipocytes Segmentation (f5) Action Tool Options" {
         Dialog.create("Large Magnification Adipocytes Segmentation Options");
         Dialog.addNumber("min. size", largeMinSize);	
         Dialog.addNumber("max. size", largeMaxSize);
@@ -228,25 +318,7 @@ macro "Large Magnification Adipocytes Segmentation Action Tool Options" {
         largeRemoveScale = Dialog.getCheckbox();
 }
 
-function clearBackground(minSize, maxSize, thresholdMethod,  numberOfDilates, keepSelection) {
-    saveSettings();
-    setOption("black background", false);
-    title = getTitle();
-    run("Find Edges");
-    run("8-bit");
-    run("Smooth");
-    run("Invert");
-    setAutoThreshold(thresholdMethod + " dark");
-    run("Analyze Particles...", "size="+minSize+"-"+maxSize+" circularity=0.00-1.00 show=Masks exclude in_situ");
-    run("Create Selection");
-    run("Enlarge...", "enlarge=" + numberOfDilates);
-    run("Revert");
-    run("Clear Outside");
-    roiManager("reset");
-    if (!keepSelection) run("Select None");
-    restoreSettings();
-}
-
+// helper functions
 function storeColors() {
        oldForeground = getValue("color.foreground");
        oldBackground = getValue("color.background");
@@ -256,7 +328,6 @@ function setWhiteOnBlack() {
     setForegroundColor(255,255,255);
     setBackgroundColor(0,0,0);
 }
-
 
 function setBlackOnWhite() {
     setForegroundColor(0,0,0);
@@ -268,7 +339,3 @@ function resetColors() {
     setBackgroundColor((oldBackground>>16)&0xff, (oldBackground>>8)&0xff, oldBackground&0xff);
 }
 
-function emptyRoiManager() {
-    roiManager("Deselect");
-    if (roiManager("count")>0) roiManager("Delete");
-}
