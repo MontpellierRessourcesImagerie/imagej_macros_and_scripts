@@ -142,7 +142,7 @@ function createSurfaceImage() {
 	imageID = getImageID();
 	findCell();
 	Overlay.copy;
-	removeChannels();
+	removeChannels(channels);
 	run("Split Channels");
 	getVoxelSize(width, height, depth, unit);
 	for (i = 2; i > 0; i--) {
@@ -173,16 +173,18 @@ function createSurfaceImage() {
 	setMetadata("original_nr_of_slices", toString(slices));
 }
 
-function removeChannels() {
+function removeChannels(channels) {
 	channelsToBeDeleted = newArray(0);
 	for(i=1; i<=channels; i++) {
 		if (i!=_RED_CHANNEL && i!=_BLUE_CHANNEL) {
 			channelsToBeDeleted = Array.concat(channelsToBeDeleted,i);
 		}
 	}
+	counter = 0;
 	for(i=0; i<channelsToBeDeleted.length; i++) {
-		Stack.setChannel(channelsToBeDeleted[i]);
+		Stack.setChannel(channelsToBeDeleted[i]-counter);
 		run("Delete Slice", "delete=channel");
+		counter++;
 	}
 }
 
