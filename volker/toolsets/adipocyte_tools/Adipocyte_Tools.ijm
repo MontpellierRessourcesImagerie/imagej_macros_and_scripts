@@ -45,7 +45,8 @@ var largeNumberOfErodes = 3;
 var oldForeground;
 var oldBackground;
 
-// <run a function here>
+// run a function here:
+
 exit();
 
 // Main functions start
@@ -73,13 +74,13 @@ function clearBackground(minSize, maxSize, thresholdMethod,  numberOfDilates, ke
     run("Find Edges");
     run("8-bit");
     run("Smooth");
-    run("Invert");
-    setAutoThreshold(thresholdMethod + " dark");
+    setAutoThreshold(thresholdMethod);
     run("Analyze Particles...", "size="+minSize+"-"+maxSize+" circularity=0.00-1.00 show=Masks exclude in_situ");
     run("Create Selection");
-    run("Enlarge...", "enlarge=" + numberOfDilates);
+    run("Enlarge...", "enlarge=" + numberOfDilates + " pixel");
+    roiManager("Add");
     close();
-    run("Restore Selection");
+    roiManager("select", 0);
     run("Clear Outside");
     roiManager("reset");
     if (!keepSelection) run("Select None");
@@ -338,4 +339,3 @@ function resetColors() {
     setForegroundColor((oldForeground>>16)&0xff, (oldForeground>>8)&0xff, oldForeground&0xff);
     setBackgroundColor((oldBackground>>16)&0xff, (oldBackground>>8)&0xff, oldBackground&0xff);
 }
-
