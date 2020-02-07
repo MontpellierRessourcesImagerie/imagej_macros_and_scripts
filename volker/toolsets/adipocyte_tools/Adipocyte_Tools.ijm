@@ -60,17 +60,12 @@ function preProcessImage() {
     clearBackground(preMinSize, preMaxSize, preThresholdMethod, preNumberOfDilates, false);
     resetColors();
     setBatchMode("exit and display");
-    if (isOpen("Results")) {
-		selectWindow("Results");
-		run("Close");
-    }
 }
 
 function clearBackground(minSize, maxSize, thresholdMethod,  numberOfDilates, keepSelection) {
 	run("Duplicate...", " ");
     saveSettings();
     setOption("black background", false);
-    title = getTitle();
     run("Find Edges");
     run("8-bit");
     run("Smooth");
