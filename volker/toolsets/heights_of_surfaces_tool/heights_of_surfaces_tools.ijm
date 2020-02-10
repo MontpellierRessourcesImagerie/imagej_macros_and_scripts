@@ -16,7 +16,7 @@ var _CHANNEL_FOR_CELL_SEGMENTATION = 3;
 var _SHRINK_BY = 2.2;
 var _MIN_SIZE = 300;
 var _TOTAL_VOLUME_IN_CELL_ONLY = true;
-
+var _ALL_CHANNELS = true;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools";
 
 // FOR DEBUGGING
@@ -46,12 +46,14 @@ macro 'Correct Background (f6) Action Tool - C000T4b12b' {
 
 
 macro 'Correct Background (f6) Action Tool Options' {
-	 Dialog.create("Create Surface Image Options");
+	 Dialog.create("Correct Background Options");
 	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
 	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
+	 Dialog.addCheckbox("All channels ", _ALL_CHANNELS);
  	 Dialog.show();
  	 _BLUE_CHANNEL = Dialog.getNumber();
  	 _RED_CHANNEL = Dialog.getNumber();
+ 	 _ALL_CHANNELS = Dialog.getCheckbox();
 }
 
 macro "create surface image [f7]" {
@@ -148,6 +150,7 @@ function createSurfaceImage() {
 	for (i = 2; i > 0; i--) {
 		wait(500);
 		selectImage("C"+i+"-image");
+		getLut(reds, greens, blues);
 		currentID = getImageID();
 		setAutoThreshold(method+" dark stack");
 		run("Convert to Mask", "method="+method+" background=Dark black");
@@ -158,6 +161,7 @@ function createSurfaceImage() {
 		selectImage(currentID);
 		close();
 		selectImage(projectionID);		
+		setLut(reds, greens, blues);
 		run("Calibrate...", "function=[Straight Line] unit="+unit+" text1=[1 10] text2=["+depth+" "+10*depth+"]");
 	}
 	
@@ -192,28 +196,33 @@ function plotHeights() {
 	imageWidth = getWidth();
 	imageHeight = getHeight();
 	imageID = getImageID();
+	
 	getVoxelSize(width, height, depth, unit);
-	run("Line Width...", "line=20");
 	type = selectionType();
 	if (type!=5) makeLine(imageWidth, 0, 0, imageHeight);
 	getLine(x1, y1, x2, y2, lineWidth);
+	if (lineWidth==1) run("Line Width...", "line=20");
 	dy = y2-y1;
 	dx = x2-x1; 
 	length=sqrt(dx*dx + dy*dy)*width;
 	setSlice(1);
 	getStatistics(area, mean, min, max, std, histogram);
 	selectImage(imageID);
+	getLut(reds, greens, blues);
+	blueColor = nameOfColor(reds, greens, blues);
 	blue = getProfile();
 	setSlice(2);
+	getLut(reds, greens, blues);
+	redColor = nameOfColor(reds, greens, blues);
 	red = getProfile();
 	xValues = newArray(red.length);
 	for (i = 0; i < xValues.length; i++) {
 		xValues[i] = width*i;
 	}
 	Plot.create("Height of channels", "Distance ("+unit+")", "Height ("+unit+")");
-	Plot.setColor("red");
+	Plot.setColor(redColor);
 	Plot.add("line", xValues, red);
-	Plot.setColor("blue");
+	Plot.setColor(blueColor);
 	Plot.add("line", xValues, blue);
 	upperRange = max + (max/10.0);
 	Plot.setLimits(0.0,length + (0.02 * length),0.00, upperRange);
@@ -341,6 +350,13 @@ function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbo
 }
 
 function correctBackgrounds() {
+	if (_ALL_CHANNELS) {
+		Stack.getDimensions(width, height, channels, slices, frames);
+		for (i = 1; i <= channels; i++) {
+			correctBackground(i);
+		}
+		return;
+	}
 	correctBackground(_BLUE_CHANNEL);
 	correctBackground(_RED_CHANNEL);
 	Stack.setChannel(_BLUE_CHANNEL);
@@ -349,7 +365,7 @@ function correctBackgrounds() {
 function correctBackground(channel) {
 	imageID = getImageID();
 	Stack.setChannel(channel);
-	run("Duplicate...", "duplicate");
+	run("Duplicate...", "duplicate channels="+channel+"-"+channel);
 	run("Maximum...", "radius=20 stack");
 	run("Z Project...", "projection=[Sum Slices]");
 	setAutoThreshold("Triangle dark no-reset");
@@ -419,6 +435,21 @@ function processFile(input, output, file) {
 	close();
 }
 
-
-
+function nameOfColor(red, green, blue) {
+	Array.getStatistics(red, min, max);
+	redIsZero = (max==0);
+	Array.getStatistics(green, min, max);
+	greenIsZero = (max==0);
+	Array.getStatistics(blue, min, max);
+	blueIsZero = (max==0);
+	
+	name = "Grays";
+	if (!redIsZero && !greenIsZero && blueIsZero) name = "yellow";
+	if (!redIsZero && greenIsZero && !blueIsZero) name = "magenta";
+	if (redIsZero && !greenIsZero && !blueIsZero) name = "cyan";
+	if (!redIsZero && greenIsZero && blueIsZero) name = "red";
+	if (redIsZero && !greenIsZero && blueIsZero) name = "green";
+	if (redIsZero && greenIsZero && !blueIsZero) name = "blue";
+	return name;
+}
 
