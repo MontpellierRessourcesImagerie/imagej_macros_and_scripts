@@ -10,13 +10,13 @@ var	_METHODS = getList("threshold.methods");
 var _METHOD = _METHODS[0];
 var _EXTENSION = ".czi";
 var _REMOVE_BACKGROUND = true;
-var _RED_CHANNEL = 3;
-var _BLUE_CHANNEL = 1;
+var _REFERENCE_CHANNEL = 4
 var _CHANNEL_FOR_CELL_SEGMENTATION = 3;
 var _SHRINK_BY = 2.2;
 var _MIN_SIZE = 300;
 var _TOTAL_VOLUME_IN_CELL_ONLY = true;
-var _ALL_CHANNELS = true;
+var _CHANNELS_TO_PLOT = newArray(0);
+var _CHANNEL_SELECTION = newArray(true, true, true, true, true, true, true, true, true, true, true, true);
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools";
 
 // FOR DEBUGGING
@@ -44,18 +44,6 @@ macro 'Correct Background (f6) Action Tool - C000T4b12b' {
 	correctBackgrounds();
 }
 
-
-macro 'Correct Background (f6) Action Tool Options' {
-	 Dialog.create("Correct Background Options");
-	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
-	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
-	 Dialog.addCheckbox("All channels ", _ALL_CHANNELS);
- 	 Dialog.show();
- 	 _BLUE_CHANNEL = Dialog.getNumber();
- 	 _RED_CHANNEL = Dialog.getNumber();
- 	 _ALL_CHANNELS = Dialog.getCheckbox();
-}
-
 macro "create surface image [f7]" {
 	createSurfaceImage(); 
 }
@@ -74,12 +62,16 @@ macro 'Plot heights (f8) Action Tool - C000T4b12p' {
 	plotHeights();
 }
 
-macro 'Calculate Volumes (f9) Action Tool - C000T4b12v' {
-	calculateVolumes();
+macro 'Plot heights (f8) Action Tool Options' {
+	createPlotOptions();
 }
 
-macro 'calculate volumes [f9]' {
-	calculateVolumes();
+macro 'Measure Heights (f9) Action Tool - C000T4b12h' {
+	calculateHeights();
+}
+
+macro 'measure heights [f9]' {
+	calculateHeights();
 }
 
 macro 'Batch process (f11) Action Tool - C444D22D2cD52D5cD68D85D9dDe8Df6C000D29D41D67D8fDd4DebCcccD32D33D39D3cD57D65D69D6bD8aDa9Db8Dc7Dd7De7CbbbD26D7cD80D8bD8cD8eD92D95D99D9bD9cDa8DaaDabDb9DbaDbbDc4Dc9DcaDccDd6C222D31D3dD90D9eDc1Dd9DdaCeeeD17D36D37D38D45D46D48D49D4aD55D56D58D59D63D64D73D82D83Da4Da5Db3Db4Dc2Dc3C888D16D28D34D3aD42D4cD62D6cD70D79D7dDa7Db2Dd2Dd8DdbDdcDe6C111D06D98Df8CeeeD44D4bD53D54D5aD72D81Db5Db6CcccD35D71D7bD8dD9aDa6Dc8DcbC333D07D23D2bD66D91DbcDd5CfffD27D47D74D84D93D94Da3C555D18D75D7eD89Da2DacDd3Df7C111D08D25D61D96DcdCdddD3bD43D5bD6aD7aDb7Dc5Dc6' {
@@ -119,20 +111,32 @@ function findCell() {
 function createSurfaceOptions() {
 	 Dialog.create("Create Surface Image Options");
 	 Dialog.addChoice("Auto-threshold method: "_METHODS, _METHOD)
-	 Dialog.addNumber("Blue channel ", _BLUE_CHANNEL);
-	 Dialog.addNumber("Red channel ", _RED_CHANNEL);
+	 Dialog.addNumber("Reference channel ", _REFERENCE_CHANNEL);
 	 Dialog.addCheckbox("Restrict total volume to cell", _TOTAL_VOLUME_IN_CELL_ONLY);
 	 Dialog.addNumber("segment cell in channel: ", _CHANNEL_FOR_CELL_SEGMENTATION);
 	 Dialog.addNumber("shrink roi of cell border by: ", _SHRINK_BY);
 	 Dialog.addNumber("min. size of cell", _MIN_SIZE);
  	 Dialog.show();
  	 _METHOD = Dialog.getChoice();
- 	 _BLUE_CHANNEL = Dialog.getNumber();
- 	 _RED_CHANNEL = Dialog.getNumber();
+ 	 _REFERENCE_CHANNEL = Dialog.getNumber();
  	 _TOTAL_VOLUME_IN_CELL_ONLY = Dialog.getCheckbox();
  	 _CHANNEL_FOR_CELL_SEGMENTATION = Dialog.getNumber();
  	 _SHRINK_BY = Dialog.getNumber();
  	 _MIN_SIZE = Dialog.getNumber();
+}
+
+function createPlotOptions() {
+	if (nImages==0) return;
+	Stack.getDimensions(width, height, channels, slices, frames);
+	Dialog.create("Create Plot Options");
+	Dialog.addMessage("Plot Channel:");
+	for (i = 1; i <= channels; i++) {	
+		Dialog.addCheckbox(i+". channel", _CHANNEL_SELECTION[i-1]);
+	}
+	Dialog.show();
+	for (i = 1; i <= channels; i++) {	
+		_CHANNEL_SELECTION[i-1] = Dialog.getCheckbox();
+	}
 }
 
 function createSurfaceImage() {
@@ -144,10 +148,9 @@ function createSurfaceImage() {
 	imageID = getImageID();
 	findCell();
 	Overlay.copy;
-	removeChannels(channels);
 	run("Split Channels");
 	getVoxelSize(width, height, depth, unit);
-	for (i = 2; i > 0; i--) {
+	for (i = 1; i <= channels; i++) {
 		wait(500);
 		selectImage("C"+i+"-image");
 		getLut(reds, greens, blues);
@@ -164,40 +167,33 @@ function createSurfaceImage() {
 		setLut(reds, greens, blues);
 		run("Calibrate...", "function=[Straight Line] unit="+unit+" text1=[1 10] text2=["+depth+" "+10*depth+"]");
 	}
-	
-	run("Merge Channels...", "c1=[MAX_C2-image] c3=[MAX_C1-image] create");
-	run("Arrange Channels...", "new=21");
-	setSlice(2);
-	run("Enhance Contrast", "saturated=0.35");
-	setSlice(1);
-	run("Enhance Contrast", "saturated=0.35");
+	mergeString = "";
+	for (i = 1; i <= channels; i++) {
+		mergeString += "c"+i+"=[MAX_C"+i+"-image] ";
+	}
+	mergeString += "create";
+	run("Merge Channels...", mergeString);
+	for (i = 1; i <= channels; i++) {
+		setSlice(i);
+		run("Enhance Contrast", "saturated=0.35");	
+	}
 	setBatchMode(false);
 	rename(imageTitle + "-surface");
 	Overlay.paste;
 	setMetadata("original_nr_of_slices", toString(slices));
 }
 
-function removeChannels(channels) {
-	channelsToBeDeleted = newArray(0);
-	for(i=1; i<=channels; i++) {
-		if (i!=_RED_CHANNEL && i!=_BLUE_CHANNEL) {
-			channelsToBeDeleted = Array.concat(channelsToBeDeleted,i);
-		}
-	}
-	counter = 0;
-	for(i=0; i<channelsToBeDeleted.length; i++) {
-		Stack.setChannel(channelsToBeDeleted[i]-counter);
-		run("Delete Slice", "delete=channel");
-		counter++;
-	}
-}
-
 function plotHeights() {
 	imageWidth = getWidth();
 	imageHeight = getHeight();
 	imageID = getImageID();
-	
+
+	Stack.getDimensions(iwidth, iheight, channels, slices, frames)
 	getVoxelSize(width, height, depth, unit);
+	_CHANNELS_TO_PLOT = newArray();
+	for (i = 1; i <= channels; i++) {	
+		if (_CHANNEL_SELECTION[i-1]) _CHANNELS_TO_PLOT = Array.concat(_CHANNELS_TO_PLOT, i);
+	}
 	type = selectionType();
 	if (type!=5) makeLine(imageWidth, 0, 0, imageHeight);
 	getLine(x1, y1, x2, y2, lineWidth);
@@ -205,27 +201,27 @@ function plotHeights() {
 	dy = y2-y1;
 	dx = x2-x1; 
 	length=sqrt(dx*dx + dy*dy)*width;
-	setSlice(1);
+	setSlice(_REFERENCE_CHANNEL);
 	getStatistics(area, mean, min, max, std, histogram);
-	selectImage(imageID);
-	getLut(reds, greens, blues);
-	blueColor = nameOfColor(reds, greens, blues);
-	blue = getProfile();
-	setSlice(2);
-	getLut(reds, greens, blues);
-	redColor = nameOfColor(reds, greens, blues);
-	red = getProfile();
-	xValues = newArray(red.length);
+
+	Plot.create("Height of channels", "Distance ("+unit+")", "Height ("+unit+")");
+	setSlice(_CHANNELS_TO_PLOT[0]);
+	profile = getProfile();
+	xValues = newArray(profile.length);
 	for (i = 0; i < xValues.length; i++) {
 		xValues[i] = width*i;
 	}
-	Plot.create("Height of channels", "Distance ("+unit+")", "Height ("+unit+")");
-	Plot.setColor(redColor);
-	Plot.add("line", xValues, red);
-	Plot.setColor(blueColor);
-	Plot.add("line", xValues, blue);
-	upperRange = max + (max/10.0);
-	Plot.setLimits(0.0,length + (0.02 * length),0.00, upperRange);
+	for (i = 0; i < _CHANNELS_TO_PLOT.length; i++) {
+		setSlice(_CHANNELS_TO_PLOT[i]);
+		getLut(reds, greens, blues);
+		color = nameOfColor(reds, greens, blues);
+		profile = getProfile();
+		
+		Plot.setColor(color);
+		Plot.add("line", xValues, profile);
+		upperRange = max + (max/10.0);
+		Plot.setLimits(0.0,length + (0.02 * length),0.00, upperRange);
+	}
 	Plot.show();
 }
 
@@ -236,6 +232,91 @@ function zEncodeStack() {
 		run("Multiply...", "value="+z+" slice");
 	}
 	setSlice(1);
+}
+
+function calculateHeights() {
+	inputImageID = getImageID();
+	imageName = getTitle();
+	Overlay.remove;
+	roiManager("reset");
+	run("Select None");
+	Stack.setChannel(_REFERENCE_CHANNEL);
+	getRawStatistics(nPixels, mean, min, max, std, histogram);
+	cmax = calibrate(max);
+	print("max. height is " + cmax + " determined using channel " + _REFERENCE_CHANNEL);
+	run("Duplicate...", " ");
+	run("Macro...", "code=[v=(v=="+max+") * 255]");
+	referenceMaskID = getImageID();
+	referenceMaskTitle = getTitle();
+	selectImage(inputImageID);
+	Stack.getDimensions(width, height, channels, slices, frames);
+	getVoxelSize(width, height, depth, unit);
+	xValues = newArray(256);
+	for (j = 0; j < histogram.length; j++) {
+		xValues[j] = (j * depth) / cmax;
+	}
+	title = "histograms";
+	if (!isOpen(title)) {
+		Table.create(title);
+	}
+	Table.setColumn("rel. height max="+cmax+" "+unit + " - " + imageName, xValues, "histograms");
+	for (i = 1; i <= channels; i++) {
+		if (i==_REFERENCE_CHANNEL) continue;
+		roiManager("reset");
+		run("Select None");
+		Stack.setChannel(i);
+		run("Duplicate...", " ");
+		run("Macro...", "code=[v=(v>0) * 255]");
+		maskID = getImageID();
+		maskTitle = getTitle();
+		imageCalculator("AND create", referenceMaskTitle, maskTitle);
+		setThreshold(1, 255);
+		run("Create Selection");
+		roiManager("Add");
+		close();
+		close();
+		selectImage(inputImageID);
+		roiManager("select", 0);
+
+		imageName = getTitle();
+		getStatistics(area, mean, min, max, std, histogram);
+		Table.setColumn(imageName + "_" + i, histogram, "histograms");
+
+		run("From ROI Manager");
+		roiManager("select", 0);
+		run("Measure");
+		quartilesTwoAndFour = getQuartilesTwoAndFour(histogram);
+	}
+	selectImage(referenceMaskID);
+	close();	
+	roiManager("reset");
+}
+
+function getQuartilesTwoAndFour(histogram) {
+	sum = 0;
+	for (i = 1; i < histogram.length; i++) {
+		count = histogram[i];
+		if (i==0) break;
+		sum += count;
+	}
+
+	oneFourth = sum / 4;
+	threeFourth =  oneFourth * 3;
+
+	qTwoIndex = 0
+	qFourIndex = 0
+
+	runningSum = 0;
+	for (i = 1; i < histogram.length; i++) {
+		if ( histogram[i]==0) break;
+		runningSum += histogram[i];
+		if (runningSum>oneFourth) qTwoIndex = histogram[i-1];
+		if (runningSum>threeFourth) qFourIndex = histogram[i-1];
+		sum += count;
+	}
+
+	result = newArray(oneFourth, threeFourth);
+	return result;
 }
 
 function calculateVolumes() {
@@ -350,16 +431,11 @@ function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbo
 }
 
 function correctBackgrounds() {
-	if (_ALL_CHANNELS) {
-		Stack.getDimensions(width, height, channels, slices, frames);
-		for (i = 1; i <= channels; i++) {
-			correctBackground(i);
-		}
-		return;
+	Stack.getDimensions(width, height, channels, slices, frames);
+	for (i = 1; i <= channels; i++) {
+		correctBackground(i);
 	}
-	correctBackground(_BLUE_CHANNEL);
-	correctBackground(_RED_CHANNEL);
-	Stack.setChannel(_BLUE_CHANNEL);
+	return;
 }
 
 function correctBackground(channel) {
@@ -383,7 +459,7 @@ function correctBackground(channel) {
 	close();
 	selectImage(imageID);
 	run("Select None");
-	Fit.doFit("Straight Line", xpoints, ypoints);
+	Fit.doFit("3rd Degree Polynomial", xpoints, ypoints);
 	for (i = 0; i < xpoints.length; i++) {
 		Stack.setSlice(i+1);
 		y = Fit.f(xpoints[i]);
@@ -395,11 +471,15 @@ function correctBackground(channel) {
 function runBatchProcessing() {
 	input = getDirectory("Choose the input folder!");
 	output = getDirectory("Choose the output folder!");	
+	run("Clear Results");
 	processFolder(input, output);
-	selectWindow("Volumes Table");
+	selectWindow("Results");
 	t = getTime();
 	ts = d2s(t, 0);
 	saveAs("results", output + "heights_of_surfaces-"+ts+".xls");
+	selectWindow("histograms");
+	saveAs("results", output + "histograms_of_heights-"+ts+".xls");
+	
 }
 
 function processFolder(input, output) {
@@ -425,7 +505,7 @@ function processFile(input, output, file) {
 	close();
 	close();
 	run("Select None");
-	calculateVolumes();
+	calculateHeights();
 	print("Saving to: " + output + File.nameWithoutExtension + ".png");
 	selectImage(image);
 	wait(500);
@@ -452,4 +532,3 @@ function nameOfColor(red, green, blue) {
 	if (redIsZero && greenIsZero && !blueIsZero) name = "blue";
 	return name;
 }
-
