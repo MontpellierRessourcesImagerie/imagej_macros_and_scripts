@@ -285,14 +285,17 @@ function calculateHeights() {
 		run("From ROI Manager");
 		roiManager("select", 0);
 		run("Measure");
-		quartilesTwoAndFour = getQuartilesTwoAndFour(histogram);
+
+		quartilesIOneAndThree = getQuartilesOneAndThree(histogram, xValues);
+		Table.set("Q1", nResults-1, quartilesIOneAndThree[0], "Results");
+		Table.set("Q3", nResults-1, quartilesIOneAndThree[1], "Results");
 	}
 	selectImage(referenceMaskID);
 	close();	
 	roiManager("reset");
 }
 
-function getQuartilesTwoAndFour(histogram) {
+function getQuartilesOneAndThree(histogram, xValues) {
 	sum = 0;
 	for (i = 1; i < histogram.length; i++) {
 		count = histogram[i];
@@ -303,19 +306,26 @@ function getQuartilesTwoAndFour(histogram) {
 	oneFourth = sum / 4;
 	threeFourth =  oneFourth * 3;
 
-	qTwoIndex = 0
-	qFourIndex = 0
-
+	qOneIndex = 0;
+	qThreeIndex = 0;
+	doneQ1 = false;
+	doneQ3 = false;
 	runningSum = 0;
 	for (i = 1; i < histogram.length; i++) {
 		if ( histogram[i]==0) break;
 		runningSum += histogram[i];
-		if (runningSum>oneFourth) qTwoIndex = histogram[i-1];
-		if (runningSum>threeFourth) qFourIndex = histogram[i-1];
+		if (runningSum>oneFourth && !doneQ1) {
+			qOneIndex = i-1;
+			doneQ1 = true;
+		}
+		if (runningSum>threeFourth && !doneQ3) {
+			qThreeIndex = i-1;
+			doneQ3 = true;
+		}
 		sum += count;
 	}
 
-	result = newArray(oneFourth, threeFourth);
+	result = newArray(xValues[qOneIndex], xValues[qThreeIndex]);
 	return result;
 }
 
