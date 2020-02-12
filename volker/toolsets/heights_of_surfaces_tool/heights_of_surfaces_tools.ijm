@@ -1,10 +1,14 @@
 /*
- *	Heights Pf surfaces tools 
+ *	Heights of surfaces tools 
  *	
  *	The tool compares the height in the z-dimension of the signals in two different channels (red and blue). It calculates the fraction of the volume of the
  *	red signal that lies above the blue signal and the fraction of the red signal that lies below the blue signal. Only places where both signals are present 
  *	(heights of red and blue bigger than zero) are taken into account.
  *	
+ * (c) 2020, INSERM
+ * 
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ * 
  */
 var	_METHODS = getList("threshold.methods");
 var _METHOD = _METHODS[0];
