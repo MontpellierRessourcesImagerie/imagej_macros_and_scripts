@@ -286,46 +286,101 @@ function calculateHeights() {
 		roiManager("select", 0);
 		run("Measure");
 
-		quartilesIOneAndThree = getQuartilesOneAndThree(histogram, xValues);
-		Table.set("Q1", nResults-1, quartilesIOneAndThree[0], "Results");
-		Table.set("Q3", nResults-1, quartilesIOneAndThree[1], "Results");
+		stats = computeStats(histogram, xValues, true);
+		Table.set("mean", nResults-1, stats[0], "Results");
+		Table.set("stdDev", nResults-1, stats[1], "Results");
+		Table.set("mode", nResults-1, stats[2], "Results");
+		Table.set("min (q0)", nResults-1, stats[3], "Results");
+		Table.set("q1", nResults-1, stats[4], "Results");
+		Table.set("median (q2)", nResults-1, stats[5], "Results");
+		Table.set("q3", nResults-1, stats[6], "Results");
+		Table.set("max (q4)", nResults-1, stats[7], "Results");
 	}
 	selectImage(referenceMaskID);
 	close();	
 	roiManager("reset");
 }
 
-function getQuartilesOneAndThree(histogram, xValues) {
-	sum = 0;
-	for (i = 1; i < histogram.length; i++) {
-		count = histogram[i];
-		if (i==0) break;
-		sum += count;
+// Return an array with mean, stdDev, mode, min (q0), q1, median (q2), q3, and max.
+function computeStats(hist, xValues, withoutZero) {
+	histogram = Array.copy(hist);
+	if (withoutZero) histogram[0] = 0;
+	lastIndex = 255;
+	for (i = 255; i > 0; i--) {
+		lastIndex = i;
+		if(histogram[i]>0) break;
 	}
-
-	oneFourth = sum / 4;
+	firstIndex = 0;
+	for (i = 0; i <=lastIndex; i++) {
+		firstIndex = i;
+		if(histogram[i]>0) break;
+	}
+	sum = 0;
+	sum2 = 0;
+	longPixelCount = 0;
+	maxCount = -1;
+	mode = 0;
+	for (i = firstIndex; i <= lastIndex; i++) {
+		count = histogram[i];
+		longPixelCount += count;
+		value = xValues[i];
+		sum += value*count;
+		sum2 += (value*value)*count;
+		if (count>maxCount) {
+			maxCount = count;
+			mode = xValues[i];
+		}
+	}
+	mean = sum / longPixelCount;
+	stdDev = 0;
+	if (longPixelCount>0) {
+		stdDev = ((longPixelCount*sum2) - (sum*sum)) / longPixelCount;
+		if (stdDev>0) {
+			stdDev = sqrt(stdDev / (longPixelCount-1));
+		}
+		else {
+			stdDev = 0;
+		}
+	} else {
+		stdDev =0;
+	}
+	
+	oneFourth = longPixelCount / 4;
 	threeFourth =  oneFourth * 3;
+	median = longPixelCount / 2;
 
+	qZeroIndex = firstIndex;
 	qOneIndex = 0;
+	medianIndex = 0;
 	qThreeIndex = 0;
 	doneQ1 = false;
+	doneMedian = false;
 	doneQ3 = false;
+	qFourIndex = lastIndex;
 	runningSum = 0;
-	for (i = 1; i < histogram.length; i++) {
-		if ( histogram[i]==0) break;
+	for (i = firstIndex; i <= lastIndex; i++) {
 		runningSum += histogram[i];
-		if (runningSum>oneFourth && !doneQ1) {
+		if (runningSum>=oneFourth && !doneQ1) {
 			qOneIndex = i-1;
+			if (i==firstIndex) qOneIndex = i;
+			if (qOneIndex<0) qOneIndex = 0;
 			doneQ1 = true;
 		}
-		if (runningSum>threeFourth && !doneQ3) {
+		if (runningSum>=median && !doneMedian) {
+			medianIndex = i-1;
+			if (i==firstIndex) medianIndex = i;
+			if (medianIndex<0) medianIndex = 0;
+			doneMedian = true;
+		}
+		if (runningSum>=threeFourth && !doneQ3) {
 			qThreeIndex = i-1;
+			if (i==firstIndex) qThreeIndex = i;
+			if (qThreeIndex<0) qThreeIndex = 0;
 			doneQ3 = true;
 		}
-		sum += count;
 	}
 
-	result = newArray(xValues[qOneIndex], xValues[qThreeIndex]);
+	result = newArray(mean, stdDev, mode, xValues[qZeroIndex], xValues[qOneIndex], xValues[medianIndex], xValues[qThreeIndex], xValues[qFourIndex]);
 	return result;
 }
 
@@ -482,28 +537,28 @@ function runBatchProcessing() {
 	input = getDirectory("Choose the input folder!");
 	output = getDirectory("Choose the output folder!");	
 	run("Clear Results");
-	processFolder(input, output);
-	selectWindow("Results");
 	t = getTime();
 	ts = d2s(t, 0);
+	processFolder(input, output, ts);
+	selectWindow("Results");
 	saveAs("results", output + "heights_of_surfaces-"+ts+".xls");
 	selectWindow("histograms");
 	saveAs("results", output + "histograms_of_heights-"+ts+".xls");
 	
 }
 
-function processFolder(input, output) {
+function processFolder(input, output, ts) {
 	list = getFileList(input);
 	list = Array.sort(list);
 	for (i = 0; i < list.length; i++) {
 		if(File.isDirectory(input + File.separator + list[i]))
-			processFolder(input + File.separator + list[i], output);
+			processFolder(input + File.separator + list[i], output, ts);
 		if(endsWith(list[i], _EXTENSION))
-			processFile(input, output, list[i]);
+			processFile(input, output, list[i], ts);
 	}
 }
 
-function processFile(input, output, file) {
+function processFile(input, output, file, ts) {
 	print("Processing: " + input + File.separator + file);
 	run("Bio-Formats Importer", "open=["+input + file +"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	if (_REMOVE_BACKGROUND) correctBackgrounds();
@@ -511,16 +566,19 @@ function processFile(input, output, file) {
 	image = getImageID();
 	plotHeights();
 	Plot.makeHighResolution("Height of channels_HiRes",4.0);
-	save(output + file +"-plot.tif");
+	save(output + file +"-plot"+ts+".tif");
 	close();
 	close();
 	run("Select None");
 	calculateHeights();
-	print("Saving to: " + output + File.nameWithoutExtension + ".png");
+	print("Saving to: " + output + File.nameWithoutExtension + ts + ".tif");
 	selectImage(image);
+	Overlay.show;
+	saveAs("tiff", output + File.nameWithoutExtension + ts + ".tif");
+	Overlay.hide;
 	wait(500);
 	run("Capture Image");
-	save(output + File.nameWithoutExtension + ".png");
+	save(output + File.nameWithoutExtension + ts + ".png");
 	close();
 	close();
 }
