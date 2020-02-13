@@ -14,11 +14,7 @@ var	_METHODS = getList("threshold.methods");
 var _METHOD = _METHODS[0];
 var _EXTENSION = ".czi";
 var _REMOVE_BACKGROUND = true;
-var _REFERENCE_CHANNEL = 4
-var _CHANNEL_FOR_CELL_SEGMENTATION = 3;
-var _SHRINK_BY = 2.2;
-var _MIN_SIZE = 300;
-var _TOTAL_VOLUME_IN_CELL_ONLY = true;
+var _REFERENCE_CHANNEL = 4;
 var _CHANNELS_TO_PLOT = newArray(0);
 var _CHANNEL_SELECTION = newArray(true, true, true, true, true, true, true, true, true, true, true, true);
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Heights_of_Surfaces_Tools";
@@ -95,38 +91,13 @@ macro 'Batch process (f11) Action Tool Options' {
  	 _REMOVE_BACKGROUND = Dialog.getCheckbox();
 }
 
-function findCell() {
-	run("Remove Overlay");
-	roiManager("reset");
-	run("Duplicate...", "duplicate channels="+_CHANNEL_FOR_CELL_SEGMENTATION+"-"+_CHANNEL_FOR_CELL_SEGMENTATION);
-	run("Z Project...", "projection=[Max Intensity]");
-	run("Gaussian Blur...", "sigma=8");
-	setAutoThreshold("Huang dark");
-	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity include add");
-	roiManager("select", 0);
-	run("Enlarge...", "enlarge=-"+_SHRINK_BY);
-	roiManager("Update");
-	close(); 
-	close();
-	run("From ROI Manager");
-	roiManager("reset");
-}
-
 function createSurfaceOptions() {
 	 Dialog.create("Create Surface Image Options");
 	 Dialog.addChoice("Auto-threshold method: "_METHODS, _METHOD)
 	 Dialog.addNumber("Reference channel ", _REFERENCE_CHANNEL);
-	 Dialog.addCheckbox("Restrict total volume to cell", _TOTAL_VOLUME_IN_CELL_ONLY);
-	 Dialog.addNumber("segment cell in channel: ", _CHANNEL_FOR_CELL_SEGMENTATION);
-	 Dialog.addNumber("shrink roi of cell border by: ", _SHRINK_BY);
-	 Dialog.addNumber("min. size of cell", _MIN_SIZE);
  	 Dialog.show();
  	 _METHOD = Dialog.getChoice();
  	 _REFERENCE_CHANNEL = Dialog.getNumber();
- 	 _TOTAL_VOLUME_IN_CELL_ONLY = Dialog.getCheckbox();
- 	 _CHANNEL_FOR_CELL_SEGMENTATION = Dialog.getNumber();
- 	 _SHRINK_BY = Dialog.getNumber();
- 	 _MIN_SIZE = Dialog.getNumber();
 }
 
 function createPlotOptions() {
@@ -150,8 +121,6 @@ function createSurfaceImage() {
 	rename("image");
 	method = _METHOD;
 	imageID = getImageID();
-	findCell();
-	Overlay.copy;
 	run("Split Channels");
 	getVoxelSize(width, height, depth, unit);
 	for (i = 1; i <= channels; i++) {
@@ -183,7 +152,6 @@ function createSurfaceImage() {
 	}
 	setBatchMode(false);
 	rename(imageTitle + "-surface");
-	Overlay.paste;
 	setMetadata("original_nr_of_slices", toString(slices));
 }
 
@@ -386,117 +354,6 @@ function computeStats(hist, xValues, withoutZero) {
 
 	result = newArray(mean, stdDev, mode, xValues[qZeroIndex], xValues[qOneIndex], xValues[medianIndex], xValues[qThreeIndex], xValues[qFourIndex]);
 	return result;
-}
-
-function calculateVolumes() {
-	inputImageID = getImageID();
-	run("Duplicate...", "duplicate");
-	imageID = getImageID();
-	title=getTitle();
-	run("Split Channels");
-	selectImage("C1-"+title);
-	getVoxelSize(width, height, depth, unit);
-	imageBlueID = getImageID();
-	selectImage("C2-"+title);
-	imageRedID = getImageID();
-	commonSupportMaskID = createCommonSupportSelection(imageBlueID, imageRedID, depth);
-	selectImage(inputImageID);
-	run("Duplicate...", "duplicate");
-	imageID = getImageID();
-	title=getTitle();
-	run("Split Channels");
-	selectImage("C1-"+title);
-	getVoxelSize(width, height, depth, unit);
-	imageCalculator("Subtract create 32-bit", "C1-"+title,"C2-"+title);
-	diffImageBlueID = getImageID();
-	imageCalculator("Subtract create 32-bit", "C2-"+title,"C1-"+title);
-	diffImageRedID = getImageID();
-	selectImage(diffImageBlueID);
-	volumeBlue = measureVolume(depth, commonSupportMaskID);
-	selectImage(diffImageRedID);
-	volumeRed = measureVolume(depth, commonSupportMaskID);
-	selectImage(diffImageRedID);
-	close();
-	selectImage(diffImageBlueID);
-	close();
-	selectImage("C1-"+title);
-	close();
-	selectImage("C2-"+title);
-	close();
-	close();
-	totalVolumes = measureTotalVolumes();
-	reportVolumes(title, volumeRed[0], volumeRed[1], volumeBlue[0], volumeBlue[1], totalVolumes, unit);
-	run("Restore Selection");
-}
-
-function createCommonSupportSelection(blueID, redID, zStep) {
-	selectImage(blueID);
-	setThreshold(zStep, 255*zStep);
-	run("Convert to Mask");
-	blueMask = getTitle();
-	selectImage(redID);
-	setThreshold(zStep, 255*zStep);
-	run("Convert to Mask");
-	redMask = getTitle();
-	imageCalculator("AND create", blueMask, redMask);
-	run("Create Selection");
-	id = getImageID();
-	selectImage(redID);
-	close();
-	selectImage(blueID);
-	close();
-	selectImage(id);
-	return id;
-}
-
-function measureVolume(depth, commonSupportMaskID) {
-	run("Set Measurements...", "area mean standard min integrated limit display redirect=None decimal=3");
-	inputImageID = getImageID();
-	selectImage(commonSupportMaskID);
-	selectImage(inputImageID);
-	setThreshold(0, 255*depth);				
-	run("Restore Selection");
-	run("Measure");
-	volumeAbove = getResult("IntDen", nResults-1);
-	resetThreshold();
-	setThreshold(-255*depth, 0);		
-	run("Measure");
-	volumeBelow = getResult("IntDen", nResults-1);
-	run("Select None");
-	result = newArray(abs(volumeBelow), abs(volumeAbove));
-	return result;
-}
-
-function measureTotalVolumes() {
-	if (_TOTAL_VOLUME_IN_CELL_ONLY) Overlay.activateSelection(0);
-	getStatistics(area);
-	Stack.setChannel(1);
-	slices = parseInt(getMetadata("original_nr_of_slices"));
-	getVoxelSize(pixelWidth, pixelHeight, pixelDepth, unit);
-	total = area*slices*pixelDepth;
-	run("Measure");
-	volumeBlue = getResult("IntDen", nResults-1);
-	Stack.setChannel(2);
-	run("Measure");
-	volumeRed = getResult("IntDen", nResults-1);
-	run("Select None");
-	fractionBlue = volumeBlue / total;
-	fractionRed = volumeRed / total;
-	results = newArray(fractionBlue, fractionRed, volumeBlue, volumeRed);
-	return results;
-}
-
-function reportVolumes(imageTitle, volumeRedBelow, volumeRedAbove, volumeBlueAbove, volumeBlueBelow, totalVolumes, unit) {
-  volumeRedTotal = volumeRedBelow + volumeRedAbove;
-  title = "Volumes Table";
-  handle = "["+title+"]";
-  if (!isOpen(title)) {
-     run("Table...", "name="+handle+" width=1000 height=600");
-  	 print(handle, "\\Headings:image\tthreshold\tfraction red above\tfraction red below\tvolume red above ("+unit+"^3)\tvolume red below ("+unit+"^3)\tfraction blue total\tfraction red total\tvolume blue total ("+unit+"^3)\tvolume red total ("+unit+"^3)");
-  }
-  fractionRedAbove = volumeRedAbove / volumeRedTotal;
-  fractionRedBelow = volumeRedBelow / volumeRedTotal;
-  print(handle, imageTitle + "\t" + _METHOD + "\t" + fractionRedAbove + "\t" + fractionRedBelow + "\t" + volumeRedAbove + "\t" + volumeRedBelow + "\t" + totalVolumes[0] + "\t" + totalVolumes[1] + "\t" + totalVolumes[2] + "\t" + totalVolumes[3] + "\t");
 }
 
 function correctBackgrounds() {
