@@ -271,6 +271,7 @@ function calculateHeights() {
 	selectImage(referenceMaskID);
 	close();	
 	roiManager("reset");
+	unpackHistograms();
 }
 
 // Return an array with mean, stdDev, mode, min (q0), q1, median (q2), q3, and max.
@@ -405,7 +406,8 @@ function runBatchProcessing() {
 	saveAs("results", output + "heights_of_surfaces-"+ts+".xls");
 	selectWindow("histograms");
 	saveAs("results", output + "histograms_of_heights-"+ts+".xls");
-	
+	selectWindow("raw data");
+	saveAs("results", output + "raw_data_of_heights-"+ts+".xls");
 }
 
 function processFolder(input, output, ts) {
@@ -460,4 +462,50 @@ function nameOfColor(red, green, blue) {
 	if (redIsZero && !greenIsZero && blueIsZero) name = "green";
 	if (redIsZero && greenIsZero && !blueIsZero) name = "blue";
 	return name;
+}
+
+function unpackHistograms() {
+	selectWindow("histograms");
+
+	headings = Table.headings("histograms");
+	headings = split(headings, "\t");
+	countHeadingsStrings = "";
+	countHeadings = newArray(0);
+	
+	for (i = 0; i < headings.length; i++) {
+		heading = headings[i];	
+		if(!startsWith(heading, "rel. height")) {
+			countHeadings = Array.concat(countHeadings, heading);
+			countHeadingsStrings += heading;
+			if (i<headings.length-1) countHeadingsStrings += "\t";
+		}
+	}
+	
+	Table.create("raw data");
+	
+	selectWindow("histograms");
+	numberOfLines = Table.size("histograms");
+	
+	counter = 0;
+	for (column = 0; column < headings.length; column++) {
+		if (startsWith(headings[column], "rel. height")) {
+			values = Table.getColumn(headings[column], "histograms");			
+			continue;
+		}
+		counts = Table.getColumn(headings[column], "histograms");
+		sum = 0;
+		for (i = 0; i < counts.length; i++) {
+			if (values[i]>1) break;
+			sum += counts[i];
+		}
+		newColumn = newArray(sum);
+		rawCounter = 0;
+		for (i = 0; i < counts.length; i++) {
+			if (values[i]>1) break;
+			for(j=0; j<counts[i]; j++) {
+				newColumn[rawCounter++] = values[i];
+			}
+		}
+		Table.setColumn(countHeadings[counter++], newColumn, "raw data");
+	}
 }
