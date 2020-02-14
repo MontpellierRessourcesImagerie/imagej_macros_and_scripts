@@ -42,7 +42,7 @@ macro "count axonal projections (f5) Action Tool Options" {
 	Dialog.create("options - count axonal projections");
 	Dialog.addCheckbox("auto detect threshold", _DETECT_THRESHOLD);
 	Dialog.addNumber("threshold: ", _THRESHOLD);
-	Dialog.addCheckbox("auto detect threshold", _DETECT_TOLERANCE);
+	Dialog.addCheckbox("auto detect tolerance", _DETECT_TOLERANCE);
 	Dialog.addNumber("tolerance: ", _TOLERANCE);
 	Dialog.show();
 	_DETECT_THRESHOLD = Dialog.getCheckbox();
