@@ -84,6 +84,7 @@ function estimateSarcomereDistance() {
 	run("Clear Results");
 	run("RGB Stack");
 	run("Duplicate...", "use");
+	run("Restore Selection");
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
 	setBackgroundColor(0, 0, 0);
 	run("Clear Outside");
@@ -102,29 +103,36 @@ function estimateSarcomereDistance() {
 }
 
 function selectCell() {
-	run("Select None");
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
-	inputImageID = getImageID();
-	run("Select None");
-	run("Duplicate...", " ");
-	maskID = getImageID();
-	run("RGB Stack");
-	setAutoThreshold("Default dark");
-	run("Convert to Mask", "method=Default background=Dark");
-	run("Analyze Particles...", "size="+_MIN_AREA+"-Infinity show=Masks in_situ slice");
-	run("Create Selection");
-	if (selectionType() < 0) {
-		close();
-		return 0; 
+	cellIsSelected = true;
+	if (selectionType()<0) {
+		cellIsSelected = false;
 	}
-	run("Convex Hull");
-	selectImage(inputImageID);
-	run("Restore Selection");
+	if (!cellIsSelected) {
+		inputImageID = getImageID();
+		run("Duplicate...", " ");
+		maskID = getImageID();
+		run("RGB Stack");
+		setAutoThreshold("Default dark");
+		run("Convert to Mask", "method=Default background=Dark");
+		run("Analyze Particles...", "size="+_MIN_AREA+"-Infinity show=Masks in_situ slice");
+		run("Create Selection");
+		if (selectionType() < 0) {
+			close();
+			return 0; 
+		}
+		run("Convex Hull");
+		selectImage(inputImageID);
+		run("Restore Selection");
+	}
+	Overlay.remove;
 	Overlay.addSelection;
 	Overlay.show;
 	getStatistics(area);
-	selectImage(maskID);
-	close();
+	if (!cellIsSelected) {
+		selectImage(maskID);
+		close();
+	}
 	return area;
 }
 
