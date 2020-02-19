@@ -22,7 +22,8 @@ var _PROMINENCE_OF_MAXIMA = 250;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 
-var _CHANNEL = 1;
+var _NUCLEI_CHANNEL = 1;
+var _FOCI_CHANNEL = 1;
 
 var _FILE_EXTENSION = "tif";
 
@@ -49,7 +50,8 @@ macro "measure foci per nucleus (f5) Action Tool - C000T4b12m" {
 macro "measure foci per nucleus (f5) Action Tool Options" {
 	Dialog.create("Measure Foci Options");
 	Dialog.addMessage("Image:");
-	Dialog.addNumber("channel: ", _CHANNEL);
+	Dialog.addNumber("nuclei channel: ", _NUCLEI_CHANNEL);
+	Dialog.addNumber("foci channel: ", _FOCI_CHANNEL);	
 	Dialog.addMessage("Foci area thresholds:");
 	Dialog.addNumber("threshold one: ", _THRESHOLD_1);
 	Dialog.addNumber("threshold two: ", _THRESHOLD_2);
@@ -64,7 +66,8 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	
 	Dialog.show();
 
-	_CHANNEL = Dialog.getNumber();
+	_NUCLEI_CHANNEL = Dialog.getNumber();
+	_FOCI_CHANNEL = Dialog.getNumber();
 	
 	_THRESHOLD_1 = Dialog.getNumber();
 	_THRESHOLD_2 = Dialog.getNumber();
@@ -212,13 +215,26 @@ function measureFociPerNucleus() {
 	roiManager("reset");
 	Stack.getDimensions(width, height, channels, slices, frames);
 	if (channels>1) {
-		Stack.setSlice(_CHANNEL);
+		Stack.setChannel(_NUCLEI_CHANNEL);
 		run("Duplicate...", " ");
 	}
 	inputImageID = getImageID();
 	run("Remove Overlay");
 	roiManager("reset");
 	selectNuclei();
+	count=roiManager("count");
+	if (count<1) {
+		title = getTitle();
+		print("No nuclei found on image " + title + "with min. size = " + _MIN_SIZE);
+		close();
+		return;
+	}
+	if (channels>1 && _NUCLEI_CHANNEL!=_FOCI_CHANNEL) {
+		close();
+		Stack.setChannel(_FOCI_CHANNEL);
+		run("Duplicate...", " ");
+	}
+	inputImageID = getImageID();
 	run("From ROI Manager");
 	roiManager("reset");
 	subtractBlurredImage(_SIGMA_BLUR_FILTER);
@@ -260,7 +276,8 @@ function measureFociPerNucleus() {
 		run("Select None");
 		selectImage(inputImageID);
 		roiManager("Show All without labels");
-		run("From ROI Manager");
+		count = roiManager("count");
+		if (count>0) run("From ROI Manager");
 		roiManager("reset");
 	}
 	selectImage(maskID);
