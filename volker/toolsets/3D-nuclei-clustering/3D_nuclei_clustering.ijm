@@ -19,6 +19,7 @@ var _EXCLUDE_ON_EDGES = true;
 var _RADIUS_SPHERE = 3 	// in scaled units (for exampel µm)
 var _LOOKUP_TABLE = "glasbey on dark";
 var _CREATE_RESULTS_CHANNEL = true;
+var _DECIMALS = 3;
 
 // parameters for filtering the nuclei according to the signal in another channel
 var _SIGNAL_CHANNEL = 1;
@@ -344,6 +345,7 @@ function processImage() {
 }
 
 function detectNuclei() {
+	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None");
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
 	run("Duplicate...", "duplicate channels="+_NUCLEI_CHANNEL+"-"+_NUCLEI_CHANNEL);
@@ -523,13 +525,15 @@ function measureIntensityInOtherChannel() {
 		Overlay.addSelection;
 		Overlay.setPosition(_SIGNAL_CHANNEL, z, 1);
 	}
-	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None decimal=9");
+	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None");
 	run("Clear Results");
 	size = Overlay.size;
 	for (i = 0; i < size; i++) {
 		Overlay.activateSelection(i);
 		run("Measure");
 	}
+	Table.setColumn("X", X, "Results");
+	Table.setColumn("Y", Y, "Results")
 	Overlay.show;
 }
 
