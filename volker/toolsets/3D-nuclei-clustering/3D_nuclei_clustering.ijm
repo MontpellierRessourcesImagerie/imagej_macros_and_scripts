@@ -204,7 +204,7 @@ macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD
        if (cmd=="options") {
        	   Dialog.create("mribia options");
        	   Dialog.addMessage("These options are global and persistent.")
-       	   Dialog.addString("input datasets directory: " , DATASET_DIR);
+       	   Dialog.addString("input datasets directory: " , DATASET_DIR, 36);
        	   Dialog.show();
        	   DATASET_DIR = Dialog.getString();
        	   call("ij.Prefs.set", "mribia.datasetDir", DATASET_DIR); 
@@ -533,7 +533,7 @@ function measureIntensityInOtherChannel() {
 		run("Measure");
 	}
 	Table.setColumn("X", X, "Results");
-	Table.setColumn("Y", Y, "Results")
+	Table.setColumn("Y", Y, "Results");
 	Overlay.show;
 }
 
