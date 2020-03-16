@@ -1,11 +1,14 @@
 /**
+  *  FLIM-FRET Volume Tool
+  *  
   *  Measure in FLIM-FRET images for each cell the total volume of the cell and the volume occupied by values above 
   *  a fixed threshold.
   *   
-  *  written 2019 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
-  *  in cooperation with Claire Dupont
-  **
-*/
+  * (c) 2019-2020, INSERM
+  * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+  * 
+  * in collaboration with Audrey Douanier, CRBM, CNRS, Univ. Montpellier 
+  */
 
 var _SUBTRACT_BACKGROUND_RADIUS = 1;
 var _SUBTRACT_BACKGROUND_OFFSET = 1;
@@ -84,7 +87,7 @@ function measureCells() {
 	
 	inputImageID = getImageID();
 	setBatchMode(true);
-	numberOfCells = createCellsIndexdMask(inputImageID);
+	numberOfCells = createCellsIndexedMask(inputImageID);
 	setBatchMode(false);
 	
 	cellsIndexMaskID = getImageID();
@@ -189,6 +192,7 @@ function measureCell(indexedMaskID, inputImageID, cellNr, lowerThreshold, upperT
 	run("Macro...", "code=[v=(v>="+lowerThreshold*255+" && v<"+upperThreshold*255+")] stack");						// creates image with values 0 and 1.
 	run("Z Project...", "projection=[Sum Slices]");
 	projectionID = getImageID();
+	run("Set Measurements...", "area bounding integrated display redirect=None decimal=6");
 	run("Measure");
 	numberOfVoxelsAboveThreshold = getResult("IntDen", nResults-1);
 	selectImage(inputImageID);
@@ -211,7 +215,7 @@ function createMaskOfCell(indexedMaskID, cellNr) {
 	return id;
 }
 
-function createCellsIndexdMask(imageID) {
+function createCellsIndexedMask(imageID) {
 	selectImage(imageID);
 	backgroundLevel = findBackground(_SUBTRACT_BACKGROUND_RADIUS, _SUBTRACT_BACKGROUND_OFFSET, _SUBTRACT_BACKGROUND_ITERATIONS);
 	run("Duplicate...", "duplicate");
@@ -222,7 +226,7 @@ function createCellsIndexdMask(imageID) {
 	run("Watershed", "stack");
 	run("Erode", "stack");
 	run("Erode", "stack");
-	run("3D Objects Counter", "threshold=1 slice=10 min.=10 max.=1376256 objects");
+	run("3D Objects Counter", "threshold=1 slice=10 min.="+_MIN_SIZE+" max.="+_MAX_SIZE+" objects");
 	getStatistics(area, mean, min, numberOfCells);
 	selectImage(tmpImageID);
 	close();
