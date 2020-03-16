@@ -1,31 +1,33 @@
 /**
-  * discrete_histogram_entropy_.ijm
+  * discrete_histogram_entropy.ijm
   * 
-  * Calculates the discrete histogram entropy 
-  * for the result of the Directionality plugin
+  * Calculates the discrete histogram entropy
+  * 
+  * The macro has originally be intended to be used with the histogram of directions
+  * created by the Directionality plugin. 
+  * 
+  * It can be used on an image or on a histogram table.
   *   
-  * (c) 2019, INSERM
+  * (c) 2019-2020, INSERM
   * 
   * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
   *
-  * USAGE:
+  * USAGE WITH DIRECTIONALITY:
   *  Run the Directionality plugin (see https://imagej.net/Directionality) on your image
   *  Select "Display table" in the dialog. Activate the results table containing for each direction
   *  the normalized frequency of the data and the fit. Run the macro. The discrete histogram entropy 
-  *  is written to the log window.
-  *  
-  *  The macro is available on git-hub:
-  *  https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/blob/master/volker/macros/discrete_histogram_entropy_.ijm
+  *  is written to a table.
   *  
   */
+var _NBINS = 256;
+var _DELTA = 0.001;
+var _VALUE_COLUMN = "bin start";
+var _COUNT_COLUMN = "count";
+var _AUTO = true;
 
-_NBINS = 256;
-_DELTA = 0.001;
-_VALUE_COLUMN = "bin start";
-_COUNT_COLUMN = "count";
-_AUTO = true;
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Discrete_Histogram_Entropy_Tool";
 
-entropy = autoHistogramEntropy();
+autoHistogramEntropy();
 exit();
 
 macro "Discrete Histogram Entropy (f5)" {
@@ -36,16 +38,37 @@ macro "Discrete Histogram Entropy (f5) Action Tool - CeefD10CfccL2030CccfL7080Cf
 	autoHistogramEntropy();
 }
 
+macro "Discrete Histogram Entropy (f5) Action Tool Options" {
+	Dialog.create("Options DHE");
+	Dialog.addNumber("number of bins: ", _NBINS);
+	Dialog.addNumber("epsilon: ", _DELTA);
+	Dialog.addString("bin column: ", _VALUE_COLUMN);
+	Dialog.addString("counts column: ", _COUNT_COLUMN);
+	Dialog.addCheckbox("auto", _AUTO);
+	Dialog.addHelp(helpURL);
+	Dialog.show();
+	_NBINS = Dialog.getNumber();
+	_DELTA = Dialog.getNumber();
+	_VALUE_COLUMN = Dialog.getString();
+	_COUNT_COLUMN = Dialog.getString();
+	_AUTO = Dialog.getCheckbox();
+}
+
+/**
+ * Run the calculation on an image, a histogram results table or
+ * the Directionality results table.
+ */
 function autoHistogramEntropy() {
 	winType = getInfo("window.type");
 	title = getInfo("window.title");
 	if (winType=='Image') {
 		entropy = imageEntropy();
-		print("Entropy of " + title + ": "+entropy);
+		displayResult(title, entropy);
 		return entropy;
 	} 
 	if (indexOf(title, 'Directionality histograms')>=0) {
 		entropy = directonalityEntropy();
+		displayResult(title, entropy);
 		return entropy;
 	}
 	valueColumn = _VALUE_COLUMN;
@@ -59,10 +82,26 @@ function autoHistogramEntropy() {
 		}
 	}
 	entropy = histogramEntropy(title, valuesColumn, countColumn);
-	print("Entropy of " + title + ": "+entropy);
+	displayResult(title, entropy);
 	return entropy;
 }
 
+/**
+ * Report the discrete histogram entropy in a table.
+ */
+function displayResult(title, entropy) {
+	tableTitle = "Discrete-Histogram-Entropy";
+	if (!isOpen(tableTitle)) Table.create(tableTitle);
+	index = Table.size(tableTitle);
+	Table.set('image', index, title, tableTitle);
+	Table.set('entropy', index, entropy, tableTitle);	
+}
+
+/**
+ * Calculate the discrete histogram entropy from a table.
+ * 
+ * Normalize the counts if necessary.
+ */
 function histogramEntropy(title, columnValues, columnCounts) {
 	values = Table.getColumn(columnValues, title);
 	counts = Table.getColumn(columnCounts, title);
@@ -75,6 +114,9 @@ function histogramEntropy(title, columnValues, columnCounts) {
 	return entropy;
 }
 
+/**
+ * Calculate the discrete histogram entropy from an image.
+ */
 function imageEntropy() {
 	imageTitle = getTitle();
 	getHistogram(values, counts, _NBINS);
@@ -87,6 +129,9 @@ function imageEntropy() {
 	return entropy;
 }
 
+/**
+ * Normalize the values in anArray, so that their sum is equal to one.
+ */
 function normalizeArray(anArray) {
 	sum = sumArray(anArray);
 	for (i = 0; i < anArray.length; i++) {
@@ -94,6 +139,9 @@ function normalizeArray(anArray) {
 	}
 }
 
+/**
+ * Return the sum of all values in the array.
+ */
 function sumArray(anArray) {
 	sum = 0;
 	for (i = 0; i < anArray.length; i++) {
@@ -102,6 +150,10 @@ function sumArray(anArray) {
 	return sum;
 }
 
+/**
+ * Calculate the discrete histogram entropy from the histogram table of the 
+ * Directonality plugin.
+ */
 function directonalityEntropy() {
 	content = getInfo("window.contents");
 	lines = split(content, "\n");
@@ -115,10 +167,17 @@ function directonalityEntropy() {
 		frequencies[i-1] = parseFloat(line[1]);
 	}	
 	entropy = discreteHistogramEntropy(directions, frequencies);
-	print("Entropy of " + imageTitle + ": "+entropy);
 	return entropy;
 }
 
+/**
+ * Calculate the discrete histogram entropy from the bin size and
+ * the frequencies, i.e. normalized count values.
+ * 
+ * @param bins	the starts of the bins of the histogram
+ * @param frequencies  the normalized count values of the histogram
+ * @return the discrete histogram entropy
+ */
 function discreteHistogramEntropy(bins, frequencies) {
 
 	binWidth = abs(bins[0]-bins[1]);
@@ -133,6 +192,11 @@ function discreteHistogramEntropy(bins, frequencies) {
 	return entropy;
 }
 
+/**
+ * Apply the discrete histogram entropy as an image filter.
+ * 
+ * Not used in the macro-tool
+ */
 function entropyFilter(radius) {
 	imgWidth = getWidth();
 	imgHeight = getHeight();
