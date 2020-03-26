@@ -27,38 +27,43 @@ def linkSpots():
 	SLICE = rt.getColumn(ResultsTable.SLICE)
 	spotsByScale = getRoisBySlice(SLICE)
 	print(spotsByScale)
-	for s in range(1, len(spotsByScale)):
-		print('scale', s)
+	## set objects of spots i scale 1 to the id of the spot
+	spots = spotsByScale[1]
+	for spot in spots:
+		spot['object']=spot['id']
+	for s in range(2, len(spotsByScale)+1):
 		spots = spotsByScale[s]
 		for spot in spots:
-			print('spot', spot)
-			if not spot['object']:
-				spot['object']=spot['id']
-			spotsNextScale = spotsByScale[s+1]
-			for spotNextScale in spotsNextScale:
-				print('spot next scale', spotNextScale)
-				deltaX = X[spotNextScale['id']]-X[spot['id']]
-				deltaY = Y[spotNextScale['id']]-Y[spot['id']]
+			spot['object']=spot['id']						# initially set the object to which the spot belong to the spot id
+			spotsLastScale = spotsByScale[s-1]
+			minDist = float("inf")
+			minObject = None
+			for spotLastScale in spotsLastScale:
+			# for each spot on the next scale
+				deltaX = X[spotLastScale['id']]-X[spot['id']]
+				deltaY = Y[spotLastScale['id']]-Y[spot['id']]
 				dist = math.sqrt((deltaX * deltaX) + (deltaY*deltaY))
-				print('dist', dist)
-				if (dist<(D[spotNextScale['id']]/2.0)):
-					print('hit')
-					minDist = dist
-					minObject = spot['object']
-				if (minObject):
-					spotNextScale['object'] = minObject	
-					print(spot['id']+1, spotNextScale['id']+1, minObject+1, minDist)
+				print("spot", spot['id'], "spot s-1", spotLastScale['id'], dist)   
+				if (dist<(D[spot['id']])):
+					if (dist<minDist):
+						minDist = dist
+						minObject = spotLastScale['object']
+						print('hit', minDist, minObject)
+			if minObject is not None:
+				spot['object'] = minObject	
+				print("minObject", minObject)
 		print(spotsByScale) 
 	RoiManager()
 	roiManager = RoiManager.getRoiManager()
 	colors = {0 : "red", 1 : "green", 2 : "blue", 3 : "yellow", 4 : "magenta", 5 : "cyan"}
-	for s in range(1, len(spotsByScale)):
+	print("len-col", len(colors))
+	for s in range(1, len(spotsByScale)+1):
 		spots = spotsByScale[s]
 		for spot in spots:
-			if (spot['object']):
-				roiManager.select(spot['id']+1);
-				currentColor = spot['object'] % len(colors)
-				roiManager.runCommand("Set Color", colors[currentColor])
+			roiManager.select(spot['id']);
+			currentColor = spot['object'] % len(colors)
+			print(spot['id'], spot['object'], currentColor)
+			roiManager.runCommand("Set Color", colors[currentColor])
 def getRoisBySlice(slice):
 	roisBySlice = {}
 	for i in range(0, len(slice)):
