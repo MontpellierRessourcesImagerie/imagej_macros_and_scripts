@@ -18,7 +18,13 @@ from ij.plugin.frame import RoiManager
 
 def main():
 	linkedSpots = linkSpots()
-
+#	print(linkedSpots)
+#	drawSpots(linkedSpots)
+	objects = createObjects(linkedSpots)
+	print(objects)
+	minima = getMinima(objects)
+	print(minima)
+	
 def linkSpots():
 	rt = ResultsTable.getResultsTable()
 	X = rt.getColumn(ResultsTable.X_CENTROID)
@@ -44,7 +50,7 @@ def linkSpots():
 				deltaY = Y[spotLastScale['id']]-Y[spot['id']]
 				dist = math.sqrt((deltaX * deltaX) + (deltaY*deltaY))
 				print("spot", spot['id'], "spot s-1", spotLastScale['id'], dist)   
-				if (dist<(D[spot['id']])):
+				if (dist<(D[spot['id']])/2.0):
 					if (dist<minDist):
 						minDist = dist
 						minObject = spotLastScale['object']
@@ -52,10 +58,12 @@ def linkSpots():
 			if minObject is not None:
 				spot['object'] = minObject	
 				print("minObject", minObject)
-		print(spotsByScale) 
+	return spotsByScale 
+
+def drawSpots(spotsByScale):
 	RoiManager()
 	roiManager = RoiManager.getRoiManager()
-	colors = {0 : "red", 1 : "green", 2 : "blue", 3 : "yellow", 4 : "magenta", 5 : "cyan"}
+	colors = {0 : "red", 1 : "green", 2 : "blue", 3 : "yellow", 4 : "magenta", 5 : "cyan", 6 : "orange", 7 : "black", 8 : "white"}
 	print("len-col", len(colors))
 	for s in range(1, len(spotsByScale)+1):
 		spots = spotsByScale[s]
@@ -64,6 +72,7 @@ def linkSpots():
 			currentColor = spot['object'] % len(colors)
 			print(spot['id'], spot['object'], currentColor)
 			roiManager.runCommand("Set Color", colors[currentColor])
+			
 def getRoisBySlice(slice):
 	roisBySlice = {}
 	for i in range(0, len(slice)):
@@ -72,4 +81,31 @@ def getRoisBySlice(slice):
 		roisBySlice[slice[i]].append({'id': i, 'object': None})
 	return roisBySlice
 
+def createObjects(spotsByScale):
+	objects = {}
+	for s in range(1, len(spotsByScale)+1):
+		spots = spotsByScale[s]
+		for spot in spots:
+			if not spot['object'] in objects:
+				objects[spot['object']] = []
+			objects[spot['object']].append(spot['id'])
+	return objects
+
+def getMinima(objects):
+	minIndices = {}
+	
+	rt = ResultsTable.getResultsTable()
+	minIntensities = rt.getColumn(ResultsTable.MIN)
+	
+	for key in objects:
+		ids = objects[key]
+		minIndex = -1
+		minimum = float('inf')
+		for anID in ids:
+			if minIntensities[anID]<minimum:
+				minimum = minIntensities[anID]
+				minIndex = anID
+		minIndices[key] = minIndex
+	return minIndices
+		
 main()
