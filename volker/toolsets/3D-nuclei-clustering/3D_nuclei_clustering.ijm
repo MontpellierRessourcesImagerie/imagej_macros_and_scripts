@@ -6,7 +6,7 @@
  * 
  * (c) 2019-2020, INSERM
  * 
- * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
  * 
 **/
 
@@ -29,6 +29,11 @@ var _THRESHOLD = 900;
 // parameters for the clustering of the nuclei
 var _MAX_DIST = 18;
 var _MIN_PTS = 5;
+var _X_COLUMN = 'X';
+var _Y_COLUMN = 'Y';
+var _Z_COLUMN = 'Z';
+var _NR_COLUMN = "NR";
+
 // parameters for batch processing
 var _FILE_EXTENSION = "ims";
 var _SERIES = "series_2"
@@ -121,20 +126,28 @@ macro "filter above threshold (f6) Action Tool Options" {
 }
 
 macro "cluster nuclei (f7) Action Tool - C000T4b12c" {
-	clusterNuclei(_MAX_DIST, _MIN_PTS);
+	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
 macro "cluster nuclei [f7]" {
-	clusterNuclei(_MAX_DIST, _MIN_PTS);
+	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
 macro "cluster nuclei (f7) Action Tool Options" {
 	Dialog.create("Clustering options");
 	Dialog.addNumber("max. distance: ", _MAX_DIST);
 	Dialog.addNumber("min. nr. points: ", _MIN_PTS);
+	Dialog.addString("x-column: ", _X_COLUMN);
+	Dialog.addString("y-column: ", _Y_COLUMN);
+	Dialog.addString("z-column: ", _Z_COLUMN);
+	Dialog.addString("nr-column: ", _NR_COLUMN);
 	Dialog.show();
 	_MAX_DIST = Dialog.getNumber();
 	_MIN_PTS = Dialog.getNumber();
+	_X_COLUMN = Dialog.getString();
+	_Y_COLUMN = Dialog.getString();
+	_Z_COLUMN = Dialog.getString();
+	_NR_COLUMN = Dialog.getString();
 }
 
 macro "nearest neighbors (f8) Action Tool - C000T4b12n" {
@@ -299,7 +312,7 @@ function processImage() {
 	numberOfRedNuclei = filterAboveThreshold();
 	print("number of nuclei above threshold ("+_THRESHOLD+") in red channel ("+_SIGNAL_CHANNEL+"): " + numberOfRedNuclei);
 
-	numberOfClusters = clusterNuclei(_MAX_DIST, _MIN_PTS);
+	numberOfClusters = clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 	print("number of clusters (maxDist="+_MAX_DIST+", minPts="+_MIN_PTS+"): " + numberOfClusters);
 
 	numberOfNucleiInClusters = Table.size("clusters");
@@ -537,20 +550,27 @@ function measureIntensityInOtherChannel() {
 	Overlay.show;
 }
 
-function clusterNuclei(maxDist, minPts) {
-	inputStackID = getImageID();
-	inputStackTitle = getTitle();
+function clusterNuclei(maxDist, minPts, xColumn, yColumn, zColumn, nrColumn) {
+	if (nImages>0) {
+		inputStackID = getImageID();
+	}
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/dbscan_clustering_3D.py");
-	parameter = "maxDist="+maxDist+",minPts="+minPts;
+	parameter = "maxDist="+maxDist+",minPts="+minPts+",X="+xColumn+",Y="+yColumn+",Z="+zColumn+",NR="+nrColumn;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
 	if (_CREATE_RESULTS_CHANNEL) {
-		drawClusters();
-		addImageAtEndOfStack(inputStackID, "clusters-indexed-mask");		
+		if (nImages>0) {
+			drawClusters();
+			addImageAtEndOfStack(inputStackID, "clusters-indexed-mask");		
+		}
 	}
-	C = Table.getColumn("C", "clusters");
-	ranks = Array.rankPositions(C);
-	nrOfClusters = C[ranks[ranks.length-1]];
+	nrOfClusters = 0;
+	rows = Table.size("clusters");
+	if (rows>0) {
+		C = Table.getColumn("C", "clusters");
+		ranks = Array.rankPositions(C);
+		nrOfClusters = C[ranks[ranks.length-1]];
+	}
 	return nrOfClusters;
 }
 
