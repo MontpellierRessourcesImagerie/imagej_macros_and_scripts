@@ -12,18 +12,21 @@
 #
 ##################################################################################
 
+from ij import IJ
 from ij.measure import ResultsTable
 import math
 from ij.plugin.frame import RoiManager
+from ij.gui import OvalRoi, Overlay
 
 def main():
 	linkedSpots = linkSpots()
 #	print(linkedSpots)
-#	drawSpots(linkedSpots)
+	drawSpots(linkedSpots)
 	objects = createObjects(linkedSpots)
 	print(objects)
 	minima = getMinima(objects)
 	print(minima)
+	drawMinima(minima)
 	
 def linkSpots():
 	rt = ResultsTable.getResultsTable()
@@ -107,5 +110,17 @@ def getMinima(objects):
 				minIndex = anID
 		minIndices[key] = minIndex
 	return minIndices
-		
+
+def drawMinima(minima):
+	rt = ResultsTable.getResultsTable()
+	X = rt.getColumn(ResultsTable.X_CENTROID)
+	Y = rt.getColumn(ResultsTable.Y_CENTROID)
+	D = rt.getColumn(ResultsTable.FERET)	
+	overlay = Overlay()
+	for minimum in minima:
+		index = minima[minimum]
+	 	r = float(D[index]) / 2
+		roi = OvalRoi(float(X[index])-r, float(Y[index])-r, float(D[index]), float(D[index]))	
+		overlay.add(roi)
+	IJ.getImage().setOverlay(overlay)
 main()
