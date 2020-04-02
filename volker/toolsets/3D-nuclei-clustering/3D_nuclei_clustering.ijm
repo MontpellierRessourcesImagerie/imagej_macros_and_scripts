@@ -524,7 +524,7 @@ function measureIntensityInOtherChannel() {
 	X = Table.getColumn(_X_COLUMN, "Results");
 	Y = Table.getColumn(_Y_COLUMN, "Results");
 	Z = Table.getColumn(_Z_COLUMN, "Results");
-	M = newArray(X.length)
+	M = newArray(X.length);
 	Overlay.remove;
 	for (i = 0; i < X.length; i++) {
 		x = X[i];
