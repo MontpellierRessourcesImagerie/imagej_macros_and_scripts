@@ -387,10 +387,10 @@ function detectNuclei() {
 		V= newArray(0);
 		
 		for(row=0; row<nResults; row++) {
-			zPos = getResult("Z", row) * depth;
+			zPos = getResult(_Z_COLUMN, row) * depth;
 			if (zPos>0 && zPos<(nSlices-1)*depth) {
-				xPos = getResult("X", row) * width;
-				yPos = getResult("Y", row) * height;
+				xPos = getResult(_X_COLUMN, row) * width;
+				yPos = getResult(_Y_COLUMN, row) * height;
 				vObj = getResult("V", row);
 				Z = Array.concat(Z, zPos);
 				X = Array.concat(X, xPos);
@@ -400,11 +400,12 @@ function detectNuclei() {
 		}
 		run("Clear Results");
 		Table.create("Results");
-		Table.setColumn("X", X, "Results");
-		Table.setColumn("Y", Y, "Results");
-		Table.setColumn("Z", Z, "Results");
+		Table.setColumn(_X_COLUMN, X, "Results");
+		Table.setColumn(_Y_COLUMN, Y, "Results");
+		Table.setColumn(_Z_COLUMN, Z, "Results");
 		Table.setColumn("V", V, "Results");
 	}
+	Table.sort(_Z_COLUMN, "Results");
 	Table.applyMacro("NR=row+1 ", "Results");
 	selectWindow("peaks");
 	setVoxelSize(width, height, depth, unit);
@@ -425,12 +426,16 @@ function addImageAtEndOfStack(stackID, title) {
 	selectImage(stackID);
 	stackTitle = getTitle();
 	Stack.getDimensions(width, height, channels, slices, frames);
-	run("Split Channels");
 	mergeString = "";
-	for (i = 0; i < channels; i++) {
-		mergeString += "c"+(i+1)+"=[C"+(i+1)+"-"+stackTitle+"] ";
+	if (channels>1) {
+		run("Split Channels");
+		for (i = 0; i < channels; i++) {
+			mergeString += "c"+(i+1)+"=[C"+(i+1)+"-"+stackTitle+"] ";
+		}
+		mergeString += "c"+(channels+1)+"=["+title+"] create ";
+	} else {
+		mergeString = "c1=["+stackTitle+"] c2=["+title+"] create ";
 	}
-	mergeString += "c"+(channels+1)+"=["+title+"] create ";
 	run("Merge Channels...", mergeString);
 }
 
@@ -447,10 +452,9 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	newImage(nameOfTable + "-indexed-mask", "16-bit black", width, height, slices);
 	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
-	Table.sort("Z", nameOfTable);
-	X = Table.getColumn("X", nameOfTable);
-	Y = Table.getColumn("Y", nameOfTable);
-	Z = Table.getColumn("Z", nameOfTable);
+	X = Table.getColumn(_X_COLUMN, nameOfTable);
+	Y = Table.getColumn(_Y_COLUMN, nameOfTable);
+	Z = Table.getColumn(_Z_COLUMN, nameOfTable);
 	if (nameOfColorColumn != "none"){
 		C = Table.getColumn(nameOfColorColumn, nameOfTable);
 		Table.sort(nameOfColorColumn, nameOfTable);
@@ -461,8 +465,7 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 			y = Y[i];
 			z = Z[i];
 			c = C[i];
-			r = _RADIUS_SPHERE;
-			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+",3 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
 		}
 	} else {
 		for (i = 0; i < X.length; i++) {
@@ -470,26 +473,20 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 			y = Y[i];
 			z = Z[i];
 			c = 1;
-			r = _RADIUS_SPHERE;
-			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+",3 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
 		}
 	}
 	run(_LOOKUP_TABLE);
-	Table.sort("NR", nameOfTable);
 }
 
 function filterAboveThreshold() {
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
-	measureIntensityInOtherChannel();	
-	X = Table.getColumn("X");
-	Y = Table.getColumn("Y");
-	Z = Table.getColumn("Slice");
-	for (i = 0; i < Z.length; i++) {
-		Z[i] = Z[i] * voxelDepth;
-	}
-	M = Table.getColumn("Mean");
+	M = measureIntensityInOtherChannel();	
+	X = Table.getColumn(_X_COLUMN);
+	Y = Table.getColumn(_Y_COLUMN);
+	Z = Table.getColumn(_Z_COLUMN);
 	XN = newArray(0);
 	YN = newArray(0);
 	ZN = newArray(0);
@@ -504,29 +501,30 @@ function filterAboveThreshold() {
 	}	
 	run("Clear Results");
 	Table.create("Results");
-	Table.setColumn("X", XN);
-	Table.setColumn("Y", YN);
-	Table.setColumn("Z", ZN);
+	Table.setColumn(_X_COLUMN, XN);
+	Table.setColumn(_Y_COLUMN, YN);
+	Table.setColumn(_Z_COLUMN, ZN);
 	Table.setColumn("Mean", MN);
-	Table.applyMacro("NR=row+1 ", "Results");
-
-	
+	Table.applyMacro(""+_NR_COLUMN+"=row+1 ", "Results");
 	if (_CREATE_RESULTS_CHANNEL) {
 		drawNuclei();
 		selectImage(inputStackID);
-//		run("To ROI Manager");
-		run("Split Channels");
-		run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=[Results-indexed-mask] create ");
-//		run("From ROI Manager");
+		Stack.getDimensions(width, height, channels, slices, frames);
+		if (channels>1) {
+			run("Split Channels");
+			run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=[Results-indexed-mask] create ");
+		} else {
+			run("Merge Channels...", "c1=["+inputStackTitle+"] c5=[Results-indexed-mask] create ");			
+		}
 	}
 	return XN.length;
 }
 
 function measureIntensityInOtherChannel() {
-	X = Table.getColumn("X", "Results");
-	Y = Table.getColumn("Y", "Results");
-	Z = Table.getColumn("Z", "Results");
-	Table.sort("Z", "Results");
+	X = Table.getColumn(_X_COLUMN, "Results");
+	Y = Table.getColumn(_Y_COLUMN, "Results");
+	Z = Table.getColumn(_Z_COLUMN, "Results");
+	M = newArray(X.length)
 	Overlay.remove;
 	for (i = 0; i < X.length; i++) {
 		x = X[i];
@@ -535,19 +533,10 @@ function measureIntensityInOtherChannel() {
 		toUnscaled(x, y, z);
 		Stack.setSlice(z);
 		makeOval(x-_RADIUS_MEASUREMENT, y-_RADIUS_MEASUREMENT, 2*_RADIUS_MEASUREMENT+1, 2*_RADIUS_MEASUREMENT+1);
-		Overlay.addSelection;
-		Overlay.setPosition(_SIGNAL_CHANNEL, z, 1);
+		getStatistics(area, mean);
+		M[i] = mean;
 	}
-	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None");
-	run("Clear Results");
-	size = Overlay.size;
-	for (i = 0; i < size; i++) {
-		Overlay.activateSelection(i);
-		run("Measure");
-	}
-	Table.setColumn("X", X, "Results");
-	Table.setColumn("Y", Y, "Results");
-	Overlay.show;
+	return M;
 }
 
 function clusterNuclei(maxDist, minPts, xColumn, yColumn, zColumn, nrColumn) {
@@ -591,13 +580,13 @@ function drawNearestNeighborConnections(tableName) {
 	newImage(tableName + "-neighbors", "16-bit black", width, height, slices);
 	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	for (row = 0; row < size; row++) {
-		x1 = Table.get("X", row, tableName);
-		y1 = Table.get("Y", row, tableName);
-		z1 = Table.get("Z", row, tableName);
+		x1 = Table.get(_X_COLUMN, row, tableName);
+		y1 = Table.get(_Y_COLUMN, row, tableName);
+		z1 = Table.get(_Z_COLUMN, row, tableName);
 		neighbor = Table.get("neighbor", row, tableName)-1;
-		x2 = Table.get("X", neighbor, tableName);
-		y2 = Table.get("Y", neighbor, tableName);
-		z2 = Table.get("Z", neighbor, tableName);
+		x2 = Table.get(_X_COLUMN, neighbor, tableName);
+		y2 = Table.get(_Y_COLUMN, neighbor, tableName);
+		z2 = Table.get(_Z_COLUMN, neighbor, tableName);
 		toUnscaled(x1, y1, z1);
 		toUnscaled(x2, y2, z2);
 		run("3D Draw Line", "size_x="+width+" size_y="+height+" size_z="+slices+" x0="+x1+" y0="+y1+" z0="+z1+" x1="+x2+" y1="+y2+" z1="+z2+" thickness=1.000 value=65535 display=Overwrite");

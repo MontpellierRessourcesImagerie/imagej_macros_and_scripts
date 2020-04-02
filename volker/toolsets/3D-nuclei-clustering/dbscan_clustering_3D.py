@@ -72,10 +72,10 @@ def reportClustersAsTable(clusters, XColumn='X', YColumn='Y', ZColumn='Z', NRCol
 		for dp in c.getPoints():
 			rt.incrementCounter()
 			p = dp.getPoint()
-			rt.addValue("NR", counter)
-			rt.addValue("X", p[0])
-			rt.addValue("Y", p[1])
-			rt.addValue("Z", p[2])
+			rt.addValue(NRColumn, counter)
+			rt.addValue(XColumn, p[0])
+			rt.addValue(YColumn, p[1])
+			rt.addValue(ZColumn, p[2])
 			rt.addValue("C", clusterCounter)
 			counter = counter + 1;
 		clusterCounter = clusterCounter + 1
@@ -109,10 +109,10 @@ def reportClustersAsTable(clusters, XColumn='X', YColumn='Y', ZColumn='Z', NRCol
 	rt = ResultsTable()
 	for p in unclusteredPoints:
 		rt.incrementCounter()
-		rt.addValue("NR", counter)
-		rt.addValue("X", p[1])
-		rt.addValue("Y", p[2])
-		rt.addValue("Z", p[3])
+		rt.addValue(NRColumn, counter)
+		rt.addValue(XColumn, p[1])
+		rt.addValue(YColumn, p[2])
+		rt.addValue(ZColumn, p[3])
 		counter = counter + 1;
 	
 	rt.show("unclustered")

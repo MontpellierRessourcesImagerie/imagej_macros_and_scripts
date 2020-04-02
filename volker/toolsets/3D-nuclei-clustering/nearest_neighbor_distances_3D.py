@@ -6,11 +6,11 @@ from ij import WindowManager, IJ
 from itertools import groupby
 from operator import itemgetter
 
-def main(tableName):
+def main(tableName, XColumn='X', YColumn='Y', ZColumn='Z'):
 	if tableName=='clusters':
 		calculateNNDsByCluster(tableName)
 	else:
-		calculateNNDsByTable(tableName)
+		calculateNNDsByTable(tableName, XColumn='X', YColumn='Y', ZColumn='Z')
 
 def calculateNNDsByCluster(tableName):
 	win = WindowManager.getWindow(tableName)
@@ -50,8 +50,8 @@ def calculateNNDsByCluster(tableName):
 	win.rename("tmp")
 	win.rename(tableName)
 		
-def calculateNNDsByTable(tableName):
-	pointList = pointList3DFromRT(tableName)	
+def calculateNNDsByTable(tableName, XColumn='X', YColumn='Y', ZColumn='Z'):
+	pointList = pointList3DFromRT(tableName, XColumn='X', YColumn='Y', ZColumn='Z')	
 	nearestNeighborsDist, nearestNeighborsInd = calculateNNDs(pointList)
 	
 	win = WindowManager.getWindow(tableName)
@@ -67,7 +67,6 @@ def calculateNNDsByTable(tableName):
 	rt.updateResults()
 	win.rename("tmp")
 	win.rename(tableName)
-#	drawNearestNeighborConnections()
 
 def calculateNNDs(pointList):
 	big = float("inf")
@@ -95,37 +94,13 @@ def calculateNNDs(pointList):
 		nearestNeighborsDist.append(minimum)
 		nearestNeighborsInd.append(index)
 	return nearestNeighborsDist, nearestNeighborsInd
-		
-def drawNearestNeighborConnections():
-	ip = IJ.getImage()
-	calibration = ip.getCalibration()
-	width = ip.getWidth()
-	height = ip.getHeight()
-	stackSize = ip.getStackSize()
-	win = WindowManager.getWindow("clusters")
-	rt = win.getResultsTable()
-	for row in range(0, rt.size()):
-		x1 = rt.getValue("X", row)
-		y1 = rt.getValue("Y", row)
-		z1 = rt.getValue("Z", row)
-		neighbor = int(rt.getValue("neighbor", row)-1)
-		x2 = rt.getValue("X", neighbor)
-		y2 = rt.getValue("Y", neighbor)
-		z2 = rt.getValue("Z", neighbor)
-		x1 = calibration.getRawX(x1)
-		y1 = calibration.getRawY(y1)
-		z1 = calibration.getRawZ(z1)
-		x2 = calibration.getRawX(x2)
-		y2 = calibration.getRawY(y2)
-		z2 = calibration.getRawZ(z2)
-		IJ.run(ip, "3D Draw Line", "size_x="+str(width)+" size_y="+str(height)+" size_z="+str(stackSize)+" x0="+str(x1)+" y0="+str(y1)+" z0="+str(z1)+" x1="+str(x2)+" y1="+str(y2)+" z1="+str(z2)+" thickness=1.000 value=65535 display=Overwrite")
-	
-def pointList3DFromRT(tableName):
+			
+def pointList3DFromRT(tableName, XColumn='X', YColumn='Y', ZColumn='Z'):
 	win = WindowManager.getWindow(tableName)
 	rt = win.getResultsTable()
-	X = rt.getColumn(rt.getColumnIndex("X"))
-	Y = rt.getColumn(rt.getColumnIndex("Y"))
-	Z = rt.getColumn(rt.getColumnIndex("Z"))
+	X = rt.getColumn(rt.getColumnIndex(XColumn))
+	Y = rt.getColumn(rt.getColumnIndex(YColumn))
+	Z = rt.getColumn(rt.getColumnIndex(ZColumn))
 	dplist = []
 	for x, y, z in zip(X, Y, Z):
 		array = []
@@ -137,11 +112,19 @@ def pointList3DFromRT(tableName):
 		dplist.append(dp)
 	return dplist
 
+XColumn = 'X'
+YColumn = 'Y'
+ZColumn = 'Z'
 if 'getArgument' in globals():
-  del zip 	# the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
-  parameter = getArgument()
-  args = parameter.split(",")
-  tableName =  args[0].split("=")[1]
+	if not hasattr(zip, '__call__'):
+		del zip 					# the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
+	parameter = getArgument()
+	args = parameter.split(",")
+	tableName =  args[0].split("=")[1]
+	if len(args)>1:
+		XColumn=args[2].split("=")[1]
+		YColumn=args[3].split("=")[1]
+		ZColumn=args[4].split("=")[1]
 else:
-  tableName = "clusters"
-main(tableName)
+	tableName = "clusters"
+main(tableName, XColumn, YColumn, ZColumn)
