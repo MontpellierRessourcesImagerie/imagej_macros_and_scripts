@@ -52,6 +52,7 @@ def readDataFromResultsTable(attributes, rt):
     for i in range(0, rt.size()):
         inst = DenseInstance(nrOfFeatures)
         for j in range(0, nrOfFeatures):
+            print(attributes[j].name())
             value = rt.getValue(attributes[j].name(), i)
             inst.setValue(attributes[j], value)
 	    data.add(inst)

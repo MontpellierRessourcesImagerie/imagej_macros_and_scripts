@@ -147,6 +147,22 @@ macro 'Plot Histogram and Distributions Action Tool (f5) Options' {
 	_DIST_LINE_WIDTH = Dialog.getNumber();
 }
 
+// Extras menu
+var extraCmds = newMenu("Extras Menu Tool",
+  newArray("Download example image 1", "Download example image 2", "Download example image 3" ,"Open help page"));
+  
+macro "Extras Menu Tool - C000T4b12e" {
+   cmd = getArgument();
+   if (cmd=="Download example image 1")
+       open("http://dev.mri.cnrs.fr/attachments/download/2212/IMG_8992.JPG");
+   if (cmd=="Download example image 2")
+       open("http://dev.mri.cnrs.fr/attachments/download/2213/IMG_8993.JPG");    
+   if (cmd=="Download example image 3")
+       open("http://dev.mri.cnrs.fr/attachments/download/2214/IMG_8994.JPG");    
+   if (cmd=="Open help page")
+       run('URL...', 'url='+helpURL);
+}
+
 function dogFilterAction() {
 	init();
 	if (_AUTO_FIND_CONTRAST) autoSetContrast();
@@ -353,17 +369,20 @@ function countAndColorClusters() {
 	for (i = 0; i < classOneCounter; i++) {
 		indices[i]=i; 
 	}
-	roiManager("Select", indices);
-	roiManager("Set Color", _COLOR_CLUSTER_ONE);
-    roiManager("Set Line Width", 0);
-    indices = newArray(classTwoCounter);
-	for (i = 0; i < classTwoCounter; i++) {
-		indices[i]=classOneCounter + i; 
+	count = roiManager("count");
+	if (count>0) {
+		roiManager("Select", indices);
+		roiManager("Set Color", _COLOR_CLUSTER_ONE);
+	    roiManager("Set Line Width", 0);
+	    indices = newArray(classTwoCounter);
+		for (i = 0; i < classTwoCounter; i++) {
+			indices[i]=classOneCounter + i; 
+		}
+		roiManager("Select", indices);
+		roiManager("Set Color", _COLOR_CLUSTER_TWO);
+	    roiManager("Set Line Width", 0);
 	}
-	roiManager("Select", indices);
-	roiManager("Set Color", _COLOR_CLUSTER_TWO);
-    roiManager("Set Line Width", 0);
-    run("Select None");
+    if (nImages > 0) run("Select None");
 }
 
 function gauss(x, mu, sigma) {
