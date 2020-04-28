@@ -56,6 +56,7 @@ function countProjections() {
 	
 	imageID = getImageID();
 
+	if (selectionType()<0) return;
 	if(Roi.getStrokeWidth<2) Roi.setStrokeWidth(2);
 
 	getStatistics(area, mean, min, max, stdDev, histogram); 
