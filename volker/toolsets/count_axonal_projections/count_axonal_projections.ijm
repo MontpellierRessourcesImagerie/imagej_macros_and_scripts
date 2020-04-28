@@ -56,6 +56,8 @@ function countProjections() {
 	
 	imageID = getImageID();
 
+	if(Roi.getStrokeWidth<2) Roi.setStrokeWidth(2);
+
 	getStatistics(area, mean, min, max, stdDev, histogram); 
 	if (_DETECT_THRESHOLD) {
 		_THRESHOLD = mean;
@@ -80,6 +82,7 @@ function countProjections() {
 	for (i = 0; i < maximaPositions.length; i++) {
 		maximum = ypoints[maximaPositions[i]];	
 		if (maximum>_THRESHOLD) {
+			Array.print(sPointsX);
 			rPointsX = Array.concat(rPointsX, sPointsX[maximaPositions[i]]);
 			rPointsY = Array.concat(rPointsY, sPointsY[maximaPositions[i]]);
 		}
