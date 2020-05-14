@@ -26,7 +26,7 @@ macro "first derivative (f5) Action Tool - C000T4b12f" {
 	Plot.create(title + "'", "x", "Y-axis Label");
 	Plot.add("connected circle", xpoints, first);
 	if (_SHOW_ZERO_CROSSINGS) {
-		Plot.add("diamond", results, yZeros,"red,red,2.0,+");
+		Plot.add("diamond", results, yZeros);
 		Plot.setStyle(1, "red,red,2.0,+");
 	}
 	Plot.setLimitsToFit();
