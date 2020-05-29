@@ -56,7 +56,7 @@ macro "analyze image (f5) Action Tool Options" {
 	 Dialog.addNumber("other channel: ",  _CHANNEL_GREEN);
 	 Dialog.addNumber("sigma Gaussian blur for cell detection: ", _SIGMA);
 	 Dialog.addChoice("thresholding method for cells: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
-	 Dialog.addNumber("proeminence for minima detection: ", _PROEMINENCE);
+	 Dialog.addNumber("proeminence for maxima detection: ", _PROEMINENCE);
 
 	 Dialog.addMessage("--Border correction------------------------------------------");
 	 Dialog.addNumber("delta x for border direction: ", _DELTA_X);
