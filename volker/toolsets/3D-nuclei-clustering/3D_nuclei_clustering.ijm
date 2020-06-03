@@ -106,15 +106,23 @@ macro "detect nuclei (f5) Action Tool Options" {
 	_CREATE_RESULTS_CHANNEL = Dialog.getCheckbox();
 }
 
-macro "filter above threshold (f6) Action Tool - C000T4b12f" {
+macro "add nuclei (f6) Action Tool - C000T4b12a" {
+	addNuclei();
+}
+
+macro "add nuclei [f6]" {
+	addNuclei();
+}
+
+macro "filter above threshold (f7) Action Tool - C000T4b12f" {
 	filterAboveThreshold();
 }
 
-macro "filter above threshold [f6]" {
+macro "filter above threshold [f7]" {
 	filterAboveThreshold();
 }
 
-macro "filter above threshold (f6) Action Tool Options" {
+macro "filter above threshold (f7) Action Tool Options" {
 	Dialog.create("Filter nuclei options");
 	Dialog.addNumber("signal channel: ", _SIGNAL_CHANNEL);
 	Dialog.addNumber("radius: ", _RADIUS_MEASUREMENT);
@@ -125,15 +133,15 @@ macro "filter above threshold (f6) Action Tool Options" {
 	_THRESHOLD = Dialog.getNumber();
 }
 
-macro "cluster nuclei (f7) Action Tool - C000T4b12c" {
+macro "cluster nuclei (f8) Action Tool - C000T4b12c" {
 	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
-macro "cluster nuclei [f7]" {
+macro "cluster nuclei [f8]" {
 	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
-macro "cluster nuclei (f7) Action Tool Options" {
+macro "cluster nuclei (f8) Action Tool Options" {
 	Dialog.create("Clustering options");
 	Dialog.addNumber("max. distance: ", _MAX_DIST);
 	Dialog.addNumber("min. nr. points: ", _MIN_PTS);
@@ -150,7 +158,7 @@ macro "cluster nuclei (f7) Action Tool Options" {
 	_NR_COLUMN = Dialog.getString();
 }
 
-macro "nearest neighbors (f8) Action Tool - C000T4b12n" {
+macro "nearest neighbors (f9) Action Tool - C000T4b12n" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		calculateNearestNeighbors(winTitle);
@@ -159,7 +167,7 @@ macro "nearest neighbors (f8) Action Tool - C000T4b12n" {
 	}
 }
 
-macro "nearest neighbors [f8]" {
+macro "nearest neighbors [f9]" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		calculateNearestNeighbors(winTitle);
@@ -223,6 +231,76 @@ macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD
        	   call("ij.Prefs.set", "mribia.datasetDir", DATASET_DIR); 
        }
        
+}
+
+function addNuclei() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	zoom = getZoom();
+	if (selectionType() != 10) return;
+	getSelectionCoordinates(xpoints, ypoints);
+	for (p=0; p<xpoints.length; p++) {
+		x = xpoints[p];
+		y = ypoints[p];
+		Stack.getPosition(channel, z, frame);
+		xScaled = x;
+		yScaled = y;
+		zScaled = z-1;
+		toScaled(xScaled, yScaled);
+		zScaled = zScaled * voxelDepth;
+		print(xScaled, yScaled, zScaled);
+		X = Table.getColumn("X", "Results");
+		Y = Table.getColumn("Y", "Results");
+		Z = Table.getColumn("Z", "Results");
+		X = Array.concat(X, xScaled);
+		Y = Array.concat(Y, yScaled);
+		Z = Array.concat(Z, zScaled);
+		run("Clear Results");
+		Table.setColumn("X", X, "Results");
+		Table.setColumn("Y", Y, "Results");
+		Table.setColumn("Z", Z, "Results");
+		Table.sort(_Z_COLUMN, "Results");
+		Table.applyMacro("NR=row+1 ", "Results");
+		c=1;
+		
+		inputStackID = getImageID();
+		inputTitle = getTitle();
+		
+		if (channels>1) {
+			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
+		}
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xScaled+","+yScaled+","+zScaled+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+		run(_LOOKUP_TABLE);
+		updatedChannelID = getImageID();
+		updatedChannelTitle = getTitle();
+		
+		selectImage(inputStackID);
+		run("Split Channels");
+		
+		selectImage("C"+channel+"-"+inputTitle);
+		close();
+		
+		mergeString = "";
+		
+		if (channels>1) {
+			for (i = 1; i < channel; i++) {
+				mergeString = mergeString + "c"+i+"=C"+i+"-"+inputTitle+" ";
+			}
+			mergeString = mergeString + "c"+channel+"="+updatedChannelTitle + " ";
+			for (i = channel+1; i <= channels; i++) {
+				mergeString = mergeString + "c"+i+"=C"+i+"-"+inputTitle+" ";
+			}
+			mergeString = mergeString + "create";
+		}
+		
+		run("Merge Channels...", mergeString);
+		Stack.setPosition(channel, z, frame);
+		makePoint(x, y);
+		while(getZoom()<zoom) {
+			run("In [+]");
+		}
+	}
+
 }
 
 function batchProcessImages() {
