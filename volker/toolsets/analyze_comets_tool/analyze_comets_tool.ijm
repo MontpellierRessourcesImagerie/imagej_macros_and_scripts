@@ -8,11 +8,12 @@
   *
 */
 
-var _CHANNEL_RED = 1;
-var _CHANNEL_GREEN = 2;
+var _CHANNEL_RED = 2;
+var _CHANNEL_GREEN = 1;
 var _SIGMA = 22;
 var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _THRESHOLDING_METHOD = "Intermodes";
+var _MIN_CELL_SIZE = 100;
 var _PROEMINENCE = 0.10;
 
 var _DELTA_X = 2;
@@ -20,13 +21,16 @@ var _MAX_RADIUS = 100;
 var _LINE_WIDTH = 13;
 var _MIN_TOLERANCE = 0;
 
-var _MIN_SIZE_COMETS = 25;
+var _MIN_SIZE_COMETS = 0.1;
 var _THRESHOLDING_METHOD_COMETS = "Li";
 
 var _TABLE_TITLE = "number of comets per cell";
 var _FILE_EXT = "tif";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Analyze_Comets_Tool";
+
+analyzeImage();
+exit();
 
 macro "MRI Analyze Comets (f1) Help Action Tool - C800D00C600D10C500D20C400L3090C500La0b0C400Lc0f0Ca00D01C700D11C500L2131C400D41C500L5171C600D81C700D91C900Da1C800Db1C500Dc1C400Ld1f1Ca00D02C700D12C600D22C500L3252C600D62C700L7282Ca00D92Cc00Da2Cb00Db2C700Dc2C500Dd2C400Le2f2C900D03C700D13C600D23C500L3343C600L5363C700D73C900D83Cc00D93Cf00Da3Cc00Db3C800Dc3C600Dd3C500Le3f3C800D04C700D14C600L2444C700L5464C800D74Cb00D84Cf00D94Ce00Da4Cb00Db4C900Dc4C800Dd4C600De4C500Df4C800D05C700D15C600L2535C700D45C800L5565C900D75Cc00D85Ce00D95Cc00La5c5Cb00Dd5C800De5C600Df5C700L0616C600L2636C700D46C800D56C900D66Cb00D76Cc00D86Ce00L96a6Cf00Lb6c6Cc00Dd6C900De6C700Df6L0717C600L2737C700D47C800D57C900D67Cc00D77Cf00L87b7Cc00Dc7Ca00Dd7C800De7C700Df7L0818C600D28C700L3848C800D58Cb00D68Cf00L7898Ce00Da8Cc00Db8Ca00Dc8C800Dd8C700De8C600Df8C700L0939C800D49Cb00D59Cf00L6989Ce00D99Cb00Da9C900Db9C800Dc9C700Ld9e9C600Df9C700L0a2aC800D3aCb00D4aCe00D5aCf00L6a7aCc00D8aCa00D9aC800DaaC700LbafaL0b1bC800D2bC900D3bCc00D4bCf00L5b6bCc00D7bC900D8bC700L9bfbL0c1cC800D2cC900D3cCb00D4cCc00L5c6cC900D7cC700D8cC600L9cbcC700DccC800LdcfcC700L0d1dC800L2d3dC900D4dCa00D5dC900D6dC800D7dC700D8dC600L9dadC700LbdcdC900LddfdC700L0e1eC800L2e3eC900D4eC800L5e6eC700L7e8eC600D9eC700LaebeC800DceCa00DdeCb00LeefeC700L0f1fC800D2fC900L3f4fC800L5f6fC700L7f8fC600D9fC700DafC800DbfC900DcfCa00DdfCb00DefCa00Dff"{
 	help();
@@ -56,6 +60,7 @@ macro "analyze image (f5) Action Tool Options" {
 	 Dialog.addNumber("other channel: ",  _CHANNEL_GREEN);
 	 Dialog.addNumber("sigma Gaussian blur for cell detection: ", _SIGMA);
 	 Dialog.addChoice("thresholding method for cells: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
+	 Dialog.addNumber("min. cell size", _MIN_CELL_SIZE);
 	 Dialog.addNumber("proeminence for maxima detection: ", _PROEMINENCE);
 
 	 Dialog.addMessage("--Border correction------------------------------------------");
@@ -76,6 +81,7 @@ macro "analyze image (f5) Action Tool Options" {
 	 _CHANNEL_GREEN = Dialog.getNumber(); 
 	 _SIGMA = Dialog.getNumber();
 	 _THRESHOLDING_METHOD = Dialog.getChoice();
+	 _MIN_CELL_SIZE = Dialog.getNumber();
 	 _PROEMINENCE = Dialog.getNumber();
 	 
 	 _DELTA_X = Dialog.getNumber();
@@ -218,7 +224,7 @@ function preSegmentCells() {
 	imageCalculator("AND create", "sum","sumSegmented");
 	
 	roiManager("reset");
-	run("Analyze Particles...", "size=1000-Infinity exclude add");
+	run("Analyze Particles...", "size="+_MIN_CELL_SIZE+"-Infinity exclude add");
 	close();
 	close();
 	close();
