@@ -197,23 +197,23 @@ function segmentComets() {
 function preSegmentCells() {
 	imageID = getImageID();
 	
-	run("Duplicate...", "duplicate channels="+_CHANNEL_RED+"-"+_CHANNEL_RED);
+/*	run("Duplicate...", "duplicate channels="+_CHANNEL_RED+"-"+_CHANNEL_RED);
 	redID = getImageID();
 	rename("red");	run("Enhance Contrast...", "saturated=0 equalize");
 	run("Gaussian Blur...", "sigma="+_SIGMA);
 	selectImage(imageID);
-	
+*/	
 	run("Duplicate...", "duplicate channels="+_CHANNEL_GREEN+"-"+_CHANNEL_GREEN);
 	rename("green");
 	greenID = getImageID();
 	run("Enhance Contrast...", "saturated=0 equalize");
 	run("Gaussian Blur...", "sigma="+_SIGMA);
 	normalizeImage(greenID);
-	normalizeImage(redID);
-	imageCalculator("Add create 32-bit", "green","red");
+//	normalizeImage(redID);
+//	imageCalculator("Add create 32-bit", "green","red");
 	sumID = getImageID();
 	rename("sum");
-	run("Gaussian Blur...", "sigma="+_SIGMA);
+//	run("Gaussian Blur...", "sigma="+_SIGMA);
 	run("Find Maxima...", "prominence="+_PROEMINENCE+" output=[Segmented Particles]");
 	rename("sumSegmented");
 	sumSegmentedID = getImageID();
@@ -225,8 +225,8 @@ function preSegmentCells() {
 	
 	roiManager("reset");
 	run("Analyze Particles...", "size="+_MIN_CELL_SIZE+"-Infinity exclude add");
-	close();
-	close();
+//	close();
+//	close();
 	close();
 	close();
 	close();
