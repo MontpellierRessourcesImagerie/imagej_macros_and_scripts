@@ -114,15 +114,24 @@ macro "add nuclei [f6]" {
 	addNuclei();
 }
 
-macro "filter above threshold (f7) Action Tool - C000T4b12f" {
+
+macro "remove nuclei (f7) Action Tool - C000T4b12r" {
+	removeNuclei();
+}
+
+macro "add nuclei [f7]" {
+	removeNuclei();
+}
+
+macro "filter above threshold (f8) Action Tool - C000T4b12f" {
 	filterAboveThreshold();
 }
 
-macro "filter above threshold [f7]" {
+macro "filter above threshold [f8]" {
 	filterAboveThreshold();
 }
 
-macro "filter above threshold (f7) Action Tool Options" {
+macro "filter above threshold (f8) Action Tool Options" {
 	Dialog.create("Filter nuclei options");
 	Dialog.addNumber("signal channel: ", _SIGNAL_CHANNEL);
 	Dialog.addNumber("radius: ", _RADIUS_MEASUREMENT);
@@ -133,15 +142,15 @@ macro "filter above threshold (f7) Action Tool Options" {
 	_THRESHOLD = Dialog.getNumber();
 }
 
-macro "cluster nuclei (f8) Action Tool - C000T4b12c" {
+macro "cluster nuclei (f9) Action Tool - C000T4b12c" {
 	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
-macro "cluster nuclei [f8]" {
+macro "cluster nuclei [f9]" {
 	clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 }
 
-macro "cluster nuclei (f8) Action Tool Options" {
+macro "cluster nuclei (f9) Action Tool Options" {
 	Dialog.create("Clustering options");
 	Dialog.addNumber("max. distance: ", _MAX_DIST);
 	Dialog.addNumber("min. nr. points: ", _MIN_PTS);
@@ -158,7 +167,7 @@ macro "cluster nuclei (f8) Action Tool Options" {
 	_NR_COLUMN = Dialog.getString();
 }
 
-macro "nearest neighbors (f9) Action Tool - C000T4b12n" {
+macro "nearest neighbors (f11) Action Tool - C000T4b12n" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		calculateNearestNeighbors(winTitle);
@@ -167,7 +176,7 @@ macro "nearest neighbors (f9) Action Tool - C000T4b12n" {
 	}
 }
 
-macro "nearest neighbors [f9]" {
+macro "nearest neighbors [f11]" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		calculateNearestNeighbors(winTitle);
@@ -176,7 +185,7 @@ macro "nearest neighbors [f9]" {
 	}
 }
 
-macro "visualize nn_connections (f11) Action Tool - C000T4b12v;" {
+macro "visualize nn_connections (v) Action Tool - C000T4b12v;" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		drawNearestNeighborConnections(winTitle);
@@ -185,7 +194,7 @@ macro "visualize nn_connections (f11) Action Tool - C000T4b12v;" {
 	}
 }
 
-macro "visualize nn-connections [f11]" {
+macro "visualize nn-connections [v]" {
 	winTitle = getInfo("window.title");
 	if (winTitle=="clusters" || winTitle=="unclustered" || winTitle=="Results") {
 		drawNearestNeighborConnections(winTitle);
@@ -239,6 +248,12 @@ function addNuclei() {
 	zoom = getZoom();
 	if (selectionType() != 10) return;
 	getSelectionCoordinates(xpoints, ypoints);
+	run("Select None");
+	getStatistics(area, mean, min, max, std, histogram);
+	if (min!=0 || max!=1) {
+		showMessage("Please select a mask channel!");
+		return;
+	}
 	for (p=0; p<xpoints.length; p++) {
 		x = xpoints[p];
 		y = ypoints[p];
@@ -248,7 +263,6 @@ function addNuclei() {
 		zScaled = z-1;
 		toScaled(xScaled, yScaled);
 		zScaled = zScaled * voxelDepth;
-		print(xScaled, yScaled, zScaled);
 		X = Table.getColumn("X", "Results");
 		Y = Table.getColumn("Y", "Results");
 		Z = Table.getColumn("Z", "Results");
@@ -265,7 +279,8 @@ function addNuclei() {
 		
 		inputStackID = getImageID();
 		inputTitle = getTitle();
-		
+
+		setBatchMode(true);
 		if (channels>1) {
 			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
 		}
@@ -296,11 +311,101 @@ function addNuclei() {
 		run("Merge Channels...", mergeString);
 		Stack.setPosition(channel, z, frame);
 		makePoint(x, y);
-		while(getZoom()<zoom) {
-			run("In [+]");
-		}
+		setBatchMode(false);
+		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
 	}
 
+}
+
+function removeNuclei() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	zoom = getZoom();
+	if (selectionType() != 10) return;
+	getSelectionCoordinates(xpoints, ypoints);
+	run("Select None");
+	getStatistics(area, mean, min, max, std, histogram);
+	if (min!=0 || max!=1) {
+		showMessage("Please select a mask channel!");
+		return;
+	}
+	for (p=0; p<xpoints.length; p++) {
+		print(p);
+		x = xpoints[p];
+		y = ypoints[p];
+		value = getPixel(x, y);
+		if (value==0) continue;
+		Stack.getPosition(channel, z, frame);
+		xScaled = x;
+		yScaled = y;
+		zScaled = z-1;
+		toScaled(xScaled, yScaled);
+		zScaled = zScaled * voxelDepth;
+		X = Table.getColumn("X", "Results");
+		Y = Table.getColumn("Y", "Results");
+		Z = Table.getColumn("Z", "Results");
+		minDist = 999999999;
+		minIndex = -1;
+		for (i = 0; i < X.length; i++) {
+			Dx = xScaled - X[i];
+			Dy = yScaled - Y[i];
+			Dz = zScaled - Z[i];
+			dist = sqrt(Dx*Dx + Dy*Dy + Dz*Dz);
+			if (dist<minDist) {
+				minDist = dist;
+				minIndex = i;
+			}
+		}
+		run("Clear Results");
+		xC = X[minIndex];
+		yC = Y[minIndex];
+		zC = Z[minIndex];
+		X  = Array.concat(Array.slice(X,0,minIndex), Array.slice(X,minIndex+1,X.length));
+		Y  = Array.concat(Array.slice(Y,0,minIndex), Array.slice(Y,minIndex+1,Y.length));
+		Z  = Array.concat(Array.slice(Z,0,minIndex), Array.slice(Z,minIndex+1,Z.length));
+		Table.setColumn("X", X, "Results");
+		Table.setColumn("Y", Y, "Results");
+		Table.setColumn("Z", Z, "Results");
+		Table.sort(_Z_COLUMN, "Results");
+		Table.applyMacro("NR=row+1 ", "Results");
+		c=0;
+		inputStackID = getImageID();
+		inputTitle = getTitle();
+
+		setBatchMode(true);
+		if (channels>1) {
+			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
+		}
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xC+","+yC+","+zC+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+		run(_LOOKUP_TABLE);
+		updatedChannelID = getImageID();
+		updatedChannelTitle = getTitle();
+		
+		selectImage(inputStackID);
+		run("Split Channels");
+		
+		selectImage("C"+channel+"-"+inputTitle);
+		close();
+		
+		mergeString = "";
+		
+		if (channels>1) {
+			for (i = 1; i < channel; i++) {
+				mergeString = mergeString + "c"+i+"=C"+i+"-"+inputTitle+" ";
+			}
+			mergeString = mergeString + "c"+channel+"="+updatedChannelTitle + " ";
+			for (i = channel+1; i <= channels; i++) {
+				mergeString = mergeString + "c"+i+"=C"+i+"-"+inputTitle+" ";
+			}
+			mergeString = mergeString + "create";
+		}
+		
+		run("Merge Channels...", mergeString);
+		Stack.setPosition(channel, z, frame);
+		makePoint(x, y);
+		setBatchMode(false);
+		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
+	}
 }
 
 function batchProcessImages() {
