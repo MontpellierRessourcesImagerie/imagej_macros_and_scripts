@@ -243,6 +243,9 @@ macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD
 }
 
 function addNuclei() {
+	xC = Property.getNumber("originx");
+	yC = Property.getNumber("originy");
+	zC = Property.getNumber("originz");
 	Stack.getDimensions(width, height, channels, slices, frames);
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	zoom = getZoom();
@@ -250,14 +253,14 @@ function addNuclei() {
 	getSelectionCoordinates(xpoints, ypoints);
 	run("Select None");
 	getStatistics(area, mean, min, max, std, histogram);
-	if (min!=0 || max!=1) {
+	if (min!=0 || max>1) {
 		showMessage("Please select a mask channel!");
 		return;
 	}
+	Stack.getPosition(channel, z, frame);
 	for (p=0; p<xpoints.length; p++) {
 		x = xpoints[p];
 		y = ypoints[p];
-		Stack.getPosition(channel, z, frame);
 		xScaled = x;
 		yScaled = y;
 		zScaled = z-1;
@@ -266,13 +269,24 @@ function addNuclei() {
 		X = Table.getColumn("X", "Results");
 		Y = Table.getColumn("Y", "Results");
 		Z = Table.getColumn("Z", "Results");
+		D = Table.getColumn("Dist. from center", "Results");
+		xS = xC;
+		yS = yC;
+		zS = zC;
+		toScaled(xS, yS, zS);
+		dX = x-xS; 
+		dY = y-yS;
+		dZ = z-zS;
+		dist = sqrt(dX*dX + dY*dY + dZ*dZ);
 		X = Array.concat(X, xScaled);
 		Y = Array.concat(Y, yScaled);
 		Z = Array.concat(Z, zScaled);
+		D = Array.concat(D, dist);
 		run("Clear Results");
 		Table.setColumn("X", X, "Results");
 		Table.setColumn("Y", Y, "Results");
 		Table.setColumn("Z", Z, "Results");
+		Table.setColumn("Dist. from center", D, "Results");
 		Table.sort(_Z_COLUMN, "Results");
 		Table.applyMacro("NR=row+1 ", "Results");
 		c=1;
@@ -307,17 +321,30 @@ function addNuclei() {
 			}
 			mergeString = mergeString + "create";
 		}
-		
 		run("Merge Channels...", mergeString);
-		Stack.setPosition(channel, z, frame);
-		makePoint(x, y);
+		rename(inputTitle);
 		setBatchMode(false);
 		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
 	}
+	
+	Stack.setSlice(round(zC));
+	makePoint(round(xC), round(yC), "hybrid extra large");
+	Overlay.addSelection;
+	Overlay.setPosition(0, round(zC), 0);
+	run("Select None");
 
+	Stack.setPosition(channel, z, frame);
+	makePoint(x, y);
+		
+	Property.set("originx", xC);
+	Property.set("originy", yC);
+	Property.set("originz", zC);
 }
 
 function removeNuclei() {
+	xC = Property.getNumber("originx");
+	yC = Property.getNumber("originy");
+	zC = Property.getNumber("originz");
 	Stack.getDimensions(width, height, channels, slices, frames);
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	zoom = getZoom();
@@ -325,17 +352,16 @@ function removeNuclei() {
 	getSelectionCoordinates(xpoints, ypoints);
 	run("Select None");
 	getStatistics(area, mean, min, max, std, histogram);
-	if (min!=0 || max!=1) {
+	if (min!=0 || max>1) {
 		showMessage("Please select a mask channel!");
 		return;
 	}
+	Stack.getPosition(channel, z, frame);
 	for (p=0; p<xpoints.length; p++) {
-		print(p);
 		x = xpoints[p];
 		y = ypoints[p];
 		value = getPixel(x, y);
 		if (value==0) continue;
-		Stack.getPosition(channel, z, frame);
 		xScaled = x;
 		yScaled = y;
 		zScaled = z-1;
@@ -344,6 +370,7 @@ function removeNuclei() {
 		X = Table.getColumn("X", "Results");
 		Y = Table.getColumn("Y", "Results");
 		Z = Table.getColumn("Z", "Results");
+		D = Table.getColumn("Dist. from center", "Results");
 		minDist = 999999999;
 		minIndex = -1;
 		for (i = 0; i < X.length; i++) {
@@ -357,15 +384,17 @@ function removeNuclei() {
 			}
 		}
 		run("Clear Results");
-		xC = X[minIndex];
-		yC = Y[minIndex];
-		zC = Z[minIndex];
+		xCN = X[minIndex];
+		yCN = Y[minIndex];
+		zCN = Z[minIndex];
 		X  = Array.concat(Array.slice(X,0,minIndex), Array.slice(X,minIndex+1,X.length));
 		Y  = Array.concat(Array.slice(Y,0,minIndex), Array.slice(Y,minIndex+1,Y.length));
 		Z  = Array.concat(Array.slice(Z,0,minIndex), Array.slice(Z,minIndex+1,Z.length));
+		D  = Array.concat(Array.slice(D,0,minIndex), Array.slice(D,minIndex+1,D.length));
 		Table.setColumn("X", X, "Results");
 		Table.setColumn("Y", Y, "Results");
 		Table.setColumn("Z", Z, "Results");
+		Table.setColumn("Dist. from center", D, "Results");
 		Table.sort(_Z_COLUMN, "Results");
 		Table.applyMacro("NR=row+1 ", "Results");
 		c=0;
@@ -376,7 +405,7 @@ function removeNuclei() {
 		if (channels>1) {
 			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
 		}
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xC+","+yC+","+zC+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xCN+","+yCN+","+zCN+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
 		run(_LOOKUP_TABLE);
 		updatedChannelID = getImageID();
 		updatedChannelTitle = getTitle();
@@ -401,11 +430,21 @@ function removeNuclei() {
 		}
 		
 		run("Merge Channels...", mergeString);
-		Stack.setPosition(channel, z, frame);
-		makePoint(x, y);
 		setBatchMode(false);
 		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
 	}
+	Stack.setSlice(round(zC));
+	makePoint(round(xC), round(yC), "hybrid extra large");
+	Overlay.addSelection;
+	Overlay.setPosition(0, round(zC), 0);
+	run("Select None");
+
+	Stack.setPosition(channel, z, frame);
+	makePoint(x, y);
+
+	Property.set("originx", xC);
+	Property.set("originy", yC);
+	Property.set("originz", zC);
 }
 
 function batchProcessImages() {
@@ -541,6 +580,10 @@ function processImage() {
 }
 
 function detectNuclei() {
+	findCenterAndSetOrigin();
+	x = Property.getNumber("originx");
+	y = Property.getNumber("originy");
+	z = Property.getNumber("originz");
 	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None");
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
@@ -602,7 +645,35 @@ function detectNuclei() {
 	close();
 	selectImage(imageID);
 	close();
+	Property.set("originx", x);
+	Property.set("originy", y);
+	Property.set("originz", z);
+	addDistancesFromCenterToTable();
+
+	Stack.setSlice(round(z));
+	makePoint(round(x), round(y), "hybrid extra large");
+	Overlay.addSelection;
+	Overlay.setPosition(0, round(z), 0);
+	run("Select None");
 	return X.length;
+}
+
+function addDistancesFromCenterToTable() {
+	xTrans = Property.getNumber("originx");
+	yTrans = Property.getNumber("originy");
+	zTrans = Property.getNumber("originz");
+	toScaled(xTrans, yTrans, zTrans);
+	Z = Table.getColumn("Z");
+	X = Table.getColumn("X");
+	Y = Table.getColumn("Y");
+	D = newArray(X.length);
+	for (i = 0; i < X.length; i++) {
+		deltaX = X[i]-xTrans;
+		deltaY = Y[i]-yTrans;
+		deltaZ = Z[i]-zTrans;
+		D[i] = sqrt(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ);
+	}
+	Table.setColumn("Dist. from center", D, "Results");
 }
 
 function addImageAtEndOfStack(stackID, title) {
@@ -663,23 +734,30 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 }
 
 function filterAboveThreshold() {
+	xC = Property.getNumber("originx");
+	yC = Property.getNumber("originy");
+	zC = Property.getNumber("originz");
 	inputStackID = getImageID();
 	inputStackTitle = getTitle();
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+	Stack.setChannel(_SIGNAL_CHANNEL);
 	M = measureIntensityInOtherChannel();	
 	X = Table.getColumn(_X_COLUMN);
 	Y = Table.getColumn(_Y_COLUMN);
 	Z = Table.getColumn(_Z_COLUMN);
+	D = Table.getColumn("Dist. from center");
 	XN = newArray(0);
 	YN = newArray(0);
 	ZN = newArray(0);
 	MN = newArray(0);
+	DN = newArray(0);
 	for (i = 0; i < X.length; i++) {
 		if (M[i]>=_THRESHOLD) {
 			XN = Array.concat(XN, X[i]);
 			YN = Array.concat(YN, Y[i]);
 			ZN = Array.concat(ZN, Z[i]);
 			MN = Array.concat(MN, M[i]);
+			DN = Array.concat(DN, D[i]);
 		}
 	}	
 	run("Clear Results");
@@ -687,6 +765,7 @@ function filterAboveThreshold() {
 	Table.setColumn(_X_COLUMN, XN);
 	Table.setColumn(_Y_COLUMN, YN);
 	Table.setColumn(_Z_COLUMN, ZN);
+	Table.setColumn("Dist. from center", DN);
 	Table.setColumn("Mean", MN);
 	Table.applyMacro(""+_NR_COLUMN+"=row+1 ", "Results");
 	if (_CREATE_RESULTS_CHANNEL) {
@@ -700,6 +779,16 @@ function filterAboveThreshold() {
 			run("Merge Channels...", "c1=["+inputStackTitle+"] c5=[Results-indexed-mask] create ");			
 		}
 	}
+	Stack.setSlice(round(zC));
+	makePoint(round(xC), round(yC), "hybrid extra large");
+	Overlay.addSelection;
+	Overlay.setPosition(0, round(zC), 0);
+	run("Select None");
+
+	Property.set("originx", xC);
+	Property.set("originy", yC);
+	Property.set("originz", zC);
+
 	return XN.length;
 }
 
@@ -775,4 +864,38 @@ function drawNearestNeighborConnections(tableName) {
 		run("3D Draw Line", "size_x="+width+" size_y="+height+" size_z="+slices+" x0="+x1+" y0="+y1+" z0="+z1+" x1="+x2+" y1="+y2+" z1="+z2+" thickness=1.000 value=65535 display=Overwrite");
 	}
 	addImageAtEndOfStack(inputStackID, tableName+"-neighbors");	
+}
+
+function findCenterAndSetOrigin() {
+	Overlay.remove;
+	imageID = getImageID();
+	title = getTitle();
+	setBatchMode(true);
+	run("Duplicate...", "duplicate");
+	titleOfCopy = getTitle();
+	run("Split Channels");
+	run("Merge Channels...", "c1=C1-"+titleOfCopy+" c2=C2-"+titleOfCopy+" c3=C3-"+titleOfCopy);
+	run("8-bit");
+	setAutoThreshold("Default dark stack");
+	run("Convert to Mask", "method=Default background=Dark");
+	run("Fill Holes", "stack");
+	run("Options...", "iterations=10 count=1 do=Close stack");
+	run("Analyze Particles...", "size=5000-Infinity show=Masks stack");
+	run("3D Centroid");
+	x = getResult("CX(pix)", nResults-1);
+	y = getResult("CY(unit)", nResults-1);
+	z = getResult("CZ(pix)", nResults-1);
+	close();
+	close();
+	close();
+	selectImage(imageID);
+	Stack.setSlice(round(z));
+	makePoint(round(x), round(y), "hybrid extra large");
+	Overlay.addSelection;
+	Overlay.setPosition(0, round(z), 0);
+	run("Select None");
+	setBatchMode(false);
+	Property.set("originx", x);
+	Property.set("originy", y);
+	Property.set("originz", z);
 }
