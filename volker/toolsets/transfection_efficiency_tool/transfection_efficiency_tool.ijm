@@ -175,6 +175,10 @@ function analyze() {
 }
 
 function split() {
+	foreground = getValue("color.foreground");
+	background = getValue("color.background");
+	setColor("white");
+	setBackgroundColor("black");
 	type = selectionType();
 	getSelectionCoordinates(xpoints, ypoints);
 	getBoundingRect(x, y, width, height);
@@ -194,6 +198,8 @@ function split() {
 	roiManager("delete");
 	roiManager("Show None");
 	roiManager("Show All")
+	setColor(foreground);
+	setBackgroundColor(background);
 }
 
 function segmentNuclei() {
@@ -201,7 +207,7 @@ function segmentNuclei() {
 	Stack.getPosition(channel, slice, frame);
 	run("Duplicate...", "duplicate channels=&channel-&channel");
 	run("8-bit");
-	setAutoThreshold("&_THRESHOLDING_METHOD dark");
+	setAutoThreshold(_THRESHOLDING_METHOD+" dark");
 	run("Threshold...");
 	waitForUser;
 	run("Convert to Mask");
