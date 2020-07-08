@@ -832,6 +832,8 @@ function clusterNuclei(maxDist, minPts, xColumn, yColumn, zColumn, nrColumn) {
 		ranks = Array.rankPositions(C);
 		nrOfClusters = C[ranks[ranks.length-1]];
 	}
+	copyDistToTable("clusters");
+	copyDistToTable("unclustered");
 	return nrOfClusters;
 }
 
@@ -899,3 +901,38 @@ function findCenterAndSetOrigin() {
 	Property.set("originy", y);
 	Property.set("originz", z);
 }
+
+function copyDistToTable(aTable) {
+	XC = Table.getColumn("X", aTable);
+	YC = Table.getColumn("Y", aTable);
+	ZC = Table.getColumn("Z", aTable);
+	
+	XR = Table.getColumn("X", "Results");
+	YR = Table.getColumn("Y", "Results");
+	ZR = Table.getColumn("Z", "Results");
+	Dist = Table.getColumn("Dist. from center", "Results");
+
+	for (i = 0; i < XC.length; i++) {
+		xc = XC[i];
+		yc = YC[i];
+		zc = ZC[i];
+		minDist = parseFloat("Infinity");
+		minIndex = -1;
+		for(j=0; j<XR.length; j++) {
+			xr = XR[j];
+			yr = YR[j];
+			zr = ZR[j];		
+			dX = xc - xr;
+			dY = yc - yr;
+			dZ = zc - zr;
+			dist = dX*dX + dY*dY + dZ*dZ;
+			if (dist<minDist) {
+				minDist = dist;
+				minIndex = j;
+			}
+		}
+		Table.set("Dist. from center", i, Dist[minIndex], aTable);
+	}
+	Table.update(aTable);
+}
+
