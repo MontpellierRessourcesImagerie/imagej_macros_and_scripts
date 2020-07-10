@@ -70,9 +70,6 @@ function countProjections() {
 	getSelectionCoordinates(sPointsX, sPointsY);
 
 	ypoints = getProfile();
-
-	print(sPointsX.length);
-	print(ypoints.length);
 	
 	run("Add Selection...");
 	
