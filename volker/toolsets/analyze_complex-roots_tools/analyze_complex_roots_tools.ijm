@@ -31,7 +31,8 @@ var _PLOT_HORIZONTAL_DISTANCES = false;
 var _FILE_EXTENSION = "tif";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool";
- 
+
+doPlotFeatures();
 exit();
 
 macro "analyze complex roots tools help [f1]" {
@@ -485,14 +486,21 @@ function getDistances() {
 	count = Overlay.size;
 	distances = newArray(count);
 	zero = 0;
+	zeroX = 0;
+	zeroY = 0;
+	toScaled(zeroX, zeroY);
 	for (i = 0; i < count; i++) {
 		Overlay.activateSelection(i);
 		getSelectionBounds(x, y, width, height);
 		if (selectionType() == 5) {
-			if (i==0) distances[i] = 0;
+			if (i==0) {
+				distances[i] = 0;
+				originY = y;
+			}
 			else {
-				distances[i] = y;
-				toScaled(zero, distances[i]);
+				distances[i] = y-originY;
+				toScaled(distances[i]);
+				distances[i] = distances[i];
 			}
 		} else {
 			distances[i] = width / 2.0;
@@ -698,7 +706,7 @@ function getSumOfAreas() {
 		for (i = 1; i < Overlay.size; i++) {
 			Overlay.activateSelection(i);
 			getSelectionBounds(x, y, width, height);
-			makeRectangle(x0, y0, width0, y);
+			makeRectangle(x0, y0, width0, y-y0);
 			run("Measure");
 		}
 		run("Select None");
@@ -707,6 +715,7 @@ function getSumOfAreas() {
 	}
 	selectWindow("Results");
 	sumOfAreas = Table.getColumn("Area");
+	run("Clear Results");
 	return sumOfAreas;
 }
 
@@ -720,7 +729,25 @@ function getNrOfBorderPixelPerDistance() {
 }
 
 function getNrOfBorderPixelPerDepth() {
-	
+	roiManager("reset");
+	setBackgroundColor(255,255,255);
+	createOutlineImage();
+	size = Overlay.size;
+	nrOfBorderPixel = newArray(size);
+	for (i = 0; i < size-1; i++) {
+		run("Duplicate...", " ");
+		Overlay.activateSelection(i);	
+		getSelectionBounds(x0, y0, width0, height0);
+		Overlay.activateSelection(i+1);	
+		getSelectionBounds(x1, y1, width1, height1);
+		makeRectangle(x0, y0, x0+width0, y1-y0);
+		run("Clear Outside");
+		nrOfPixels = countBorderPixels();
+		nrOfBorderPixel[i] = nrOfPixels;
+		close();
+	}
+	close();
+	return nrOfBorderPixel;
 }
 
 function getNrOfBorderPixelCircles() {
