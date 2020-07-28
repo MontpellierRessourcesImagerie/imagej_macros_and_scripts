@@ -212,6 +212,8 @@ function reportResults() {
 function measureFociPerNucleus() {
 	setForegroundColor(255,255,255);
 	setBackgroundColor(0,0,0);
+	blackBackground = eval("js","Prefs.blackBackground");
+	setOption("BlackBackground", true);
 	roiManager("reset");
 	Stack.getDimensions(width, height, channels, slices, frames);
 	if (channels>1) {
@@ -225,7 +227,7 @@ function measureFociPerNucleus() {
 	count=roiManager("count");
 	if (count<1) {
 		title = getTitle();
-		print("No nuclei found on image " + title + "with min. size = " + _MIN_SIZE);
+		print("No nuclei found on image " + title + " with min. size = " + _MIN_SIZE);
 		close();
 		return;
 	}
@@ -288,6 +290,7 @@ function measureFociPerNucleus() {
 		run("From ROI Manager");
 	}
 	reportResults();
+	setOption("BlackBackground", blackBackground);
 }
 
 function selectNuclei() {
