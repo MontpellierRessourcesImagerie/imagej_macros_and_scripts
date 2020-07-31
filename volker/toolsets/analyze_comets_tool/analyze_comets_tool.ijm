@@ -8,24 +8,27 @@
   *
 */
 
-var _CHANNEL_RED = 2;
-var _CHANNEL_GREEN = 1;
-var _SIGMA = 22;
-var _THRESHOLDING_METHODS = getList("threshold.methods");
-var _THRESHOLDING_METHOD = "Intermodes";
-var _MIN_CELL_SIZE = 100;
-var _PROEMINENCE = 0.10;
+var _RED_CHANNEL = 1;
+var _BLUE_CHANNEL = 3;
+var _COMET_CHANNEL = 2;
+var _Z_POS = 3;
 
-var _DELTA_X = 2;
-var _MAX_RADIUS = 100;
-var _LINE_WIDTH = 13;
-var _MIN_TOLERANCE = 0;
+var _MIN_SIZE = 40;
+var _MIN_INTENSITY_RED = 6000;
+var _THRESHOLDING_METHOD_CYTOPLASM = "Huang";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
 
 var _MIN_SIZE_COMETS = 0.1;
+var _MAX_CIRCULARITY = 0.7;
 var _THRESHOLDING_METHOD_COMETS = "Li";
+var _UPPER_SCALE_COMETS = 7;
+var _LOWER_SCALE_COMETS = 0.7;
+var _NR_OF_DILATES = 4;
+var _NR_OF_ERODES = 4;
 
-var _TABLE_TITLE = "number of comets per cell";
-var _FILE_EXT = "tif";
+var _FILE_EXT = "nd";
+
+var _TABLE_TITLE = "density of comets";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Analyze_Comets_Tool";
 
@@ -40,6 +43,7 @@ macro "help [f1]" {
 	help();
 }
 
+
 macro "analyze image (f5) Action Tool - C000T4b12a" {
 	 analyzeImage();
 }
@@ -48,55 +52,52 @@ macro "analyze image [f5]" {
 	 analyzeImage();
 }
 
-macro "batch analysis (f6) Action Tool - C000T4b12b" {
-	runBatchAnalysis();
-}
-
 macro "analyze image (f5) Action Tool Options" {
 	 Dialog.create("analyze comets options");
-
+	 Dialog.addMessage("--Stack layout------------------------------------------");
+	 Dialog.addNumber("red channel: ", _RED_CHANNEL);
+	 Dialog.addNumber("comet channel: ", _COMET_CHANNEL);
+	 Dialog.addNumber("nuclei channel: ", _BLUE_CHANNEL);
+	 Dialog.addNumber("z-slice: ", _Z_POS);
 	 Dialog.addMessage("--Cell segmentation------------------------------------------");
-	 Dialog.addNumber("comets channel: ",  _CHANNEL_RED);
-	 Dialog.addNumber("other channel: ",  _CHANNEL_GREEN);
-	 Dialog.addNumber("sigma Gaussian blur for cell detection: ", _SIGMA);
-	 Dialog.addChoice("thresholding method for cells: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
-	 Dialog.addNumber("min. cell size", _MIN_CELL_SIZE);
-	 Dialog.addNumber("proeminence for maxima detection: ", _PROEMINENCE);
-
-	 Dialog.addMessage("--Border correction------------------------------------------");
-	 Dialog.addNumber("delta x for border direction: ", _DELTA_X);
-	 Dialog.addNumber("radius for border correction: ", _MAX_RADIUS);
-	 Dialog.addNumber("line width for profile: ", _LINE_WIDTH);
-	 Dialog.addNumber("min. tolerance minima detection: ", _MIN_TOLERANCE);
-
-	 Dialog.addMessage("--Comets segmentation------------------------------------");
+	 Dialog.addNumber("min size: ", _MIN_SIZE);
+	 Dialog.addNumber("min intensity red: ", _MIN_INTENSITY_RED);
+	 Dialog.addChoice("thresholding method cytoplasm: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD_CYTOPLASM);
+	 Dialog.addMessage("--Comet segmentation------------------------------------------");
 	 Dialog.addNumber("min. size comets: ", _MIN_SIZE_COMETS);
-	 Dialog.addChoice("thresholding method for comets: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD_COMETS);
-
-	 Dialog.addHelp(helpURL);
-	 
+	 Dialog.addNumber("max. circularity comets: ", _MAX_CIRCULARITY);
+	 Dialog.addChoice("thresholding method comets: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD_COMETS);
+	 Dialog.addNumber("number of dilates: ", _NR_OF_DILATES);
+	 Dialog.addNumber("number of erodes: ", _NR_OF_ERODES);
 	 Dialog.show();
 	 
-	 _CHANNEL_RED = Dialog.getNumber();
-	 _CHANNEL_GREEN = Dialog.getNumber(); 
-	 _SIGMA = Dialog.getNumber();
-	 _THRESHOLDING_METHOD = Dialog.getChoice();
-	 _MIN_CELL_SIZE = Dialog.getNumber();
-	 _PROEMINENCE = Dialog.getNumber();
+	 _RED_CHANNEL = Dialog.getNumber();
+	 _COMET_CHANNEL = Dialog.getNumber();
+	 _BLUE_CHANNEL = Dialog.getNumber();
+	 _Z_POS = Dialog.getNumber();
 	 
-	 _DELTA_X = Dialog.getNumber();
-	 _MAX_RADIUS = Dialog.getNumber();
-	 _LINE_WIDTH = Dialog.getNumber();
-	 _MIN_TOLERANCE = Dialog.getNumber();
+	 _MIN_SIZE = Dialog.getNumber();
+	 _MIN_INTENSITY_RED = Dialog.getNumber();
+	 _THRESHOLDING_METHOD_CYTOPLASM = Dialog.getChoice();
 
 	 _MIN_SIZE_COMETS = Dialog.getNumber();
+	 _MAX_CIRCULARITY = Dialog.getNumber();
 	 _THRESHOLDING_METHOD_COMETS = Dialog.getChoice();
+	 _NR_OF_DILATES = Dialog.getNumber();
+	 _NR_OF_ERODES = Dialog.getNumber();
 }
 
 function help() {
 	run('URL...', 'url='+helpURL);
 }
 
+macro "batch analysis (f6) Action Tool - C000T4b12b" {
+	runBatchAnalysis();
+}
+
+macro "batch analysis [f6]" {
+	runBatchAnalysis();
+}
 
 function runBatchAnalysis() {
 	dir = getDirectory("Input Folder");
@@ -105,7 +106,7 @@ function runBatchAnalysis() {
 	File.makeDirectory(dir+"out");
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
-		open(dir + file);
+		run("Bio-Formats", "open="+dir+file+" autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 		title = getTitle();
 		analyzeImage();
 		saveAs("tiff", dir+"out/"+title);
@@ -115,195 +116,35 @@ function runBatchAnalysis() {
 }
 
 function analyzeImage() {
-	run("Remove Overlay");
-	preSegmentCells();
-	setBatchMode(true);
-	normalizedSumOfRedAndGreenChannels();
-	count = roiManager("count");
-	
-	for (i = 0; i < count; i++) {
-		showProgress(i, count-1);
-		roiManager("select", i);
-		adjustRoiBorders();
-		roiManager("update");	
-	}
-	setBatchMode(false);
-	close();
-	roiManager("Show None");
-	roiManager("Show All");
-	
-	run("Select None");
 	inputImageID = getImageID();
-	run("Duplicate...", "duplicate channels="+_CHANNEL_RED+"-"+_CHANNEL_RED);
+	inputImageTitle = getTitle();
+	init();
+	segmentNuclei();
+	count = roiManager("count");
+	if (count<1) {
+		print("No nuclei found for image "+inputImageTitle);
+		return;
+	}
+	filterTransfectedCells();
+	count = roiManager("count");
+	if (count<1) {
+		print("No transfected cells found for image "+inputImageTitle);
+		close();
+		return;
+	}
+	segmentCytoplasm();
+	totalArea = measureTotalArea();
 	segmentComets();
-	cometsImageID = getImageID();
-	counts = countCometsPerCell();
-	selectImage(inputImageID);
-	run("From ROI Manager");
-	roiManager("reset");
-	selectImage(cometsImageID);
+	run("Skeletonize");
+	width = getWidth();
+	height = getHeight();
+	nrOfComets = findEndPoints(0,0,width, height, "blue circle");
+	print(totalArea, nrOfComets, nrOfComets/totalArea);
 	run("To ROI Manager");
 	close();
-	run("From ROI Manager");
-	roiManager("reset");
-	drawLabels();
-	reportCounts(counts);
+	run("From ROI Manager");	
+	reportCounts(totalArea, nrOfComets);
 }
-
-function reportCounts(counts) {
-	image = getTitle();
-	title = _TABLE_TITLE;
-	line = 0;
-	if (!isOpen(title)) {
-		Table.create(title);
-	} else {
-		line = Table.size(title);
-	}
-	for (i = 0; i < counts.length; i++) {
-		Table.set("nr.", line+i, line+i+1, title);
-		Table.set("image", line+i, image, title);
-		Table.set("cell", line+i, i+1, title);
-		Table.set("comets", line+i, counts[i], title);
-	}
-}
-
-function countCometsPerCell() {
-	count = roiManager("count");
-	counts = newArray(count);
-	for (r = 0; r < count; r++) {	
-		snapshot();
-		roiManager("select", r);
-		getSelectionBounds(x, y, width, height);
-		run("Make Inverse");
-		run("Fill", "slice");
-		run("Select None");
-		counts[r] = findEndPoints(floor(x), floor(y) , round(width), round(height), "blue circle");
-		reset();
-	}
-	return counts;
-}
-
-function segmentComets() {
-	redImageID = getImageID();
-	run("FeatureJ Laplacian", "compute smoothing=3");
-	run("Invert");
-	setAutoThreshold(_THRESHOLDING_METHOD_COMETS+" dark");
-	run("Analyze Particles...", "size="+_MIN_SIZE_COMETS+"-Infinity show=Masks exclude in_situ");
-	run("Skeletonize");
-	selectImage(redImageID);
-	close();
-}
-
-function preSegmentCells() {
-	imageID = getImageID();
-	
-/*	run("Duplicate...", "duplicate channels="+_CHANNEL_RED+"-"+_CHANNEL_RED);
-	redID = getImageID();
-	rename("red");	run("Enhance Contrast...", "saturated=0 equalize");
-	run("Gaussian Blur...", "sigma="+_SIGMA);
-	selectImage(imageID);
-*/	
-	run("Duplicate...", "duplicate channels="+_CHANNEL_GREEN+"-"+_CHANNEL_GREEN);
-	rename("green");
-	greenID = getImageID();
-	run("Enhance Contrast...", "saturated=0 equalize");
-	run("Gaussian Blur...", "sigma="+_SIGMA);
-	normalizeImage(greenID);
-//	normalizeImage(redID);
-//	imageCalculator("Add create 32-bit", "green","red");
-	sumID = getImageID();
-	rename("sum");
-//	run("Gaussian Blur...", "sigma="+_SIGMA);
-	run("Find Maxima...", "prominence="+_PROEMINENCE+" output=[Segmented Particles]");
-	rename("sumSegmented");
-	sumSegmentedID = getImageID();
-	
-	selectImage(sumID);
-	setAutoThreshold(_THRESHOLDING_METHOD + " dark");
-	run("Convert to Mask");
-	imageCalculator("AND create", "sum","sumSegmented");
-	
-	roiManager("reset");
-	run("Analyze Particles...", "size="+_MIN_CELL_SIZE+"-Infinity exclude add");
-//	close();
-//	close();
-	close();
-	close();
-	close();
-	roiManager("Show None");
-	roiManager("Show All");
-}
-
-function normalizedSumOfRedAndGreenChannels() {
-	run("Duplicate...", "duplicate channels="+_CHANNEL_RED+"-"+_CHANNEL_RED);
-	redID = getImageID();
-	rename("red");	
-	run("Duplicate...", "duplicate channels="+_CHANNEL_GREEN+"-"+_CHANNEL_GREEN);
-	rename("green");
-	greenID = getImageID();
-	run("Enhance Contrast...", "saturated=0 equalize");
-	normalizeImage(greenID);
-	normalizeImage(redID);
-	imageCalculator("Add create 32-bit", "green","red");
-	selectImage(redID);
-	close();
-	selectImage(greenID);
-	close();
-}
-
-function adjustRoiBorders() {
-	run("Interpolate", "interval=1 smooth adjust");
-	getSelectionCoordinates(xpoints, ypoints);
-	N = xpoints.length;
-	xPointsCorrected = newArray(xpoints.length);
-	yPointsCorrected = newArray(xpoints.length);
-	for (i = 0; i < xpoints.length; i++) {
-		i0 = i-_DELTA_X;
-		if (i0<0) i0 = N + i0;
-		i1 = (i+_DELTA_X) % N;
-		makeLine(xpoints[i0], ypoints[i0], xpoints[i1], ypoints[i1]);
-		run("Rotate...", "angle=90");
-	 	getSelectionCoordinates(xL, yL);
-	    x1 = xL[0];
-	    y1 = yL[0];
-	    x2 = xL[xL.length-1];	
-	    y2 = yL[yL.length-1];
-		dx = x2-x1;	
-	    dy = y2-y1;
-	    n = round(sqrt(dx*dx + dy*dy));
-	    xInc = _MAX_RADIUS * (dx / n);
-	    yInc = _MAX_RADIUS * (dy / n);
-	    makeLine(xpoints[i], ypoints[i], xpoints[i]+xInc, ypoints[i1]+yInc, _LINE_WIDTH);
-	    profile1 = getProfile();
-	    minima1 = Array.findMinima(profile1, _MIN_TOLERANCE);
-	    if(minima1.length==0) min = 0;
-	    else min = minima1[0];
-	    makeLine(xpoints[i], ypoints[i], xpoints[i]-xInc, ypoints[i1]-yInc, _LINE_WIDTH);
-	    profile2 = getProfile();
-	    minima2 = Array.findMinima(profile2, _MIN_TOLERANCE);
-	    if(minima2.length==0) min2 = 0;
-	    else min2 = minima2[0];
-	    if (profile1[min]<profile2[min2]) {
-	    	xPointsCorrected[i] = xpoints[i]+min*(dx / n);
-	    	yPointsCorrected[i] = ypoints[i]+min*(dy / n);
-	    } else {
-	    	xPointsCorrected[i] = xpoints[i]-min2*(dx / n);
-	    	yPointsCorrected[i] = ypoints[i]-min2*(dy / n);    
-	    }
-	}
-	makeSelection("freehand", xPointsCorrected, yPointsCorrected);
-	run("Fit Spline");
-	run("Interpolate", "interval=1 smooth adjust");
-}
-
-function normalizeImage(id) {
-	selectImage(id);
-	getStatistics(area, mean, min, max, std, histogram);
-	run("32-bit");
-	run("Divide...", "value="+max);	
-	run("Enhance Contrast", "saturated=0.35");
-}
-
 
 function findEndPoints(startX, startY, width, height, color) {
 	setBatchMode(true);
@@ -326,16 +167,158 @@ function findEndPoints(startX, startY, width, height, color) {
 	return floor(numberOfPoints/2);
 }
 
-function drawLabels() {
-	setFont("SansSerif" , 48, "antialiased"); 
-	for (i = 0; i < Overlay.size; i++) {
-		Overlay.activateSelection(i);
-		type = selectionType();
-		getSelectionBounds(x, y, width, height);
-		run("Select None");
-		if (type>4) break;
-		Overlay.drawString(i+1, x+width/2, y+height/2);
+function DoG(sigma1, sigma2) {
+	imageID = getImageID();
+	run("Duplicate...", " ");
+	rename("blurred1");
+	run("Gaussian Blur...", "sigma="+sigma1);
+	selectImage(imageID);
+	run("Duplicate...", " ");
+	rename("blurred2");
+	run("Gaussian Blur...", "sigma="+sigma2);
+	imageCalculator("Subtract create", "blurred1", "blurred2");
+	selectImage("blurred1");
+	close();
+	selectImage("blurred2");
+	close();
+}
+
+function init() {
+	run("Select None");
+	Overlay.remove;
+	run("Set Measurements...", "area mean standard min centroid perimeter shape feret's integrated median display redirect=None decimal=3");
+	roiManager("reset");
+}
+
+function segmentNuclei() {
+	run("Duplicate...", "duplicate channels="+_BLUE_CHANNEL+"-"+_BLUE_CHANNEL+" slices="+_Z_POS+"-"+_Z_POS);
+	run("Gaussian Blur...", "sigma=2");
+	setAutoThreshold("Default dark");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity add");
+	close();
+}
+
+function filterTransfectedCells() {
+	run("Duplicate...", "duplicate channels="+_RED_CHANNEL+"-"+_RED_CHANNEL+" slices="+_Z_POS+"-"+_Z_POS);
+	count = roiManager("count");
+	toBeDeleted = newArray(0);
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		getStatistics(area, mean, min, max, std, histogram);
+		if (mean<_MIN_INTENSITY_RED) {
+			toBeDeleted = Array.concat(toBeDeleted, i);
+		}
 	}
+	if (toBeDeleted.length > 0) {
+		roiManager("select", toBeDeleted);	
+		roiManager("Delete");
+	}
+	run("Select None");
+}
+
+function segmentCytoplasm() {
+	setAutoThreshold(_THRESHOLDING_METHOD_CYTOPLASM+" dark");
+
+	roiManager("measure");
+	X = Table.getColumn("X", "Results");
+	Y = Table.getColumn("Y", "Results");
+	workImageID = getImageID();
+	for (i = 0; i < X.length; i++) {
+		selectImage(workImageID);
+		x = X[i];
+		y = Y[i];
+		toUnscaled(x, y);
+		doWand(x, y);
+		run("Create Mask");
+		if (i==0) maskID = getImageID();
+	}
+	selectImage(inputImageID);
+	run("From ROI Manager");
+	roiManager("Deselect");
+	roiManager("Delete");
+	run("Select None");
+	selectImage(maskID);
+	run("Analyze Particles...", "clear add");
+	selectImage(maskID);
+	close();
+	selectImage(workImageID);
+	close();
+	roiManager("Show None");
+	roiManager("Show All");
+}
+
+function measureTotalArea() {
+	totalArea = 0;
+	count = roiManager("count");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		getStatistics(area);
+		totalArea = totalArea + area;
+	}
+	run("Select None");
+	return totalArea;
+}
+
+function segmentComets() {
+	run("Duplicate...", "duplicate channels="+_COMET_CHANNEL+"-"+_COMET_CHANNEL+" slices="+_Z_POS+"-"+_Z_POS);
+	
+	cometsImageID = getImageID();
+	
+	count = roiManager("count");
+	 if (count>1) {
+		roiManager("Combine");
+	} else {
+		roiManager("select", 0);
+	}
+	
+	run("Create Mask");
+	maskImageID = getImageID();
+	selectImage(cometsImageID);
+	run("Select None");
+	DoG(_LOWER_SCALE_COMETS, _UPPER_SCALE_COMETS);
+	dogImageID =getImageID();
+	run("FeatureJ Laplacian", "compute smoothing=1");
+	setAutoThreshold("Default ");
+	run("Analyze Particles...", "size="+_MIN_SIZE_COMETS+"-Infinity circularity=0-"+_MAX_CIRCULARITY+" show=Masks in_situ");
+	title = getTitle();
+	imageCalculator("AND create", title, "Mask");
+	selectImage(cometsImageID);
+	close();
+	selectImage(maskImageID);
+	close();
+	selectImage(title);
+	close();
+	selectImage(dogImageID);
+	close();
+	cometsImageID = getImageID();
+	selectImage(inputImageID);
+	run("From ROI Manager");
+	roiManager("Deselect");
+	roiManager("Delete");
+	selectImage(cometsImageID);
+	for (i = 0; i < _NR_OF_DILATES; i++) {
+		run("Dilate");
+	}
+	for (i = 0; i < _NR_OF_ERODES; i++) {
+		run("Erode");
+	}
+}
+
+function reportCounts(area, count) {
+	image = getTitle();
+	title = _TABLE_TITLE;
+	line = 0;
+	if (!isOpen(title)) {
+		Table.create(title);
+	} else {
+		line = Table.size(title);
+	}
+	Stack.getUnits(X, Y, Z, Time, Value);
+	Table.set("nr.", line, line+1, title);
+	Table.set("image", line, image, title);
+	Table.set("area", line, area, title);
+	Table.set("nr. of comets", line, count, title);
+	Table.set("areal number density [1/"+X+"²]", line, count / area, title);
 }
 
 function filterFiles(files, ext) {

@@ -1,15 +1,22 @@
-var _RED_CHANNEL = 1;
-var _BLUE_CHANNEL = 3;
-var _COMET_CHANNEL = 2;
-var _Z_POS = 4;
-var _MIN_SIZE = 40;
+/**
+  * MRI Analyze Comets Tools
+  *
+  * Estimate the number of comets per cell.
+  *
+  * (c) 2020, INSERM
+  * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+  *
+*/
 
 var _RED_CHANNEL = 1;
 var _BLUE_CHANNEL = 3;
+var _COMET_CHANNEL = 2;
 var _Z_POS = 3;
+
 var _MIN_SIZE = 40;
 var _MIN_INTENSITY_RED = 6000;
 var _THRESHOLDING_METHOD_CYTOPLASM = "Huang";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
 
 var _MIN_SIZE_COMETS = 0.1;
 var _MAX_CIRCULARITY = 0.7;
@@ -18,34 +25,96 @@ var _UPPER_SCALE_COMETS = 7;
 var _LOWER_SCALE_COMETS = 0.7;
 var _NR_OF_DILATES = 4;
 var _NR_OF_ERODES = 4;
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Analyze_Comets_Tool";
 
-inputImageID = getImageID();
-inputImageTitle = getTitle();
-init();
-segmentNuclei();
-count = roiManager("count");
-if (count<1) {
-	print("No nuclei found for image "+inputImageTitle);
-	return;
+analyzeImage();
+exit();
+
+macro "MRI Analyze Comets (f1) Help Action Tool - C800D00C600D10C500D20C400L3090C500La0b0C400Lc0f0Ca00D01C700D11C500L2131C400D41C500L5171C600D81C700D91C900Da1C800Db1C500Dc1C400Ld1f1Ca00D02C700D12C600D22C500L3252C600D62C700L7282Ca00D92Cc00Da2Cb00Db2C700Dc2C500Dd2C400Le2f2C900D03C700D13C600D23C500L3343C600L5363C700D73C900D83Cc00D93Cf00Da3Cc00Db3C800Dc3C600Dd3C500Le3f3C800D04C700D14C600L2444C700L5464C800D74Cb00D84Cf00D94Ce00Da4Cb00Db4C900Dc4C800Dd4C600De4C500Df4C800D05C700D15C600L2535C700D45C800L5565C900D75Cc00D85Ce00D95Cc00La5c5Cb00Dd5C800De5C600Df5C700L0616C600L2636C700D46C800D56C900D66Cb00D76Cc00D86Ce00L96a6Cf00Lb6c6Cc00Dd6C900De6C700Df6L0717C600L2737C700D47C800D57C900D67Cc00D77Cf00L87b7Cc00Dc7Ca00Dd7C800De7C700Df7L0818C600D28C700L3848C800D58Cb00D68Cf00L7898Ce00Da8Cc00Db8Ca00Dc8C800Dd8C700De8C600Df8C700L0939C800D49Cb00D59Cf00L6989Ce00D99Cb00Da9C900Db9C800Dc9C700Ld9e9C600Df9C700L0a2aC800D3aCb00D4aCe00D5aCf00L6a7aCc00D8aCa00D9aC800DaaC700LbafaL0b1bC800D2bC900D3bCc00D4bCf00L5b6bCc00D7bC900D8bC700L9bfbL0c1cC800D2cC900D3cCb00D4cCc00L5c6cC900D7cC700D8cC600L9cbcC700DccC800LdcfcC700L0d1dC800L2d3dC900D4dCa00D5dC900D6dC800D7dC700D8dC600L9dadC700LbdcdC900LddfdC700L0e1eC800L2e3eC900D4eC800L5e6eC700L7e8eC600D9eC700LaebeC800DceCa00DdeCb00LeefeC700L0f1fC800D2fC900L3f4fC800L5f6fC700L7f8fC600D9fC700DafC800DbfC900DcfCa00DdfCb00DefCa00Dff"{
+	help();
 }
-filterTransfectedCells();
-count = roiManager("count");
-if (count<1) {
-	print("No transfected cells found for image "+inputImageTitle);
+
+macro "help [f1]" {
+	help();
+}
+
+
+macro "analyze image (f5) Action Tool - C000T4b12a" {
+	 analyzeImage();
+}
+
+macro "analyze image [f5]" {
+	 analyzeImage();
+}
+
+macro "analyze image (f5) Action Tool Options" {
+	 Dialog.create("analyze comets options");
+	 Dialog.addMessage("--Stack layout------------------------------------------");
+	 Dialog.addNumber("red channel: ", _RED_CHANNEL);
+	 Dialog.addNumber("comet channel: ", _COMET_CHANNEL);
+	 Dialog.addNumber("nuclei channel: ", _BLUE_CHANNEL);
+	 Dialog.addNumber("z-slice: ", _Z_POS);
+	 Dialog.addMessage("--Cell segmentation------------------------------------------");
+	 Dialog.addNumber("min size: ", _MIN_SIZE);
+	 Dialog.addNumber("min intensity red: ", _MIN_INTENSITY_RED);
+	 Dialog.addChoice("thresholding method cytoplasm: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD_CYTOPLASM);
+	 Dialog.addMessage("--Comet segmentation------------------------------------------");
+	 Dialog.addNumber("min. size comets: ", _MIN_SIZE_COMETS);
+	 Dialog.addNumber("max. circularity comets: ", _MAX_CIRCULARITY);
+	 Dialog.addChoice("thresholding method comets: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD_COMETS);
+	 Dialog.addNumber("number of dilates: ", _NR_OF_DILATES);
+	 Dialog.addNumber("number of erodes: ", _NR_OF_ERODES);
+	 Dialog.show();
+	 
+	 _RED_CHANNEL = Dialog.getNumber();
+	 _COMET_CHANNEL = Dialog.getNumber();
+	 _BLUE_CHANNEL = Dialog.getNumber();
+	 _Z_POS = Dialog.getNumber();
+	 
+	 _MIN_SIZE = Dialog.getNumber();
+	 _MIN_INTENSITY_RED = Dialog.getNumber();
+	 _THRESHOLDING_METHOD_CYTOPLASM = Dialog.getChoice();
+
+	 _MIN_SIZE_COMETS = Dialog.getNumber();
+	 _MAX_CIRCULARITY = Dialog.getNumber();
+	 _THRESHOLDING_METHOD_COMETS = Dialog.getChoice();
+	 _NR_OF_DILATES = Dialog.getNumber();
+	 _NR_OF_ERODES = Dialog.getNumber();
+}
+
+function help() {
+	run('URL...', 'url='+helpURL);
+}
+
+function analyzeImage() {
+	inputImageID = getImageID();
+	inputImageTitle = getTitle();
+	init();
+	segmentNuclei();
+	count = roiManager("count");
+	if (count<1) {
+		print("No nuclei found for image "+inputImageTitle);
+		return;
+	}
+	filterTransfectedCells();
+	count = roiManager("count");
+	if (count<1) {
+		print("No transfected cells found for image "+inputImageTitle);
+		close();
+		return;
+	}
+	segmentCytoplasm();
+	totalArea = measureTotalArea();
+	segmentComets();
+	run("Skeletonize");
+	width = getWidth();
+	height = getHeight();
+	nrOfComets = findEndPoints(0,0,width, height, "blue circle");
+	print(totalArea, nrOfComets, nrOfComets/totalArea);
+	run("To ROI Manager");
 	close();
-	return;
+	run("From ROI Manager");	
 }
-segmentCytoplasm();
-totalArea = measureTotalArea();
-segmentComets();
-run("Skeletonize");
-width = getWidth();
-height = getHeight();
-nrOfComets = findEndPoints(0,0,width, height, "blue circle");
-print(totalArea, nrOfComets, nrOfComets/totalArea);
-run("To ROI Manager");
-close();
-run("From ROI Manager");
 
 function findEndPoints(startX, startY, width, height, color) {
 	setBatchMode(true);
