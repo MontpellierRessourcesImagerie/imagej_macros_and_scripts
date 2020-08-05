@@ -40,6 +40,7 @@ var _SERIES = "series_2"
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
+detectNucleiInTimeSeries();
 exit();
 
 macro "3D nuclei clustering tool help [f4]" {
@@ -80,11 +81,11 @@ macro " Action Tool - " {
 }
 
 macro "detect nuclei (f5) Action Tool - C000T4b12d" {
-	detectNuclei();
+	runDetectNuclei();
 }
 
 macro "detect nuclei [f5]" {
-	detectNuclei();
+	runDetectNuclei();
 }
 
 macro "detect nuclei (f5) Action Tool Options" {
@@ -240,6 +241,15 @@ macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD
        	   call("ij.Prefs.set", "mribia.datasetDir", DATASET_DIR); 
        }
        
+}
+
+function runDetectNuclei() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	if (frames>1) {
+		detectNucleiInTimeSeries();	
+	} else {
+		detectNuclei();
+	}
 }
 
 function addNuclei() {
@@ -875,8 +885,6 @@ function findCenterAndSetOrigin() {
 	setBatchMode(true);
 	run("Duplicate...", "duplicate");
 	titleOfCopy = getTitle();
-	run("Split Channels");
-	run("Merge Channels...", "c1=C1-"+titleOfCopy+" c2=C2-"+titleOfCopy+" c3=C3-"+titleOfCopy);
 	run("8-bit");
 	setAutoThreshold("Default dark stack");
 	run("Convert to Mask", "method=Default background=Dark");
@@ -936,3 +944,28 @@ function copyDistToTable(aTable) {
 	Table.update(aTable);
 }
 
+function detectNucleiInTimeSeries() {
+	Stack.getDimensions(width, height, channels, slices, frames);
+	title = getTitle();
+	inputImage = getImageID();
+	parts = split(title, ".");
+	title = parts[0];
+	dir = File.directory;
+	for (i = 1; i <= frames; i++) {
+		run("Duplicate...", "duplicate frames="+i+"-"+i);
+		detectNuclei();
+		if (!File.exists(dir+"track")) File.makeDirectory(dir + "track");
+		save(dir+"track"+"/"+title+"t+"+IJ.pad(i, 3)+".tif");
+		close();
+		Table.save(dir+"track"+"/"+title+"t+"+IJ.pad(i, 3)+".xls", "Results");
+		selectWindow("Results");
+		run("Close");
+	}
+	run("Image Sequence...", "open="+dir+"track"+"/"+title+"t001.tif"+" file=tif sort");
+	run("Stack to Hyperstack...", "order=xyczt(default) channels="+(channels+1)+" slices="+slices+" frames="+frames+" display=Composite");
+	if (!File.exists(dir+"track/result")) File.makeDirectory(dir + "track/result");
+	saveAs("tiff", dir+"track/result"+"/"+title+".tif");
+	selectImage(inputImage);
+	close();
+	rename(title);
+}
