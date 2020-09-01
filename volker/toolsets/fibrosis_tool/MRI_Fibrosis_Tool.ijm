@@ -104,11 +104,12 @@ function measureCurrentImage() {
 	imageTitle = getTitle();
 	parts = split(imageTitle, _EXT);
 	imageTitle = parts[0];
-	title = "Fibrosis area";
+	title = _RESULTS_TABLE;
   	handle = "["+_RESULTS_TABLE+"]";
 	if (!isOpen(_RESULTS_TABLE)) {
-     	     run("Table...", "name="+handle+" width=600 height=400");
-  	     print(handle, "\\Headings:title\ttotal area\tfibrosis area\trelative fibrosis area");
+ 	    Table.create(title);
+		Table.setLocationAndSize(100, 100 ,600, 400);
+	    print(handle, "\\Headings:title\ttotal area\tfibrosis area\trelative fibrosis area");
 	}
 	totalArea = getResult("Area",  nResults-2);
 	fibrosisArea = getResult("Area",  nResults-1);
