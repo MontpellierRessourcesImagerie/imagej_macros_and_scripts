@@ -17,19 +17,21 @@ from ij import WindowManager, ImagePlus
 from ij.measure import ResultsTable
 import math
 
-def run():
+def run(binNumber, binStart, binEnd, method):
 	'''
 	Run Directonality and copy the results into an ImageJ
 	Results-table.
 	'''
-	global binNumber, binStart, binEnd
 	# Instantiate plugin
 	dir = Directionality_()
 	  
 	# Set fields and settings
 	dir.setImagePlus(WindowManager.getCurrentImage())
 	fileName = WindowManager.getCurrentImage().getTitle()
-	dir.setMethod(Directionality_.AnalysisMethod.FOURIER_COMPONENTS)
+	if method=='Fourier components':
+		dir.setMethod(Directionality_.AnalysisMethod.FOURIER_COMPONENTS)
+	else:
+		dir.setMethod(Directionality_.AnalysisMethod.LOCAL_GRADIENT_ORIENTATION)
 	dir.setBinNumber(binNumber)
 	dir.setBinRange(binStart, binEnd);
 	
@@ -64,6 +66,7 @@ def run():
 binNumber = 90
 binStart = 0
 binEnd = 180
+method = 'Fourier components'
 
 if 'getArgument' in globals():
   parameter = getArgument()
@@ -71,11 +74,14 @@ if 'getArgument' in globals():
   arg1 = args[0]
   arg2 = args[1]
   arg3 = args[2]
+  arg4 = args[3]
   val1 = arg1.split("=")
   val2 = arg2.split("=")
   val3 = arg3.split("=")
+  val4 = arg4.split("=")
   binNumber = int(val1[1])
   binStart = int(val2[1])
   binEnd = int(val3[1])
-run()
+  method = val4[1];
+run(binNumber, binStart, binEnd, method)
 

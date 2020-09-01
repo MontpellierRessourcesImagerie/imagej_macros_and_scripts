@@ -15,8 +15,10 @@
 var _BIN_NUMBER = 90;
 var _BIN_START = 0;
 var _BIN_END = 180;
+var _METHOD = 'Local gradient orientation';
+var _METHODS = newArray('Fourier components', 'Local gradient orientation');
 var _SIGNAL_CHANNEL = 2;
-var _FILE_EXTENSION = "jpg";
+var _FILE_EXTENSION = "tif";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Analyze_Alignment_of_Muscles_Tool";
 
@@ -42,11 +44,13 @@ macro "Analyze current image (f2) Action Tool Options" {
 	Dialog.addNumber("number of bins:", _BIN_NUMBER);
 	Dialog.addNumber("bin start:", _BIN_START);
 	Dialog.addNumber("bin end:", _BIN_END);
+	Dialog.addChoice("method:", _METHODS, _METHOD);
     Dialog.show();
     _SIGNAL_CHANNEL = Dialog.getNumber();
 	_BIN_NUMBER = Dialog.getNumber();
 	_BIN_START =  Dialog.getNumber();
 	_BIN_END =  Dialog.getNumber();
+	_METHOD = Dialog.getChoice();
 }
 
 macro "Batch Analyze images (f3) Action Tool - C000T4b12b" {
@@ -171,6 +175,6 @@ function analyzeAlignment() {
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/analyze_alignment_of_muscles_tool_.py");
 
-	parameter = "binNumber=" + _BIN_NUMBER + ", binStart=" + _BIN_START+", binEnd="+_BIN_END;
+	parameter = "binNumber=" + _BIN_NUMBER + ", binStart=" + _BIN_START+", binEnd="+_BIN_END + ", method="+_METHOD;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
 }
