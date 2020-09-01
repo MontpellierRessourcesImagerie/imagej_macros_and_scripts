@@ -20,7 +20,7 @@ var _CONTROL_FOLDER = "control-images";
 var _RESULTS_TABLE = "Fibrosis area";
 var _REMOVE_SCALE = false;
 
-var helpURL = "http://dev.mri.cnrs.fr/projects/imagej-macros/wiki/MRI_Fibrosis_Tool";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool";
 
 macro "MRI Fibrosis Tool Help [f1]" {
   showHelp();
