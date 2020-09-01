@@ -1,3 +1,17 @@
+/***
+ * 
+ * Analyze alignment of muscles
+ * 
+ * The tool uses the [Directionality plugin](https://imagej.net/Directionality) to measure the main direction of the structures in the image and the dispersion. 
+ * It is used in this context to analyze to which degree the muscles in the image are vertically aligned. 
+ * The tool allows to run the Directionality plugin in batch-mode on a series of images. 
+ * The direction-histograms and the measurements are exported as csv-files.
+ * 
+ * (c) 2019-2020, INSERM
+ * 
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ * 
+**/
 var _BIN_NUMBER = 90;
 var _BIN_START = 0;
 var _BIN_END = 180;
@@ -104,12 +118,18 @@ function help() {
 
 function analyzeCurrentImage() {
 	title = getTitle();
-	run("RGB Stack");
-	setSlice(_SIGNAL_CHANNEL);
+	wasRGB = false;
+	if (bitDepth()==24) {
+		run("RGB Stack");
+		wasRGB = true;
+	}
+	if (nSlices>1) {
+		setSlice(_SIGNAL_CHANNEL);
+	}
 	run("Duplicate...", "title="+title+"-green");
 	analyzeAlignment();
 	close();
-	run("RGB Color");
+	if (wasRGB) run("RGB Color");
 }
 
 function batchAnalyzeImages() {

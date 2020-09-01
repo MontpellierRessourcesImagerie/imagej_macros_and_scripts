@@ -1,9 +1,27 @@
+####
+ # 
+ # Analyze alignment of muscles
+ # 
+ # The tool uses the [Directionality plugin](https://imagej.net/Directionality) to measure the main direction of the structures in the image and the dispersion. 
+ # It is used in this context to analyze to which degree the muscles in the image are vertically aligned. 
+ # The tool allows to run the Directionality plugin in batch-mode on a series of images. 
+ # The direction-histograms and the measurements are exported as csv-files.
+ # 
+ # (c) 2019-2020, INSERM
+ # 
+ # written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ # 
+####
 from fiji.analyze.directionality import Directionality_
 from ij import WindowManager, ImagePlus
 from ij.measure import ResultsTable
 import math
 
 def run():
+	'''
+	Run Directonality and copy the results into an ImageJ
+	Results-table.
+	'''
 	global binNumber, binStart, binEnd
 	# Instantiate plugin
 	dir = Directionality_()
