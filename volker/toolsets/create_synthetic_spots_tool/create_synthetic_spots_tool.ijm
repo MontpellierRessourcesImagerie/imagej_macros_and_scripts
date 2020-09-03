@@ -29,6 +29,10 @@ var _TRUE_POSITIVE_COLOR = "green";
 var _MEASURE_POPULATION = "false positive";
 var _MEASURE_POPULATIONS = newArray("false positive", "true positive", "false negative");
 
+var _CURRENT_BATCH_GT_PARAMETER_SET = "default";
+var _BATCH_GT_NUMBER_OF_IMAGES = 30;
+
+var _CURRENT_BATCH_IMAGE_PARAMETER_SET = "default";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Create_Synthetic_Spots_Tool";
 
@@ -149,6 +153,100 @@ macro "measure Action Tool (f6) Options" {
 	 _MEASURE_POPULATION = Dialog.getChoice();
 }
 
+macro "batch create ground truth Action Tool (f7) - C000T4b12g" {
+	batchCreateGroundTruth();
+}
+
+macro "batch create ground truth [f7]" {
+	batchCreateGroundTruth();
+}
+
+macro "batch create ground truth Action Tool (f7) Options" {
+	parameterSets = getParameterSets();
+	Dialog.create("Batch create gt options");
+	Dialog.addChoice("parameter set: ", parameterSets, _CURRENT_BATCH_GT_PARAMETER_SET);
+	Dialog.addNumber("number of images: ", _BATCH_GT_NUMBER_OF_IMAGES);
+	Dialog.show();
+	_CURRENT_BATCH_GT_PARAMETER_SET = Dialog.getChoice();
+	_BATCH_GT_NUMBER_OF_IMAGES = Dialog.getNumber();
+}
+
+macro "batch create images Action Tool (f8) - C000T4b12b" {
+	batchCreateImages();	
+}
+
+macro "batch create images [f8]" {
+	batchCreateImages();
+}
+
+macro "batch create images Action Tool (f8) Options" {
+	parameterSets = getParameterSets();
+	Dialog.create("Batch create omages options");
+	Dialog.addChoice("parameter set: ", parameterSets, _CURRENT_BATCH_IMAGE_PARAMETER_SET);
+	Dialog.show();
+	_CURRENT_BATCH_IMAGE_PARAMETER_SET = Dialog.getChoice();
+}
+
+function batchCreateImages() {
+	_COUNT=0;
+	loadParameters(_CURRENT_BATCH_IMAGE_PARAMETER_SET);
+	dir = getDirectory("Choose the input folder!");
+	outDir = dir + _CURRENT_BATCH_IMAGE_PARAMETER_SET;
+	File.makeDirectory(outDir);
+	files = getFileList(dir);
+	numberOfImages = 0;
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (endsWith(file, ".xls")) numberOfImages++;
+	}
+	digits = Math.log10(numberOfImages) + 1;
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (!endsWith(file, ".xls")) continue;
+		_COUNT++;
+		Table.open(dir+file);
+		xCoordinates = Table.getColumn("XC", file);
+		yCoordinates = Table.getColumn("YC", file);
+		diameters = Table.getColumn("Diameter", file);
+		newImage("spots-"+IJ.pad(_COUNT, digits), _IMAGE_TYPE + " black", _WIDTH, _HEIGHT, 1);
+		createBackground(_BACKGROUND_LEVEL);
+		setColor(_FOREGROUND_LEVEL);
+		drawSpots(xCoordinates, yCoordinates, diameters, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
+		convolveAndAddNoise(_GAUSSIAN_BLUR, _BACKGROUND_LEVEL, _BACKGROUND_NOISE, _FOREGROUND_NOISE);
+		if (_ADD_GRADIENT) {
+			run("Macro...", "code=v=v+((x+y)*"+_GRADIENT+")");
+		}	
+		close(file);
+		saveAs("tiff", outDir+"/spots-"+IJ.pad(_COUNT, digits));
+		close();
+	}
+	loadParameters(_CURRENT_PARAMETER_SET);
+}
+
+function batchCreateGroundTruth() {
+	 _COUNT=0;
+	 loadParameters(_CURRENT_BATCH_GT_PARAMETER_SET);
+	 outDir = getDirectory("Choose an output folder");
+	 for (i = 1; i <= _BATCH_GT_NUMBER_OF_IMAGES; i++) {
+	 	_COUNT++;
+		xCoordinatesSmall = newArray(_NUMBER_SPOTS1);
+		yCoordinatesSmall = newArray(_NUMBER_SPOTS1);
+		diametersSmall = newArray(_NUMBER_SPOTS1);
+		
+		xCoordinatesBig = newArray(_NUMBER_SPOTS2);
+		yCoordinatesBig = newArray(_NUMBER_SPOTS2);
+		diametersBig = newArray(_NUMBER_SPOTS2);
+		createSpots(_NUMBER_SPOTS1, _STD_DEV1, _MEAN1, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesSmall, yCoordinatesSmall, diametersSmall);
+		createSpots(_NUMBER_SPOTS2, _STD_DEV2, _MEAN2, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesBig, yCoordinatesBig, diametersBig);
+		createGroundTruth(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, xCoordinatesBig, yCoordinatesBig, diametersBig);
+		title = getTitle();
+		saveAs("tiff", outDir + title);
+		close();
+		Table.save(outDir + title+".xls", "spots ground-truth table");
+		close("spots ground-truth table");
+	 }
+	 loadParameters(_CURRENT_PARAMETER_SET);
+}
 function openParameterSet() {
 	 parameterSets = getParameterSets();
 	
@@ -265,30 +363,10 @@ function loadParameters(name) {
 	}
 }
 
-function createSpotsImage(){
-	_COUNT++;
-	xCoordinatesSmall = newArray(_NUMBER_SPOTS1);
-	yCoordinatesSmall = newArray(_NUMBER_SPOTS1);
-	diametersSmall = newArray(_NUMBER_SPOTS1);
-	
-	xCoordinatesBig = newArray(_NUMBER_SPOTS2);
-	yCoordinatesBig = newArray(_NUMBER_SPOTS2);
-	diametersBig = newArray(_NUMBER_SPOTS2);
-
-	newImage("spots-"+_COUNT, _IMAGE_TYPE + " black", _WIDTH, _HEIGHT, 1);
-	createBackground(_BACKGROUND_LEVEL);
-	setColor(_FOREGROUND_LEVEL);
-	createSpots(_NUMBER_SPOTS1, _STD_DEV1, _MEAN1, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesSmall, yCoordinatesSmall, diametersSmall);
-	createSpots(_NUMBER_SPOTS2, _STD_DEV2, _MEAN2, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesBig, yCoordinatesBig, diametersBig);
-	drawSpots(xCoordinatesBig, yCoordinatesBig, diametersBig, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
-	drawSpots(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
-	convolveAndAddNoise(_GAUSSIAN_BLUR, _BACKGROUND_LEVEL, _BACKGROUND_NOISE, _FOREGROUND_NOISE);
-	
-	if (_ADD_GRADIENT) {
-		run("Macro...", "code=v=v+((x+y)*"+_GRADIENT+")");
-	}
+function createGroundTruth(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, xCoordinatesBig, yCoordinatesBig, diametersBig) {
+	digits = Math.log10(_BATCH_GT_NUMBER_OF_IMAGES) + 1;
 	if (_CREATE_GT_IMAGE) {
-		newImage("spots ground-truth "+_COUNT, "16-bit composite-mode", _WIDTH, _HEIGHT, 2, 1, 1);
+		newImage("spots-ground-truth-"+IJ.pad(_COUNT, digits), "16-bit composite-mode", _WIDTH, _HEIGHT, 2, 1, 1);
 		drawGroundTruth(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, 1);
 		run("Magenta Hot");
 		drawGroundTruth(xCoordinatesBig, yCoordinatesBig, diametersBig, 2);
@@ -318,6 +396,30 @@ function createSpotsImage(){
 		}
 		Table.update;
 	}
+}
+function createSpotsImage(){
+	_COUNT++;
+	xCoordinatesSmall = newArray(_NUMBER_SPOTS1);
+	yCoordinatesSmall = newArray(_NUMBER_SPOTS1);
+	diametersSmall = newArray(_NUMBER_SPOTS1);
+	
+	xCoordinatesBig = newArray(_NUMBER_SPOTS2);
+	yCoordinatesBig = newArray(_NUMBER_SPOTS2);
+	diametersBig = newArray(_NUMBER_SPOTS2);
+
+	newImage("spots-"+_COUNT, _IMAGE_TYPE + " black", _WIDTH, _HEIGHT, 1);
+	createBackground(_BACKGROUND_LEVEL);
+	setColor(_FOREGROUND_LEVEL);
+	createSpots(_NUMBER_SPOTS1, _STD_DEV1, _MEAN1, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesSmall, yCoordinatesSmall, diametersSmall);
+	createSpots(_NUMBER_SPOTS2, _STD_DEV2, _MEAN2, _WIDTH, _HEIGHT, _DO_NOT_TOUCH_EDGES, xCoordinatesBig, yCoordinatesBig, diametersBig);
+	drawSpots(xCoordinatesBig, yCoordinatesBig, diametersBig, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
+	drawSpots(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, _BACKGROUND_LEVEL, _WIDTH, _HEIGHT);
+	convolveAndAddNoise(_GAUSSIAN_BLUR, _BACKGROUND_LEVEL, _BACKGROUND_NOISE, _FOREGROUND_NOISE);
+	
+	if (_ADD_GRADIENT) {
+		run("Macro...", "code=v=v+((x+y)*"+_GRADIENT+")");
+	}
+	createGroundTruth(xCoordinatesSmall, yCoordinatesSmall, diametersSmall, xCoordinatesBig, yCoordinatesBig, diametersBig);
 }
 
 function drawGroundTruth(xCoords, yCoords, diameters, channel) {
