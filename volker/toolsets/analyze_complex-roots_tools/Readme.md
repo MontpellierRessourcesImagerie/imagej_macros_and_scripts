@@ -1,0 +1,5 @@
+# Analyze complex roots tools
+
+<img  align='left' src="https://camo.githubusercontent.com/8bac5dbeb7dffd377713c69d4a492b954d1d001a/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323037382f6d61736b2e6a7067" height='100'/> This tool allows to analyze morphological characteristics of complex roots. While for young roots the root system architecture can be analyzed automatically, this is often not possible for more developed roots. The tool is inspired by the Sholl analysis used in neuronal studies. The tool creates a binary mask and the Euclidean Distance Transform from the input image. It then allows to draw concentric circles around a base point and to extract measures on or within the circles. Instead of circles, which present the distance from the base point, horizontal lines can be used, which present the distance in the soil from the base-line.
+
+See the [wiki](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze_Complex_Roots_Tool) of the tool for details.
