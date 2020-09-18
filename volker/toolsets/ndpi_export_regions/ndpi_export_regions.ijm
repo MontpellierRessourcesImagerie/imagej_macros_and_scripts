@@ -16,12 +16,16 @@ function ndpiExportRegions() {
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
 		image = replace(file, ".ndpa", "");
-		xMaxResWidthInPixel = readMaxResWidth(dir + '/' + image);
+		pixelSize = newArray(2);
+		readPixelSize(dir + '/' + image, pixelSize);
+		pixelWidth = pixelSize[0];
+		pixelHeight = pixelSize[1];
 		roiManager("reset");
 		run("Bio-Formats", "open=["+dir+'/'+image+"] color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+_SLIDE_IMAGE_SERIES);
 		setThreshold(1, 255);
 		run("Create Selection");
 		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, imageHeightInPixel);
+		toScaled(imageOriginX, imageOriginY);
 		run("Select None");
 		CENTER_OF_SLICE_X = getWidth();
 		CENTER_OF_SLICE_Y = getHeight();
@@ -34,7 +38,6 @@ function ndpiExportRegions() {
 		inAnnotation = false;
 		xPoints = newArray(0);
 		yPoints = newArray(0);
-
 		print("Processing image: "+ dir + "/" + image);
 		while (l<lines.length) {
 			line = String.trim(lines[l]);
@@ -45,8 +48,7 @@ function ndpiExportRegions() {
 			}
 			if (startsWith(line, '</annotation>')) {
 				inAnnotation = false;		
-				factor = xMaxResWidthInPixel / imageWidthInPixel;
-				cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints, imageWidthInPixel, imageHeightInPixel);
+				cropZone(dir, image, imageOriginX, imageOriginY, pixelWidth, pixelHeight, xPoints, yPoints);
 			}
 			if (inAnnotation && startsWith(line, '<point>')) {
 				x =  String.trim(lines[l+1]);
@@ -59,7 +61,6 @@ function ndpiExportRegions() {
 				y = parseInt(y);
 				x = (x / 1000.0) + CENTER_OF_SLICE_X;
 				y = (y / 1000.0) + CENTER_OF_SLICE_Y;
-				toUnscaled(x,y);
 				xPoints = Array.concat(xPoints, x);
 				yPoints = Array.concat(yPoints, y);
 			}
@@ -69,42 +70,25 @@ function ndpiExportRegions() {
 	}
 }
 
-function readMaxResWidth(image) {
-	run("Bio-Formats", "open=["+image+"] color_mode=Composite display_metadata rois_import=[ROI manager] view=[Metadata only] stack_order=Default");
-	content = getInfo("window.contents");
-	lines = split(content, "\n");
-	res = 0;
-	for (i = 0; i < lines.length; i++) {
-		line = String.trim(lines[i]);
-		if (startsWith(line, 'Series 1 SizeX')) {
-			parts = split(line, "\t");
-			res = parseInt(parts[1]);
-			run("Close");
-			return res;
-		}
-	}
-	close("Original Metadata*");
-	return res;print("imageOriginX=", imageOriginX);
+function readPixelSize(image, res) {
+	run("Bio-Formats", "open=["+image+"] color_mode=Composite crop rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_1 x_coordinate_1="+0+" y_coordinate_1="+0+" width_1="+10+" height_1="+10);
+	getPixelSize(unit, pixelWidth, pixelHeight);
+	res[0]=pixelWidth;
+	res[1]=pixelHeight;
+	close();
 }
 
-function cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints, imageWidthInPixel, imageHeightInPixel) {
-	makeSelection("polygon", xPoints, yPoints);
-	roiManager("add");
-	run("Select None");
+function cropZone(dir, image, imageOriginX, imageOriginY, pixelWidth, pixelHeight, xPoints, yPoints) {
 	ranks = Array.rankPositions(xPoints);
 	xMin = xPoints[ranks[0]];
 	xMax = xPoints[ranks[ranks.length-1]];
 	ranks = Array.rankPositions(yPoints);
 	yMin = yPoints[ranks[0]];
 	yMax = yPoints[ranks[ranks.length-1]];
-	correction1 = (xMin-imageOriginX)/imageWidthInPixel;
-	xMin = (xMin-imageOriginX-correction1)*factor;
-	correction2 = (xMax-imageOriginX) / imageWidthInPixel;
-	xMax = (xMax-imageOriginX-correction2)*factor;
-	correction1 = (yMin-imageOriginY) / imageHeightInPixel;
-	yMin = (yMin-imageOriginY+correction1)*factor;
-	correction2 = (yMax-imageOriginY) / imageHeightInPixel ;
-	yMax = (yMax-imageOriginY+correction2)*factor;
+	xMin = (xMin-imageOriginX)/pixelWidth;
+	xMax = (xMax-imageOriginX)/pixelWidth;
+	yMin = (yMin-imageOriginY)/pixelHeight;
+	yMax = (yMax-imageOriginY)/pixelHeight;
 	width = xMax - xMin;
 	height = yMax - yMin;
 	print("Exporting zone: x="+xMin+", y="+yMin+", width="+width+", height=" + height);
