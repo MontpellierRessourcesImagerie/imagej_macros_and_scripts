@@ -84,6 +84,7 @@ macro "Run Batch (f3) Action Tool Options" {
 }
 
 function measureCurrentImage() {
+	if (selectionType()==-1) run("Select All"); 
 	if (_REMOVE_SCALE) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
 	run("Set Measurements...", "area mean standard modal min display redirect=None decimal=3");
 	getPixelSize(unit, pixelWidth, pixelHeight);
