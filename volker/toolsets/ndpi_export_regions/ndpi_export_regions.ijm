@@ -17,14 +17,11 @@ function ndpiExportRegions() {
 		file = files[i];
 		image = replace(file, ".ndpa", "");
 		xMaxResWidthInPixel = readMaxResWidth(dir + '/' + image);
-		print(xMaxResWidthInPixel);
 		roiManager("reset");
 		run("Bio-Formats", "open=["+dir+'/'+image+"] color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+_SLIDE_IMAGE_SERIES);
 		setThreshold(1, 255);
 		run("Create Selection");
-		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, iheight);
-		imageWidthInMicron = imageWidthInPixel;
-		toScaled(imageWidthInMicron);
+		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, imageHeightInPixel);
 		run("Select None");
 		CENTER_OF_SLICE_X = getWidth();
 		CENTER_OF_SLICE_Y = getHeight();
@@ -49,7 +46,7 @@ function ndpiExportRegions() {
 			if (startsWith(line, '</annotation>')) {
 				inAnnotation = false;		
 				factor = xMaxResWidthInPixel / imageWidthInPixel;
-				cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints);
+				cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints, imageWidthInPixel, imageHeightInPixel);
 			}
 			if (inAnnotation && startsWith(line, '<point>')) {
 				x =  String.trim(lines[l+1]);
@@ -63,9 +60,6 @@ function ndpiExportRegions() {
 				x = (x / 1000.0) + CENTER_OF_SLICE_X;
 				y = (y / 1000.0) + CENTER_OF_SLICE_Y;
 				toUnscaled(x,y);
-				print(xMaxResWidthInPixel, imageWidthInMicron);
-				pixelPerMicron = xMaxResWidthInPixel / imageWidthInMicron;
-				print(pixelPerMicron);
 				xPoints = Array.concat(xPoints, x);
 				yPoints = Array.concat(yPoints, y);
 			}
@@ -93,24 +87,24 @@ function readMaxResWidth(image) {
 	return res;print("imageOriginX=", imageOriginX);
 }
 
-function cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints) {
-	print("imageOriginX=", imageOriginX);
-	print("factor=", factor);
+function cropZone(dir, image, factor, imageOriginX, imageOriginY, xPoints, yPoints, imageWidthInPixel, imageHeightInPixel) {
 	makeSelection("polygon", xPoints, yPoints);
 	roiManager("add");
 	run("Select None");
 	ranks = Array.rankPositions(xPoints);
 	xMin = xPoints[ranks[0]];
-	print("xMin=", xMin);
 	xMax = xPoints[ranks[ranks.length-1]];
 	ranks = Array.rankPositions(yPoints);
 	yMin = yPoints[ranks[0]];
 	yMax = yPoints[ranks[ranks.length-1]];
-	xMin = (xMin-imageOriginX)*factor;
-	print("xMin=", xMin);
-	xMax = (xMax-imageOriginX)*factor;
-	yMin = (yMin-imageOriginY)*factor;
-	yMax = (yMax-imageOriginY)*factor;
+	correction1 = (xMin-imageOriginX)/imageWidthInPixel;
+	xMin = (xMin-imageOriginX-correction1)*factor;
+	correction2 = (xMax-imageOriginX) / imageWidthInPixel;
+	xMax = (xMax-imageOriginX-correction2)*factor;
+	correction1 = (yMin-imageOriginY) / imageHeightInPixel;
+	yMin = (yMin-imageOriginY+correction1)*factor;
+	correction2 = (yMax-imageOriginY) / imageHeightInPixel ;
+	yMax = (yMax-imageOriginY+correction2)*factor;
 	width = xMax - xMin;
 	height = yMax - yMin;
 	print("Exporting zone: x="+xMin+", y="+yMin+", width="+width+", height=" + height);
