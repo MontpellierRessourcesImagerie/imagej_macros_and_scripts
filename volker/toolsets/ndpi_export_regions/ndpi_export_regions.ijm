@@ -1,14 +1,14 @@
-_SLIDE_IMAGE_SERIES = "series_6";
+var _SLIDE_IMAGE_SERIES = "series_6";
 
 macro "ndpi export regions Action Tool (f2) - CfffL00f0L0111CfdfD21CdbfD31Cd9fD41Cc8fL5171Cd9fD81CdafD91CedfDa1CfffLb1f1CedfD02Cd9fD12Cc8fD22Cc9fD32Cd9fL4252Cc8fL62b2CecfDc2CfffLd2f2CdbfD03CfdfD13CfffL2363CfdfD73Cc8fL83c3Cd9fDd3CfefDe3CfffDf3L0464CdbfD74Cc8fD84CedfL94a4Cc9fDb4Cc8fLc4d4Cd9fDe4CfffDf4L0555CfefD65Cc8fD75Cd9fD85CfffL95a5CfefDb5Cd9fDc5Cc8fLd5e5CecfDf5CfffL0656CdafD66Cc8fD76CfdfD86CfffL96b6CfefDc6Cc9fDd6Cc8fDe6Cd9fDf6CfffL0747CfdfD57Cc8fD67CdafD77CfffL87c7CecfDd7Cc8fLe7f7CfffL0848Cd9fD58Cc8fD68CedfD78CfffL88c8CfdfDd8Cc8fDe8Cc9fDf8CfffL0939CfdfD49Cc8fD59Cc9fD69CfffL79c9CfdfDd9Cc8fDe9CdbfDf9CfffL0a3aCdafD4aCc8fD5aCdbfD6aCfffL7acaCdbfDdaCc8fDeaCfefDfaCfffL0b2bCfefD3bCc8fL4b5bCedfD6bCfffL7bbbCfefDcbCc8fDdbCedfDebCfffDfbL0c2cCecfD3cCc8fL4c5cCfdfD6cCfffL7cacCfdfDbcCc9fDccCedfDdcCfffLecfcL0d2dCdafD3dCc8fL4d5dCecfD6dCfffL7d8dCfdfD9dCdbfDadCdafDbdCfefDcdCfffLddfdL0e2eCd9fD3eCc8fL4e8eCc9fD9eCecfDaeCfffLbefeL0f2fCfefD3fCc8fD4fCc9fD5fCdafD6fCecfD7fCfdfD8fCfffL9fff" {
-	ndpiExportRegions();
+	ndpiExportRegions(_SLIDE_IMAGE_SERIES);
 }
 
 macro "ndpi export regions [f2]" {
-	ndpiExportRegions();
+	ndpiExportRegions(_SLIDE_IMAGE_SERIES);
 }
 
-function ndpiExportRegions() {
+function ndpiExportRegions(slideImageSeries) {
 	dir = getDirectory("Please select the input folder!");
 	files = getFileList(dir);
 	files = filterNDPAFiles(files);
@@ -21,7 +21,7 @@ function ndpiExportRegions() {
 		pixelWidth = pixelSize[0];
 		pixelHeight = pixelSize[1];
 		roiManager("reset");
-		run("Bio-Formats", "open=["+dir+'/'+image+"] color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+_SLIDE_IMAGE_SERIES);
+		run("Bio-Formats", "open=["+dir+'/'+image+"] color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+slideImageSeries);
 		setThreshold(1, 255);
 		run("Create Selection");
 		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, imageHeightInPixel);
