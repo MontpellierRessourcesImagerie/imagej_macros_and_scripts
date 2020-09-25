@@ -47,7 +47,6 @@ function detectSpots(minProminence, colors, style, size) {
 	close();
 	run("Select None");
 	linkSpots();
-	reportIntensityPerTime(inputImageID, pointsImageID);
 }
 
 function linkSpots() {
@@ -81,6 +80,12 @@ function linkSpots() {
 			run("Fill", "slice");	
 		}
 	}
+	run("Select None");
+	Stack.setChannel(2);
+	resetMinAndMax();
+	Stack.setChannel(1);
+	resetMinAndMax();
+	Stack.setDisplayMode("composite");
 	setBatchMode(false);
 }
 
@@ -99,6 +104,3 @@ function getIDFor(x, y, currentChannel, currentFrame) {
 	return -1;	 
 }
 
-function reportIntensityPerTime(inputImageID, pointsImageID) {
-	
-}
