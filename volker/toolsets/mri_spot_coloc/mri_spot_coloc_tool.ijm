@@ -50,14 +50,17 @@ function detectSpots(minProminence, colors, style, size) {
 }
 
 function linkSpots() {
-	setBatchMode(true);
 	currentID = 1;
 	Stack.getDimensions(width, height, channels, slices, frames);
 	inputImageID = getImageID();
 	newImage("map", "16-bit", width, height, channels, slices, frames);
+	setBatchMode(true);	// move up again for efficiency
 	map = getImageID();
 	selectImage(inputImageID);
 	numberOfSelections = Overlay.size;
+	Table.create("intensity per time");
+	timePoints = Array.getSequence(frames);
+	Table.setColumn("frame", timePoints, "intensity per time");
 	for (i = 0; i < numberOfSelections; i++) {
 		selectImage(inputImageID);
 		Overlay.activateSelection(i);
@@ -65,19 +68,48 @@ function linkSpots() {
 		color = Roi.getStrokeColor;
 		getSelectionCoordinates(xpoints1, ypoints1);
 		run("Select None");
-		selectImage(map);
-		if (color=='red') {
-			Stack.setChannel(1);
-		} else {	
-			Stack.setChannel(2);
-		}
-		Stack.setFrame(currentFrame);
 		for (j = 0; j < xpoints1.length; j++) {
+			selectImageChannelAndFrame(map, color, currentFrame);
 			makeRectangle(xpoints1[j]-_MAX_RADIUS, ypoints1[j]-_MAX_RADIUS, 2*_MAX_RADIUS+1, 2*_MAX_RADIUS+1);
 			id = getIDFor(xpoints1[j], ypoints1[j], currentChannel, currentFrame);
 			if (id==-1) id = currentID++;
 			setColor(id);
 			run("Fill", "slice");	
+			selectImageChannelAndFrame(inputImageID, color, currentFrame);
+			makeRectangle(xpoints1[j]-_MAX_RADIUS, ypoints1[j]-_MAX_RADIUS, 2*_MAX_RADIUS+1, 2*_MAX_RADIUS+1);
+			getStatistics(area, mean, min, max, std, histogram);
+			Table.set(id, currentFrame-1, mean, "intensity per time");
+		}
+	}
+	Table.create("coloc per frame");
+	Table.setColumn("frame", timePoints, "coloc per frame");
+	for (i = 0; i < numberOfSelections; i++) {
+		selectImage(inputImageID);
+		Overlay.activateSelection(i);
+		Roi.getPosition(currentChannel, currentSlice, currentFrame);
+		color = Roi.getStrokeColor;
+		getSelectionCoordinates(xpoints1, ypoints1);
+		run("Select None");
+		redSpots = 0;
+		greenSpots = 0;
+		coveredByOther = 0;
+		if (color=='red') 
+			redSpots = xpoints1.length;
+		else 
+			greenSpots = xpoints1.length;
+		for (j = 0; j < xpoints1.length; j++) {
+			otherColor = 'red';
+			if (color=='red') otherColor = 'green';
+			selectImageChannelAndFrame(map, otherColor, currentFrame);
+			makeRectangle(xpoints1[j]-_MAX_RADIUS, ypoints1[j]-_MAX_RADIUS, 2*_MAX_RADIUS+1, 2*_MAX_RADIUS+1);
+			getStatistics(area, mean);
+			if(mean>0) coveredByOther++;
+		}
+		if (color=='red') {
+			Table.set("red spots", currentFrame-1, redSpots, "coloc per frame");
+		} else {
+			Table.set("green spots", currentFrame-1, greenSpots, "coloc per frame");
+			Table.set("colocalized", currentFrame-1, coveredByOther, "coloc per frame");
 		}
 	}
 	run("Select None");
@@ -87,6 +119,16 @@ function linkSpots() {
 	resetMinAndMax();
 	Stack.setDisplayMode("composite");
 	setBatchMode(false);
+}
+
+function selectImageChannelAndFrame(imageID, color, frame) {
+		selectImage(imageID);
+		if (color=='red') {
+			Stack.setChannel(1);
+		} else {	
+			Stack.setChannel(2);
+		}
+		Stack.setFrame(frame);
 }
 
 function getIDFor(x, y, currentChannel, currentFrame) {
