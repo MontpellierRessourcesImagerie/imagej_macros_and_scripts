@@ -47,8 +47,8 @@ function ndpiExportRegions(slideImageSeries) {
 		setThreshold(1, 255);
 		run("Create Selection");
 		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, imageHeightInPixel);
-		imageOriginX += 0.25;
-		imageOriginY -= 0.25;
+		imageOriginX -= 2;
+		imageOriginY -= 1;
 		toScaled(imageOriginX, imageOriginY);
 		run("Select None");
 		CENTER_OF_SLICE_X = getWidth();
