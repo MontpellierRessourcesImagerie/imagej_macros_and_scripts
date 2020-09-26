@@ -109,6 +109,45 @@ macro "intensityRatioBatch [f4]" {
 	intensityRatioBatch();
 }
 
+var dCmds = newMenu("Images Menu Tool",
+    newArray("download dataset", "GFP 3.tif", "GFP 4.tif", "GFP 5.tif", "-", "options"));
+
+macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD82CfffL92f2L0353CeeeD63C444D73CeeeD83CfffL93f3L0454CeeeD64C444D74CeeeD84CfffL94f4L0555CeeeD65C444D75CeeeD85CfffL95f5L0636CdddD46CfffD56CeeeD66C444D76CeeeD86CfffD96CdddDa6CfffLb6f6L0727CdddD37C444D47CbbbD57CeeeD67C444D77CeeeD87CbbbD97C444Da7CdddDb7CfffLc7f7L0838CbbbD48C444D58C999D68C444D78C999D88C444D98CbbbDa8CfffLb8f8L0949CbbbD59C333D69C111D79C333D89CbbbD99CfffLa9f9L0a5aCbbbD6aC444D7aCbbbD8aCfffL9afaL0b6bCeeeD7bCfffL8bfbL0c2cCeeeL3cbcCfffLccfcL0d1dCeeeD2dC666D3dC444L4dadC666DbdCeeeDcdCfffLddfdL0e2eCeeeL3ebeCfffLcefeL0fff" {
+       cmd = getArgument();
+       DATASET_DIR = call("ij.Prefs.get", "mribia.datasetDir", "/media/baecker/DONNEES1/mri/in");
+       DATASET_NAME = "irnc";
+       DATASET_SOURCE = 'https://zenodo.org/record/4052365';
+       DATASET_PATTERN = ".tif";
+       if (cmd=="download dataset") {
+       	   print("Starting download of the irnc-dataset...");
+       	   script = 'import os'+"\n"
+                    +'print(os.popen("wget -np -nd -r -P '+DATASET_DIR+"/"+DATASET_NAME+"/"+' -l1 -A'+DATASET_PATTERN+' '+DATASET_SOURCE+'").read())';
+		   eval("python", script);
+		   print("...download of the irnc-dataset finished.");
+       } 
+       if (cmd=="GFP 3.tif") {
+       	   options = "open=["+DATASET_DIR+"/"+DATASET_NAME+"/GFP 3.tif] autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT";
+       	   run("Bio-Formats", options);
+       }
+       if (cmd=="GFP 4.tif") {
+       	   options = "open=["+DATASET_DIR+"/"+DATASET_NAME+"/GFP 4.tif] autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT";
+       	   run("Bio-Formats", options);
+       }
+       if (cmd=="GFP 5.tif") {
+       	   options = "open=["+DATASET_DIR+"/"+DATASET_NAME+"/GFP 5.tif] autoscale color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT";
+       	   run("Bio-Formats", options);
+       }
+       if (cmd=="options") {
+       	   Dialog.create("mribia options");
+       	   Dialog.addMessage("These options are global and persistent.")
+       	   Dialog.addString("input datasets directory: " , DATASET_DIR, 36);
+       	   Dialog.show();
+       	   DATASET_DIR = Dialog.getString();
+       	   call("ij.Prefs.set", "mribia.datasetDir", DATASET_DIR); 
+       }
+       
+}
+
 function intensityRatioForSingleImageHelp() {
 	run('URL...', 'url='+_helpURL);
 }
