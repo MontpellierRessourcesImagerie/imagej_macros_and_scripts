@@ -1,8 +1,10 @@
 var _SIGMA = 3;
-var _MIN_PROMINENCE = newArray(30, 30);
+var _MIN_PROMINENCE = newArray(30, 20);
 var _COLORS=newArray("red", "green");
-var _STYLE=newArray("dot", "cross");
-var _SIZE=newArray("medium", "medium");
+var _STYLE=newArray("circle", "circle");
+var _STYLES = newArray('hybrd', 'cross', 'dot', 'circle');
+var _SIZE=newArray("large", "extra large");
+var _SIZES=newArray('tiny', 'small', 'medium', 'large', 'extra large');
 var _MAX_RADIUS = 2;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spot_Coloc_Tool"
@@ -17,6 +19,33 @@ macro "detect spots help [f1]" {
 
 macro "detect spots (f2) Action Tool - C000T4b12d" {
 	detectSpots(_MIN_PROMINENCE, _COLORS, _STYLE, _SIZE);
+}
+
+
+macro "detect spots (f2) Action Tool Options" {
+	Dialog.create("detect spots options");
+
+	Dialog.addMessage("Spot detection and coloc");
+	Dialog.addNumber("sigma LoG filter: ", _SIGMA);
+	Dialog.addNumber(_COLORS[0]+" min. proeminence: ",  _MIN_PROMINENCE[0]);
+	Dialog.addNumber(_COLORS[1]+" min. proeminence: ",  _MIN_PROMINENCE[1]);
+	Dialog.addNumber("max. radius: ", _MAX_RADIUS);
+	Dialog.addMessage("Display");
+	Dialog.addChoice(_COLORS[0]+" style: ", _STYLES, _STYLE[0]);
+	Dialog.addChoice(_COLORS[1]+" style: ", _STYLES, _STYLE[1]);
+	Dialog.addChoice(_COLORS[0]+" size: ", _SIZES, _SIZE[0]);
+	Dialog.addChoice(_COLORS[1]+" size: ", _SIZES, _SIZE[1]);
+	
+	Dialog.show();
+	
+	_SIGMA = Dialog.getNumber();
+	_MIN_PROMINENCE[0] = Dialog.getNumber();
+	_MIN_PROMINENCE[1] = Dialog.getNumber();
+	_MAX_RADIUS = Dialog.getNumber();
+	_STYLE[0] = Dialog.getChoice();
+	_STYLE[1] = Dialog.getChoice();
+	_SIZE[0] = Dialog.getChoice();
+	_SIZE[1] = Dialog.getChoice();
 }
 
 macro "detectSpots" [f2]" {
@@ -51,10 +80,10 @@ function detectSpots(minProminence, colors, style, size) {
 
 function linkSpots() {
 	currentID = 1;
+	setBatchMode(true);	// move up again for efficiency
 	Stack.getDimensions(width, height, channels, slices, frames);
 	inputImageID = getImageID();
 	newImage("map", "16-bit", width, height, channels, slices, frames);
-	setBatchMode(true);	// move up again for efficiency
 	map = getImageID();
 	selectImage(inputImageID);
 	numberOfSelections = Overlay.size;
@@ -81,6 +110,7 @@ function linkSpots() {
 			Table.set(id, currentFrame-1, mean, "intensity per time");
 		}
 	}
+	Table.update("intensity per time");
 	Table.create("coloc per frame");
 	Table.setColumn("frame", timePoints, "coloc per frame");
 	for (i = 0; i < numberOfSelections; i++) {
@@ -93,22 +123,22 @@ function linkSpots() {
 		redSpots = 0;
 		greenSpots = 0;
 		coveredByOther = 0;
-		if (color=='red') 
+		if (color==_COLORS[0]) 
 			redSpots = xpoints1.length;
 		else 
 			greenSpots = xpoints1.length;
 		for (j = 0; j < xpoints1.length; j++) {
-			otherColor = 'red';
-			if (color=='red') otherColor = 'green';
+			otherColor = _COLORS[0];
+			if (color==_COLORS[0]) otherColor = _COLORS[1];
 			selectImageChannelAndFrame(map, otherColor, currentFrame);
 			makeRectangle(xpoints1[j]-_MAX_RADIUS, ypoints1[j]-_MAX_RADIUS, 2*_MAX_RADIUS+1, 2*_MAX_RADIUS+1);
 			getStatistics(area, mean);
 			if(mean>0) coveredByOther++;
 		}
-		if (color=='red') {
-			Table.set("red spots", currentFrame-1, redSpots, "coloc per frame");
+		if (color==_COLORS[0]) {
+			Table.set(_COLORS[0] + " spots", currentFrame-1, redSpots, "coloc per frame");
 		} else {
-			Table.set("green spots", currentFrame-1, greenSpots, "coloc per frame");
+			Table.set(_COLORS[1] + " spots", currentFrame-1, greenSpots, "coloc per frame");
 			Table.set("colocalized", currentFrame-1, coveredByOther, "coloc per frame");
 		}
 	}
@@ -118,12 +148,14 @@ function linkSpots() {
 	Stack.setChannel(1);
 	resetMinAndMax();
 	Stack.setDisplayMode("composite");
+	selectImage(map);
+	close();
 	setBatchMode(false);
 }
 
 function selectImageChannelAndFrame(imageID, color, frame) {
 		selectImage(imageID);
-		if (color=='red') {
+		if (color==_COLORS[0]) {
 			Stack.setChannel(1);
 		} else {	
 			Stack.setChannel(2);
