@@ -187,6 +187,51 @@ macro "batch create images Action Tool (f8) Options" {
 	_CURRENT_BATCH_IMAGE_PARAMETER_SET = Dialog.getChoice();
 }
 
+macro "flatten gt image Action Tool (f9) - C000D58D59D5aD67D68D69D6aD6bD77D78D79D7aD7bD87D88D89D8aD8bD98D99D9aDc8Dc9DcaDcbDccDd7Dd8Dd9DdaDdbDdcDddDe6De7De8De9DeaDebDecDedDeeDf5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffCfffD00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D11D12D13D14D15D16D17D18D19D1aD1bD1cD1dD1eD1fD20D21D22D23D24D25D26D27D28D29D2aD2bD2cD2dD2eD2fD30D31D32D33D34D35D36D37D38D39D3aD3bD3cD3dD3eD3fD40D41D42D43D44D45D46D47D48D49D4aD4bD4cD4dD4eD4fD50D51D52D53D54D55D56D57D5bD5cD5dD5eD5fD60D61D62D63D64D65D66D6cD6dD6eD6fD70D71D72D73D74D75D76D7cD7dD7eD7fD80D81D82D83D84D85D86D8cD8dD8eD8fD90D91D92D93D94D95D96D97D9bD9cD9dD9eD9fDa0Da1Da2Da3Da4Da5Da6Da7Da8Da9DaaDabDacDadDaeDafDb0Db1Db2Db3Db4Db5Db6Db7Db8Db9DbaDbbDbcDbdDbeDbfDc0Dc1Dc2Dc3Dc4Dc5Dc6Dc7DcdDceDcfDd0Dd1Dd2Dd3Dd4Dd5Dd6DdeDdfDe0De1De2De3De4De5DefDf0Df1Df2Df3Df4"{
+	flattenGTImage();
+}
+
+macro "flatten gt image [f9]" {
+	flattenGTImage();
+}
+
+macro "batch flatten gt images Action Tool (f11) - C000D00D01D02D03D04D05D06D10D12D13D16D20D22D23D26D30D31D32D33D34D35D36D44D45D46D58D59D5aD67D68D69D6aD6bD77D78D79D7aD7bD87D88D89D8aD8bD98D99D9aDc8Dc9DcaDcbDccDd7Dd8Dd9DdaDdbDdcDddDe6De7De8De9DeaDebDecDedDeeDf5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffCfffD07D08D09D0aD0bD0cD0dD0eD0fD11D14D15D17D18D19D1aD1bD1cD1dD1eD1fD21D24D25D27D28D29D2aD2bD2cD2dD2eD2fD37D38D39D3aD3bD3cD3dD3eD3fD40D41D42D43D47D48D49D4aD4bD4cD4dD4eD4fD50D51D52D53D54D55D56D57D5bD5cD5dD5eD5fD60D61D62D63D64D65D66D6cD6dD6eD6fD70D71D72D73D74D75D76D7cD7dD7eD7fD80D81D82D83D84D85D86D8cD8dD8eD8fD90D91D92D93D94D95D96D97D9bD9cD9dD9eD9fDa0Da1Da2Da3Da4Da5Da6Da7Da8Da9DaaDabDacDadDaeDafDb0Db1Db2Db3Db4Db5Db6Db7Db8Db9DbaDbbDbcDbdDbeDbfDc0Dc1Dc2Dc3Dc4Dc5Dc6Dc7DcdDceDcfDd0Dd1Dd2Dd3Dd4Dd5Dd6DdeDdfDe0De1De2De3De4De5DefDf0Df1Df2Df3Df4" {
+	batchFlattenGTImages();
+}
+
+macro "batch flatten gt images [f11]" {
+	batchFlattenGTImages();
+}
+
+function batchFlattenGTImages() {
+	dir = getDirectory("Choose the input folder!");
+	outDir = dir + "gt-masks/";
+	File.makeDirectory(outDir);
+	files = getFileList(dir);
+	numberOfImages = 0;
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (endsWith(file, ".tif")) numberOfImages++;
+	}
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (!endsWith(file, ".tif")) continue;
+		open(dir+file);
+		flattenGTImage();
+		save(outDir+file);
+		close();
+		close();
+	}
+}
+
+function flattenGTImage() {
+	run("Stack to RGB");
+	run("8-bit");
+	setThreshold(1, 255);
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
+}
+
 function batchCreateImages() {
 	_COUNT=0;
 	loadParameters(_CURRENT_BATCH_IMAGE_PARAMETER_SET);
@@ -450,12 +495,12 @@ function convolveAndAddNoise(gaussianBlur, backgroudLevel, backgroundNoise, fore
 function drawSpots(xCoords, yCoords, diameters, backgroudLevel, width, height) {
 	for (i = xCoords.length-1; i >= 0; i--) {
 		diameter = diameters[i];
-		v = getPixel(xCoords[i]+(diameter/2), yCoords[i]+(diameter/2));
-		while (v>backgroudLevel) { 
-			xCoords[i] = diameter + random*(width-3*diameter);
-			yCoords[i] = diameter + random*(height-3*diameter);
-			v = getPixel(xCoords[i], yCoords[i]);
-		}
+//		v = getPixel(xCoords[i]+(diameter/2), yCoords[i]+(diameter/2));
+//		while (v>backgroudLevel) { 
+//			xCoords[i] = diameter + random*(width-3*diameter);
+//			yCoords[i] = diameter + random*(height-3*diameter);
+//			v = getPixel(xCoords[i], yCoords[i]);
+//		}	
 		fillOval(xCoords[i], yCoords[i], diameter, diameter);
 		updateDisplay();
 	}
