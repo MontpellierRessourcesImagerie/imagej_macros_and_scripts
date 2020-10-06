@@ -5,15 +5,13 @@ var _NR_OF_NUCLEI_MEAN = 12;
 var _NR_OF_NUCLEI_STD = 2;
 var _RADIUS_MEAN = 30;
 var _RADIUS_STD = 3;
-var _RADIUS_NUCLEOLES = 2;
-var _DEPTH_NUCLEOLES = 50;
-
+var _RADIUS_NUCLEOLI = 2;
+var _DEPTH_NUCLEOLI = 50;
 var _MEAN_INTENSITY_NUCLEI = 128;
 var _STD_INTENSITY_NUCLEI = 20;
-
 var _BACKGROUND_LEVEL = 80;
-var _STD_QUANTIC_NOISE = 1;
-var _STD_DETECTOR_NOISE = 2;
+var _STD_PHOTON_NOISE = 2;
+var _STD_DETECTOR_NOISE = 1;
 var _PSF_SIGMA = 2;
 var _GRADIENT = 1/200;
 var _TYPE = "8-bit";
@@ -36,17 +34,66 @@ macro "create image [f2]" {
 	createImage(0, 1);
 }
 
-macro "batch create image (f3) Action Tool - C000T4b12b" {
+macro "create image (f2) Action Tool Options" {
+	Dialog.create("Synthetic Nuclei Generator Options");
+	Dialog.addMessage("image");
+	Dialog.addNumber("image width: ", _IMG_WIDTH);
+	Dialog.addNumber("image height: ", _IMG_HEIGHT);
+	Dialog.addChoice("image type: ", newArray("8-bit", "16-bit", "32-bit", _TYPE));
+	Dialog.addMessage("nuclei");
+	Dialog.addNumber("mean nr. of nuclei: ", _NR_OF_NUCLEI_MEAN);
+	Dialog.addNumber("stdDev nr. of nuclei: ", _NR_OF_NUCLEI_STD);
+	Dialog.addNumber("mean radius of nuclei: ", _RADIUS_MEAN);
+	Dialog.addNumber("stdDev radius of nuclei: ", _RADIUS_STD);
+	Dialog.addNumber("mean intensity of nuclei: ", _MEAN_INTENSITY_NUCLEI);
+	Dialog.addNumber("stdDev intensity of nuclei: ", _STD_INTENSITY_NUCLEI);
+	Dialog.addNumber("radius of nucleoli", _RADIUS_NUCLEOLI);
+	Dialog.addNumber("depth of nucleoli", _DEPTH_NUCLEOLI);
+	Dialog.addMessage("noise");
+	Dialog.addNumber("stdDev photon noise: ", _STD_PHOTON_NOISE);
+	Dialog.addNumber("stdDev detector noise: ", _STD_DETECTOR_NOISE);
+	Dialog.addMessage("background and psf");
+	Dialog.addNumber("background level: ", _BACKGROUND_LEVEL);
+	Dialog.addNumber("gradient: ", _GRADIENT);
+	Dialog.addNumber("stdDev psf: ", _PSF_SIGMA);
+	Dialog.show();
+	_IMG_WIDTH = Dialog.getNumber();
+	_IMG_HEIGHT = Dialog.getNumber();
+	_TYPE = Dialog.getChoice();
+	_NR_OF_NUCLEI_MEAN = Dialog.getNumber();
+	_NR_OF_NUCLEI_STD = Dialog.getNumber();
+	_RADIUS_MEAN = Dialog.getNumber();
+	_RADIUS_STD = Dialog.getNumber();
+	_MEAN_INTENSITY_NUCLEI = Dialog.getNumber();
+	_STD_INTENSITY_NUCLEI = Dialog.getNumber();
+	_RADIUS_NUCLEOLI = Dialog.getNumber();
+	_DEPTH_NUCLEOLI = Dialog.getNumber();
+	_STD_PHOTON_NOISE = Dialog.getNumber();
+	_STD_DETECTOR_NOISE = Dialog.getNumber();
+	_BACKGROUND_LEVEL = Dialog.getNumber();
+	_GRADIENT = Dialog.getNumber();
+	_PSF_SIGMA = Dialog.getNumber();
+}
+
+macro "batch create images (f3) Action Tool - C000T4b12b" {
 	batchCreateImages(_NR_OF_IMAGES);
 }
 
-macro 'batch create image [f3]' {
+macro "batch create images (f3) Action Tool Options" {
+	Dialog.create("Batch Create Images Options");
+	Dialog.addNumber("number of images: ", _NR_OF_IMAGES);
+	Dialog.show();
+	_NR_OF_IMAGES = Dialog.getNumber();
+}
+
+macro 'batch create images [f3]' {
 	batchCreateImages(_NR_OF_IMAGES);
 }
 
 function batchCreateImages(nr) {
 	outFolder = getDirectory("Select the folder for the output images.");
 	gtFolder = getDirectory("Select the folder for the ground-truth images.");
+	setBatchMode(true);
 	for (i = 0; i < nr; i++) {
 		showProgress(i, nr-1);
 		createImage(i, nr);
@@ -57,6 +104,7 @@ function batchCreateImages(nr) {
 		save(outFolder+"/"+title+".tif");
 		close();
 	}
+	setBatchMode(false);
 }
 
 function createImage(i, nr) {
@@ -103,7 +151,7 @@ function createImage(i, nr) {
 	setThreshold(128, 255);
 	run("Create Selection");
 	run("Salt and Pepper");
-	for (d = 0; d < _RADIUS_NUCLEOLES; d++) {
+	for (d = 0; d < _RADIUS_NUCLEOLI; d++) {
 		run("Erode");
 	}
 	run("Select None");
@@ -113,7 +161,7 @@ function createImage(i, nr) {
 	run("Create Selection");
 	selectImage(nucleiImage);
 	run("Restore Selection");
-	run("Add...", "value="+(255-_DEPTH_NUCLEOLES));
+	run("Add...", "value="+(255-_DEPTH_NUCLEOLI));
 	run("Select None");
 
 	run("32-bit");
@@ -131,7 +179,7 @@ function createImage(i, nr) {
 	run("Add...", "value="+_BACKGROUND_LEVEL);
 	run("Select None");
 
-	run("Add Specified Noise...", "standard="+_STD_QUANTIC_NOISE);
+	run("Add Specified Noise...", "standard="+_STD_PHOTON_NOISE);
 	run("Gaussian Blur...", "sigma="+_PSF_SIGMA);
 	run("Add Specified Noise...", "standard="+_STD_DETECTOR_NOISE);
 
