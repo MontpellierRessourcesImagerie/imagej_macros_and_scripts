@@ -5,8 +5,12 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
 import ij.gui.GenericDialog;
+import ij.IJ;
 
+helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spiral_Mosaic_Tool";
 options = ij.Macro.getOptions();
+
+IJ.log(options);
 
 east = new Point(1, 0);
 north = new Point(0, -1);
@@ -72,6 +76,10 @@ relativePositions(n) {
 	return positions;
 }
 
+clockwise = !TURNLEFT;
+startEast = true;
+step = false;
+
 if (options==null) {
 	GenericDialog gd = new GenericDialog("MRI - Spiral Image Reconstruction");
 	gd.addCheckbox("clockwise", !TURNLEFT);
@@ -80,6 +88,7 @@ if (options==null) {
 	if (START_DIRECTION.equals(south)&&!TURNLEFT) startEast=false;
 	gd.addCheckbox("start to the east", startEast); 
 	gd.addCheckbox("step", false);
+	gd.addHelp(helpURL);
 	gd.pack();
 	gd.showDialog();
 
@@ -90,12 +99,20 @@ if (options==null) {
 	step = gd.getNextBoolean();
 } else {
 	options = options.split(" ");
-	clockwise = options[0].split("=")[1].equals("true");
+    IJ.log("options[0]:" + options[0]);	
+	comps = options[0].split("=");
+	val = comps[1];
+	IJ.log("val:" + val);	
+	clockwise = val.equals("true");
 	startEast = options[1].split("=")[1].equals("true");
 	step = options[2].split("=")[1].equals("true");
 }
 
 START_DIRECTION = north;
+
+IJ.log("clockwise:" + clockwise);
+IJ.log("startEast:" + startEast);
+
 if ((!clockwise && startEast) || (clockwise && !startEast)) START_DIRECTION = south;
 TURNLEFT = true;
 if (clockwise) TURNLEFT = false;

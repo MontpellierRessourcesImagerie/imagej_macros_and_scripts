@@ -2,8 +2,10 @@ import ij.IJ;
 import ij.gui.GenericDialog;
 import ij.macro.Interpreter;
 
-suffix = ".TIF";
-prefix = "MATHUSALEM";
+helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spiral_Mosaic_Tool";
+
+suffix = ".TIFF";
+prefix = "RAHOTEP";
 
 east = new Point(1, 0);
 north = new Point(0, -1);
@@ -13,17 +15,22 @@ START_DIRECTION = north;
 TURNLEFT = false;
 
 GenericDialog gd = new GenericDialog("MRI - Spiral Image Reconstruction");
+gd.addStringField("prefix: ", prefix);
+gd.addStringField("file extension: ", suffix);
 gd.addCheckbox("clockwise", !TURNLEFT);
 startEast = true;
 if (START_DIRECTION.equals(north)&&TURNLEFT) startEast=false; 
 if (START_DIRECTION.equals(south)&&!TURNLEFT) startEast=false;
 gd.addCheckbox("start to the east", startEast); 
 gd.addCheckbox("step", false);
+gd.addHelp(helpURL);
 gd.pack();
 gd.showDialog();
 
 if (gd.wasCanceled()) return;
 
+prefix = gd.getNextString();
+suffix = gd.getNextString();
 clockwise = gd.getNextBoolean();
 startEast = gd.getNextBoolean();
 step = gd.getNextBoolean();
@@ -40,16 +47,16 @@ for (file : files) {
 	name = file.getName();
 	if (!name.endsWith(suffix) || !name.startsWith(prefix)) continue;
 	name = name.replace(suffix, "");
-	components = name.split("f");
-	if (!(components.length==2)) continue;
-	part1 = components[0];
-	components2 = components[1].split("d");
-	if (!(components2.length==2)) continue;
-	expr = part1 + "f.*" + "d" + components2[1] + suffix;
+	components = name.split("_");
+	if (!(components.length==3)) continue;
+	plaque = components[0] + "_" + components[1];
+	puit = components[2].split("f")[0];
+	channel = "d" + (components[2].split("f")[1].split("d")[1]);
+	expr = plaque + "_" + puit + "f.*" + channel + suffix;
 	if (!fileNameExpressions.contains(expr)) fileNameExpressions.add(expr);
 }
 
-Interpreter.batchMode = true;
+Interpreter.batchMode = false;
 counter = 1;
 number = fileNameExpressions.size();
 for (expr : fileNameExpressions) {
