@@ -1,0 +1,134 @@
+import java.lang.Math;
+import ij.gui.NewImage;
+import java.awt.Point;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.ArrayList;
+import ij.gui.GenericDialog;
+
+options = ij.Macro.getOptions();
+
+east = new Point(1, 0);
+north = new Point(0, -1);
+west = new Point(-1, 0);
+south = new Point(0, 1);
+
+TURNLEFT = false;
+START_DIRECTION = north;
+
+int[] quaterSquares = {0,0,1,2,4,6,9,12,16,20,25,30,36,42,49,56,64,72,81,90,100,110,121,132,144,156,169,182,196,210,225,240,256,272,289,306,324,342,361,380,400,420,441,462,484,506,529,552,576,600,625,650,676,702,729,756,784,812};
+
+ nextQuarterSquareFor(n) {
+ 	for (qs : quaterSquares) {
+ 		if (qs >= n) return qs;
+ 	}
+ 	return -1;
+ }
+
+ indexOfNextQuarterSquareFor(n) {
+ 	index=0;
+ 	for (qs : quaterSquares) {
+ 		if (qs >= n) return index;
+ 		index++;
+ 	}
+ 	return -1;
+ }
+
+Point turnLeft(Point direction) {
+	result = south;
+	if (direction.equals(south)) result = east;
+	if (direction.equals(east)) result = north;
+	if (direction.equals(north)) result = west;  
+	return result;
+}
+
+
+Point turnRight(Point direction) {
+	result = north;
+	if (direction.equals(south)) result = west;
+	if (direction.equals(east)) result = south;
+	if (direction.equals(north)) result = east;  
+	return result;
+}
+
+relativePositions(n) {
+	Set burnedPoints = new HashSet();
+	positions = new ArrayList();
+	direction = START_DIRECTION; 
+	currentPosition = new Point(0,0);
+	for (i=0; i<n; i++) {
+		burnedPoints.add(currentPosition);
+		positions.add(currentPosition);
+		if (i==n-1) break;
+		oldDirection = direction;
+		if (TURNLEFT) newDirection = turnLeft(direction);
+		else newDirection = turnRight(direction);
+		newPosition = new Point(currentPosition.x + newDirection.x, currentPosition.y + newDirection.y);
+		if (burnedPoints.contains(newPosition)) {
+			newPosition = new Point(currentPosition.x + direction.x, currentPosition.y + direction.y);
+		} else direction = newDirection;
+		currentPosition = newPosition;
+	}
+	return positions;
+}
+
+if (options==null) {
+	GenericDialog gd = new GenericDialog("MRI - Spiral Image Reconstruction");
+	gd.addCheckbox("clockwise", !TURNLEFT);
+	startEast = true;
+	if (START_DIRECTION.equals(north)&&TURNLEFT) startEast=false; 
+	if (START_DIRECTION.equals(south)&&!TURNLEFT) startEast=false;
+	gd.addCheckbox("start to the east", startEast); 
+	gd.addCheckbox("step", false);
+	gd.pack();
+	gd.showDialog();
+
+	if (gd.wasCanceled()) return;
+
+	clockwise = gd.getNextBoolean();
+	startEast = gd.getNextBoolean();
+	step = gd.getNextBoolean();
+} else {
+	options = options.split(" ");
+	clockwise = options[0].split("=")[1].equals("true");
+	startEast = options[1].split("=")[1].equals("true");
+	step = options[2].split("=")[1].equals("true");
+}
+
+START_DIRECTION = north;
+if ((!clockwise && startEast) || (clockwise && !startEast)) START_DIRECTION = south;
+TURNLEFT = true;
+if (clockwise) TURNLEFT = false;
+
+image = ij.IJ.getImage();
+numberOfImages = image.getNSlices();
+n = indexOfNextQuarterSquareFor(numberOfImages);
+imageWidth = image.getWidth();
+imageHeight = image.getHeight();
+width = (int)Math.ceil(n/2.0) * imageWidth;
+height = (int)Math.floor(n/2.0) * imageHeight;
+
+mosaic = NewImage.createImage(image.getTitle() + "- reconstructed", width, height, 1, image.getBitDepth(), NewImage.FILL_BLACK);
+mosaic.show();
+
+relativePositions = relativePositions(numberOfImages);
+slice = 1;
+mip = mosaic.getProcessor();
+for (pos : relativePositions) {
+	offsetX =  imageWidth;
+	if (!startEast) offsetX = 0;
+	if ((int)Math.ceil(n/2.0)%2!=0) offsetX = imageWidth / 2;
+	offsetY = 0;
+	if (startEast && !TURNLEFT) offsetY = imageHeight;
+	if (!startEast && TURNLEFT) offsetY = imageHeight;
+	if ((int)Math.floor(n/2.0)%2!=0) offsetY = imageHeight / 2;
+	positionX = (width / 2) - offsetX + (pos.x * imageWidth);
+	positionY = (height / 2) - offsetY + (pos.y * imageHeight);
+	image.setSlice(slice);
+	ip = image.getProcessor();
+	mip.insert(ip, positionX, positionY);
+	ij.IJ.run("Enhance Contrast", "saturated=0.35");
+	mosaic.updateAndDraw();
+	if (step) new ij.gui.WaitForUserDialog("Cont...").show();
+ 	slice++;
+}
