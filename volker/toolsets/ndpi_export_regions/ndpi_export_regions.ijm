@@ -38,24 +38,26 @@ function ndpiExportRegions(slideImageSeries) {
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
 		image = replace(file, ".ndpa", "");
-		pixelSize = newArray(2);
-		readPixelSize(dir + '/' + image, pixelSize);
-		pixelWidth = pixelSize[0];
-		pixelHeight = pixelSize[1];
 		roiManager("reset");
-		run("Bio-Formats", "open=["+dir+'/'+image+"] color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "+slideImageSeries);
-		setThreshold(1, 255);
-		run("Create Selection");
-		Roi.getBounds(imageOriginX, imageOriginY, imageWidthInPixel, imageHeightInPixel);
-		imageOriginX -= 2;
-		imageOriginY -= 1;
-		toScaled(imageOriginX, imageOriginY);
-		run("Select None");
-		CENTER_OF_SLICE_X = getWidth();
-		CENTER_OF_SLICE_Y = getHeight();
-		toScaled(CENTER_OF_SLICE_X, CENTER_OF_SLICE_Y);
-		CENTER_OF_SLICE_X /= 2;
-		CENTER_OF_SLICE_Y /= 2;
+
+		path = dir+image;
+		xOffset = call("TIFF_Tags.getTag", path, 65422);
+		xOffset = parseFloat(xOffset);
+		yOffset = call("TIFF_Tags.getTag", path, 65423);
+		yOffset = parseFloat(yOffset);
+		run("Bio-Formats Macro Extensions");
+		Ext.setId(path);
+		Ext.getPixelsPhysicalSizeX(mpp);
+		Ext.getSizeX(iw);
+		Ext.getSizeY(ih);
+		iw = parseInt(iw);
+		ih = parseInt(ih);
+		mpp = parseFloat(mpp);
+
+		print("offset", xOffset, yOffset);
+		print("mpp", mpp);
+		print("image size", iw, ih);
+		
 		annotations = File.openAsString(dir + "/" + file);
 		lines = split(annotations, "\n");
 		l = 0;
@@ -72,7 +74,7 @@ function ndpiExportRegions(slideImageSeries) {
 			}
 			if (startsWith(line, '</annotation>')) {
 				inAnnotation = false;		
-				cropZone(dir, image, imageOriginX, imageOriginY, pixelWidth, pixelHeight, xPoints, yPoints);
+				cropZone(dir, image, xPoints, yPoints);
 			}
 			if (inAnnotation && startsWith(line, '<point>')) {
 				x =  String.trim(lines[l+1]);
@@ -83,36 +85,23 @@ function ndpiExportRegions(slideImageSeries) {
 				y = replace(y, '</y>', '');
 				x = parseInt(x);
 				y = parseInt(y);
-				x = (x / 1000.0) + CENTER_OF_SLICE_X;
-				y = (y / 1000.0) + CENTER_OF_SLICE_Y;
+				x = ((x + xOffset) / (1000 * mpp)) - (iw/2);
+				y = ((y + yOffset) / (1000 * mpp)) - (ih/2);
 				xPoints = Array.concat(xPoints, x);
 				yPoints = Array.concat(yPoints, y);
 			}
 			l++;
 		}
-		close();
 	}
 }
 
-function readPixelSize(image, res) {
-	run("Bio-Formats", "open=["+image+"] color_mode=Composite crop rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_1 x_coordinate_1="+0+" y_coordinate_1="+0+" width_1="+10+" height_1="+10);
-	getPixelSize(unit, pixelWidth, pixelHeight);
-	res[0]=pixelWidth;
-	res[1]=pixelHeight;
-	close();
-}
-
-function cropZone(dir, image, imageOriginX, imageOriginY, pixelWidth, pixelHeight, xPoints, yPoints) {
+function cropZone(dir, image, xPoints, yPoints) {
 	ranks = Array.rankPositions(xPoints);
 	xMin = xPoints[ranks[0]];
 	xMax = xPoints[ranks[ranks.length-1]];
 	ranks = Array.rankPositions(yPoints);
 	yMin = yPoints[ranks[0]];
 	yMax = yPoints[ranks[ranks.length-1]];
-	xMin = (xMin-imageOriginX)/pixelWidth;
-	xMax = (xMax-imageOriginX)/pixelWidth;
-	yMin = (yMin-imageOriginY)/pixelHeight;
-	yMax = (yMax-imageOriginY)/pixelHeight;
 	width = xMax - xMin;
 	height = yMax - yMin;
 	print("Exporting zone: x="+xMin+", y="+yMin+", width="+width+", height=" + height);
