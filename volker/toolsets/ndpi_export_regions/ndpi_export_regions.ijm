@@ -1,13 +1,13 @@
 /**
   * NDPI export regions
-  * 
-  * The tool exports rectangular regions, defined with the NDP.view 2 software 
+  *
+  * The tool exports rectangular regions, defined with the NDP.view 2 software
   * from the highest resolution version of the image and saves them as tif-files.
-  * 
+  *
   * (c) 2020, INSERM
   * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
-  * 
- **/ 
+  *
+ **/
 
 var _SLIDE_IMAGE_SERIES = "series_6";
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/NDPI_Export_Regions_Tool";
@@ -26,11 +26,12 @@ macro "ndpi export regions Action Tool (f2) Options" {
 	Dialog.addMessage("Press the help button below to open the online help!");
 	Dialog.addString("slide image series: ", _SLIDE_IMAGE_SERIES);
 	Dialog.addHelp(helpURL);
-	Dialog.show();	
+	Dialog.show();
 	_SLIDE_IMAGE_SERIES = Dialog.getString();
 }
 
 function ndpiExportRegions(slideImageSeries) {
+	run("Bio-Formats Macro Extensions");
 	dir = getDirectory("Please select the input folder!");
 	files = getFileList(dir);
 	files = filterNDPAFiles(files);
@@ -38,14 +39,12 @@ function ndpiExportRegions(slideImageSeries) {
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
 		image = replace(file, ".ndpa", "");
-		roiManager("reset");
-
 		path = dir+image;
 		xOffset = call("TIFF_Tags.getTag", path, 65422);
 		xOffset = parseFloat(xOffset);
 		yOffset = call("TIFF_Tags.getTag", path, 65423);
 		yOffset = parseFloat(yOffset);
-		run("Bio-Formats Macro Extensions");
+		run("Select None");
 		Ext.setId(path);
 		Ext.getPixelsPhysicalSizeX(mpp);
 		Ext.getSizeX(iw);
@@ -53,11 +52,17 @@ function ndpiExportRegions(slideImageSeries) {
 		iw = parseInt(iw);
 		ih = parseInt(ih);
 		mpp = parseFloat(mpp);
-
-		print("offset", xOffset, yOffset);
-		print("mpp", mpp);
-		print("image size", iw, ih);
-		
+		Ext.setSeries(5);
+		Ext.getPixelsPhysicalSizeX(slice_mpp);
+		Ext.getSizeX(slice_iw);
+		Ext.getSizeY(slice_ih);
+		slice_iw = parseInt(slice_iw);
+		slice_ih = parseInt(slice_ih);
+		slice_mpp = parseFloat(slice_mpp);
+		CSX = (slice_mpp * slice_iw) / 2;
+		CSY = (slice_mpp * slice_ih) / 2;
+		IOX = CSX + (xOffset/1000) - ((iw * mpp)/2);
+		IOY = CSY + (yOffset/1000) - ((ih * mpp)/2);
 		annotations = File.openAsString(dir + "/" + file);
 		lines = split(annotations, "\n");
 		l = 0;
@@ -68,13 +73,13 @@ function ndpiExportRegions(slideImageSeries) {
 		while (l<lines.length) {
 			line = String.trim(lines[l]);
 			if (startsWith(line, '<annotation type="freehand" displayname="AnnotateRectangle"')) {
-				inAnnotation = true;		
+				inAnnotation = true;
 				xPoints = newArray(0);
 				yPoints = newArray(0);
 			}
 			if (startsWith(line, '</annotation>')) {
-				inAnnotation = false;		
-				cropZone(dir, image, xPoints, yPoints);
+				inAnnotation = false;
+				cropZone(dir, image, IOX, IOY, mpp, mpp, xPoints, yPoints);
 			}
 			if (inAnnotation && startsWith(line, '<point>')) {
 				x =  String.trim(lines[l+1]);
@@ -85,8 +90,8 @@ function ndpiExportRegions(slideImageSeries) {
 				y = replace(y, '</y>', '');
 				x = parseInt(x);
 				y = parseInt(y);
-				x = ((x + xOffset) / (1000 * mpp)) - (iw/2);
-				y = ((y + yOffset) / (1000 * mpp)) - (ih/2);
+				x = (x / 1000.0) + CSX;
+				y = (y / 1000.0) + CSY;
 				xPoints = Array.concat(xPoints, x);
 				yPoints = Array.concat(yPoints, y);
 			}
@@ -95,13 +100,17 @@ function ndpiExportRegions(slideImageSeries) {
 	}
 }
 
-function cropZone(dir, image, xPoints, yPoints) {
+function cropZone(dir, image, imageOriginX, imageOriginY, pixelWidth, pixelHeight, xPoints, yPoints) {
 	ranks = Array.rankPositions(xPoints);
 	xMin = xPoints[ranks[0]];
 	xMax = xPoints[ranks[ranks.length-1]];
 	ranks = Array.rankPositions(yPoints);
 	yMin = yPoints[ranks[0]];
 	yMax = yPoints[ranks[ranks.length-1]];
+	xMin = (xMin-imageOriginX)/pixelWidth;
+	xMax = (xMax-imageOriginX)/pixelWidth;
+	yMin = (yMin-imageOriginY)/pixelHeight;
+	yMax = (yMax-imageOriginY)/pixelHeight;
 	width = xMax - xMin;
 	height = yMax - yMin;
 	print("Exporting zone: x="+xMin+", y="+yMin+", width="+width+", height=" + height);
