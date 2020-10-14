@@ -52,7 +52,8 @@ function ndpiExportRegions(slideImageSeries) {
 		iw = parseInt(iw);
 		ih = parseInt(ih);
 		mpp = parseFloat(mpp);
-		Ext.setSeries(5);
+		Ext.getSeriesCount(seriesCount);
+		Ext.setSeries(seriesCount-1);
 		Ext.getPixelsPhysicalSizeX(slice_mpp);
 		Ext.getSizeX(slice_iw);
 		Ext.getSizeY(slice_ih);
