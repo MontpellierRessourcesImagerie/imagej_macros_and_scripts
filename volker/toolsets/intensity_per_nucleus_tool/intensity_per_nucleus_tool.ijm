@@ -102,6 +102,7 @@ function batchMeasureIntensity(fileExt) {
 }
 
 function measureIntensityPerNucleus() {
+	run("Options...", "iterations=1 count=1 black");
 	run("Clear Results");
 	path = File.directory;
 	filename = File.name;
