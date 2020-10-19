@@ -27,8 +27,8 @@ macro "detect spots (f2) Action Tool Options" {
 
 	Dialog.addMessage("Spot detection and coloc");
 	Dialog.addNumber("sigma LoG filter: ", _SIGMA);
-	Dialog.addNumber(_COLORS[0]+" min. proeminence: ",  _MIN_PROMINENCE[0]);
-	Dialog.addNumber(_COLORS[1]+" min. proeminence: ",  _MIN_PROMINENCE[1]);
+	Dialog.addNumber(_COLORS[0]+" min. prominence: ",  _MIN_PROMINENCE[0]);
+	Dialog.addNumber(_COLORS[1]+" min. prominence: ",  _MIN_PROMINENCE[1]);
 	Dialog.addNumber("max. radius: ", _MAX_RADIUS);
 	Dialog.addMessage("Display");
 	Dialog.addChoice(_COLORS[0]+" style: ", _STYLES, _STYLE[0]);
@@ -80,7 +80,7 @@ function detectSpots(minProminence, colors, style, size) {
 
 function linkSpots() {
 	currentID = 1;
-	setBatchMode(true);	// move up again for efficiency
+	setBatchMode(true);	
 	Stack.getDimensions(width, height, channels, slices, frames);
 	inputImageID = getImageID();
 	newImage("map", "16-bit", width, height, channels, slices, frames);
