@@ -5,20 +5,6 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 Welcome to the imagej_macros_and_scripts wiki! You can find a pdf-snapshot of the wiki [here](http://dev.mri.cnrs.fr/attachments/download/2272/MRI%20Image%20Analysis%20Tools%202020.pdf).
 
-# MRI ImageJ-macros
-
-## ImageJ Macro Tool Sets for Biological Image Analysis
-
-* <a href='#biat'>MRI-macro-toolsets</a>
-* [[macros]]
-* <a href='#scripts'>scripts</a>
-* [[Publications using MRI-ImageJ-macros]]
-
-* [[How-to]]
-
-* [[TI]]
-
-
 ### <a id="biat">Biological Image Analysis Toolsets</a>
 
 1. [3D_Nuclei_Clustering_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool) <br> <img align='left' src="https://camo.githubusercontent.com/bbacc018a6355a54cde721db6afc5523a640683b/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323134382f636c7573746572732e706e67" height='100'/> Analyze the clustering behavior of nuclei in 3D images. The centers of the nuclei are detected. The nuclei are filtered by the presence of a signal in a different channel. The clustering is done with the density based algorithm DBSCAN. The nearest neighbor distances between all nuclei and those outside and inside of the clusters are calculated. <br><br><hr>
