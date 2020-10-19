@@ -1,7 +1,7 @@
 /**
   * MRI Analyze Comets Tools
   *
-  * Estimate the number of comets per cell.
+  * Estimate the density of comets in transfected cells.
   *
   * (c) 2020, INSERM
   * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
@@ -97,6 +97,13 @@ macro "batch analysis (f6) Action Tool - C000T4b12b" {
 
 macro "batch analysis [f6]" {
 	runBatchAnalysis();
+}
+
+macro "batch analysis (f6) Action Tool Options" {
+	Dialog.create("Batch analysis options");
+	Dialog.addString("file ext.: ", _FILE_EXT);
+	Dialog.show();
+	_FILE_EXT = Dialog.getString();
 }
 
 function runBatchAnalysis() {
@@ -218,7 +225,7 @@ function filterTransfectedCells() {
 
 function segmentCytoplasm() {
 	setAutoThreshold(_THRESHOLDING_METHOD_CYTOPLASM+" dark");
-
+	run("Clear Results");
 	roiManager("measure");
 	X = Table.getColumn("X", "Results");
 	Y = Table.getColumn("Y", "Results");
@@ -232,13 +239,19 @@ function segmentCytoplasm() {
 		run("Create Mask");
 		if (i==0) maskID = getImageID();
 	}
+	selectImage(maskID);
+	roiManager("deselect");
+	roiManager("combine");
+	run("Clear", "slice");
+	run("Select None");
 	selectImage(inputImageID);
 	run("From ROI Manager");
 	roiManager("Deselect");
 	roiManager("Delete");
 	run("Select None");
 	selectImage(maskID);
-	run("Analyze Particles...", "clear add");
+	run("Create Selection");
+	roiManager("Add");
 	selectImage(maskID);
 	close();
 	selectImage(workImageID);
