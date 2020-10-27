@@ -1,5 +1,6 @@
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Incucyte_Exporter";
 var PAD_NUMBERS = true;
+var NR = "644";
 
 macro "Incucyte Exporter Help (f1) Action Tool-C000T4b12?" {
 	help();
@@ -33,12 +34,19 @@ macro "clean images [f4]" {
 	cleanImage();	
 }
 
+macro "merge images (f5) Action Tool-CbbbD22C222L3242CcccD52C222D23C000L3343C222D53C111D24C000L3444C111D54CcccD25C111L3545CcccD55C444D36C000D46CeeeD56C444D37C000L4757C444L6787C555D97C999Da7C444L3848C999D58C666D68C444L7898C000Da8C222Db8C444L3949CeeeDa9C000Db9C999Dc9CcccD2aC111L3a4aCcccD5aDaaC111LbacaCcccDdaC111D2bC000L3b4bC111D5bC222DabC000LbbcbC333DdbC222D2cC000L3c4cC222D5cDacC000LbcccC222DdcCbbbD2dC222L3d4dCbbbD5dDadC222LbdcdCbbbDdd" {
+	mergeImages();	
+}
+
+macro "merge images [f5]" {
+	mergeImages();
+}
+
 function help() {
 	run('URL...', 'url='+helpURL);
 }
 
 function exportAsStdTif() {	
-	nr = "644";
 	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
@@ -52,7 +60,7 @@ function exportAsStdTif() {
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
 				hour = hours[h];
-				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + nr + "/";
+				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/";
 				images = getFileList(inDir);
 				outDir =  inDir + "tif/";
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
@@ -73,7 +81,6 @@ function exportAsStdTif() {
 }
 
 function stitchImages() {
-	nr = "644";
 	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
@@ -87,7 +94,7 @@ function stitchImages() {
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
 				hour = hours[h];
-				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + nr + "/tif/";
+				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
 				calculateStitchings(inDir);
 			}
 		}
@@ -105,11 +112,12 @@ function calculateStitchings(dir) {
 		translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
 		translations = replace(translations, well, dir+well);
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
+		translations = replace(translations, "-C1.tif", "-C2.tif");
+		File.saveString(translations, dir + well+"-C2-translations.registered.txt");
 	}	
 }
 
 function cleanImages() {
-	nr = "644";
 	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
@@ -123,7 +131,7 @@ function cleanImages() {
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
 				hour = hours[h];
-				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + nr + "/tif/";
+				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
@@ -138,11 +146,55 @@ function cleanImages() {
 					cleanImage();
 					run("Image Sequence... ", "dir="+dir+"back/"+" format=TIFF use");
 					close();
+					translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
+					translations = replace(translations, well, "back/"+well);
+					File.saveString(translations, dir + "back/" + well + "-C1-translations.registered.txt");
+					translations = replace(translations, "-C1.tif", "-C2.tif");
+					File.saveString(translations, dir + "back/" + well + "-C2-translations.registered.txt");
 				}
 				setBatchMode(false);
 			}
 		}
 	}
+}
+
+function mergeImages() {
+	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	for (y=0; y<years.length; y++) {
+		year = years[y];
+		days = getFileList(dataDir + "/" + year);
+		for(d=0; d<days.length; d++) {
+			day = days[d];
+			hours = getFileList(dataDir + "/" + year + "/" + day);
+			for(h=0; h<hours.length; h++) {
+				hour = hours[h];
+				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/back/";
+				files = getFileList(dir);
+				images = filterChannelOneImages(files);
+				wells = getWells(images);
+				outDir =  dir + "merged/";
+				if (!File.exists(outDir)) File.makeDirectory(outDir);
+				setBatchMode(true);
+				for (i = 0; i < wells.length; i++) {
+					well = wells[i];
+					run("Stitch Collection of Images", "browse="+dir+well+"-C1-translations.registered.txt layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=[Linear Blending] fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					rename("C1");
+					run("Enhance Contrast", "saturated=0.35");
+					run("Stitch Collection of Images", "browse="+dir+well+"-C2-translations.registered.txt layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=[Linear Blending] fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					rename("C2");
+					run("Enhance Contrast", "saturated=0.35");
+					run("Merge Channels...", "c1=[C2] c3=[C1] create");
+					saveAs("tiff", outDir + well + ".tif");
+					run("Close All");
+				}
+				setBatchMode(false);
+			}
+		}
+	}	
 }
 
 function padNumbers(image) {
