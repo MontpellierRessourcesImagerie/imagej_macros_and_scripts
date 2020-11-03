@@ -2,8 +2,79 @@ var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_an
 var PAD_NUMBERS = true;
 var NR = "644";
 
+var PROCESS_ALL = false;
+var START_YEAR = "1900/";
+var END_YEAR = "2200/";
+var START_SERIES = "01/";
+var END_SERIES = "99/";
+var START_HOUR = "0000/";
+var END_HOUR = "2359/";
+var START_ROW = "A";
+var END_ROW = "Z";
+var START_COL = "01";
+var END_COL = "26";
+var BASE_DIR = "";
+
+var YEARS = newArray(0);
+
 macro "Incucyte Exporter Help (f1) Action Tool-C000T4b12?" {
 	help();
+}
+
+macro "Incucyte Exporter Help (f1) Action Tool Options" {
+	checkAndGetBaseDir();
+	dataDir = BASE_DIR+"/EssenFiles/ScanData/";
+	Dialog.create("Options of Incucyte Exporter");
+	Dialog.addString("db base folder: ", BASE_DIR, 50);
+
+	START_YEAR = replace(START_YEAR, "/", "");
+	END_YEAR = replace(END_YEAR, "/", "");
+	START_SERIES = replace(START_SERIES, "/", "");
+	END_SERIES = replace(END_SERIES, "/", "");
+	START_HOUR = replace(START_HOUR, "/", "");
+	END_HOUR = replace(END_HOUR, "/", "");
+	
+	Dialog.addString("   start year: ", START_YEAR);
+	Dialog.addToSameRow();
+	Dialog.addString("   end year: ", END_YEAR);
+	
+	Dialog.addString("   start series: ", START_SERIES);
+	Dialog.addToSameRow();
+	Dialog.addString("   end series: ", END_SERIES);
+
+	Dialog.addString("   start hour: ", START_HOUR);
+	Dialog.addToSameRow();
+	Dialog.addString("   end hour: ", END_HOUR);
+
+	Dialog.addString("   start row: ", START_ROW);
+	Dialog.addToSameRow();
+	Dialog.addString("   end row: ", END_ROW);
+
+	Dialog.addString("   start column: ", START_COL);
+	Dialog.addToSameRow();
+	Dialog.addString("   end column: ", END_COL);
+	
+	Dialog.show();
+	BASE_DIR = Dialog.getString();
+	START_YEAR = Dialog.getString();
+	END_YEAR = Dialog.getString();
+	START_SERIES = Dialog.getString();
+	END_SERIES = Dialog.getString();
+	START_HOUR = Dialog.getString();
+	END_HOUR = Dialog.getString();
+	START_ROW = Dialog.getString();
+	END_ROW = Dialog.getString();
+	START_COL = Dialog.getString();
+	END_COL = Dialog.getString();
+
+	START_YEAR = START_YEAR + "/";
+	END_YEAR = END_YEAR + "/";
+	START_SERIES = START_SERIES + "/";
+	END_SERIES = END_SERIES + "/";
+	START_HOUR = START_HOUR + "/";
+	END_HOUR = END_HOUR + "/";
+	START_COL = IJ.pad(START_COL, 2);
+	END_COL = IJ.pad(END_COL, 2);
 }
 
 macro "Incucyte Exporter Help [f1]" {
@@ -47,18 +118,22 @@ function help() {
 }
 
 function exportAsStdTif() {	
-	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
+	checkAndGetBaseDir();
+	root = BASE_DIR;
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
 	dataDir = root+"/EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
 		days = getFileList(dataDir + "/" + year);
 		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
 			day = days[d];
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
 				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/";
 				images = getFileList(inDir);
@@ -66,11 +141,18 @@ function exportAsStdTif() {
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
 				setBatchMode(true);
 				for(i=0; i<images.length; i++) {
-					if (File.isDirectory(inDir+images[i]) || !endsWith(images[i], ".tif")) continue;
+					image = images[i];			
+					if (File.isDirectory(inDir+image) || !endsWith(image, ".tif")) continue;
+					if (PAD_NUMBERS) image = padNumbers(image);	
+					parts = split(image,"-");
+					well = parts[0];
+					row = substring(well, 0, 1);
+					column = substring(well, 1, well.length);
+					if (row<START_ROW || row>END_ROW) continue;
+					column = IJ.pad(column, 2);
+					if (column<START_COL || column>END_COL) continue;
 					print("Converting " + inDir+images[i]);
 					run("Bio-Formats", "open=["+inDir+images[i]+"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
-					image = images[i];			
-					if (PAD_NUMBERS) image = padNumbers(image);	
 					saveAs("tiff", outDir+image);
 					close();
 				}
@@ -81,18 +163,22 @@ function exportAsStdTif() {
 }
 
 function stitchImages() {
-	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
+	checkAndGetBaseDir();
+	root = BASE_DIR;
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
 	dataDir = root+"/EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
 		days = getFileList(dataDir + "/" + year);
 		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
 			day = days[d];
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
 				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
 				calculateStitchings(inDir);
@@ -118,39 +204,45 @@ function calculateStitchings(dir) {
 }
 
 function cleanImages() {
-	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
+	checkAndGetBaseDir();
+	root = BASE_DIR;
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
 	dataDir = root+"/EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
 		days = getFileList(dataDir + "/" + year);
 		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
 			day = days[d];
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
 				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
 				setBatchMode(true);
+				outDir = dir + "clean/";
+				if (!File.exists(outDir)) File.makeDirectory(outDir);
 				for (i = 0; i < wells.length; i++) {
 					well = wells[i];
 					run("Image Sequence...", "dir="+dir+" filter=("+well+"-..-C1) sort");
 					cleanImage();
-					run("Image Sequence... ", "dir="+dir+"back/"+" format=TIFF use");
+					run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
 					close();
 					run("Image Sequence...", "dir="+dir+" filter=("+well+"-..-C2) sort");
 					cleanImage();
-					run("Image Sequence... ", "dir="+dir+"back/"+" format=TIFF use");
+					run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
 					close();
 					translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
-					translations = replace(translations, well, "back/"+well);
-					File.saveString(translations, dir + "back/" + well + "-C1-translations.registered.txt");
+					translations = replace(translations, well, "clean/"+well);
+					File.saveString(translations, outDir + well + "-C1-translations.registered.txt");
 					translations = replace(translations, "-C1.tif", "-C2.tif");
-					File.saveString(translations, dir + "back/" + well + "-C2-translations.registered.txt");
+					File.saveString(translations, outDir + well + "-C2-translations.registered.txt");
 				}
 				setBatchMode(false);
 			}
@@ -159,20 +251,24 @@ function cleanImages() {
 }
 
 function mergeImages() {
-	root = getDir("Please select the database root directory (the folder containig EssenFiles)");
+	checkAndGetBaseDir();
+	root = BASE_DIR;
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
 	dataDir = root+"/EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
 		days = getFileList(dataDir + "/" + year);
 		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
 			day = days[d];
 			hours = getFileList(dataDir + "/" + year + "/" + day);
 			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/back/";
+				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
@@ -181,10 +277,10 @@ function mergeImages() {
 				setBatchMode(true);
 				for (i = 0; i < wells.length; i++) {
 					well = wells[i];
-					run("Stitch Collection of Images", "browse="+dir+well+"-C1-translations.registered.txt layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=[Linear Blending] fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					run("Stitch Collection of Images", "browse="+dir+well+"-C1-translations.registered.txt layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
 					rename("C1");
 					run("Enhance Contrast", "saturated=0.35");
-					run("Stitch Collection of Images", "browse="+dir+well+"-C2-translations.registered.txt layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=[Linear Blending] fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					run("Stitch Collection of Images", "browse="+dir+well+"-C2-translations.registered.txt layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
 					rename("C2");
 					run("Enhance Contrast", "saturated=0.35");
 					run("Merge Channels...", "c1=[C2] c3=[C1] create");
@@ -257,3 +353,18 @@ function cleanImage() {
 	run("16-bit");
 	run("Subtract Background...", "rolling=50 stack");
 }
+
+function checkAndGetBaseDir() {
+	BASE_DIR = call("ij.Prefs.get", "incucyte.basedir", "");
+	while (!isDBRootFolder(BASE_DIR)) {
+		BASE_DIR = getDir("Please select the root folder of the database!");
+	}
+	call("ij.Prefs.set", "incucyte.basedir", BASE_DIR);
+}
+
+function isDBRootFolder(dir) {
+	files = getFileList(dir);
+	result = contains(files, "EssenFiles/");
+	return result;
+}
+	
