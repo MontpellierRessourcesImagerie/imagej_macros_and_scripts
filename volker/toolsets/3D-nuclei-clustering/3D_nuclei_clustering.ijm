@@ -540,13 +540,15 @@ function processImage() {
 	print("-----------------");
 	totalNumberOfNuclei = detectNuclei();
 	print("total number of nuclei: " + totalNumberOfNuclei);
-
+	Overlay.copy;
+	
 	numberOfRedNuclei = filterAboveThreshold();
 	print("number of nuclei above threshold ("+_THRESHOLD+") in red channel ("+_SIGNAL_CHANNEL+"): " + numberOfRedNuclei);
 
 	numberOfClusters = clusterNuclei(_MAX_DIST, _MIN_PTS, _X_COLUMN, _Y_COLUMN, _Z_COLUMN, _NR_COLUMN);
 	print("number of clusters (maxDist="+_MAX_DIST+", minPts="+_MIN_PTS+"): " + numberOfClusters);
 
+	Overlay.paste;
 	numberOfNucleiInClusters = Table.size("clusters");
 	print("number of nuclei in clusters: " + numberOfNucleiInClusters);
 	
@@ -782,12 +784,8 @@ function filterAboveThreshold() {
 		drawNuclei();
 		selectImage(inputStackID);
 		Stack.getDimensions(width, height, channels, slices, frames);
-		if (channels>1) {
-			run("Split Channels");
-			run("Merge Channels...", "c1=[C1-"+inputStackTitle+"] c2=[C2-"+inputStackTitle+"] c3=[C3-"+inputStackTitle+"] c4=[C4-"+inputStackTitle+"] c5=[Results-indexed-mask] create ");
-		} else {
-			run("Merge Channels...", "c1=["+inputStackTitle+"] c5=[Results-indexed-mask] create ");			
-		}
+		
+		addImageAtEndOfStack(inputStackID, "Results-indexed-mask");
 	}
 	Stack.setSlice(round(zC));
 	makePoint(round(xC), round(yC), "hybrid extra large");
