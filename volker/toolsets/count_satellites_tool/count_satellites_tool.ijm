@@ -1,4 +1,5 @@
-var MIN_DIST = 10;
+var MIN_DIST = 50;
+getVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 inputID = getImageID();
 inputTitle = getTitle();
 Stack.getDimensions(width, height, channels, slices, frames);
@@ -25,7 +26,10 @@ run("3D Objects Counter", "threshold=1 slice=25 min.=10 max.=32320800 exclude_ob
 X = Table.getColumn("X");
 Y = Table.getColumn("Y");
 Z = Table.getColumn("Z");
-MeanDist = Table.getColumn("Mean dist. to surf. (micron)");
+bWidth = Table.getColumn("B-width");
+bHeight = Table.getColumn("B-height");
+bDepth = Table.getColumn("B-depth");
+distances = Table.getColumn("Mean dist. to surf. (micron)");
 XS = newArray(X.length);
 YS = newArray(X.length);
 ZS = newArray(X.length);
@@ -74,17 +78,18 @@ for (i = 0; i < satelliteIDS.length; i++) {
 	Overlay.setPosition(0, round(z), 0)
 }
 
-newImage("satellites", "8-bit", width, height, slices);
+newImage("satellites", "8-bit black", width, height, slices);
+setVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 for (i = 0; i < satelliteIDS.length; i++) {
 	minIndexJ = -1;
 	minDistance = 9999999;
-	xi = XS[satelliteIDS[i]];
-	yi = YS[satelliteIDS[i]];
-	zi = ZS[satelliteIDS[i]];
+	xi = X[satelliteIDS[i]];
+	yi = Y[satelliteIDS[i]];
+	zi = Z[satelliteIDS[i]];
 	for (j = 0; j < neuronIDS.length; j++) {
-		xj = XS[neuronIDS[j]];
-		yj = YS[neuronIDS[j]];
-		zj = ZS[neuronIDS[j]];
+		xj = X[neuronIDS[j]];
+		yj = Y[neuronIDS[j]];
+		zj = Z[neuronIDS[j]];
 		dX = xi - xj;
 		dY = yi - yj;
 		dZ = zi - zj;
@@ -95,10 +100,32 @@ for (i = 0; i < satelliteIDS.length; i++) {
 		}
 	}
 	if (minDistance<=MIN_DIST) {
-		
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+XS[satelliteIDS[i]]+","+YS[satelliteIDS[i]]+","+ZS[satelliteIDS[i]]+" radius=27.676,27.676,4.039 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy=0.277 res_z=0.673 unit=microns value=255 display=Overwrite");
-		run("3D Draw Shape", "size=10,10,5 center=111.256,111.256,16.828 radius=27.676,27.676,4.039 vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy=0.277 res_z=0.673 unit=microns value=255 display=Overwrite");
+		vectors = getVectors(bWidth[satelliteIDS[i]], bHeight[satelliteIDS[i]], bDepth[satelliteIDS[i]], distances[satelliteIDS[i]]);
+		params = "size="+width+","+height+","+slices+" center="+X[satelliteIDS[i]]+","+Y[satelliteIDS[i]]+","+Z[satelliteIDS[i]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value=200 display=Overwrite";
+		print(params);
+		run("3D Draw Shape", params);
+		vectors = getVectors(bWidth[neuronIDS[minIndexJ]], bHeight[neuronIDS[minIndexJ]], bDepth[neuronIDS[minIndexJ]], distances[neuronIDS[minIndexJ]]);
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+X[neuronIDS[minIndexJ]]+","+Y[neuronIDS[minIndexJ]]+","+Z[neuronIDS[minIndexJ]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value=250 display=Overwrite");
 	}
 }
 
 
+function getVectors(bWidth, bHeight, bDepth, distance) {
+		relVecX = bWidth;
+		relVecY = bHeight;
+		relVecZ = bDepth;
+		
+		max = maxOf(relVecX, relVecY);
+		max = maxOf(max, relVecZ);
+		
+		relVecX /= max;
+		relVecY /= max;
+		relVecZ /= max; 
+		
+		dist = distance;
+		distX = dist * relVecX;
+		distY = dist * relVecY;
+		distZ = dist * relVecZ;
+		res = newArray(distX, distY, distZ);
+		return res;
+}
