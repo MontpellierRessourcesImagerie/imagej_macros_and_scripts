@@ -1,4 +1,7 @@
-var MIN_DIST = 50;
+var MIN_DIST = 25;
+
+print("Count Satellites started !");
+
 getVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
 inputID = getImageID();
 inputTitle = getTitle();
@@ -43,7 +46,7 @@ for (i = 0; i < X.length; i++) {
 	XS[i] = X[i];
 	YS[i] = Y[i];
 	ZS[i] = Z[i];
-	toUnscaled(XS[i], YS[i], ZS[i]);
+	toScaled(XS[i], YS[i], ZS[i]);
 }
 selectImage("C1-"+cleanTitle);
 run("Convert to Mask", "method=Triangle background=Dark calculate");
@@ -78,8 +81,11 @@ for (i = 0; i < satelliteIDS.length; i++) {
 	Overlay.setPosition(0, round(z), 0)
 }
 
-newImage("satellites", "8-bit black", width, height, slices);
+newImage("satellites", "16-bit black", width, height, slices);
+satellitesImageID = getImageID();
+satelliteImageTitle = getTitle();
 setVoxelSize(voxelWidth, voxelHeight, voxelDepth, voxelUnit);
+color=0;
 for (i = 0; i < satelliteIDS.length; i++) {
 	minIndexJ = -1;
 	minDistance = 9999999;
@@ -101,14 +107,21 @@ for (i = 0; i < satelliteIDS.length; i++) {
 	}
 	if (minDistance<=MIN_DIST) {
 		vectors = getVectors(bWidth[satelliteIDS[i]], bHeight[satelliteIDS[i]], bDepth[satelliteIDS[i]], distances[satelliteIDS[i]]);
-		params = "size="+width+","+height+","+slices+" center="+X[satelliteIDS[i]]+","+Y[satelliteIDS[i]]+","+Z[satelliteIDS[i]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value=200 display=Overwrite";
+		params = "size="+width+","+height+","+slices+" center="+XS[satelliteIDS[i]]+","+YS[satelliteIDS[i]]+","+ZS[satelliteIDS[i]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value="+color+" display=Overwrite";
 		print(params);
 		run("3D Draw Shape", params);
 		vectors = getVectors(bWidth[neuronIDS[minIndexJ]], bHeight[neuronIDS[minIndexJ]], bDepth[neuronIDS[minIndexJ]], distances[neuronIDS[minIndexJ]]);
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+X[neuronIDS[minIndexJ]]+","+Y[neuronIDS[minIndexJ]]+","+Z[neuronIDS[minIndexJ]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value=250 display=Overwrite");
+		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+XS[neuronIDS[minIndexJ]]+","+YS[neuronIDS[minIndexJ]]+","+ZS[neuronIDS[minIndexJ]]+" radius="+vectors[0]+","+vectors[1]+","+vectors[2]+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+voxelUnit+" value="+color+" display=Overwrite");
+		color++;
 	}
 }
+run("glasbey on dark");
+selectImage(inputID);
+run("Split Channels");
+run("Merge Channels...", "c1=C1-"+inputTitle+" c2=C2-"+inputTitle+" c4="+satelliteImageTitle+" create");
+close("\\Others");
 
+print("Count Satellites finished !");
 
 function getVectors(bWidth, bHeight, bDepth, distance) {
 		relVecX = bWidth;
