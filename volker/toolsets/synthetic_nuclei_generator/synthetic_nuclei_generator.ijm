@@ -37,9 +37,9 @@ macro "create image [f2]" {
 macro "create image (f2) Action Tool Options" {
 	Dialog.create("Synthetic Nuclei Generator Options");
 	Dialog.addMessage("image");
-	Dialog.addNumber("image width: ", _IMG_WIDTH);
-	Dialog.addNumber("image height: ", _IMG_HEIGHT);
-	Dialog.addChoice("image type: ", newArray("8-bit", "16-bit", "32-bit", _TYPE));
+	Dialog.addNumber("width of image: ", _IMG_WIDTH);
+	Dialog.addNumber("height of image: ", _IMG_HEIGHT);
+	Dialog.addChoice("type of image: ", newArray("8-bit", "16-bit", "32-bit", _TYPE));
 	Dialog.addMessage("nuclei");
 	Dialog.addNumber("mean nr. of nuclei: ", _NR_OF_NUCLEI_MEAN);
 	Dialog.addNumber("stdDev nr. of nuclei: ", _NR_OF_NUCLEI_STD);
@@ -110,7 +110,7 @@ function batchCreateImages(nr) {
 function createImage(i, nr) {
 	roiManager("reset");
 	counter = IJ.pad(i+1, Math.log10(nr+1)+1);
-	newImage("nuclei-"+counter, "8-bit black", _IMG_WIDTH, _IMG_HEIGHT, 1);	
+	newImage("nuclei-"+counter, _TYPE + " black", _IMG_WIDTH, _IMG_HEIGHT, 1);	
 	nrOfNuclei = round(random("gaussian")*_NR_OF_NUCLEI_STD + _NR_OF_NUCLEI_MEAN);	
 	for (n = 0; n < nrOfNuclei; n++) {
 		doesTouch = true;
