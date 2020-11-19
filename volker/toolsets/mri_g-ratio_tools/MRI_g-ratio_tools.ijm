@@ -14,7 +14,7 @@
   *
 */
 
-var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_g-ratio_Tools";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_g_ratio_Tools";
 
 var RADIUS_MEDIAN_FILTER = 9;
 var MIN_SIZE = 500;
