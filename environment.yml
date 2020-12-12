@@ -133,6 +133,7 @@ dependencies:
   - zipp=2.1.0=py_0
   - zlib=1.2.11=h516909a_1006
   - zstd=1.4.4=h3b9ef0a_1
+  - jpeg
   - imagecodecs
   - tifffile
   - opencv
