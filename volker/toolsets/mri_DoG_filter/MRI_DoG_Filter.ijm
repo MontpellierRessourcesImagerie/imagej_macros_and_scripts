@@ -3,7 +3,7 @@ var _SIGMA_LARGE = 50
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_DoG_Filter";
 
 macro "MRI DoG Filter Action Tool - C037T0b11DT9b10oTfb10G" {
-	applyDoGAndAdjustDisplay(_SIGMA_SMALL, _SIGMA_LARGE)
+	applyDoGAndAdjustDisplay(_SIGMA_SMALL, _SIGMA_LARGE);
 }
 
 macro "MRI DoG Filter Action Tool Options" {
@@ -25,9 +25,13 @@ function applyDoGAndAdjustDisplay(sigmaSmall, sigmaLarge) {
 
 function adjustDisplay() {
 	Stack.getDimensions(width, height, channels, slices, frames);
-	for (i = 0; i < channels; i++) {
-		Stack.setChannel(i+1);
-		resetMinAndMax();
+	if (channels>1) {
+		for (i = 0; i < channels; i++) {
+			Stack.setChannel(i+1);
+			resetMinAndMax();
+			run("Enhance Contrast", "saturated=0.35");
+		}
+	} else {
 		run("Enhance Contrast", "saturated=0.35");
 	}
 }
