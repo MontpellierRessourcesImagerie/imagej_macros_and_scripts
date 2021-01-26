@@ -29,7 +29,7 @@ macro "Arabidopsis Seedlings Tools Help Action Tool - C770D57Db8Db9DbaDc8DcbC996
 macro "run batch measurements Action Tool - C037T4d14r" {
     // reset imagej settings
     run("Colors...", "foreground=white background=black selection=yellow");
-    run("Options...", "iterations=1 black count=1");
+    run("Options...", "iterations=1 count=1");
     run("Set Measurements...", "area display redirect=None decimal=3");
     run("Clear Results");
     call("fr.cnrs.mri.macro.io.IOSettings.resetFileLists");
