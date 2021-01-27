@@ -17,6 +17,11 @@ var BASE_DIR = "";
 
 var YEARS = newArray(0);
 
+var NUCLEI_CHANNEL = 2;
+var MIN_CHOCLEA_AREA = 2000000000.00;
+var MAX_CHOCLEA_AREA = 100000000000.00;
+
+
 macro "Incucyte Exporter Help (f1) Action Tool-C000T4b12?" {
 	help();
 }
@@ -113,6 +118,14 @@ macro "merge images [f5]" {
 	mergeImages();
 }
 
+macro "mark empty images [f6]" {
+	markEmptyImages();
+}
+
+macro "mark empty images (f6) Action Tool - CfffL00f0L01f1L02f2L03f3L04b4C666Dc4CaaaDd4CfffLe4f4L05a5C666Db5C111Dc5CdddDd5CfffLe5f5L0696C666Da6C111Db6CdddDc6CfffLd6f6L0717CbbbD27C111D37CdddD47CfffL5787C666D97C111Da7CdddDb7CfffLc7f7L0828C333D38C111D48CdddD58CfffL6878C666D88C111D98CdddDa8CfffLb8f8L0939C333D49C111D59CdddD69C666D79C111D89CdddD99CfffLa9f9L0a4aC333D5aC111D7aCdddD8aCfffL9afaL0b5bC444D6bCdddD7bCfffL8bfbL0cfcL0dfdL0efeL0fff" {
+	markEmptyImages();
+}
+
 function help() {
 	run('URL...', 'url='+helpURL);
 }
@@ -153,6 +166,7 @@ function exportAsStdTif() {
 					if (column<START_COL || column>END_COL) continue;
 					print("Converting " + inDir+images[i]);
 					run("Bio-Formats", "open=["+inDir+images[i]+"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
+					run("16-bit");
 					saveAs("tiff", outDir+image);
 					close();
 				}
@@ -200,6 +214,8 @@ function calculateStitchings(dir) {
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
 		translations = replace(translations, "-C1.tif", "-C2.tif");
 		File.saveString(translations, dir + well+"-C2-translations.registered.txt");
+		translations = replace(translations, "-C2.tif", "-P.tif");
+		File.saveString(translations, dir + well+"-P-translations.registered.txt");
 	}	
 }
 
@@ -268,7 +284,8 @@ function mergeImages() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/";
+				tifDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
+				dir = tifDir + "clean/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
@@ -283,7 +300,10 @@ function mergeImages() {
 					run("Stitch Collection of Images", "browse="+dir+well+"-C2-translations.registered.txt layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
 					rename("C2");
 					run("Enhance Contrast", "saturated=0.35");
-					run("Merge Channels...", "c1=[C2] c3=[C1] create");
+					run("Stitch Collection of Images", "browse="+tifDir+well+"-P-translations.registered.txt layout="+tifDir+well+"-P-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					rename("P");					
+					run("Enhance Contrast", "saturated=0.35");
+					run("Merge Channels...", "c1=[C2] c3=[C1] c4=[P] create");
 					saveAs("tiff", outDir + well + ".tif");
 					run("Close All");
 				}
@@ -291,6 +311,40 @@ function mergeImages() {
 			}
 		}
 	}	
+}
+
+function markEmptyImages() {
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + "/" + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + "/" + year + "/" + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged/";
+				files = getFileList(mergedDir);
+				setBatchMode(true);
+				for (i = 0; i < files.length; i++) {
+					file = files[i];
+					open(mergedDir + file);
+					test = testIfImageContainsCochlea();
+					close("*");
+					if (!test) File.rename(mergedDir + file, mergedDir+"Empty_"+file);
+				}
+				setBatchMode(false);
+			}
+		}
+	}		
 }
 
 function padNumbers(image) {
@@ -368,3 +422,16 @@ function isDBRootFolder(dir) {
 	return result;
 }
 	
+function testIfImageContainsCochlea() {
+	roiManager("reset");
+	run("Duplicate...", "duplicate channels="+NUCLEI_CHANNEL+"-"+NUCLEI_CHANNEL);
+	run("Median...", "radius=2");
+	setAutoThreshold("Default dark");
+	run("Create Selection");
+	getStatistics(area);
+	run("Select None");
+	run("Analyze Particles...", "size="+MIN_CHOCLEA_AREA+"-Infinity add");
+	count = roiManager("count");
+	if ((count<1) ||  (area>MAX_CHOCLEA_AREA)) return false;
+	return true;
+}
