@@ -347,6 +347,46 @@ function markEmptyImages() {
 	}		
 }
 
+function makeTimeSeries() {
+		
+}
+
+function alignImages(path1, path2) {
+	setBatchMode(true);
+	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None decimal=3");
+	run("Bio-Formats", "open="+path1+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
+	title1 = getTitle();
+	setAutoThreshold("Default dark");
+	run("Create Selection");
+	run("Measure");
+	x1 = getResult("X", nResults-1);
+	y1 = getResult("Y", nResults-1);
+	run("Bio-Formats", "open="+path2+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
+	title2 = getTitle();
+	setAutoThreshold("Default dark");
+	run("Create Selection");
+	run("Measure");
+	x2 = getResult("X", nResults-1);
+	y2 = getResult("Y", nResults-1);	
+	dX = x2-x1;
+	dY = y2-y1;
+	toUnscaled(dX);
+	toUnscaled(dY);
+	close("*");
+	open(path2);
+	title2 = getTitle();
+	run("Translate...", "x=-"+dX+" y=-"+dY+" interpolation=None");
+	open(path1);
+	title1 = getTitle();
+	run("Concatenate...", "open image1="+title1+" image2="+title2);
+	run("HyperStackReg ", "transformation=[Rigid Body] channel"+NUCLEI_CHANNEL+" show");
+	run("Duplicate...", "duplicate frames=2-2");
+    save(path2);
+    close("*");
+    setBatchMode(false);
+	print("align images finished!!!");
+}
+
 function padNumbers(image) {
 	parts = split(image, '-');
 	leftPart=parts[0];
