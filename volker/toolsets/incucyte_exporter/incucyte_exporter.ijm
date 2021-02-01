@@ -126,6 +126,14 @@ macro "mark empty images (f6) Action Tool - CfffL00f0L01f1L02f2L03f3L04b4C666Dc4
 	markEmptyImages();
 }
 
+macro "make time series [f7]" {
+	makeTimeSeries();
+}
+
+macro "make time series (f7) Action Tool - C000D25D26D29D2aD52D5dD62D6dD88D92D98D9dDa2Da8DadDd5Dd6Dd9DdaCfffD00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D11D12D13D14D1bD1cD1dD1eD1fD20D21D22D2dD2eD2fD30D31D36D37D38D39D3eD3fD40D41D45D46D47D48D49D4aD4eD4fD50D54D55D56D57D58D59D5aD5bD5fD60D63D64D65D66D67D68D69D6aD6bD6cD6fD70D73D7aD7bD7cD7fD80D83D8aD8bD8cD8fD90D93D94D95D96D97D9aD9bD9cD9fDa0Da4Da5Da6Da7DaaDabDafDb0Db1Db5Db6Db7DbaDbeDbfDc0Dc1Dc6Dc7Dc8Dc9DceDcfDd0Dd1Dd2DddDdeDdfDe0De1De2De3De4DebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffC666D42D71D81Db2C333D33Dc3CcccD15D1aD4bD51D74D79D84Da1Db4DbbC000D34D43Db3Dc4C999DcaC444D7dD8dCeeeD23D2cD32D3dDb9Dc2DcdDd3DdcC999D61D91C333D27D28D72D75D76D77D78D82D85D86D87Dd7Dd8CdddD44D5eDaeDe5DeaC222D3cDccCbbbD89D99Da9Db8C555D17D18D24D2bD4dD7eD8eDbdDd4DdbC888D16D19D6eD9eDe6De9C111D3bD4cDbcDcbCaaaD35D3aD53D5cDa3DacDc5C666De7De8" {
+	makeTimeSeries();
+}
+
 function help() {
 	run('URL...', 'url='+helpURL);
 }
@@ -348,7 +356,23 @@ function markEmptyImages() {
 }
 
 function makeTimeSeries() {
-		
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	startPositions = getStartPositions();
+	for (i=0; i<startPositions.length; i++) {
+		pos = startPositions[i];
+		timePoints = getTimePoints(pos);
+		path1 = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+		for (t=0; t<timePoints.length-1; t++) {
+			path2 = dataDir + "/" + timePoints[t+1] + NR + "/tif/clean/merged/" + pos;
+			print("aligning image " + path2); 
+			alignImages(path1, path2);
+		}
+	}
+	print("make time-series finished");
 }
 
 function alignImages(path1, path2) {
@@ -375,7 +399,7 @@ function alignImages(path1, path2) {
 	close("*");
 	open(path2);
 	title2 = getTitle();
-	run("Translate...", "x=-"+dX+" y=-"+dY+" interpolation=None");
+	run("Translate...", "x="+(-1)*dX+" y="+(-1)*dY+" interpolation=None");
 	open(path1);
 	title1 = getTitle();
 	run("Concatenate...", "open image1="+title1+" image2="+title2);
@@ -474,4 +498,81 @@ function testIfImageContainsCochlea() {
 	count = roiManager("count");
 	if ((count<1) ||  (area>MAX_CHOCLEA_AREA)) return false;
 	return true;
+}
+
+function getFirstYearDayAndHour() {
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	year = -1;
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		break;
+	}
+	days = getFileList(dataDir + "/" + year);
+	for(d=0; d<days.length; d++) {
+		if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+		day = days[d];
+		break;
+	}
+	hours = getFileList(dataDir + "/" + year + "/" + day);
+	for(h=0; h<hours.length; h++) {
+		if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+		hour = hours[h];	
+		break;	
+	}
+	return newArray(year, day, hour);
+}
+
+function getStartPositions() {
+	firstTime = getFirstYearDayAndHour();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";	
+	folder = dataDir + firstTime[0] + "/" + firstTime[1] + "/" + firstTime[2] + "/" + NR + "/tif/clean/merged";
+	startPositions = getFileList(folder);
+	startPositions = filterEmpty(startPositions);
+	return startPositions;
+}
+
+function filterEmpty(files) {
+	newFiles = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (indexOf(file, "Empty")<0) newFiles = Array.concat(newFiles, file);
+	}
+	return newFiles;
+}
+
+function getTimePoints(position) {
+	timePoints = newArray(0);
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + "/" + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + "/" + year + "/" + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				files = getFileList(dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged");
+				if (!contains(files, position)) continue;
+				timePoints = Array.concat(timePoints, year+day+hour);
+			}
+		}
+	}
+	return timePoints;
 }
