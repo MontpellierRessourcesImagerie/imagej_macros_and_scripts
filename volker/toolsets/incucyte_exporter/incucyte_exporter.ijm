@@ -21,6 +21,8 @@ var NUCLEI_CHANNEL = 2;
 var MIN_CHOCLEA_AREA = 2000000000.00;
 var MAX_CHOCLEA_AREA = 100000000000.00;
 
+makeTimeSeries();
+exit();
 
 macro "Incucyte Exporter Help (f1) Action Tool-C000T4b12?" {
 	help();
@@ -134,8 +136,37 @@ macro "make time series (f7) Action Tool - C000D25D26D29D2aD52D5dD62D6dD88D92D98
 	makeTimeSeries();
 }
 
+macro "batch export images [f8]" {
+	batchExportImages();
+}
+
+macro "batch export images (f1) Action Tool-C000T4b12b" {
+	batchExportImages();
+}
+
 function help() {
 	run('URL...', 'url='+helpURL);
+}
+
+function batchExportImages() {
+	report("starting export...");
+	exportAsStdTif();
+	report("starting stitch...");
+	stitchImages();
+	report("starting clean...");
+	cleanImages();
+	report("starting merge...");
+	mergeImages();
+	report("starting mark empty...");
+	markEmptyImages();
+	report("starting align...");
+	makeTimeSeries();
+	report("export finished");
+}
+
+function report(message) {
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	print(""+year+(month+1)+dayOfMonth+"-"+hour+":"+minute+":"+second+"."+msec + " -- " + message;
 }
 
 function exportAsStdTif() {	
@@ -364,21 +395,25 @@ function makeTimeSeries() {
 	startPositions = getStartPositions();
 	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
+		dims = getMaxDimensions(pos);
 		timePoints = getTimePoints(pos);
 		path1 = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
 		for (t=0; t<timePoints.length-1; t++) {
 			path2 = dataDir + "/" + timePoints[t+1] + NR + "/tif/clean/merged/" + pos;
 			print("aligning image " + path2); 
-			alignImages(path1, path2);
+			alignImages(path1, path2, dims);
 		}
 	}
 	print("make time-series finished");
 }
 
-function alignImages(path1, path2) {
+function alignImages(path1, path2, dims) {
+	print(path1);
+	print(path2);
 	setBatchMode(true);
 	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None decimal=3");
 	run("Bio-Formats", "open="+path1+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
+	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");	
 	title1 = getTitle();
 	setAutoThreshold("Default dark");
 	run("Create Selection");
@@ -386,6 +421,7 @@ function alignImages(path1, path2) {
 	x1 = getResult("X", nResults-1);
 	y1 = getResult("Y", nResults-1);
 	run("Bio-Formats", "open="+path2+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
+	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
 	title2 = getTitle();
 	setAutoThreshold("Default dark");
 	run("Create Selection");
@@ -398,14 +434,19 @@ function alignImages(path1, path2) {
 	toUnscaled(dY);
 	close("*");
 	open(path2);
+	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
 	title2 = getTitle();
 	run("Translate...", "x="+(-1)*dX+" y="+(-1)*dY+" interpolation=None");
 	open(path1);
+	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
 	title1 = getTitle();
 	run("Concatenate...", "open image1="+title1+" image2="+title2);
 	run("HyperStackReg ", "transformation=[Rigid Body] channel"+NUCLEI_CHANNEL+" show");
 	run("Duplicate...", "duplicate frames=2-2");
     save(path2);
+    close();
+    run("Duplicate...", "duplicate frames=1-1");
+    save(path1);
     close("*");
     setBatchMode(false);
 	print("align images finished!!!");
@@ -575,4 +616,32 @@ function getTimePoints(position) {
 		}
 	}
 	return timePoints;
+}
+
+function getMaxDimensions(position) {
+	timePoints = getTimePoints(position);
+	root = BASE_DIR;
+	dataDir = root+"/EssenFiles/ScanData/";
+	path1 = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+	
+	run("Bio-Formats Macro Extensions");
+	
+	Ext.setId(path1);
+	Ext.getSizeX(width);
+	Ext.getSizeY(height);
+	
+	maxWidth = width;
+	maxHeight = height;
+	
+	for (t=0; t<timePoints.length-1; t++) {
+		path2 = dataDir + "/" + timePoints[t+1] + NR + "/tif/clean/merged/" + pos;
+		Ext.setId(path1);
+		Ext.getSizeX(width);
+		Ext.getSizeY(height);
+		if (width > maxWidth) maxWidth = width;
+		if (height > maxHeight) maxHeight = height;
+	}
+	
+	Ext.close();
+	return newArray(maxWidth, maxHeight);
 }
