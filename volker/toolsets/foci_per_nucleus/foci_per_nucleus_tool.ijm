@@ -12,20 +12,22 @@
 **/
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Foci-Per-Nucleus-Tool";
-var	_SCALE_FACTOR = 5.0;
-var	_MIN_SIZE = 1000;
+var	_SCALE_FACTOR = 2.0;
+var	_MIN_SIZE = 5;
 var _THRESHOLDING_METHOD = "Huang";
 var _THRESHOLDING_METHODS = getList("threshold.methods");
-var _SIGMA_BLUR_FILTER = 12;
+var _SIGMA_BLUR_FILTER = 15;
+var _USE_ROLLING_BALL = true;
+var _ROLLING_BALL_RADIUS = 2;
 var _FOCI_THRESHOLDING_METHOD = "Otsu";
-var _PROMINENCE_OF_MAXIMA = 250;
+var _PROMINENCE_OF_MAXIMA = 350;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 
 var _NUCLEI_CHANNEL = 1;
-var _FOCI_CHANNEL = 1;
+var _FOCI_CHANNEL = 2;
 
-var _FILE_EXTENSION = "tif";
+var _FILE_EXTENSION = "nd";
 
 measureFociPerNucleus();
 
@@ -61,6 +63,8 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	Dialog.addChoice("nuclei thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	Dialog.addMessage("Foci Segmentation:");
 	Dialog.addNumber("sigma of Gaussian blur filter: ", _SIGMA_BLUR_FILTER);
+	Dialog.addCheckbox("use rolling ball background correction instead", _USE_ROLLING_BALL);
+	Dialog.addNumber("rolling ball radius: ", _ROLLING_BALL_RADIUS);
 	Dialog.addNumber("min. prominence of maxima: ", _PROMINENCE_OF_MAXIMA);
 	Dialog.addChoice("foci thresholding method: ", _THRESHOLDING_METHODS, _FOCI_THRESHOLDING_METHOD);
 	
@@ -77,6 +81,8 @@ macro "measure foci per nucleus (f5) Action Tool Options" {
 	_THRESHOLDING_METHOD = Dialog.getChoice();
 
 	_SIGMA_BLUR_FILTER = Dialog.getNumber();
+	_USE_ROLLING_BALL = Dialog.getCheckbox();
+	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_PROMINENCE_OF_MAXIMA = Dialog.getNumber();
 	_FOCI_THRESHOLDING_METHOD = Dialog.getChoice();
 }
@@ -239,7 +245,8 @@ function measureFociPerNucleus() {
 	inputImageID = getImageID();
 	run("From ROI Manager");
 	roiManager("reset");
-	subtractBlurredImage(_SIGMA_BLUR_FILTER);
+	if (!_USE_ROLLING_BALL) subtractBlurredImage(_SIGMA_BLUR_FILTER);
+	else subtractBackground(_ROLLING_BALL_RADIUS);
 	damsID = getImageID();
 	run("Duplicate...", " ");
 	maskID =getImageID();
@@ -323,4 +330,9 @@ function subtractBlurredImage(sigma) {
 	subtractedID = getImageID();
 	selectImage(blurredID);
 	close();
+}
+
+function subtractBackground(radius) {
+	run("Duplicate...", " ");
+	run("Subtract Background...", "rolling="+_ROLLING_BALL_RADIUS+" stack");
 }
