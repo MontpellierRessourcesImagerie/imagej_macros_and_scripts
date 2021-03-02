@@ -96,6 +96,8 @@ function batchMeasureImages() {
 
 function measureActiveImage() {
 	run("Select None");
+	if (measureInPixelUnits)
+    	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
 	getPixelSize(unit, pixelWidth, pixelHeight);
 	run("Duplicate...", "duplicate");
     setForegroundColor(0, 0, 0);
@@ -121,8 +123,6 @@ function measureActiveImage() {
     run("Analyze Particles...", "size="+minSize+"-Infinity circularity=0.00-1.00 show=Nothing add stack");
     close();
     run("Clear Results");
-    if (measureInPixelUnits)
-    		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
     roiManager("Measure"); 
     roiManager("Show None");
 	roiManager("Show All");
