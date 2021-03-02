@@ -142,6 +142,7 @@ function thresholdVariance() {
 function thresholdFindEdges() {
     run("Find Edges", "stack");
     run("Invert", "stack");
+    if (bitDepth==24) run("8-bit");
     setAutoThreshold("Percentile dark");
 }
 
