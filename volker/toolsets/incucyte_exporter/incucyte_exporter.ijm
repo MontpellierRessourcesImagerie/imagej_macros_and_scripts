@@ -166,7 +166,7 @@ function batchExportImages() {
 
 function report(message) {
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
-	print(""+year+(month+1)+dayOfMonth+"-"+hour+":"+minute+":"+second+"."+msec + " -- " + message;
+	print(""+year+(month+1)+dayOfMonth+"-"+hour+":"+minute+":"+second+"."+msec + " -- " + message);
 }
 
 function exportAsStdTif() {	
@@ -352,7 +352,7 @@ function mergeImages() {
 	}	
 }
 
-function markEmptyImages() {
+function markEmptyImagesOld() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
 	files = getFileList(root);
@@ -386,6 +386,41 @@ function markEmptyImages() {
 	}		
 }
 
+function markEmptyImages() {
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	files = getFileList(root);
+	if (!contains(files, "EssenFiles/")) exit("db not found!");
+	dataDir = root+"/EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + "/" + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + "/" + year + "/" + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged/";
+				files = getFileList(mergedDir);
+				setBatchMode(true);
+				for (i = 0; i < files.length; i++) {
+					file = files[i];
+					open(mergedDir + file);
+					test = testIfImageContainsCochlea();
+					close("*");
+					if (!test) File.rename(mergedDir + file, mergedDir+"Empty_"+file);
+				}
+				setBatchMode(false);
+				return;
+			}
+		}
+	}		
+}
+
 function makeTimeSeries() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
@@ -403,6 +438,23 @@ function makeTimeSeries() {
 			print("aligning image " + path2); 
 			alignImages(path1, path2, dims);
 		}
+		path = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+		open(path);
+		rename(pos);
+		for (t=1; t<timePoints.length; t++) {
+			path = dataDir + "/" + timePoints[t] + NR + "/tif/clean/merged/" + pos;
+			if (File.exists(path)) {
+				open(path);				
+			}
+			else {
+				path = dataDir + "/" + timePoints[t] + NR + "/tif/clean/merged/Empty_" + pos;	
+				open(path);				
+			}
+			title = getTitle();
+			run("Concatenate...", " title="+pos+" open image1="+pos+" image2="+title);
+		}
+		saveAs("tiff", dataDir + pos);
+		close();
 	}
 	print("make time-series finished");
 }
