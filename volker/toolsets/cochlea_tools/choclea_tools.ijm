@@ -2,12 +2,38 @@ var _DEAD_CELLS_CHANNEL = 1;
 var _DEAD_CELLS_THRESHOLDING_METHOD = "Triangle";
 var _COCHLEA_CHANNEL = 2;
 var _COCHLEA_THRESHOLDING_METHOD = "Li";
+var _INTERPOLATION_LENGTH = 20;
 
 measureAreaOfChochlea();
+measureLengthOfCochlea();
+close();
+function measureLengthOfCochlea() {	
+	title = getTitle();
+	imageID = getImageID();
+	roiManager("reset");
+	run("Clear Results");
+	run("Skeletonize", "stack");
+	for (i = 1; i <= nSlices; i++) {
+		Stack.setFrame(i);
+		run("Geodesic Diameter", "label="+title+" distances=[Chessknight (5,7,11)] export");
+		roiManager("Select", i-1);
+		run("Interpolate", "interval="+_INTERPOLATION_LENGTH+" smooth ");
+		run("Interpolate", "interval=1 smooth adjust");
+		roiManager("Update");
+		run("Select None");
+	}
+	Stack.setFrame(1);
+	roiManager("measure");
+	lengths = Table.getColumn("Length", "Results");
+	Plot.create("Length cochlea", "X-axis Label", "Y-axis Label", lengths);
+	Plot.show();
+	selectImage(imageID);
+}
 
 function measureAreaOfChochlea() {
 	getStatistics(totalArea);
 	extractCochlea();
+	imageID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
 		Stack.setFrame(i);
@@ -19,6 +45,7 @@ function measureAreaOfChochlea() {
 	}
 	Plot.create("Area cochlea", "X-axis Label", "Y-axis Label", areas);
 	Plot.show();	
+	selectImage(imageID);
 }
 
 
