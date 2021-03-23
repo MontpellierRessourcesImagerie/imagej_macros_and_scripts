@@ -189,7 +189,7 @@ function exportAsStdTif() {
 				hour = hours[h];
 				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/";
 				images = getFileList(inDir);
-				outDir =  inDir + "tif/";
+				outDir =  inDir + "exported/";
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
 				setBatchMode(true);
 				for(i=0; i<images.length; i++) {
@@ -233,7 +233,7 @@ function stitchImages() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
+				inDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/";
 				calculateStitchings(inDir);
 			}
 		}
@@ -249,7 +249,7 @@ function calculateStitchings(dir) {
 		well = wells[i];
 		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x=4 grid_size_y=4 tile_overlap=20 first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C1.tif output_textfile_name="+well+"-C1-translations.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory="+dir);
 		translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
-		translations = replace(translations, well, dir+well);
+		translations = replace(translations, well+"-", dir+well+"-");
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
 		translations = replace(translations, "-C1.tif", "-C2.tif");
 		File.saveString(translations, dir + well+"-C2-translations.registered.txt");
@@ -276,7 +276,7 @@ function cleanImages() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
+				dir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
@@ -294,7 +294,7 @@ function cleanImages() {
 					run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
 					close();
 					translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
-					translations = replace(translations, well, "clean/"+well);
+					translations = replace(translations, well+"-", "clean/"+well+"-");
 					File.saveString(translations, outDir + well + "-C1-translations.registered.txt");
 					translations = replace(translations, "-C1.tif", "-C2.tif");
 					File.saveString(translations, outDir + well + "-C2-translations.registered.txt");
@@ -323,7 +323,7 @@ function mergeImages() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				tifDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/";
+				tifDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/";
 				dir = tifDir + "clean/";
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
@@ -370,7 +370,7 @@ function markEmptyImagesOld() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged/";
+				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/clean/merged/";
 				files = getFileList(mergedDir);
 				setBatchMode(true);
 				for (i = 0; i < files.length; i++) {
@@ -404,7 +404,7 @@ function markEmptyImages() {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged/";
+				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/clean/merged/";
 				files = getFileList(mergedDir);
 				setBatchMode(true);
 				for (i = 0; i < files.length; i++) {
@@ -432,22 +432,22 @@ function makeTimeSeries() {
 		pos = startPositions[i];
 		dims = getMaxDimensions(pos);
 		timePoints = getTimePoints(pos);
-		path1 = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+		path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
 		for (t=0; t<timePoints.length-1; t++) {
-			path2 = dataDir + "/" + timePoints[t+1] + NR + "/tif/clean/merged/" + pos;
+			path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/" + pos;
 			print("aligning image " + path2); 
 			alignImages(path1, path2, dims);
 		}
-		path = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+		path = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
 		open(path);
 		rename(pos);
 		for (t=1; t<timePoints.length; t++) {
-			path = dataDir + "/" + timePoints[t] + NR + "/tif/clean/merged/" + pos;
+			path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/" + pos;
 			if (File.exists(path)) {
 				open(path);				
 			}
 			else {
-				path = dataDir + "/" + timePoints[t] + NR + "/tif/clean/merged/Empty_" + pos;	
+				path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/Empty_" + pos;	
 				open(path);				
 			}
 			title = getTitle();
@@ -627,7 +627,7 @@ function getStartPositions() {
 	files = getFileList(root);
 	if (!contains(files, "EssenFiles/")) exit("db not found!");
 	dataDir = root+"/EssenFiles/ScanData/";	
-	folder = dataDir + firstTime[0] + "/" + firstTime[1] + "/" + firstTime[2] + "/" + NR + "/tif/clean/merged";
+	folder = dataDir + firstTime[0] + "/" + firstTime[1] + "/" + firstTime[2] + "/" + NR + "/exported/clean/merged";
 	startPositions = getFileList(folder);
 	startPositions = filterEmpty(startPositions);
 	return startPositions;
@@ -661,7 +661,7 @@ function getTimePoints(position) {
 			for(h=0; h<hours.length; h++) {
 				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
 				hour = hours[h];
-				files = getFileList(dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/tif/clean/merged");
+				files = getFileList(dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/clean/merged");
 				if (!contains(files, position)) continue;
 				timePoints = Array.concat(timePoints, year+day+hour);
 			}
@@ -674,7 +674,7 @@ function getMaxDimensions(position) {
 	timePoints = getTimePoints(position);
 	root = BASE_DIR;
 	dataDir = root+"/EssenFiles/ScanData/";
-	path1 = dataDir + "/" + timePoints[0] + NR + "/tif/clean/merged/" + pos;
+	path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
 	
 	run("Bio-Formats Macro Extensions");
 	
@@ -686,7 +686,7 @@ function getMaxDimensions(position) {
 	maxHeight = height;
 	
 	for (t=0; t<timePoints.length-1; t++) {
-		path2 = dataDir + "/" + timePoints[t+1] + NR + "/tif/clean/merged/" + pos;
+		path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/" + pos;
 		Ext.setId(path1);
 		Ext.getSizeX(width);
 		Ext.getSizeY(height);
