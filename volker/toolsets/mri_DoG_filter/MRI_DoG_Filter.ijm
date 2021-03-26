@@ -18,7 +18,7 @@ macro "MRI DoG Filter Action Tool Options" {
 
 function applyDoGAndAdjustDisplay(sigmaSmall, sigmaLarge) {
 	setBatchMode(true);
-	DoG(_SIGMA_SMALL, _SIGMA_LARGE);
+	DoG(sigmaSmall, sigmaLarge);
 	adjustDisplay();
 	setBatchMode(false);
 }
