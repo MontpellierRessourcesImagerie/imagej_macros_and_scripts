@@ -1,6 +1,19 @@
+/***
+ * 
+ * MRI Measure Border and Spots Tool
+ * 
+ * Measure the mean-intensity at the border of the nucleus in a different channel. 
+ * Measure the number, form and size of spots on the nucleus in a different channel. 
+ * 
+ * (c) 2021 INSERM
+ * 
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ * 
+**/
 var _SPOTS_CHANNEL = "SC35TR";
 var _NUCLEUS_CHANNEL = "Hoechst";
 var _BORDER_CHANNEL = "LaminB1V";
+var _MEASURE_BORDER = true;
 var _BORDER_RADIUS = 3;
 var _TABLE_NAME = "border and spots measurements";
 var _MIN_NUCLEUS_AREA = 5000;
@@ -15,31 +28,124 @@ var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 var _DO_WATERSHED = false;
 
-run("Set Measurements...", "area mean standard min perimeter centroid fit shape feret's integrated median stack display redirect=None decimal=9");
-setOption("BlackBackground", false);
-if(!isOpen(_TABLE_NAME)) {
-	Table.create(_TABLE_NAME);
-}
-line = Table.size(_TABLE_NAME);
-dir = File.directory;
-title = getTitle();
-areas = selectNuclei();
-nucleiImageTitle = getTitle();
-count = roiManager("count");
-std = newArray(count);
-means = measureBorder(dir, title, std);
-borderImageTitle = getTitle();
-close("Results");
-for (i = 0; i < means.length; i++) {
-	Table.set("image", line + i, title, _TABLE_NAME);
-	Table.set("nucleus", line + i, i+1, _TABLE_NAME);
-	Table.set("mean int. border", line + i, means[i], _TABLE_NAME);
-	Table.set("stdDev int. border", line + i, std[i], _TABLE_NAME);
-	Table.set("area nucleus", line + i, areas[i], _TABLE_NAME);
-}
-measureAndReportSpots(dir, nucleiImageTitle, borderImageTitle);
+var _THRESHOLDING_METHODS = getList("threshold.methods");
+var _EXT = ".tif";
+
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Border_And_Spots_Tool";
+
+analyzeImage();
+exit();
 
 
+macro "measure border and spots tool help [f4]" {
+	run('URL...', 'url='+helpURL);
+}
+
+macro "measure border and spots tool help (f4) Action Tool - C030L0030C140D40C350D50C561D60C350L7080C140L90a0C030Lb0d0C020Le0f0C030L0121C140D31C561D41C774D51C664D61C774D71C672L8191C140La1b1C030Lc1e1C020Df1C030L0212C140D22C672L3242C676D52C8b5L6272C794L8292C672Da2C350Db2C140Dc2C030Ld2f2D03C140D13C561D23C672D33C794L4353C9d4D63C8b5D73C676L83a3C774Db3C672Dc3C140Dd3C030Le3f3C140D04C350D14C672D24C676D34C8b5D44C895D54C876D64C774D74C676D84C876D94C9d4Da4C895Db4C672Dc4C561Dd4C030Le4f4C140D05C794D15C8b5D25C876D35C794D45C876D55C895D65C774L7585C794D95C9d4La5b5C676Dc5C672Dd5C140De5C030Df5C140D06C561D16C664D26C9d4L3646C774D56C9d4L6676C794D86C676D96C774La6b6C8b5Dc6C672Dd6C350De6C030Df6D07C561D17C664D27C876D37C895D47C676L5767C8b5D77C794D87C774D97C664Da7C774Db7C9d4Dc7C774Dd7C561De7C140Df7C030D08C350D18C672D28C664D38C895D48C794D58C876D68C895D78C8b5D88C774D98C794Da8C8b5Db8C895Dc8C676Dd8C672De8C140Df8C030L0919C561D29C664D39C8b5D49C794D59C676D69C8b5D79C794D89C9d4L99a9C895Lb9c9C794Dd9C672De9C140Df9C020L0a1aC350D2aC664D3aC8b5L4a5aC876L6a8aC895L9aaaC876DbaC895DcaC676DdaC664DeaC140DfaC020D0bC030D1bC140D2bC664D3bC774D4bC876L5b8bC9d4L9bbbC8b5DcbC664DdbC561DebC140DfbC020D0cC030L1c2cC561D3cC664L4c5cC895D6cC876L7c8cC9d4D9cC895DacC8b5DbcC676DccC664DdcC350DecC140DfcC020L0d1dC030D2dC140D3dC561D4dC664D5dC9d4D6dC794D7dC676D8dC794D9dC895DadC774LbdcdC561DddC140DedC030DfdC020L0e2eC030D3eC140D4eC561D5eC794D6eC774D7eC664D8eC794D9eC672LaebeC350DceC140LdeeeC030DfeC020L0f4fC030D5fC350L6f7fC561D8fC350L9fafC140LbfcfC030Ldfff"{
+	run('URL...', 'url='+helpURL);
+}
+
+macro "analyze image (f2) Action Tool - C000T4b12a" {
+	analyzeImage();
+}
+
+macro "analyze image [f2]" {
+	analyzeImage();
+}
+
+macro "analyze image (f2) Action Tool Options" {
+	Dialog.create("measure border and spots options");
+	Dialog.addString("nuclei channel: ", _NUCLEUS_CHANNEL, 15);
+	Dialog.addNumber("min. area nucleus: ", _MIN_NUCLEUS_AREA);
+	Dialog.addString("border channel: ", _BORDER_CHANNEL, 15);
+	Dialog.addCheckbox("measure border", _MEASURE_BORDER);
+	Dialog.addNumber("border radius: ", _BORDER_RADIUS);
+	Dialog.addString("spots channel: ", _SPOTS_CHANNEL, 15);
+	Dialog.addNumber("min. spot area: ", _MIN_FOCI_AREA);
+	Dialog.addCheckbox("use rolling-ball: ", _USE_ROLLING_BALL);
+	Dialog.addNumber("rolling-ball rasius: ", _ROLLING_BALL_RADIUS);
+	Dialog.addNumber("sigma gaussian filter: " , _SIGMA_BLUR_FILTER);
+	Dialog.addChoice("foci auto-thresholding method: ", _THRESHOLDING_METHODS, _FOCI_THRESHOLDING_METHOD);
+	Dialog.addCheckbox("do seeded watershed: ", _DO_WATERSHED);
+	Dialog.addNumber("proeminence of max.", _PROMINENCE_OF_MAXIMA);
+	Dialog.addNumber("threshold 1", _THRESHOLD_1);
+	Dialog.addNumber("threshold 1", _THRESHOLD_2);
+	Dialog.addString("name of table: ", _TABLE_NAME, 30);
+	Dialog.show();
+	_NUCLEUS_CHANNEL = Dialog.getString();
+	_MIN_NUCLEUS_AREA = Dialog.getNumber();
+	_BORDER_CHANNEL = Dialog.getString();
+	_MEASURE_BORDER = Dialog.getCheckbox();
+	_BORDER_RADIUS = Dialog.getNumber();
+	_SPOTS_CHANNEL = Dialog.getString();
+	_MIN_FOCI_AREA = Dialog.getNumber();
+	_USE_ROLLING_BALL = Dialog.getCheckbox();
+	_ROLLING_BALL_RADIUS = Dialog.getNumber();
+	_SIGMA_BLUR_FILTER = Dialog.getNumber();
+	_FOCI_THRESHOLDING_METHOD = Dialog.getChoice();
+	_DO_WATERSHED = Dialog.getCheckbox();
+	_PROMINENCE_OF_MAXIMA = Dialog.getNumber();
+	_THRESHOLD_1 = Dialog.getNumber();
+	_THRESHOLD_2 = Dialog.getNumber();
+	_TABLE_NAME = Dialog.getString();
+}
+
+macro "run batch analysis (f3) Action Tool - C000T4b12b" {
+	batchProcessImages();
+}
+
+macro "run batch analysis [f3]" {
+	batchProcessImages();
+}
+
+macro "run batch analysis (f3) Action Tool Options" {
+	Dialog.create("batch-mode options");
+	Dialog.addString("image file-extension: ", _EXT);
+	Dialog.show();
+	_EXT = Dialog.getString();
+}
+
+function batchProcessImages() {
+	dir = getDir("Select the input folder");
+	files = getFileList(dir);
+	images = filterImages(files, _EXT);
+	if (!File.exists(dir + "out")) File.makeDirectory(dir + "out");
+	for (i = 0; i < images.length; i++) {
+		image = images[i];
+		open(dir + image);
+		analyzeImage();
+		shortName = File.getNameWithoutExtension(dir + image);
+		shortName = replace(shortName, _NUCLEUS_CHANNEL, "");
+		saveAs("tiff", dir + "out/" + shortName + ".tif");
+		close("*");
+	}
+}
+
+function analyzeImage() {
+	run("Set Measurements...", "area mean standard min perimeter centroid fit shape feret's integrated median stack display redirect=None decimal=9");
+	setOption("BlackBackground", false);
+	if(!isOpen(_TABLE_NAME)) {
+		Table.create(_TABLE_NAME);
+	}
+	line = Table.size(_TABLE_NAME);
+	dir = File.directory;
+	title = getTitle();
+	areas = selectNuclei();
+	nucleiImageTitle = getTitle();
+	count = roiManager("count");
+	std = newArray(count);
+	means = measureBorder(dir, title, std);
+	borderImageTitle = getTitle();
+	close("Results");
+	for (i = 0; i < means.length; i++) {
+		Table.set("image", line + i, title, _TABLE_NAME);
+		Table.set("nucleus", line + i, i+1, _TABLE_NAME);
+		Table.set("mean int. border", line + i, means[i], _TABLE_NAME);
+		Table.set("stdDev int. border", line + i, std[i], _TABLE_NAME);
+		Table.set("area nucleus", line + i, areas[i], _TABLE_NAME);
+	}
+	measureAndReportSpots(dir, nucleiImageTitle, borderImageTitle);
+}
 
 function measureAndReportSpots(dir, nucleiImageTitle, borderImageTitle) {
 	titleWithoutChannel = replace(nucleiImageTitle, _NUCLEUS_CHANNEL, "");
@@ -108,6 +214,7 @@ function selectNuclei() {
 	inputImageID = getImageID();
 	setAutoThreshold("Li dark");
 	run("Convert to Mask");
+	run("Analyze Particles...", "size="+_MIN_NUCLEUS_AREA+"-Infinity show=Masks exclude in_situ");
 	run("Options...", "iterations=1 count=1 do=Close");
 	run("Fill Holes");
 	roiManager("reset");
@@ -414,4 +521,15 @@ function subtractBlurredImage(sigma) {
 function subtractBackground(radius) {
 	run("Duplicate...", " ");
 	run("Subtract Background...", "rolling="+_ROLLING_BALL_RADIUS+" stack");
+}
+
+function filterImages(files, ext) {
+	images = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (endsWith(file, ext) && (indexOf(file, _NUCLEUS_CHANNEL)>=0)) {
+			images = Array.concat(images, file);
+		}
+	}
+	return images;
 }
