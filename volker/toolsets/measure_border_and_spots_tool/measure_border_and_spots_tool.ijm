@@ -112,7 +112,7 @@ function selectNuclei() {
 	run("Fill Holes");
 	roiManager("reset");
 	run("Analyze Particles...", "size="+_MIN_NUCLEUS_AREA+"-Infinity show=Masks display exclude clear include add in_situ");
-	areas = Table.getColumn("Area");
+	areas = Table.getColumn("Area", "Results");
 	close();
 	run("From ROI Manager");
 //	roiManager("reset");
