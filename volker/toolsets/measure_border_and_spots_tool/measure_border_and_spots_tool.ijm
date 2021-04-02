@@ -23,6 +23,7 @@ var _SIGMA_BLUR_FILTER = 15;
 var _USE_ROLLING_BALL = false;
 var _ROLLING_BALL_RADIUS = 20;
 var _FOCI_THRESHOLDING_METHOD = "Yen";
+var _NUCLEI_THRESHOLDING_METHOD = "Li";
 var _PROMINENCE_OF_MAXIMA = 350;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
@@ -56,6 +57,7 @@ macro "analyze image [f2]" {
 macro "analyze image (f2) Action Tool Options" {
 	Dialog.create("measure border and spots options");
 	Dialog.addString("nuclei channel: ", _NUCLEUS_CHANNEL, 15);
+	Dialog.addChoice("nuclei auto-thresholding method: ", _THRESHOLDING_METHODS, _NUCLEI_THRESHOLDING_METHOD);
 	Dialog.addNumber("min. area nucleus: ", _MIN_NUCLEUS_AREA);
 	Dialog.addString("border channel: ", _BORDER_CHANNEL, 15);
 	Dialog.addCheckbox("measure border", _MEASURE_BORDER);
@@ -73,6 +75,7 @@ macro "analyze image (f2) Action Tool Options" {
 	Dialog.addString("name of table: ", _TABLE_NAME, 30);
 	Dialog.show();
 	_NUCLEUS_CHANNEL = Dialog.getString();
+	_NUCLEI_THRESHOLDING_METHOD = Dialog.getChoice();
 	_MIN_NUCLEUS_AREA = Dialog.getNumber();
 	_BORDER_CHANNEL = Dialog.getString();
 	_MEASURE_BORDER = Dialog.getCheckbox();
@@ -119,6 +122,9 @@ function batchProcessImages() {
 		saveAs("tiff", dir + "out/" + shortName + ".tif");
 		close("*");
 	}
+	Table.save(dir+"out/"+"nuclei.xls", "Nuclei");
+	Table.save(dir+"out/"+"foci.xls", "Foci");
+	Table.save(dir+"out/"+"border_and_spots_measurements.xls", "border and spots measurements");
 }
 
 function analyzeImage() {
@@ -134,14 +140,21 @@ function analyzeImage() {
 	nucleiImageTitle = getTitle();
 	count = roiManager("count");
 	std = newArray(count);
-	means = measureBorder(dir, title, std);
+	if (_MEASURE_BORDER) {
+		means = measureBorder(dir, title, std);
+	} else {
+		borderImageTitle = replace(title, _NUCLEUS_CHANNEL, _BORDER_CHANNEL);
+		open(dir + borderImageTitle);
+	}
 	borderImageTitle = getTitle();
 	close("Results");
-	for (i = 0; i < means.length; i++) {
+	for (i = 0; i < areas.length; i++) {
 		Table.set("image", line + i, title, _TABLE_NAME);
 		Table.set("nucleus", line + i, i+1, _TABLE_NAME);
-		Table.set("mean int. border", line + i, means[i], _TABLE_NAME);
-		Table.set("stdDev int. border", line + i, std[i], _TABLE_NAME);
+		if (_MEASURE_BORDER) {
+			Table.set("mean int. border", line + i, means[i], _TABLE_NAME);
+			Table.set("stdDev int. border", line + i, std[i], _TABLE_NAME);
+		}
 		Table.set("area nucleus", line + i, areas[i], _TABLE_NAME);
 	}
 	measureAndReportSpots(dir, nucleiImageTitle, borderImageTitle);
@@ -212,7 +225,7 @@ function selectNuclei() {
 //	setBatchMode(true);
 	applyDoGAndAdjustDisplay(1,200);
 	inputImageID = getImageID();
-	setAutoThreshold("Li dark");
+	setAutoThreshold(_NUCLEI_THRESHOLDING_METHOD + " dark");
 	run("Convert to Mask");
 	run("Analyze Particles...", "size="+_MIN_NUCLEUS_AREA+"-Infinity show=Masks exclude in_situ");
 	run("Options...", "iterations=1 count=1 do=Close");
