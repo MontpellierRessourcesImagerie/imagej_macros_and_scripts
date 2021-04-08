@@ -1,10 +1,21 @@
+/***
+ * 
+ * MRI Filament tools
+ * 
+ * Detect nuclei in 3D images and run a cluster analysis on them
+ * 
+ * (c) 2020, INSERM
+ * 
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ * 
+**/
 var FILAMENT_CHANNEL = 1;
 var MIN_SIZE = 0.5; 	
 var MAX_CIRCULARITY = 1;
 var EXCLUDE_ON_EDGES = false;
 var OBJECT_TABLE = "filaments";
 var SUMMARY_TABLE = "summary filaments";
-var HELP_URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Tools";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Tools";
 var SUFFIX = "Out.czi";
 
 analyzeImage();
