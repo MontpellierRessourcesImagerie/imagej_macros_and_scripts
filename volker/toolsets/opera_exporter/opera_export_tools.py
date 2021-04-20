@@ -3,6 +3,29 @@ from ij import IJ
 import os
 from ij.gui import WaitForUserDialog
 
+def zero_center_coordinates(x_pos, y_pos):
+    leftmost = min(x_pos)
+    top = max(y_pos)
+
+    if leftmost < 0:
+        leftmost = abs(leftmost)
+        if top < 0:
+            top = abs(top)
+            x_pos = [i + leftmost for i in x_pos]
+            y_pos = [abs(i) - top for i in y_pos]
+        else:
+            x_pos = [i + leftmost for i in x_pos]
+            y_pos = [top - i for i in y_pos]
+    else:
+        if top < 0:
+            top = abs(top)
+            x_pos = [i - leftmost for i in x_pos]
+            y_pos = [abs(i) - top for i in y_pos]
+        else:
+            x_pos = [i - leftmost for i in x_pos]
+            y_pos = [top - i for i in y_pos]
+    return x_pos, y_pos
+
 class Plate(object):
 	def __init__(self, plateData, experiment):
 		self.data = plateData
@@ -51,7 +74,7 @@ class Well(object):
 			for data in self.imageData:
 				self.images.append(experiment.getImage(data.attrib['id']))
 		return self.images;
-
+    
 	def getFields(self):
 		images = self.getImages()
 		fieldSet = set()
@@ -72,23 +95,11 @@ class Well(object):
 		channels = set()
 		width = 0
 		height = 0
-		minX = 1000000
-		minY = 1000000
-		maxX = -1000000
-		maxY = -1000000
+		pixelWidth = self.getPixelWidth()
+		xCoords = [int(round(image.getX()/pixelWidth)) for image in images]
+		yCoords = [int(round(image.getY()/pixelWidth)) for image in images]
+		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
 		for image in images:
-			xPos = image.getX()
-			yPos = image.getY()
-			if (xPos<minX):
-				minX = xPos
-			if (yPos<minY):
-				minY = yPos
-			if (xPos>maxX):
-				maxX = xPos
-			if (yPos>maxY):
-				maxY = yPos
-			xPositions.add(xPos)
-			yPositions.add(yPos)
 			slices.add(image.getPlane())
 			frames.add(image.getTime())
 			channels.add(image.getChannel())
@@ -96,35 +107,28 @@ class Well(object):
 				width = image.getWidth()
 			if image.getHeight()>height: 
 				height = image.getHeight()
-		nrX = len(xPositions)
-		nrY = len(yPositions)
-		res = (width*nrX, height*nrY, minX, minY, ((maxX-minX)/(nrX-1))*nrX, ((maxY-minY)/(nrY-1))*nrY, len(slices), len(frames), len(channels))
+		res = (max(xCoords)+width, max(yCoords)+height, len(slices), len(frames), len(channels))
 		return res
 
 	def createHyperstack(self):
 		name = self.plate.getName()+"_"+self.getID()
 		dims = self.getDimensions()
 		print(dims)
-		mosaic = IJ.createImage(name, "16-bit composite-mode", dims[0], dims[1], dims[8], dims[6], dims[7])
+		mosaic = IJ.createImage(name, "16-bit composite-mode", dims[0], dims[1], dims[4], dims[2], dims[3])
 		mosaic.show()
 		pixelWidth = self.getPixelWidth()
+		print("pixelWidth: "+str(pixelWidth))
 		IJ.run(mosaic, "Set Scale...", "distance=1 known="+str(pixelWidth)+" unit=m");
-		originX = int(round(mosaic.getCalibration().getRawX(dims[2])))
-		originY = int(round(mosaic.getCalibration().getRawY(dims[3])))
-		IJ.run("Properties...", "origin="+str(originX)+","+str(originY));
 		mosaic.show()
 		images = self.getImages()
-		for image in images:
+		xCoords = [int(round(image.getX()/pixelWidth)) for image in images]
+		yCoords = [int(round(image.getY()/pixelWidth)) for image in images]
+		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)		
+		for image, x, y in zip(images, xCoords, yCoords):
 			IJ.open(image.getFolder() + os.path.sep + image.getURL())
 			imp = IJ.getImage()
-			pw = imp.getCalibration().pixelWidth
-			unit = imp.getCalibration().getXUnit()
-			IJ.run(mosaic, "Set Scale...", "distance=1 known="+str(pixelWidth)+" unit="+unit);
 			IJ.run(imp, "Copy", "")
 			mosaic.setPosition(image.getChannel(), image.getPlane(), image.getTime())
-			x = int(round(mosaic.getCalibration().getRawX(image.getX())))
-			y = int(round(mosaic.getCalibration().getRawY(image.getY())))
-			print("paste at "+str(x)+", "+str(y));
 			mosaic.paste(x, y, "Copy")
 			imp.close()
 		mosaic.repaintWindow()
@@ -374,9 +378,10 @@ class PhenixHCSExperiment(object):
 
 	
 experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml")
-
+print(experiment)
 wells = experiment.getPlates()[0].getWells()
-well = wells[1];
+well = wells[0]
+print(well)
 well.createHyperstack()
 
 # print(experiment)
