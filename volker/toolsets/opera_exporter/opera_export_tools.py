@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from ij import IJ
 import os
 from ij.gui import WaitForUserDialog
+from ij.macro import Interpreter
 
 def zero_center_coordinates(x_pos, y_pos):
     leftmost = min(x_pos)
@@ -111,6 +112,7 @@ class Well(object):
 		return res
 
 	def createHyperstack(self):
+		Interpreter.batchMode=True
 		name = self.plate.getName()+"_"+self.getID()
 		dims = self.getDimensions()
 		print(dims)
@@ -131,6 +133,11 @@ class Well(object):
 			mosaic.setPosition(image.getChannel(), image.getPlane(), image.getTime())
 			mosaic.paste(x, y, "Copy")
 			imp.close()
+		Interpreter.batchMode=False
+		mosaic.show()	
+		for c in range(1,dims[4]):
+			mosaic.setPosition(c, 1, 1)
+			IJ.run("Enhance Contrast", "saturated=0.35")
 		mosaic.repaintWindow()
 			
 	def __str__(self):
@@ -380,10 +387,10 @@ class PhenixHCSExperiment(object):
 experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml")
 print(experiment)
 wells = experiment.getPlates()[0].getWells()
-well = wells[0]
+well = wells[1]
 print(well)
 well.createHyperstack()
-
+print("DONE!");
 # print(experiment)
 # firstPlate = experiment.getPlates()[0]
 # print(firstPlate)
