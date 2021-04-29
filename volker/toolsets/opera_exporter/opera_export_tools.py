@@ -117,9 +117,10 @@ class Well(object):
 		dims = self.getDimensions()
 		print(dims)
 		mosaic = IJ.createImage(name, "16-bit composite-mode", dims[0], dims[1], dims[4], dims[2], dims[3])
+		if not mosaic: 
+			 raise Exception('Image too big!')
 		mosaic.show()
 		pixelWidth = self.getPixelWidth()
-		print("pixelWidth: "+str(pixelWidth))
 		IJ.run(mosaic, "Set Scale...", "distance=1 known="+str(pixelWidth)+" unit=m");
 		mosaic.show()
 		images = self.getImages()
@@ -384,12 +385,22 @@ class PhenixHCSExperiment(object):
 		return res
 
 	
-experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml")
+experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_5Xto20x_Av1_part2_20210401__2021-04-01T19_12_49-Measurement 1b/Images/Index.idx.xml")
 print(experiment)
 wells = experiment.getPlates()[0].getWells()
-well = wells[1]
-print(well)
-well.createHyperstack()
+
+size = len(wells)
+counter = 1;
+for well in wells:
+	print("Processing well " + well.getID() + " - " + str(counter) + "/" + str(size))
+	try:  
+		well.createHyperstack()
+		imp =IJ.getImage()
+		IJ.saveAs(imp, "Tiff", "D:/MRI/Volker/Sensorion Opera/Sensorion_5Xto20x_Av1_part2_20210401__2021-04-01T19_12_49-Measurement 1b/out/"+well.getID()+".tif")
+		imp.close()
+	except Exception as e:
+		print str(e)
+	counter = counter + 1
 print("DONE!");
 # print(experiment)
 # firstPlate = experiment.getPlates()[0]
