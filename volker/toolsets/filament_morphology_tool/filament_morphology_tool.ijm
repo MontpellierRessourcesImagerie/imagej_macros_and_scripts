@@ -25,7 +25,6 @@ macro "filament morphology tool help [f4]" {
 	run('URL...', 'url='+helpURL);
 }
 
-
 macro "filament morphology tool help (f4) Action Tool - C020D00C010L1060C020L7080C030L90a0C020Db0C010Dc0C000Ld0f0C010L0131C020L4151C010L61a1C000Lb1f1C010L0212C020D22C030L3252C020D62C010L7282C000L92f2C010D03C020D13C030D23Cff0L3363C010D73C000L83d3C010Le3f3D04C020D14Cff0L2434C160D44C050D54Cff0D64C020D74C010L84c4C020Ld4f4C010D05C020D15Cff0D25Cf00D35Ca30D45C050D55Cff0L6575C030D85C020L95b5C030Lc5f5C010D06C020D16Cff0D26C160D36Ca30D46Cf00D56Ca20D66Cff0L76f6C010D07C020D17Cff0D27C160L3757Ca20D67Cf00D77Ca20D87C140L97a7C050Lb7c7C140Dd7C030De7Cff0Df7C010D08C020D18Cff0L2838C050L4868C140D78Ca20D88Cf00L98d8Cff0Le8f8C000D09C010D19C020D29Cff0L3949C140L5969C030D79Cff0L89e9C020Df9C000L0a1aC010D2aC020D3aCff0L4a8aC020L9aaaC010LbadaC020DeaC010DfaC000L0b2bC010L3bfbL0c5cC000L6c9cC010LacecC020DfcC010L0d3dC000L4d9dC010DadC020LbdfdL0e2eC010D3eC000L4e7eC010L8e9eC030LaedeC020LeefeCff0L0f1fC020D2fC010L3f4fC000L5f7fC010D8fC030D9fCff0LafdfC020Lefff"{
 	run('URL...', 'url='+helpURL);
 }
@@ -79,6 +78,8 @@ function runBatchAnalysis() {
 		parts = split(title, ".");
 		name = parts[0];
 		saveAs("tiff", dir + "out/" + name + ".tif");
+		Table.save(dir + "out/" + name + "_branches.csv" , "Global Branch Information");
+		close("Global Branch Information");
 		close("*");
 	}
 	Table.save(dir+"out/"+"results.xls", "Results");
@@ -87,6 +88,7 @@ function runBatchAnalysis() {
 function analyzeImage() {
 	run("Set Measurements...", "area centroid perimeter bounding fit shape feret's display redirect=None decimal=9");
 	setBatchMode(true);
+	roiManager("reset");
 	run("Select None");
 	Overlay.remove;
 	roiManager("reset");
@@ -112,20 +114,52 @@ function analyzeImage() {
 	lblID = getImageID();
 	run("Geodesic Diameter", "label=Mask-lbl distances=[Chessknight (5,7,11)] show image=["+inputImageTitle+"]");
 	selectImage(inputImageID);	
-	selectImage(maskID);
-	close();
 	selectImage(lblID);
 	close();
 	selectImage(inputImageID);
 	run("From ROI Manager");
 	title1 = "Results";
 	title2 = "Mask-lbl-GeodDiameters";
-	appendTable(title1, title2, startLine);
+	appendTableColumns(title1, title2, startLine);
 	close(title2);
-	setBatchMode(false);
+	Table.rename("Results", "Filament morphology summary");
+	selectImage(maskID);
+	run("Skeletonize (2D/3D)");
+	count = roiManager("count");
+	Table.create("Global Branch Information");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		run("Duplicate...", " ");;
+		run("Clear Outside");
+		run("Analyze Skeleton (2D/3D)", "prune=none calculate show");
+		appendTableColumns("Filament morphology summary", "Results", i);
+		close("Results");	
+		close();
+		close();
+		close();
+		countBranches = Table.size("Branch information");
+		for (j = 0; j < countBranches; j++) {
+			Table.set("Skeleton_ID", j, i+1);
+		}
+		appendTableRows("Global Branch Information", "Branch information");
+		close("Branch information");
+	}
+	run("Analyze Skeleton (2D/3D)", "prune=none calculate show");
+	selectWindow("Longest shortest paths");
+	close();
+	selectImage("Tagged skeleton");
+	run("glasbey on dark");
+	selectImage(inputImageID);
+	run("Add Image...", "image=[Tagged skeleton] x=0 y=0 opacity=100 zero");
+	close("Tagged skeleton");
+	close(maskID); 
+	close("Branch information");
+	close("Results");
+	close("Mask");
+	setBatchMode("exit and display"); 
 }
 
-function appendTable(table1, table2, startLine) {
+function appendTableColumns(table1, table2, startLine) {
 	headings = Table.headings(table2);
 	columns = split(headings, "\t");
 	nrOfColumns = columns.length;
@@ -137,6 +171,20 @@ function appendTable(table1, table2, startLine) {
 		}
 	}
 	Table.update(table1);
+}
+
+function appendTableRows(table1, table2) {
+	count = Table.size(table2);	
+	startLine = Table.size(table1);
+	headings = Table.headings(table2);
+	columns = split(headings, "\t");
+	nrOfColumns = columns.length;
+	for (i = 0; i < count; i++) {
+		for(c=1; c<nrOfColumns; c++) {
+			value = Table.get(columns[c], i, table2);
+			Table.set(columns[c], startLine+i, value, table1);
+		}
+	}
 }
 
 function filterImages(files, ext) {
