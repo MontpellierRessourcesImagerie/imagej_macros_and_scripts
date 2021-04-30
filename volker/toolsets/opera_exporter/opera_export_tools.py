@@ -105,12 +105,57 @@ class Well(object):
 			frames.add(image.getTime())
 			channels.add(image.getChannel())
 			if image.getWidth()>width:
-				width = image.getWidth()
+				width = image.getWidth()# Define the image coordinates
 			if image.getHeight()>height: 
 				height = image.getHeight()
 		res = (max(xCoords)+width, max(yCoords)+height, len(slices), len(frames), len(channels))
 		return res
 
+	def createTileConfig(self, zPosition, timePoint, channel):
+		path = self.experiment.getPath();
+		tileConfPath = path + "/TileConfiguration.txt"
+		allImages = self.getImages()
+		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
+		xCoords = [int(round(image.getX()/float(image.getPixelWidth()))) for image in images]
+		yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
+		names = [image.getURL() for image in images]
+		newNames = ["in_use-"+name for name in names]
+		for name, newName in zip(names, newNames):
+			print(r""+path+"/"+name)
+			print(r""+path+"/"+newName)
+			os.rename(r""+path+"/"+name, r""+path+"/"+newName)
+		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
+		with open(tileConfPath, 'w') as f:
+			f.write("# Define the number of dimensions we are working on\n")
+			f.write("dim = 2\n")
+			f.write("\n")
+			f.write("# Define the image coordinates\n")
+			for name, x, y in zip(newNames, xCoords, yCoords):
+				f.write(name+";"+" ; (" + str(x) + "," + str(y)+")"+"\n")
+		return names, newNames;
+			
+	def stitch(self, zPosition, timePoint, channel):
+		path = self.experiment.getPath();
+		names, newNames = wells[0].createTileConfig(zPosition, timePoint, channel)
+		if not os.path.exists(path+"/out"):
+			os.mkdir(path+"/out")
+		parameters = "type=[Positions from file] " + \
+					 "order=[Defined by TileConfiguration] " + \
+					 "directory=["+path+"] " + \
+					 "layout_file=TileConfiguration.txt " + \
+					 "fusion_method=[Linear Blending] " + \
+					 "regression_threshold=0.30 " + \
+					 "max/avg_displacement_threshold=2.50 " + \
+					 "absolute_displacement_threshold=3.50 " + \
+					 "compute_overlap " + \
+					 "subpixel_accuracy " + \
+					 "computation_parameters=[Save computation time (but use more RAM)] " + \
+					 "image_output=[Write to disk] " \
+					 "output_directory=["+path+"/out]"	 
+		IJ.run("Grid/Collection stitching", parameters)
+		for name, newName in zip(names, newNames):
+			os.rename(path+"/"+newName, path+"/"+name)
+		
 	def createHyperstack(self):
 		Interpreter.batchMode=True
 		name = self.plate.getName()+"_"+self.getID()
@@ -124,8 +169,8 @@ class Well(object):
 		IJ.run(mosaic, "Set Scale...", "distance=1 known="+str(pixelWidth)+" unit=m");
 		mosaic.show()
 		images = self.getImages()
-		xCoords = [int(round(image.getX()/pixelWidth)) for image in images]
-		yCoords = [int(round(image.getY()/pixelWidth)) for image in images]
+		xCoords = [int(round(image.getX()/float(pixelWidth))) for image in images]
+		yCoords = [int(round(image.getY()/float(pixelWidth))) for image in images]
 		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)		
 		for image, x, y in zip(images, xCoords, yCoords):
 			IJ.open(image.getFolder() + os.path.sep + image.getURL())
@@ -391,6 +436,9 @@ wells = experiment.getPlates()[0].getWells()
 
 size = len(wells)
 counter = 1;
+wells[0].stitch(17, 0, 1)
+
+"""
 for well in wells:
 	print("Processing well " + well.getID() + " - " + str(counter) + "/" + str(size))
 	try:  
@@ -401,7 +449,9 @@ for well in wells:
 	except Exception as e:
 		print str(e)
 	counter = counter + 1
+""" 
 print("DONE!");
+
 # print(experiment)
 # firstPlate = experiment.getPlates()[0]
 # print(firstPlate)
