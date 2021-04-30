@@ -70,7 +70,12 @@ function runBatchAnalysis() {
 	files = getFileList(dir);
 	images = filterImages(files, _EXT);
 	if (!File.exists(dir + "out")) File.makeDirectory(dir + "out");
+	tableOpen = false;
 	for (i = 0; i < images.length; i++) {
+		if (isOpen("Filament morphology summary")) {
+			Table.rename("Filament morphology summary", "tmp");
+			tableOpen = true;
+		}
 		image = images[i];
 		run("Bio-Formats", "open=["+dir+image+"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 		title = getTitle();
@@ -78,51 +83,36 @@ function runBatchAnalysis() {
 		parts = split(title, ".");
 		name = parts[0];
 		saveAs("tiff", dir + "out/" + name + ".tif");
-		Table.save(dir + "out/" + name + "_branches.csv" , "Global Branch Information");
+		Table.save(dir + "out/" + name + "_branches.xls" , "Global Branch Information");
 		close("Global Branch Information");
 		close("*");
+		if (tableOpen) {
+			appendTableRows("tmp", "Filament morphology summary");
+			close("Filament morphology summary");
+			Table.rename("tmp", "Filament morphology summary");
+		}
 	}
-	Table.save(dir+"out/"+"results.xls", "Results");
+	Table.save(dir+"out/"+"results.xls", "Filament morphology summary");
 }
 
 function analyzeImage() {
 	run("Set Measurements...", "area centroid perimeter bounding fit shape feret's display redirect=None decimal=9");
+	inputImageID = getImageID();
+	inputImageTitle = getTitle();
+	getDimensions(width, height, channels, slices, frames);
 	setBatchMode(true);
 	roiManager("reset");
 	run("Select None");
 	Overlay.remove;
-	roiManager("reset");
-	inputImageID = getImageID();
-	inputImageTitle = getTitle();
-	getDimensions(width, height, channels, slices, frames);
-	if (channels>1) {
-		run("Duplicate...", "duplicate channels="+_FILAMENT_CHANNEL+"-"+_FILAMENT_CHANNEL);
-	} else {
-		run("Duplicate...", " ");
-	}
-	setAutoThreshold("Default dark");
 	startLine = nResults;
-	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity display exclude add");
-	close();
-	resetMinAndMax();
-	run("Enhance Contrast", "saturated=0.35");
-	run("From ROI Manager");
-	roiManager("Combine");
-	run("Create Mask");
-	maskID = getImageID();
-	run("Connected Components Labeling", "connectivity=8 type=[16 bits]");
-	lblID = getImageID();
-	run("Geodesic Diameter", "label=Mask-lbl distances=[Chessknight (5,7,11)] show image=["+inputImageTitle+"]");
-	selectImage(inputImageID);	
-	selectImage(lblID);
-	close();
-	selectImage(inputImageID);
-	run("From ROI Manager");
-	title1 = "Results";
-	title2 = "Mask-lbl-GeodDiameters";
-	appendTableColumns(title1, title2, startLine);
-	close(title2);
+	segmentFilaments();
+	maskID = measureGeodesicDiameters(inputImageID, startLine);
 	Table.rename("Results", "Filament morphology summary");
+	analyzeSkeletons(inputImageID, maskID);
+	setBatchMode("exit and display"); 
+}
+
+function analyzeSkeletons(inputImageID, maskID) {
 	selectImage(maskID);
 	run("Skeletonize (2D/3D)");
 	count = roiManager("count");
@@ -139,7 +129,7 @@ function analyzeImage() {
 		close();
 		countBranches = Table.size("Branch information");
 		for (j = 0; j < countBranches; j++) {
-			Table.set("Skeleton_ID", j, i+1);
+			Table.set("Skeleton ID", j, i+1);
 		}
 		appendTableRows("Global Branch Information", "Branch information");
 		close("Branch information");
@@ -156,7 +146,41 @@ function analyzeImage() {
 	close("Branch information");
 	close("Results");
 	close("Mask");
-	setBatchMode("exit and display"); 
+}
+
+function measureGeodesicDiameters(inputImageID, startLine) {
+	selectImage(inputImageID);
+	inputImageTitle = getTitle();
+	roiManager("Combine");
+	run("Create Mask");
+	maskID = getImageID();
+	run("Connected Components Labeling", "connectivity=8 type=[16 bits]");
+	lblID = getImageID();
+	run("Geodesic Diameter", "label=Mask-lbl distances=[Chessknight (5,7,11)] show image=["+inputImageTitle+"]");
+	selectImage(lblID);
+	close();
+	selectImage(inputImageID);
+	run("From ROI Manager");
+	title1 = "Results";
+	title2 = "Mask-lbl-GeodDiameters";
+	appendTableColumns(title1, title2, startLine);
+	close(title2);
+	return maskID;
+}
+
+function segmentFilaments() {
+	getDimensions(width, height, channels, slices, frames);
+	if (channels>1) {
+		run("Duplicate...", "duplicate channels="+_FILAMENT_CHANNEL+"-"+_FILAMENT_CHANNEL);
+	} else {
+		run("Duplicate...", " ");
+	}
+	setAutoThreshold("Default dark");
+	run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity display exclude add");
+	close();
+	resetMinAndMax();
+	run("Enhance Contrast", "saturated=0.35");
+	run("From ROI Manager");
 }
 
 function appendTableColumns(table1, table2, startLine) {
@@ -180,8 +204,17 @@ function appendTableRows(table1, table2) {
 	columns = split(headings, "\t");
 	nrOfColumns = columns.length;
 	for (i = 0; i < count; i++) {
-		for(c=1; c<nrOfColumns; c++) {
-			value = Table.get(columns[c], i, table2);
+		for(c=0; c<nrOfColumns; c++) {
+			heading = String.trim(columns[c]);
+			if (heading=="") {
+				continue;
+			} 
+			if (heading=="Label") {
+				value = Table.getString(columns[c], i, table2);	
+			}
+			else {
+				value = Table.get(columns[c], i, table2);	
+			}
 			Table.set(columns[c], startLine+i, value, table1);
 		}
 	}
