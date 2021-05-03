@@ -145,7 +145,7 @@ class Well(object):
 		created by the stitching.
 		'''   
 		path = self.experiment.getPath();
-		names, newNames = wells[0].createTileConfig(zPosition, timePoint, channel)
+		names, newNames = self.createTileConfig(zPosition, timePoint, channel)
 		if not os.path.exists(path+"/out"):
 			os.mkdir(path+"/out")
 		parameters = "type=[Positions from file] " + \
@@ -503,12 +503,12 @@ class PhenixHCSExperiment(object):
 	
 experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
 print(experiment)
+
 wells = experiment.getPlates()[0].getWells()
 
-size = len(wells)
-counter = 1;
-wells[0].calculateStitching(17, 0, 1)
-wells[0].applyStitching()
+for well in wells:
+	well.calculateStitching(17, 0, 1)
+	well.applyStitching()	
 
 """
 for well in wells:
