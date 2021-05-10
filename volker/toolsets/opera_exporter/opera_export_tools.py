@@ -3,6 +3,8 @@ from ij import IJ
 import os
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
+from datetime import datetime
+import shutil
 
 def zero_center_coordinates(x_pos, y_pos):
     leftmost = min(x_pos)
@@ -105,12 +107,121 @@ class Well(object):
 			frames.add(image.getTime())
 			channels.add(image.getChannel())
 			if image.getWidth()>width:
-				width = image.getWidth()
+				width = image.getWidth()# Define the image coordinates
 			if image.getHeight()>height: 
 				height = image.getHeight()
 		res = (max(xCoords)+width, max(yCoords)+height, len(slices), len(frames), len(channels))
 		return res
 
+	def createTileConfig(self, zPosition, timePoint, channel):
+		srcPath = self.experiment.getPath();
+		path = srcPath + "/work";
+		if not os.path.exists(path):
+			os.mkdir(path)
+		tileConfPath = path + "/TileConfiguration.txt"
+		allImages = self.getImages()
+		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
+		xCoords = [int(round(image.getX()/float(image.getPixelWidth()))) for image in images]
+		yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
+		names = [image.getURL() for image in images]
+		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
+		for name, newName in zip(names, newNames):
+			shutil.copy(srcPath+"/"+name, path+"/"+newName)
+		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
+		with open(tileConfPath, 'w') as f:
+			f.write("# Define the number of dimensions we are working on\n")
+			f.write("dim = 2\n")
+			f.write("\n")
+			f.write("# Define the image coordinates\n")
+			for name, x, y in zip(newNames, xCoords, yCoords):
+				f.write(name+";"+" ; (" + str(x) + "," + str(y)+")"+"\n")
+		return names, newNames;
+
+	
+	def calculateStitching(self, zPosition, timePoint, channel):
+		'''
+		Create an initial TileConfiguration from the meta-data in the work-folder 
+		and use it for the stitching. Replace the TileConfiguration by the one
+		created by the stitching.
+		'''   
+		path = self.experiment.getPath();
+		names, newNames = self.createTileConfig(zPosition, timePoint, channel)
+		if not os.path.exists(path+"/out"):
+			os.mkdir(path+"/out")
+		parameters = "type=[Positions from file] " + \
+					 "order=[Defined by TileConfiguration] " + \
+					 "directory=["+path+"/work/] " + \
+					 "layout_file=TileConfiguration.txt " + \
+					 "fusion_method=[Linear Blending] " + \
+					 "regression_threshold=0.30 " + \
+					 "max/avg_displacement_threshold=2.50 " + \
+					 "absolute_displacement_threshold=3.50 " + \
+					 "compute_overlap " + \
+					 "subpixel_accuracy " + \
+					 "computation_parameters=[Save computation time (but use more RAM)] " + \
+					 "image_output=[Write to disk] " \
+					 "output_directory=["+path+"/out/] "
+		now = datetime.now().time()
+		print(now)
+		IJ.run("Grid/Collection stitching", parameters)
+		now = datetime.now().time()
+		print(now)
+		os.remove(path+"/work/TileConfiguration.txt")
+		os.rename(path+"/work/TileConfiguration.registered.txt", path+"/work/TileConfiguration.txt")
+		os.remove(path+"/out/img_t1_z1_c1")
+		for newName in newNames:
+			os.remove(path+"/work/"+newName)
+
+	def applyStitching(self):
+		path = self.experiment.getPath();
+		dims = self.getDimensions()
+		slices = dims[2]
+		channels = dims[4]
+		timePoints = dims[3]
+		for c in range(1, channels+1):
+			for t in range(0, timePoints):
+				for z in range(1, slices+1):
+					images = self.getImagesForZPosTimeAndChannel(z, t, c)
+					names, newNames = self.copyImagesToWorkFolder(images)
+					self.runGridCollectionStitching()
+					title = images[0].getURLWithoutField()
+					os.rename(path+"/out/img_t1_z1_c1", path+"/out/"+title)
+					for name in newNames:
+						os.remove(path+"/work/"+name)
+					
+	def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
+		allImages = self.getImages()
+		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
+		return images
+
+	def copyImagesToWorkFolder(self, images):
+		srcPath = self.experiment.getPath();
+		path = srcPath + "/work";
+		names = [image.getURL() for image in images]
+		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
+		for name, newName in zip(names, newNames):
+			shutil.copy(srcPath+"/"+name, path+"/"+newName)
+		return names, newNames
+
+	def runGridCollectionStitching(self, computeOverlap=False):
+		path = self.experiment.getPath();
+		parameters = "type=[Positions from file] " + \
+					 "order=[Defined by TileConfiguration] " + \
+					 "directory=["+path+"/work/] " + \
+					 "layout_file=TileConfiguration.txt " + \
+					 "fusion_method=[Linear Blending] " + \
+					 "regression_threshold=0.30 " + \
+					 "max/avg_displacement_threshold=2.50 " + \
+					 "absolute_displacement_threshold=3.50 "
+		if computeOverlap: 
+			parameters = parameters + "compute_overlap "
+		parameters = parameters + \
+					 "subpixel_accuracy " + \
+					 "computation_parameters=[Save computation time (but use more RAM)] " + \
+					 "image_output=[Write to disk] " \
+					 "output_directory=["+path+"/out/] "
+		IJ.run("Grid/Collection stitching", parameters)
+		
 	def createHyperstack(self):
 		Interpreter.batchMode=True
 		name = self.plate.getName()+"_"+self.getID()
@@ -124,8 +235,8 @@ class Well(object):
 		IJ.run(mosaic, "Set Scale...", "distance=1 known="+str(pixelWidth)+" unit=m");
 		mosaic.show()
 		images = self.getImages()
-		xCoords = [int(round(image.getX()/pixelWidth)) for image in images]
-		yCoords = [int(round(image.getY()/pixelWidth)) for image in images]
+		xCoords = [int(round(image.getX()/float(pixelWidth))) for image in images]
+		yCoords = [int(round(image.getY()/float(pixelWidth))) for image in images]
 		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)		
 		for image, x, y in zip(images, xCoords, yCoords):
 			IJ.open(image.getFolder() + os.path.sep + image.getURL())
@@ -255,6 +366,11 @@ class Image(object):
 
 	def getFolder(self):
 		return self.folder
+
+	def getURLWithoutField(self):
+		url = self.getURL()
+		res = url[:6] + url[9:]
+		return res
 		
 	def __str__(self):
 		res = "Image ("+self.getID()+", state="+self.getState()+", " + self.getURL() + ", r" + self.getRow() + ", c="+self.getColumn()+ ", f="+self.getField()+")"
@@ -385,12 +501,16 @@ class PhenixHCSExperiment(object):
 		return res
 
 	
-experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_5Xto20x_Av1_part2_20210401__2021-04-01T19_12_49-Measurement 1b/Images/Index.idx.xml")
+experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
 print(experiment)
+
 wells = experiment.getPlates()[0].getWells()
 
-size = len(wells)
-counter = 1;
+for well in wells:
+	well.calculateStitching(17, 0, 1)
+	well.applyStitching()	
+
+"""
 for well in wells:
 	print("Processing well " + well.getID() + " - " + str(counter) + "/" + str(size))
 	try:  
@@ -401,7 +521,9 @@ for well in wells:
 	except Exception as e:
 		print str(e)
 	counter = counter + 1
+""" 
 print("DONE!");
+
 # print(experiment)
 # firstPlate = experiment.getPlates()[0]
 # print(firstPlate)
