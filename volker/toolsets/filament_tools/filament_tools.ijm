@@ -2,7 +2,7 @@
  * 
  * MRI Filament tools
  * 
- * Detect nuclei in 3D images and run a cluster analysis on them
+ * Calculate the area-fraction of the image filled with (septin) filaments.
  * 
  * (c) 2020, INSERM
  * 
