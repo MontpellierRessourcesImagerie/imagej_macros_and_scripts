@@ -501,13 +501,14 @@ class PhenixHCSExperiment(object):
 		return res
 
 	
-experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
+# experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
+experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml");
 print(experiment)
 
 wells = experiment.getPlates()[0].getWells()
 
 for well in wells:
-	well.calculateStitching(17, 0, 1)
+	well.calculateStitching(8, 0, 1)
 	well.applyStitching()	
 
 """
