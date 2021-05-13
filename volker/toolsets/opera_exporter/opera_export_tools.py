@@ -5,7 +5,38 @@ from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
 from datetime import datetime
 import shutil
+import argparse
 
+def main(args):
+	parser = getArgumentParser()
+ 	params = parser.parse_args(args)
+ 	experiment = PhenixHCSExperiment.fromIndexFile(params.index_file);
+	print(experiment)
+	wells = experiment.getPlates()[0].getWells()
+	if not params.wells == 'all':
+		listOfWellIDS = splitIntoChunksOfSize(params.wells, 4)	
+	for well in wells:
+		dims = well.getDimensions()
+		zSize = dims[2]
+		zPos = params.slice
+		if zPos==0:
+			zPos = zSize / 2
+		if params.wells=='all' or well.getID() in listOfWellIDS:
+			well.calculateStitching(zPos, 0, params.channel)
+			well.applyStitching()	
+ 	
+def getArgumentParser():
+	 parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
+	 parser.add_argument("--wells", "-w", default='all', help='either "all" or a string of the form "01010102" defining the wells to be exported')
+	 parser.add_argument("--slice", "-s", default=0, type=int, help='the slice used to calculate the stitching, 0 for the middle slice')
+	 parser.add_argument("--channel", "-c", default=1, type=int, help='the channel used to calculate the stitching')
+	 parser.add_argument("index_file", help='path to the Index.idx.xml file')
+	 return parser
+
+def splitIntoChunksOfSize(some_string, x):
+	res=[some_string[y-x:y] for y in range(x, len(some_string)+x,x)]
+	return res
+	
 def zero_center_coordinates(x_pos, y_pos):
     leftmost = min(x_pos)
     top = max(y_pos)
@@ -75,7 +106,7 @@ class Well(object):
 		if not self.images:
 			self.images = []
 			for data in self.imageData:
-				self.images.append(experiment.getImage(data.attrib['id']))
+				self.images.append(self.experiment.getImage(data.attrib['id']))
 		return self.images;
     
 	def getFields(self):
@@ -500,8 +531,16 @@ class PhenixHCSExperiment(object):
 		res = "PhenixHCSExperiment ("+self.getUser()+", "+ self.getInstrumentType()+", "+str(self.getNrOfPlates()) + " " + platesString + ", "+str(self.getNrOfWells()) + " " + wellsString + ", " + str(self.getNrOfImages()) + " " + imagesString + ")"
 		return res
 
-	
+if 'getArgument' in globals():
+	if not hasattr(zip, '__call__'):
+		del zip 					# the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
+	args = getArgument()
+	args = " ".join(args.split())
+	print(args.split())
+	main(args.split())
+		
 # experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
+"""
 experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml");
 print(experiment)
 
@@ -510,7 +549,7 @@ wells = experiment.getPlates()[0].getWells()
 for well in wells:
 	well.calculateStitching(8, 0, 1)
 	well.applyStitching()	
-
+"""
 """
 for well in wells:
 	print("Processing well " + well.getID() + " - " + str(counter) + "/" + str(size))
@@ -523,7 +562,7 @@ for well in wells:
 		print str(e)
 	counter = counter + 1
 """ 
-print("DONE!");
+# print("DONE!");
 
 # print(experiment)
 # firstPlate = experiment.getPlates()[0]

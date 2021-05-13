@@ -70,8 +70,7 @@ macro "launch export [f8]" {
 
 function launchExport() {
 	_OPERA_INDEX_FILE = getIndexFile();
-	options = "index_file=" + _OPERA_INDEX_FILE;
-	options = options + " wells=";
+	options = "--wells=";
 	if (_EXPORT_ALL) options = options + "all";
 	else {
 		for (i = 0; i < _WELLS.length; i++) {
@@ -79,12 +78,15 @@ function launchExport() {
 			options = options + _WELLS[i];			
 		}
 	}
-	options = options + " slice=" + _ZSLICE;
-	options = options + " channel=" + _CHANNEL;
-	if (_CREATE_Z_STACK) options = options + " stack";
-	if (_MERGE_CHANNELS) options = options + " merge";
-	if (_DO_MIP) options = options + " mip";
-	print(options);
+	options = options + " --slice=" + _ZSLICE;
+	options = options + " --channel=" + _CHANNEL;
+//	if (_CREATE_Z_STACK) options = options + " --stack";
+//	if (_MERGE_CHANNELS) options = options + " --merge";
+//	if (_DO_MIP) options = options + " --mip";
+	options = options + " " + _OPERA_INDEX_FILE;
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
+	call("ij.plugin.Macro_Runner.runPython", script, options); 
 }
 
 function setOptions() {
