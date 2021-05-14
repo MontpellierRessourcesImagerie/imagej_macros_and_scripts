@@ -1,5 +1,5 @@
 /* 
- 	MRI 3D nuclei clustering
+ 	MRI Measure Nuclei and Membranes
  
  		Take the results of cell and nuclei segmentation done with cellpose and 
  			- transform the cytoplasm selection into a membrane selection
