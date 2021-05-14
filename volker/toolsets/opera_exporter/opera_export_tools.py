@@ -3,6 +3,7 @@ from ij import IJ
 import os
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
+from ij.plugin import ImagesToStack
 from datetime import datetime
 import shutil
 import argparse
@@ -24,14 +25,19 @@ def main(args):
 		if params.wells=='all' or well.getID() in listOfWellIDS:
 			well.calculateStitching(zPos, 0, params.channel)
 			well.applyStitching()	
- 	
+			if params.stack:
+				well.createStack(dims)
+ 				
 def getArgumentParser():
-	 parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
-	 parser.add_argument("--wells", "-w", default='all', help='either "all" or a string of the form "01010102" defining the wells to be exported')
-	 parser.add_argument("--slice", "-s", default=0, type=int, help='the slice used to calculate the stitching, 0 for the middle slice')
-	 parser.add_argument("--channel", "-c", default=1, type=int, help='the channel used to calculate the stitching')
-	 parser.add_argument("index_file", help='path to the Index.idx.xml file')
-	 return parser
+	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
+	parser.add_argument("--wells", "-w", default='all', help='either "all" or a string of the form "01010102" defining the wells to be exported')
+	parser.add_argument("--slice", "-s", default=0, type=int, help='the slice used to calculate the stitching, 0 for the middle slice')
+	parser.add_argument("--channel", "-c", default=1, type=int, help='the channel used to calculate the stitching')
+	parser.add_argument("--stack", default=False, action='store_true', help='create z-stacks of the mosaics')
+	parser.add_argument("--merge", default=False, action='store_true', help='merge the channels into a hyperstack')
+	parser.add_argument("--mip", default=False, action='store_true', help='apply a maximum intensity projection per channel')
+	parser.add_argument("index_file", help='path to the Index.idx.xml file')
+	return parser
 
 def splitIntoChunksOfSize(some_string, x):
 	res=[some_string[y-x:y] for y in range(x, len(some_string)+x,x)]
@@ -219,15 +225,45 @@ class Well(object):
 					os.rename(path+"/out/img_t1_z1_c1", path+"/out/"+title)
 					for name in newNames:
 						os.remove(path+"/work/"+name)
-					
+
+	def createStack(self, dims):
+		slices = dims[2]
+		channels = dims[4]
+		timePoints = dims[3]
+		path = self.experiment.getPath()
+		for c in range(1, channels+1):
+			for t in range(0, timePoints):
+				imps = []	
+				title = ""
+				toBeDeleted = []
+				for z in range(1, slices+1):
+					images = self.getImagesForZPosTimeAndChannel(z, t, c)
+					newImages = set()
+					for image in images:
+						newImages.add(image.getURLWithoutField())					
+					for image in newImages:
+						print(path + "/out/" + image)
+						IJ.open(path + "/out/" + image)
+						toBeDeleted.append(path + "/out/" + image)
+						imp = IJ.getImage()
+						imps.append(imp)
+						title = image
+				if title:
+					imp = ImagesToStack.run(imps)
+					name = title[:6] + title[9:]
+					IJ.save(imp, path + "/out/" + name)
+					for aPath in toBeDeleted:
+						os.remove(aPath)
+				
+	
 	def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
 		allImages = self.getImages()
 		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
 		return images
 
 	def copyImagesToWorkFolder(self, images):
-		srcPath = self.experiment.getPath();
-		path = srcPath + "/work";
+		srcPath = self.experiment.getPath()
+		path = srcPath + "/work"
 		names = [image.getURL() for image in images]
 		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
 		for name, newName in zip(names, newNames):
@@ -538,34 +574,3 @@ if 'getArgument' in globals():
 	args = " ".join(args.split())
 	print(args.split())
 	main(args.split())
-		
-# experiment = PhenixHCSExperiment.fromIndexFile("D:/MRI/Volker/Sensorion Opera/Sensorion_20x_PreciScanXYZ_20210219__2021-02-19T14_40_00-Measurement 1b/Images/Index.idx.xml")
-"""
-experiment = PhenixHCSExperiment.fromIndexFile("/media/baecker/DONNEES1/mri/in/2020/benoit/Index.idx.xml");
-print(experiment)
-
-wells = experiment.getPlates()[0].getWells()
-
-for well in wells:
-	well.calculateStitching(8, 0, 1)
-	well.applyStitching()	
-"""
-"""
-for well in wells:
-	print("Processing well " + well.getID() + " - " + str(counter) + "/" + str(size))
-	try:  
-		well.createHyperstack()
-		imp =IJ.getImage()
-		IJ.saveAs(imp, "Tiff", "D:/MRI/Volker/Sensorion Opera/Sensorion_5Xto20x_Av1_part2_20210401__2021-04-01T19_12_49-Measurement 1b/out/"+well.getID()+".tif")
-		imp.close()
-	except Exception as e:
-		print str(e)
-	counter = counter + 1
-""" 
-# print("DONE!");
-
-# print(experiment)
-# firstPlate = experiment.getPlates()[0]
-# print(firstPlate)
-# wells = firstPlate.getWells();
-
