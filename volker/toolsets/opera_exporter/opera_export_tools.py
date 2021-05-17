@@ -239,7 +239,7 @@ class Well(object):
 					names, newNames = self.copyImagesToWorkFolder(images)
 					self.runGridCollectionStitching()
 					title = images[0].getURLWithoutField()
-					os.rename(path+"/out/img_t1_z1_c1", path+"/out/"+title)
+					os.rename(os.path.normpath(path+"/out/img_t1_z1_c1"), os.path.normpath(path+"/out/"+title))
 					for name in newNames:
 						os.remove(path+"/work/"+name)
 
