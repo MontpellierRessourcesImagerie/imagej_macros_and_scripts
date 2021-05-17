@@ -24,6 +24,11 @@ var _MERGE_CHANNELS = true;
 var _DO_MIP = false;
 var _ZSLICE = 0;
 var _CHANNEL = 1;
+var _FUSION_METHODS = newArray("Linear_Blending", "Average", "Median", "Max_Intensity", "Min_Intensity", "random");
+var _FUSION_METHOD = "Linear_Blending";
+var _REGRESSION_THRESHOLD = 0.30;
+var _DISPLACEMENT_THRESHOLD = 2.5;
+var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
 
 launchExport();
 exit();
@@ -84,10 +89,15 @@ function launchExport() {
 	if (_CREATE_Z_STACK) options = options + " --stack";
 	if (_MERGE_CHANNELS) options = options + " --merge";
 	if (_DO_MIP) options = options + " --mip";
+	options = options + " --fusion-method=" + _FUSION_METHOD; 
+	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
+	options = options + " --displacement-threshold=" + _DISPLACEMENT_THRESHOLD;
+	options = options + " --abs-displacement-threshold=" + _ABS_DISPLACEMENT_THRESHOLD;
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
 	call("ij.plugin.Macro_Runner.runPython", script, options); 
+	print("The eagle has landed!!!");
 }
 
 function setOptions() {
@@ -97,12 +107,23 @@ function setOptions() {
 	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
 	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
 	Dialog.addCheckbox("apply z-projection", _DO_MIP);
+	Dialog.addMessage("Fusion parameters:");
+	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
+	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
+	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
+	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
+	
 	Dialog.show();
 	_ZSLICE = Dialog.getNumber();
 	_CHANNEL = Dialog.getNumber();
 	_CREATE_Z_STACK = Dialog.getCheckbox();
 	_MERGE_CHANNELS = Dialog.getCheckbox();
 	_DO_MIP = Dialog.getCheckbox();	
+
+	_FUSION_METHOD = Dialog.getChoice();
+	_REGRESSION_THRESHOLD = Dialog.getNumber();
+	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 }
 
 function selectWells() {

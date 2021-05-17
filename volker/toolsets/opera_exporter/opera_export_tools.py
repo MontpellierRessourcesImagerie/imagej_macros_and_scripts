@@ -3,7 +3,7 @@ from ij import IJ
 import os
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
-from ij.plugin import ImagesToStack
+from ij.plugin import ImagesToStack, ZProjector
 from datetime import datetime
 import shutil
 import argparse
@@ -23,10 +23,14 @@ def main(args):
 		if zPos==0:
 			zPos = zSize / 2
 		if params.wells=='all' or well.getID() in listOfWellIDS:
-			well.calculateStitching(zPos, 0, params.channel)
+			well.calculateStitching(zPos, 0, params)
 			well.applyStitching()	
 			if params.stack:
 				well.createStack(dims)
+			if params.merge:
+				well.mergeChannels(dims, params)
+ 			if params.mip:
+ 				well.mip(dims, params)
  				
 def getArgumentParser():
 	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
@@ -36,6 +40,10 @@ def getArgumentParser():
 	parser.add_argument("--stack", default=False, action='store_true', help='create z-stacks of the mosaics')
 	parser.add_argument("--merge", default=False, action='store_true', help='merge the channels into a hyperstack')
 	parser.add_argument("--mip", default=False, action='store_true', help='apply a maximum intensity projection per channel')
+	parser.add_argument("--fusion-method", default="Linear_Blending", help='the fusion method, "Linear_Blending", "Average", "Median" ,"Max_Intensity", "Min_Intensity" or "random"')
+	parser.add_argument("--regression-threshold", "-r", default=0.3, type=float, help='if the regression threshold between two images after the individual stitching are below that number they are assumed to be non-overlapping')
+	parser.add_argument("--displacement-threshold", "-d", default=2.5, type=float, help='max/avg displacement threshold')
+	parser.add_argument("--abs-displacement-threshold", "-a", default=3.5, type=float, help='removes links between images if the absolute displacement is higher than this value')
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
 	return parser
 
@@ -175,24 +183,33 @@ class Well(object):
 		return names, newNames;
 
 	
-	def calculateStitching(self, zPosition, timePoint, channel):
+	def calculateStitching(self, zPosition, timePoint, params):
 		'''
 		Create an initial TileConfiguration from the meta-data in the work-folder 
 		and use it for the stitching. Replace the TileConfiguration by the one
 		created by the stitching.
 		'''   
 		path = self.experiment.getPath();
-		names, newNames = self.createTileConfig(zPosition, timePoint, channel)
+		names, newNames = self.createTileConfig(zPosition, timePoint, params.channel)
 		if not os.path.exists(path+"/out"):
 			os.mkdir(path+"/out")
+		fusionMethod = params.fusion_method
+		if "Max_" in fusionMethod:
+			fusionMethod = fusionMethod.replace("Max_", "Max. ")
+		if "Min_" in fusionMethod:
+			fusionMethod = fusionMethod.replace("Min_", "Min. ")
+		if "Linear_" in fusionMethod:
+			fusionMethod = fusionMethod.replace("_", " ");	
+		if "random" in fusionMethod:
+			fusionMethod = "Intensity of random input tile"
 		parameters = "type=[Positions from file] " + \
 					 "order=[Defined by TileConfiguration] " + \
 					 "directory=["+path+"/work/] " + \
 					 "layout_file=TileConfiguration.txt " + \
-					 "fusion_method=[Linear Blending] " + \
-					 "regression_threshold=0.30 " + \
-					 "max/avg_displacement_threshold=2.50 " + \
-					 "absolute_displacement_threshold=3.50 " + \
+					 "fusion_method=["+fusionMethod+"] " + \
+					 "regression_threshold=" + str(params.regression_threshold) + " " +\
+					 "max/avg_displacement_threshold=" + str(params.displacement_threshold) + " "+\
+					 "absolute_displacement_threshold=" + str(params.abs_displacement_threshold) + " "+\
 					 "compute_overlap " + \
 					 "subpixel_accuracy " + \
 					 "computation_parameters=[Save computation time (but use more RAM)] " + \
@@ -242,7 +259,6 @@ class Well(object):
 					for image in images:
 						newImages.add(image.getURLWithoutField())					
 					for image in newImages:
-						print(path + "/out/" + image)
 						IJ.open(path + "/out/" + image)
 						toBeDeleted.append(path + "/out/" + image)
 						imp = IJ.getImage()
@@ -252,10 +268,85 @@ class Well(object):
 					imp = ImagesToStack.run(imps)
 					name = title[:6] + title[9:]
 					IJ.save(imp, path + "/out/" + name)
+					imp.close()
 					for aPath in toBeDeleted:
 						os.remove(aPath)
-				
 	
+	def mergeChannels(self, dims, params):			
+		slices = dims[2]
+		channels = dims[4]
+		if channels==1:
+			return
+		timePoints = dims[3]
+		path = self.experiment.getPath()
+		images = self.getImages()
+		urlsChannel1 = [image.getURLWithoutField() for image in images if image.getChannel()==1] 
+		if params.stack:
+			urlsChannel1 = [url[:6] + url[9:] for url in urlsChannel1]
+			urlsChannel1 = set(urlsChannel1)			
+		toBeDeleted = []
+		for url in urlsChannel1:
+			images = []
+			IJ.open(path + "/out/" + url)
+			imp = IJ.getImage()
+			toBeDeleted.append(path + "/out/" + url)
+			images.append(url)
+			for c in range(2, channels+1):
+				newURL = url.replace("ch1", "ch"+str(c))
+				IJ.open(path + "/out/" + newURL)
+				toBeDeleted.append(path + "/out/" + newURL)
+				images.append(newURL)
+			options = ""
+			for c in range(1, channels+1):
+				options = options + "c"+str(c)+"="+images[c-1]+" "
+			options = options + "create"
+			IJ.run(imp, "Merge Channels...", options);
+			imp = IJ.getImage()
+			aFile = path + "/out/" + url.replace("ch1", "")
+			IJ.save(imp, aFile)
+			imp.close()
+		for aPath in toBeDeleted:
+			os.remove(aPath)
+
+	def mip(self, dims, params):
+		if not params.stack: 
+			return
+		path = self.experiment.getPath()
+		url = self.getMergedImageName()
+		images = []
+		if params.merge:
+			images.append(path + "/out/" + url)
+		else:
+			channels = dims[4]
+			for c in range(1, channels+1):
+				channelURL = url[:6] + "-ch" + str(c) + url[7:]
+				images.append(path + "/out/" + channelURL)
+		for url in images:
+			IJ.open(url)
+			imp = IJ.getImage()
+			projImp = ZProjector.run(imp,"max")
+			IJ.save(projImp, url)
+			imp.close()
+			projImp.close()
+		
+	def getImagesPerChannel(self, channels):
+		allImages = self.getImages()
+		res = []
+		for c in range (1, channels + 1):
+			filtered = [image for image in allImages if image.getChannel()==c]
+			res.append(filtered);
+		return res
+
+	def getMergedImageName(self):
+		allImages = self.getImages()
+		image1 = allImages[0]
+		url = image1.getURL()
+		strippedURL = url[:6] + url[9:]
+		strippedURL = strippedURL[:6] + strippedURL[9:]
+		strippedURL = strippedURL[:7] + strippedURL[10:]
+		return strippedURL
+		
+		
 	def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
 		allImages = self.getImages()
 		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
