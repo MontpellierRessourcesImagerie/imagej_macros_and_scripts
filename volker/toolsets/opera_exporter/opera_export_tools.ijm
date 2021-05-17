@@ -153,6 +153,7 @@ function selectWells() {
 
 function setIndexFile() {
 	newFile  = File.openDialog("Please select the index file (Index.idx.xml)!");
+	newFile = replace(newFile, "\\", "/");
 	if (File.exists(newFile)) {
 		setIndexFileDefault(newFile);
 	}
