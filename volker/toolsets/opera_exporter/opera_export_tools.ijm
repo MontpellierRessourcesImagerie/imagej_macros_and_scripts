@@ -29,9 +29,13 @@ var _FUSION_METHOD = "Linear_Blending";
 var _REGRESSION_THRESHOLD = 0.30;
 var _DISPLACEMENT_THRESHOLD = 2.5;
 var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
-var _PSEUDO_FLAT_FIELD_RADIUS = 0;
-var _ROLLING_BALL_RADIUS = 50;
-var _NORMALIZE = false;
+var _PSEUDO_FLAT_FIELD_RADIUS = 50;
+var _ROLLING_BALL_RADIUS = 0;
+var _NORMALIZE = true;
+var _FIND_AND_SUB_BACK_RADIUS = 0;
+var _FIND_AND_SUB_BACK_OFFSET = 3;
+var _FIND_AND_SUB_BACK_ITERATIONS = 1;
+var _FIND_AND_SUB_BACK_SKIP = 0.3;
 
 launchExport();
 exit();
@@ -99,6 +103,10 @@ function launchExport() {
 	options = options + " --abs-displacement-threshold=" + _ABS_DISPLACEMENT_THRESHOLD;
 	options = options + " --pseudoflatfield=" + _PSEUDO_FLAT_FIELD_RADIUS;
 	options = options + " --rollingball=" + _ROLLING_BALL_RADIUS;
+	options = options + " --subtract-background-radius=" + _FIND_AND_SUB_BACK_RADIUS;
+	options = options + " --subtract-background-offset=" + _FIND_AND_SUB_BACK_OFFSET;
+	options = options + " --subtract-background-iterations=" + _FIND_AND_SUB_BACK_ITERATIONS;
+	options = options + " --subtract-background-skip=" + _FIND_AND_SUB_BACK_SKIP;
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
