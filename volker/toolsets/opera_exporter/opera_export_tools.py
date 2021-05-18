@@ -32,7 +32,7 @@ def main(args):
 				well.mergeChannels(dims, params)
  			if params.mip:
  				well.mip(dims, params)
- 				
+ 						
 def getArgumentParser():
 	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
 	parser.add_argument("--wells", "-w", default='all', help='either "all" or a string of the form "01010102" defining the wells to be exported')
@@ -48,6 +48,10 @@ def getArgumentParser():
 	parser.add_argument("--abs-displacement-threshold", "-a", default=3.5, type=float, help='removes links between images if the absolute displacement is higher than this value')
 	parser.add_argument("--pseudoflatfield", "-p", default=0, type=float, help='blurring radius for the pseudo flatfield correction (no correction if 0)')
 	parser.add_argument("--rollingball", "-b", default=0, type=float, help='rolling ball radius for the background correction (no correction if 0)')
+	parser.add_argument("--subtract-background-radius", "-g", default=3, type=int, help='radius for the find and subtract background operation')
+	parser.add_argument("--subtract-background-offset", "-o", default=3, type=int, help='offset for the find and subtract background operation')
+	parser.add_argument("--subtract-background-iterations", "-i", default=1, type=int, help='nr of iterations for the find and subtract background operation')
+	parser.add_argument("--subtract-background-skip", "-k", default=0.3, type=float, help='skip limit for the find and subtract background operation')
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
 	return parser
 
@@ -247,11 +251,85 @@ class Well(object):
 						self.doNormalize(path, newNames)
 					if params.rollingball>0:
 						self.doBackgroundCorrection(params.rollingball, path, newNames)
+					if params.subtract_background_radius>0:
+						self.doSubtractBackground(params, path, newNames)
 					self.runGridCollectionStitching()
 					title = images[0].getURLWithoutField()
 					os.rename(os.path.normpath(path+"/out/img_t1_z1_c1"), os.path.normpath(path+"/out/"+title))
 					for name in newNames:
 						os.remove(path+"/work/"+name)
+
+	def doSubtractBackground(self, params, path, names):
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp = IJ.getImage()
+			self.findAndSubtractBackground(params.subtract_background_radius, params.subtract_background_offset, params.subtract_background_iterations, params.subtract_background_skip)
+			IJ.save(imp, path+"/work/"+name)
+			imp.close()
+
+	def findAndSubtractBackground(self, radius, offset, iterations, skipLimit):
+		'''
+		Find the background intensity value and subtract it from the current image.
+		 
+		Search for the maximum intensity value around pixels that are below or equal
+		to the minimum intensity plus an offset in the image.
+		 
+		@param radius The radius in which the maximum around the small values is searched
+		@param offset The intensity offset above the minimum intensity of the image
+		@param iterations The number of times the procedure is repeated
+		@param skipLimit The ratio of pixels with value zero above which the procedure is skipped
+		@return Nothing
+		'''
+		imp = IJ.getImage()
+		ip = imp.getProcessor();
+		width = imp.getWidth()
+		height = imp.getHeight()
+		stats = imp.getStatistics()
+		histogram = stats.histogram()
+		ratio = histogram[0] / ((width * height) * 1.0)
+		if ratio>skipLimit:
+			IJ.run("HiLo");
+			IJ.run("Enhance Contrast", "saturated=0.35")
+			print('find and subtract background - skipped, ratio of 0-pixel is: ' + str(ratio))
+			return
+		for i in range(0, iterations):
+			stats = imp.getStatistics()
+			minPlusOffset = stats.min + offset
+			currentMax = 0
+			for x in range(0, width):
+				for y in range(0, height):
+					intensity = imp.getProcessor().getPixel(x,y)
+					if intensity<=minPlusOffset: 
+						value = self.getMaxIntensityAround(ip, x, y, stats.mean, radius, width, height)
+						if value>currentMax:
+							currentMax = value
+			result = currentMax / ((i+1)*1.0);
+			print('find and subtract background - iteration ' + str(i+1) + ', value = ' + str(result));
+			IJ.run("Subtract...", "value=" + str(result))
+		IJ.run("HiLo")
+		IJ.run("Enhance Contrast", "saturated=0.35");
+
+	def getMaxIntensityAround(self, ip, x, y, mean, radius, width, height):
+		'''
+		Find the maximal intensity value below mean in the radius around x,y
+		 
+		@param x (x,y) are the coordinates around which the maximum is searched
+		@param y (x,y) are the coordinates around which the maximum is searched
+		@param mean The mean value of the image, only values below mean are considered
+		@radius The radius around (x,y) in which the maximum is searched
+		@width The width of the image 
+		@height The height of the image
+		@return The maximum value below mean around (x,y) or zero
+		'''
+		max = 0;
+		for i in range(x-radius, x+radius+1):
+			if i>=0 and i<width:
+				for j in range(y-radius, y+radius+1):
+					if j>=0 and j<height:
+						value = ip.getPixel(i,j);
+						if value<mean and value>max:
+							max = value
+		return max
 
 	def doBackgroundCorrection(self, radius, path, names):
 		for name in names:
