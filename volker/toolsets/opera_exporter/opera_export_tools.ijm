@@ -29,6 +29,9 @@ var _FUSION_METHOD = "Linear_Blending";
 var _REGRESSION_THRESHOLD = 0.30;
 var _DISPLACEMENT_THRESHOLD = 2.5;
 var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
+var _PSEUDO_FLAT_FIELD_RADIUS = 0;
+var _ROLLING_BALL_RADIUS = 50;
+var _NORMALIZE = false;
 
 launchExport();
 exit();
@@ -89,10 +92,13 @@ function launchExport() {
 	if (_CREATE_Z_STACK) options = options + " --stack";
 	if (_MERGE_CHANNELS) options = options + " --merge";
 	if (_DO_MIP) options = options + " --mip";
+	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
 	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
 	options = options + " --displacement-threshold=" + _DISPLACEMENT_THRESHOLD;
 	options = options + " --abs-displacement-threshold=" + _ABS_DISPLACEMENT_THRESHOLD;
+	options = options + " --pseudoflatfield=" + _PSEUDO_FLAT_FIELD_RADIUS;
+	options = options + " --rollingball=" + _ROLLING_BALL_RADIUS;
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
