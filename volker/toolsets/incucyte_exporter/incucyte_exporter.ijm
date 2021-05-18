@@ -1,3 +1,13 @@
+/*
+ 
+ MRI Incucyte_Exporter
+ 
+ Export the images from the Incucyte. Stitch the images, create a time-series and align the frames.
+ (c) 2021, INSERM
+ 
+ written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ 
+*/
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Incucyte_Exporter";
 var PAD_NUMBERS = true;
 var NR = "644";
