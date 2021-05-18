@@ -4,6 +4,7 @@ import os
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
 from ij.plugin import ImagesToStack, ZProjector
+from ij.process import ImageConverter
 from datetime import datetime
 import shutil
 import argparse
@@ -24,7 +25,7 @@ def main(args):
 			zPos = zSize / 2
 		if params.wells=='all' or well.getID() in listOfWellIDS:
 			well.calculateStitching(zPos, 0, params)
-			well.applyStitching()	
+			well.applyStitching(params)	
 			if params.stack:
 				well.createStack(dims)
 			if params.merge:
@@ -40,10 +41,13 @@ def getArgumentParser():
 	parser.add_argument("--stack", default=False, action='store_true', help='create z-stacks of the mosaics')
 	parser.add_argument("--merge", default=False, action='store_true', help='merge the channels into a hyperstack')
 	parser.add_argument("--mip", default=False, action='store_true', help='apply a maximum intensity projection per channel')
+	parser.add_argument("--normalize", default=False, action='store_true', help='normalize the intensities of the images in a mosaic')
 	parser.add_argument("--fusion-method", default="Linear_Blending", help='the fusion method, "Linear_Blending", "Average", "Median" ,"Max_Intensity", "Min_Intensity" or "random"')
 	parser.add_argument("--regression-threshold", "-r", default=0.3, type=float, help='if the regression threshold between two images after the individual stitching are below that number they are assumed to be non-overlapping')
 	parser.add_argument("--displacement-threshold", "-d", default=2.5, type=float, help='max/avg displacement threshold')
 	parser.add_argument("--abs-displacement-threshold", "-a", default=3.5, type=float, help='removes links between images if the absolute displacement is higher than this value')
+	parser.add_argument("--pseudoflatfield", "-p", default=0, type=float, help='blurring radius for the pseudo flatfield correction (no correction if 0)')
+	parser.add_argument("--rollingball", "-b", default=0, type=float, help='rolling ball radius for the background correction (no correction if 0)')
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
 	return parser
 
@@ -226,7 +230,7 @@ class Well(object):
 		for newName in newNames:
 			os.remove(path+"/work/"+newName)
 
-	def applyStitching(self):
+	def applyStitching(self, params):
 		path = self.experiment.getPath();
 		dims = self.getDimensions()
 		slices = dims[2]
@@ -237,11 +241,58 @@ class Well(object):
 				for z in range(1, slices+1):
 					images = self.getImagesForZPosTimeAndChannel(z, t, c)
 					names, newNames = self.copyImagesToWorkFolder(images)
+					if params.pseudoflatfield>0:
+						self.doPseudoFlatFieldCorrection(params.pseudoflatfield, path, newNames)
+					if params.normalize:
+						self.doNormalize(path, newNames)
+					if params.rollingball>0:
+						self.doBackgroundCorrection(params.rollingball, path, newNames)
 					self.runGridCollectionStitching()
 					title = images[0].getURLWithoutField()
-					os.rename(path+"/out/img_t1_z1_c1", path+"/out/"+title)
+					os.rename(os.path.normpath(path+"/out/img_t1_z1_c1"), os.path.normpath(path+"/out/"+title))
 					for name in newNames:
 						os.remove(path+"/work/"+name)
+
+	def doBackgroundCorrection(self, radius, path, names):
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp = IJ.getImage()
+			IJ.run(imp, "Subtract Background...", "rolling="+str(radius))
+			IJ.save(imp, path+"/work/"+name)
+			imp.close()
+			
+	def doNormalize(self, path, names):
+		mins = []
+		maxs = []
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp = IJ.getImage()
+			mins.append(imp.getStatistics().min)
+			maxs.append(imp.getStatistics().max)
+			imp.close()
+		globalMax = max(maxs)
+		i = 0
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp = IJ.getImage()
+			IJ.run(imp, "Subtract...", "value=" + str(mins[i]));
+			IJ.run(imp, "32-bit", "");
+			IJ.run(imp, "Divide...", "value=" + str(maxs[i]-mins[i]));
+			IJ.run(imp, "Multiply...", "value="+str(globalMax));
+			ImageConverter.setDoScaling(False);
+			IJ.run(imp, "16-bit", "");
+			ImageConverter.setDoScaling(True);
+			IJ.save(imp, path+"/work/"+name)
+			imp.close()
+			i = i + 1
+			
+	def doPseudoFlatFieldCorrection(self, radius, path, names):
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp = IJ.getImage()
+			IJ.run("Pseudo flat field correction", "blurring="+str(radius)+" hide")
+			IJ.save(imp, path+"/work/"+name)
+			imp.close()
 
 	def createStack(self, dims):
 		slices = dims[2]
