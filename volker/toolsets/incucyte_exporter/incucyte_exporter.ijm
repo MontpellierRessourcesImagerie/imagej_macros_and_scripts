@@ -34,124 +34,100 @@ var MAX_CHOCLEA_AREA = 100000000000.00;
 makeTimeSeries();
 exit();
 
-macro "Incucyte Exporter Help (f1) Action Tool-C000T4b12?" {
+macro "Incucyte Exporter Help (f4) Action Tool-C000T4b12?" {
 	help();
 }
 
-macro "Incucyte Exporter Help (f1) Action Tool Options" {
-	checkAndGetBaseDir();
-	dataDir = BASE_DIR+"/EssenFiles/ScanData/";
-	Dialog.create("Options of Incucyte Exporter");
-	Dialog.addString("db base folder: ", BASE_DIR, 50);
-
-	START_YEAR = replace(START_YEAR, "/", "");
-	END_YEAR = replace(END_YEAR, "/", "");
-	START_SERIES = replace(START_SERIES, "/", "");
-	END_SERIES = replace(END_SERIES, "/", "");
-	START_HOUR = replace(START_HOUR, "/", "");
-	END_HOUR = replace(END_HOUR, "/", "");
-	
-	Dialog.addString("   start year: ", START_YEAR);
-	Dialog.addToSameRow();
-	Dialog.addString("   end year: ", END_YEAR);
-	
-	Dialog.addString("   start series: ", START_SERIES);
-	Dialog.addToSameRow();
-	Dialog.addString("   end series: ", END_SERIES);
-
-	Dialog.addString("   start hour: ", START_HOUR);
-	Dialog.addToSameRow();
-	Dialog.addString("   end hour: ", END_HOUR);
-
-	Dialog.addString("   start row: ", START_ROW);
-	Dialog.addToSameRow();
-	Dialog.addString("   end row: ", END_ROW);
-
-	Dialog.addString("   start column: ", START_COL);
-	Dialog.addToSameRow();
-	Dialog.addString("   end column: ", END_COL);
-	
-	Dialog.show();
-	BASE_DIR = Dialog.getString();
-	START_YEAR = Dialog.getString();
-	END_YEAR = Dialog.getString();
-	START_SERIES = Dialog.getString();
-	END_SERIES = Dialog.getString();
-	START_HOUR = Dialog.getString();
-	END_HOUR = Dialog.getString();
-	START_ROW = Dialog.getString();
-	END_ROW = Dialog.getString();
-	START_COL = Dialog.getString();
-	END_COL = Dialog.getString();
-
-	START_YEAR = START_YEAR + "/";
-	END_YEAR = END_YEAR + "/";
-	START_SERIES = START_SERIES + "/";
-	END_SERIES = END_SERIES + "/";
-	START_HOUR = START_HOUR + "/";
-	END_HOUR = END_HOUR + "/";
-	START_COL = IJ.pad(START_COL, 2);
-	END_COL = IJ.pad(END_COL, 2);
+macro "Incucyte Exporter Help (f4) Action Tool Options" {
+	showDialog();
 }
 
-macro "Incucyte Exporter Help [f1]" {
+macro "Incucyte Exporter Help [f4]" {
 	help();
 }
 
-macro "export raw images as std. tif (f2) Action Tool-C999D42C555D52C111D62C000L7282C111D92C555Da2C999Db2CdddD23C111D33C000L43b3C111Dc3CdddDd3C222D24C000L34c4C222Dd4D25C000L35c5C222Dd5CdddD26C111D36C000L46b6C111Dc6CdddDd6C666D27C999D47C555D57C222D67C000L7787C222D97C555Da7C999Db7C666Dd7C000D28C555D38CcccD48Db8C444Dc8C000Dd8C999D29C000L3949C111D59C444L6999C111Da9C000Lb9c9C999Dd9CcccD2aCbbbD3aC444D4aC000L5aaaC444DbaCcccLcadaC111D2bCbbbD3bCcccL6b9bC999DcbC111DdbC444D2cC000D3cC222D4cC666D5cC888D6cCbbbL7c8cC888D9cC666DacC222DbcC000DccC444DdcC666D3dC000L4dbdC666DcdCeeeD4eC999D5eC888D6eC555L7e8eC888D9eC999DaeCeeeDbe" {
+macro "export raw images as std. tif (f5) Action Tool-C999D42C555D52C111D62C000L7282C111D92C555Da2C999Db2CdddD23C111D33C000L43b3C111Dc3CdddDd3C222D24C000L34c4C222Dd4D25C000L35c5C222Dd5CdddD26C111D36C000L46b6C111Dc6CdddDd6C666D27C999D47C555D57C222D67C000L7787C222D97C555Da7C999Db7C666Dd7C000D28C555D38CcccD48Db8C444Dc8C000Dd8C999D29C000L3949C111D59C444L6999C111Da9C000Lb9c9C999Dd9CcccD2aCbbbD3aC444D4aC000L5aaaC444DbaCcccLcadaC111D2bCbbbD3bCcccL6b9bC999DcbC111DdbC444D2cC000D3cC222D4cC666D5cC888D6cCbbbL7c8cC888D9cC666DacC222DbcC000DccC444DdcC666D3dC000L4dbdC666DcdCeeeD4eC999D5eC888D6eC555L7e8eC888D9eC999DaeCeeeDbe" {
 	 exportAsStdTif();
 }
 
-macro "export raw images as std. tif [f2]" {
+macro "export raw images as std. tif [f5]" {
 	exportAsStdTif();
 }
 
-macro "stitch images (f3) Action Tool-C111D22C000L3242CcccL5262C000L7282CcccL92a2C000Lb2c2C111Dd2C000L2343CcccL5363C000L7383CcccL93a3C000Lb3d3L2444CcccL5464C000L7484CcccL94a4C000Lb4d4CcccL2545L7585Lb5d5L2646L7686Lb6d6C000L2747CcccL5767C000L7787CcccL97a7C000Lb7d7L2848CcccL5868C000L7888CcccL98a8C000Lb8d8CcccL2949L7989Lb9d9L2a4aL7a8aLbadaC000L2b4bCcccL5b6bC000L7b8bCcccL9babC000LbbdbL2c4cCcccL5c6cC000L7c8cCcccL9cacC000LbcdcC111D2dC000L3d4dCcccL5d6dC000L7d8dCcccL9dadC000LbdcdC111Ddd" {
+macro "export raw images as std. tif (f5) Action Tool Options" {
+	showDialog();
+}
+
+macro "stitch images (f6) Action Tool-C111D22C000L3242CcccL5262C000L7282CcccL92a2C000Lb2c2C111Dd2C000L2343CcccL5363C000L7383CcccL93a3C000Lb3d3L2444CcccL5464C000L7484CcccL94a4C000Lb4d4CcccL2545L7585Lb5d5L2646L7686Lb6d6C000L2747CcccL5767C000L7787CcccL97a7C000Lb7d7L2848CcccL5868C000L7888CcccL98a8C000Lb8d8CcccL2949L7989Lb9d9L2a4aL7a8aLbadaC000L2b4bCcccL5b6bC000L7b8bCcccL9babC000LbbdbL2c4cCcccL5c6cC000L7c8cCcccL9cacC000LbcdcC111D2dC000L3d4dCcccL5d6dC000L7d8dCcccL9dadC000LbdcdC111Ddd" {
 	stitchImages();	 
 }
 
-macro "stitch images [f3]" {
+macro "stitch images [f6]" {
 	stitchImages();	 
 }
 
-macro "clean images (f4) Action Tool-C000D4aD4bD5aD5bD6aD7aD7bD7cD89D8aD8bC888D29D3bD54D8eC333D6cD79D7dDb5CcccD36D53D5dD7eDb6Dc2C000D3aD6bD8cCaaaD46D49D98D9aDa5C666D4cD88Db4Dc4CeeeD6eC999D39D59D9bD9cD9dC444D5cD97Dc3Dd2CeeeD63D78D96D9eDd1C111D6dD8dDa6CbbbD37D64D75D76Dd3C777D2aD47D69D99Da7CfffD3cD85D86Db3"{
+macro "stitch images (f6) Action Tool Options" {
+	showDialog();
+}
+
+macro "clean images (f7) Action Tool-C000D4aD4bD5aD5bD6aD7aD7bD7cD89D8aD8bC888D29D3bD54D8eC333D6cD79D7dDb5CcccD36D53D5dD7eDb6Dc2C000D3aD6bD8cCaaaD46D49D98D9aDa5C666D4cD88Db4Dc4CeeeD6eC999D39D59D9bD9cD9dC444D5cD97Dc3Dd2CeeeD63D78D96D9eDd1C111D6dD8dDa6CbbbD37D64D75D76Dd3C777D2aD47D69D99Da7CfffD3cD85D86Db3"{
 	cleanImages();	
 }
 
-macro "clean images [f4]" {
+macro "clean images [f7]" {
 	cleanImage();	
 }
 
-macro "merge images (f5) Action Tool-CbbbD22C222L3242CcccD52C222D23C000L3343C222D53C111D24C000L3444C111D54CcccD25C111L3545CcccD55C444D36C000D46CeeeD56C444D37C000L4757C444L6787C555D97C999Da7C444L3848C999D58C666D68C444L7898C000Da8C222Db8C444L3949CeeeDa9C000Db9C999Dc9CcccD2aC111L3a4aCcccD5aDaaC111LbacaCcccDdaC111D2bC000L3b4bC111D5bC222DabC000LbbcbC333DdbC222D2cC000L3c4cC222D5cDacC000LbcccC222DdcCbbbD2dC222L3d4dCbbbD5dDadC222LbdcdCbbbDdd" {
+macro "clean images (f7) Action Tool Options" {
+	showDialog();
+}
+
+macro "merge images (f8) Action Tool-CbbbD22C222L3242CcccD52C222D23C000L3343C222D53C111D24C000L3444C111D54CcccD25C111L3545CcccD55C444D36C000D46CeeeD56C444D37C000L4757C444L6787C555D97C999Da7C444L3848C999D58C666D68C444L7898C000Da8C222Db8C444L3949CeeeDa9C000Db9C999Dc9CcccD2aC111L3a4aCcccD5aDaaC111LbacaCcccDdaC111D2bC000L3b4bC111D5bC222DabC000LbbcbC333DdbC222D2cC000L3c4cC222D5cDacC000LbcccC222DdcCbbbD2dC222L3d4dCbbbD5dDadC222LbdcdCbbbDdd" {
 	mergeImages();	
 }
 
-macro "merge images [f5]" {
+macro "merge images [f8]" {
 	mergeImages();
 }
 
-macro "mark empty images [f6]" {
+macro "merge images (f8) Action Tool Options" {
+	showDialog();
+}
+
+macro "mark empty images [f9]" {
 	markEmptyImages();
 }
 
-macro "mark empty images (f6) Action Tool - CfffL00f0L01f1L02f2L03f3L04b4C666Dc4CaaaDd4CfffLe4f4L05a5C666Db5C111Dc5CdddDd5CfffLe5f5L0696C666Da6C111Db6CdddDc6CfffLd6f6L0717CbbbD27C111D37CdddD47CfffL5787C666D97C111Da7CdddDb7CfffLc7f7L0828C333D38C111D48CdddD58CfffL6878C666D88C111D98CdddDa8CfffLb8f8L0939C333D49C111D59CdddD69C666D79C111D89CdddD99CfffLa9f9L0a4aC333D5aC111D7aCdddD8aCfffL9afaL0b5bC444D6bCdddD7bCfffL8bfbL0cfcL0dfdL0efeL0fff" {
+macro "mark empty images (f9) Action Tool - CfffL00f0L01f1L02f2L03f3L04b4C666Dc4CaaaDd4CfffLe4f4L05a5C666Db5C111Dc5CdddDd5CfffLe5f5L0696C666Da6C111Db6CdddDc6CfffLd6f6L0717CbbbD27C111D37CdddD47CfffL5787C666D97C111Da7CdddDb7CfffLc7f7L0828C333D38C111D48CdddD58CfffL6878C666D88C111D98CdddDa8CfffLb8f8L0939C333D49C111D59CdddD69C666D79C111D89CdddD99CfffLa9f9L0a4aC333D5aC111D7aCdddD8aCfffL9afaL0b5bC444D6bCdddD7bCfffL8bfbL0cfcL0dfdL0efeL0fff" {
 	markEmptyImages();
 }
 
-macro "make time series [f7]" {
+macro "mark empty images (f9) Action Tool Options" {
+	showDialog();
+}
+
+macro "make time series [f10]" {
 	makeTimeSeries();
 }
 
-macro "make time series (f7) Action Tool - C000D25D26D29D2aD52D5dD62D6dD88D92D98D9dDa2Da8DadDd5Dd6Dd9DdaCfffD00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D11D12D13D14D1bD1cD1dD1eD1fD20D21D22D2dD2eD2fD30D31D36D37D38D39D3eD3fD40D41D45D46D47D48D49D4aD4eD4fD50D54D55D56D57D58D59D5aD5bD5fD60D63D64D65D66D67D68D69D6aD6bD6cD6fD70D73D7aD7bD7cD7fD80D83D8aD8bD8cD8fD90D93D94D95D96D97D9aD9bD9cD9fDa0Da4Da5Da6Da7DaaDabDafDb0Db1Db5Db6Db7DbaDbeDbfDc0Dc1Dc6Dc7Dc8Dc9DceDcfDd0Dd1Dd2DddDdeDdfDe0De1De2De3De4DebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffC666D42D71D81Db2C333D33Dc3CcccD15D1aD4bD51D74D79D84Da1Db4DbbC000D34D43Db3Dc4C999DcaC444D7dD8dCeeeD23D2cD32D3dDb9Dc2DcdDd3DdcC999D61D91C333D27D28D72D75D76D77D78D82D85D86D87Dd7Dd8CdddD44D5eDaeDe5DeaC222D3cDccCbbbD89D99Da9Db8C555D17D18D24D2bD4dD7eD8eDbdDd4DdbC888D16D19D6eD9eDe6De9C111D3bD4cDbcDcbCaaaD35D3aD53D5cDa3DacDc5C666De7De8" {
+macro "make time series (f10) Action Tool - C000D25D26D29D2aD52D5dD62D6dD88D92D98D9dDa2Da8DadDd5Dd6Dd9DdaCfffD00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D11D12D13D14D1bD1cD1dD1eD1fD20D21D22D2dD2eD2fD30D31D36D37D38D39D3eD3fD40D41D45D46D47D48D49D4aD4eD4fD50D54D55D56D57D58D59D5aD5bD5fD60D63D64D65D66D67D68D69D6aD6bD6cD6fD70D73D7aD7bD7cD7fD80D83D8aD8bD8cD8fD90D93D94D95D96D97D9aD9bD9cD9fDa0Da4Da5Da6Da7DaaDabDafDb0Db1Db5Db6Db7DbaDbeDbfDc0Dc1Dc6Dc7Dc8Dc9DceDcfDd0Dd1Dd2DddDdeDdfDe0De1De2De3De4DebDecDedDeeDefDf0Df1Df2Df3Df4Df5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffC666D42D71D81Db2C333D33Dc3CcccD15D1aD4bD51D74D79D84Da1Db4DbbC000D34D43Db3Dc4C999DcaC444D7dD8dCeeeD23D2cD32D3dDb9Dc2DcdDd3DdcC999D61D91C333D27D28D72D75D76D77D78D82D85D86D87Dd7Dd8CdddD44D5eDaeDe5DeaC222D3cDccCbbbD89D99Da9Db8C555D17D18D24D2bD4dD7eD8eDbdDd4DdbC888D16D19D6eD9eDe6De9C111D3bD4cDbcDcbCaaaD35D3aD53D5cDa3DacDc5C666De7De8" {
 	makeTimeSeries();
 }
 
-macro "batch export images [f8]" {
+macro "make time series (f10) Action Tool Options" {
+	showDialog();
+}
+
+macro "batch export images [f11]" {
 	batchExportImages();
 }
 
-macro "batch export images (f1) Action Tool-C000T4b12b" {
+macro "batch export images (f11) Action Tool-C000T4b12b" {
 	batchExportImages();
+}
+
+macro "batch export images (f11) Action Tool Options" {
+	showDialog();
 }
 
 function help() {
@@ -706,4 +682,68 @@ function getMaxDimensions(position) {
 	
 	Ext.close();
 	return newArray(maxWidth, maxHeight);
+}
+
+function showDialog() {
+	checkAndGetBaseDir();
+	dataDir = BASE_DIR+"/EssenFiles/ScanData/";
+	Dialog.create("Options of Incucyte Exporter");
+	Dialog.addString("db base folder: ", BASE_DIR, 50);
+
+	START_YEAR = replace(START_YEAR, "/", "");
+	END_YEAR = replace(END_YEAR, "/", "");
+	START_SERIES = replace(START_SERIES, "/", "");
+	END_SERIES = replace(END_SERIES, "/", "");
+	START_HOUR = replace(START_HOUR, "/", "");
+	END_HOUR = replace(END_HOUR, "/", "");
+	
+	Dialog.addString("   start year: ", START_YEAR);
+	Dialog.addToSameRow();
+	Dialog.addString("   end year: ", END_YEAR);
+	
+	Dialog.addString("   start series: ", START_SERIES);
+	Dialog.addToSameRow();
+	Dialog.addString("   end series: ", END_SERIES);
+
+	Dialog.addString("   start hour: ", START_HOUR);
+	Dialog.addToSameRow();
+	Dialog.addString("   end hour: ", END_HOUR);
+
+	Dialog.addString("   start row: ", START_ROW);
+	Dialog.addToSameRow();
+	Dialog.addString("   end row: ", END_ROW);
+
+	Dialog.addString("   start column: ", START_COL);
+	Dialog.addToSameRow();
+	Dialog.addString("   end column: ", END_COL);
+
+	Dialog.addNumber("nuclei channel: ", NUCLEI_CHANNEL);
+	Dialog.addNumber("min object area: ", MIN_CHOCLEA_AREA, 2, 25, "");
+	Dialog.addNumber("min object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
+		
+	Dialog.show();
+	BASE_DIR = Dialog.getString();
+	START_YEAR = Dialog.getString();
+	END_YEAR = Dialog.getString();
+	START_SERIES = Dialog.getString();
+	END_SERIES = Dialog.getString();
+	START_HOUR = Dialog.getString();
+	END_HOUR = Dialog.getString();
+	START_ROW = Dialog.getString();
+	END_ROW = Dialog.getString();
+	START_COL = Dialog.getString();
+	END_COL = Dialog.getString();
+
+	START_YEAR = START_YEAR + "/";
+	END_YEAR = END_YEAR + "/";
+	START_SERIES = START_SERIES + "/";
+	END_SERIES = END_SERIES + "/";
+	START_HOUR = START_HOUR + "/";
+	END_HOUR = END_HOUR + "/";
+	START_COL = IJ.pad(START_COL, 2);
+	END_COL = IJ.pad(END_COL, 2);
+
+	NUCLEI_CHANNEL = Dialog.getNumber();
+	MIN_CHOCLEA_AREA = Dialog.getNumber();
+	MAX_CHOCLEA_AREA = Dialog.getNumber();
 }
