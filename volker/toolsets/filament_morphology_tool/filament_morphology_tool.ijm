@@ -14,7 +14,7 @@ var _MIN_SIZE = 0.01;
 var _FILAMENT_CHANNEL = 1;
 var _FILAMENT_THRESHOLDING_METHOD = "Default";
 var _THRESHOLDING_METHODS = getList("threshold.methods");
-var _INTERPOLATION_LENGTH = 3;
+var _INTERPOLATION_LENGTH = 5;
 var _EXT = ".czi";
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Morphology_Tool";
 
@@ -29,15 +29,15 @@ macro "filament morphology tool help (f4) Action Tool - C020D00C010L1060C020L708
 	run('URL...', 'url='+helpURL);
 }
 
-macro "analyze image [f2]" {
+macro "analyze image [f5]" {
 	analyzeImage();
 }
 
-macro "analyze image (f2) Action Tool - C000T4b12a" {
+macro "analyze image (f5) Action Tool - C000T4b12a" {
 	analyzeImage();
 }
 
-macro "analyze image (f2) Action Tool Options" {
+macro "analyze image (f5) Action Tool Options" {
 	Dialog.create("filament morphology tool options");	
 	Dialog.addNumber("filament channel: ", _FILAMENT_CHANNEL);
 	Dialog.addChoice("filament auto-thresholding method: ", _THRESHOLDING_METHODS, _FILAMENT_THRESHOLDING_METHOD);
@@ -50,15 +50,15 @@ macro "analyze image (f2) Action Tool Options" {
 	_INTERPOLATION_LENGTH = Dialog.getNumber();
 }
 
-macro "run batch analysis [f3]" {
+macro "run batch analysis [f6]" {
 	runBatchAnalysis();
 }
 
-macro "run batch analysis (f3) Action Tool - C000T4b12b" {
+macro "run batch analysis (f6) Action Tool - C000T4b12b" {
 	runBatchAnalysis();
 }
 
-macro "run batch analysis (f3) Action Tool Options" {
+macro "run batch analysis (f6) Action Tool Options" {
 	Dialog.create("batch options");
 	Dialog.addString("image file-extension", _EXT);
 	Dialog.show();
@@ -100,7 +100,7 @@ function analyzeImage() {
 	inputImageID = getImageID();
 	inputImageTitle = getTitle();
 	getDimensions(width, height, channels, slices, frames);
-	setBatchMode(true);
+	setBatchMode("hide");
 	roiManager("reset");
 	run("Select None");
 	Overlay.remove;
@@ -109,7 +109,7 @@ function analyzeImage() {
 	maskID = measureGeodesicDiameters(inputImageID, startLine);
 	Table.rename("Results", "Filament morphology summary");
 	analyzeSkeletons(inputImageID, maskID);
-	setBatchMode("exit and display"); 
+	setBatchMode("show");
 }
 
 function analyzeSkeletons(inputImageID, maskID) {
@@ -160,11 +160,20 @@ function measureGeodesicDiameters(inputImageID, startLine) {
 	selectImage(lblID);
 	close();
 	selectImage(inputImageID);
+
+	Table.create("curvature");
+	for (i = 0; i < Overlay.size; i++) {
+		Overlay.activateSelection(i);
+		run("Interpolate", "interval="+_INTERPOLATION_LENGTH+" smooth");
+		curvatureStatOfRoi();
+	}
 	run("From ROI Manager");
 	title1 = "Results";
 	title2 = "Mask-lbl-GeodDiameters";
 	appendTableColumns(title1, title2, startLine);
 	close(title2);
+	appendTableColumns(title1, "curvature", startLine);
+	close("curvature");
 	return maskID;
 }
 
@@ -229,4 +238,55 @@ function filterImages(files, ext) {
 		}
 	}
 	return images;
+}
+
+function curvatureStatOfRoi() {
+	name = Roi.getName;
+	min = 0;
+	max = 0;
+	mean = 0;
+	stdDev = 0;
+	sum = 0;
+	if (Roi.size>=4) {
+		getSelectionCoordinates(xpoints, ypoints);
+		index = 0;
+		curvatures = newArray(xpoints.length-2);
+		for (i = 0; i < xpoints.length; i++) {
+			if(i==0 || i==xpoints.length-1) {
+				continue;
+			} else {
+				curv = curvature(xpoints[i-1], ypoints[i-1], xpoints[i], ypoints[i], xpoints[i+1], ypoints[i+1]);
+				curvatures[index++] = curv;
+				sum += curv;
+			}
+		}
+		Array.getStatistics(curvatures, min, max, mean, stdDev);
+	}
+	row = Table.size("curvature");
+	Table.set("roi", row, name, "curvature");
+	Table.set("curvature sum", row, sum, "curvature");
+	Table.set("curvature max", row, max, "curvature");
+	Table.set("curvature mean", row, mean, "curvature");
+	Table.set("curvature stdDev", row, stdDev, "curvature");
+}
+
+function curvature(ax, ay, bx, by, cx, cy) {
+	A = circleArea(ax, ay, bx, by, cx, cy);
+	distAB = dist(ax, ay, bx, by);
+	distBC = dist(bx, by, cx, cy);
+	distAC = dist(ax, ay, cx, cy);
+	res = (4 * A) / (distAB * distBC * distAC);
+	return res;
+}
+
+function circleArea(ax, ay, bx, by, cx, cy) {
+	area = abs((ax * (by-cy) + bx * (cy - ay) + cx * (ay - by)) / 2);
+	return area;
+}
+
+function dist(ax, ay, bx, by) {
+	deltaX = bx - ax;
+	deltaY = by - ay;
+	d = sqrt(deltaX * deltaX + deltaY * deltaY);
+	return d;
 }
