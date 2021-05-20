@@ -8,6 +8,7 @@ from ij.process import ImageConverter
 from datetime import datetime
 import shutil
 import argparse
+import re
 
 def main(args):
 	parser = getArgumentParser()
@@ -27,7 +28,7 @@ def main(args):
 			well.calculateStitching(zPos, 0, params)
 			well.applyStitching(params)	
 			if params.stack:
-				well.createStack(dims)
+				well.createStack(dims, params)
 			if params.merge:
 				well.mergeChannels(dims, params)
  			if params.mip:
@@ -52,6 +53,7 @@ def getArgumentParser():
 	parser.add_argument("--subtract-background-offset", "-o", default=3, type=int, help='offset for the find and subtract background operation')
 	parser.add_argument("--subtract-background-iterations", "-i", default=1, type=int, help='nr of iterations for the find and subtract background operation')
 	parser.add_argument("--subtract-background-skip", "-k", default=0.3, type=float, help='skip limit for the find and subtract background operation')
+	parser.add_argument('--colours', "-C", type=lambda s: re.split(' |,', s), default=["Blue", "Green", "Red"], help='colors of the channels')
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
 	return parser
 
@@ -253,7 +255,9 @@ class Well(object):
 						self.doBackgroundCorrection(params.rollingball, path, newNames)
 					if params.subtract_background_radius>0:
 						self.doSubtractBackground(params, path, newNames)
+						
 					self.runGridCollectionStitching()
+
 					title = images[0].getURLWithoutField()
 					os.rename(os.path.normpath(path+"/out/img_t1_z1_c1"), os.path.normpath(path+"/out/"+title))
 					for name in newNames:
@@ -342,13 +346,15 @@ class Well(object):
 	def doNormalize(self, path, names):
 		mins = []
 		maxs = []
+		means = []
 		for name in names:
 			IJ.open(path+"/work/"+name)
 			imp = IJ.getImage()
 			mins.append(imp.getStatistics().min)
 			maxs.append(imp.getStatistics().max)
+			means.append(imp.getStatistics().mean)
 			imp.close()
-		globalMax = max(maxs)
+		globalMean = max(means)
 		i = 0
 		for name in names:
 			IJ.open(path+"/work/"+name)
@@ -356,7 +362,7 @@ class Well(object):
 			IJ.run(imp, "Subtract...", "value=" + str(mins[i]));
 			IJ.run(imp, "32-bit", "");
 			IJ.run(imp, "Divide...", "value=" + str(maxs[i]-mins[i]));
-			IJ.run(imp, "Multiply...", "value="+str(globalMax));
+			IJ.run(imp, "Multiply...", "value="+str(globalMean));
 			ImageConverter.setDoScaling(False);
 			IJ.run(imp, "16-bit", "");
 			ImageConverter.setDoScaling(True);
@@ -372,7 +378,7 @@ class Well(object):
 			IJ.save(imp, path+"/work/"+name)
 			imp.close()
 
-	def createStack(self, dims):
+	def createStack(self, dims, params):
 		slices = dims[2]
 		channels = dims[4]
 		timePoints = dims[3]
@@ -389,6 +395,7 @@ class Well(object):
 						newImages.add(image.getURLWithoutField())					
 					for image in newImages:
 						IJ.open(path + "/out/" + image)
+						IJ.run(params.colours[c-1])
 						toBeDeleted.append(path + "/out/" + image)
 						imp = IJ.getImage()
 						imps.append(imp)
