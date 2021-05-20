@@ -29,13 +29,15 @@ var _FUSION_METHOD = "Linear_Blending";
 var _REGRESSION_THRESHOLD = 0.30;
 var _DISPLACEMENT_THRESHOLD = 2.5;
 var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
-var _PSEUDO_FLAT_FIELD_RADIUS = 50;
+var _PSEUDO_FLAT_FIELD_RADIUS = 0;
 var _ROLLING_BALL_RADIUS = 0;
-var _NORMALIZE = true;
+var _NORMALIZE = false;
 var _FIND_AND_SUB_BACK_RADIUS = 0;
 var _FIND_AND_SUB_BACK_OFFSET = 3;
 var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
+var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
+var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
 
 launchExport();
 exit();
@@ -107,6 +109,9 @@ function launchExport() {
 	options = options + " --subtract-background-offset=" + _FIND_AND_SUB_BACK_OFFSET;
 	options = options + " --subtract-background-iterations=" + _FIND_AND_SUB_BACK_ITERATIONS;
 	options = options + " --subtract-background-skip=" + _FIND_AND_SUB_BACK_SKIP;
+	colors = String.join(_SELECTED_COLORS);
+	colors = replace(colors, " ", "");
+	options = options + " --colours=" + colors;
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
@@ -121,11 +126,33 @@ function setOptions() {
 	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
 	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
 	Dialog.addCheckbox("apply z-projection", _DO_MIP);
+	Dialog.addMessage("Image correction/normalization:");
+	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addNumber("rolling ball radius (0 to switch off): ", _ROLLING_BALL_RADIUS);
+	Dialog.addCheckbox("normalize", _NORMALIZE);
+	Dialog.addNumber("find background radius (0 to switch off): ", _FIND_AND_SUB_BACK_RADIUS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background offset: ", _FIND_AND_SUB_BACK_OFFSET);
+	Dialog.addNumber("find background iterations: ", _FIND_AND_SUB_BACK_ITERATIONS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background skip limit: ", _FIND_AND_SUB_BACK_SKIP);
 	Dialog.addMessage("Fusion parameters:");
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
 	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
 	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
 	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
+	Dialog.addMessage("Colours:");
+	Dialog.addChoice("ch1: ", _COLORS, _SELECTED_COLORS[0]);
+	Dialog.addToSameRow();
+	Dialog.addChoice("ch2: ", _COLORS, _SELECTED_COLORS[1]);
+	Dialog.addToSameRow();
+	Dialog.addChoice("ch3: ", _COLORS, _SELECTED_COLORS[2]);
+	Dialog.addChoice("ch4: ", _COLORS, _SELECTED_COLORS[3]);
+	Dialog.addToSameRow();
+	Dialog.addChoice("ch5: ", _COLORS, _SELECTED_COLORS[4]);
+	Dialog.addToSameRow();
+	Dialog.addChoice("ch6: ", _COLORS, _SELECTED_COLORS[5]);
+	Dialog.addChoice("ch7: ", _COLORS, _SELECTED_COLORS[6]);
 	
 	Dialog.show();
 	_ZSLICE = Dialog.getNumber();
@@ -134,10 +161,26 @@ function setOptions() {
 	_MERGE_CHANNELS = Dialog.getCheckbox();
 	_DO_MIP = Dialog.getCheckbox();	
 
+	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
+	_ROLLING_BALL_RADIUS = Dialog.getNumber();
+	_NORMALIZE = Dialog.getCheckbox();
+	_FIND_AND_SUB_BACK_RADIUS = Dialog.getNumber();
+	_FIND_AND_SUB_BACK_OFFSET = Dialog.getNumber();
+	_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
+	_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
+
 	_FUSION_METHOD = Dialog.getChoice();
 	_REGRESSION_THRESHOLD = Dialog.getNumber();
 	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+
+	_SELECTED_COLORS[0] = Dialog.getChoice();
+	_SELECTED_COLORS[1] = Dialog.getChoice();
+	_SELECTED_COLORS[2] = Dialog.getChoice();
+	_SELECTED_COLORS[3] = Dialog.getChoice();
+	_SELECTED_COLORS[4] = Dialog.getChoice();
+	_SELECTED_COLORS[5] = Dialog.getChoice();
+	_SELECTED_COLORS[6] = Dialog.getChoice();
 }
 
 function selectWells() {
