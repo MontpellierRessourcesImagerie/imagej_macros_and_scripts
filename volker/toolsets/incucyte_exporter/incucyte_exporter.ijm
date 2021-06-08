@@ -697,13 +697,13 @@ function showDialog() {
 	START_HOUR = replace(START_HOUR, "/", "");
 	END_HOUR = replace(END_HOUR, "/", "");
 	
-	Dialog.addString("   start year: ", START_YEAR);
+	Dialog.addString("   start year/month: ", START_YEAR);
 	Dialog.addToSameRow();
-	Dialog.addString("   end year: ", END_YEAR);
+	Dialog.addString("   end year/month: ", END_YEAR);
 	
-	Dialog.addString("   start series: ", START_SERIES);
+	Dialog.addString("   start day: ", START_SERIES);
 	Dialog.addToSameRow();
-	Dialog.addString("   end series: ", END_SERIES);
+	Dialog.addString("   end day: ", END_SERIES);
 
 	Dialog.addString("   start hour: ", START_HOUR);
 	Dialog.addToSameRow();
