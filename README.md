@@ -56,6 +56,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [MRI_Fibrosis_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool) 
 
 <img align='right' src="https://camo.githubusercontent.com/7571589a6dbdd5b6ee98470e3c269bd353e12ebf/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313532342f726573756c7430312e706e67" height='100'/> Measure the relative area of sirius red stained fibrosis. The tool uses the colour deconvolution plugin from Gabriel Landini. 
+#### [Filament_Morphology_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Morphology_Tool)
+
+<img align='right' src="https://camo.githubusercontent.com/32d07390b1741f99ff862054ca4f2ec5c73ee63472f8793c3cfdb5a80b4eb4b9/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323337362f696e7075745f696d6167652e706e67" height='100'/> The tool count filaments and measure their areas and forms. It specially measures the geodesic diameter of the objects and its curvature, counts the branches and measures their lengths.
 #### [Filament_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Tools)
 
 <img align='right' src="https://camo.githubusercontent.com/55fa2e7d5fbe76abc245f93b23a7f0a69bfc3926186b3664a0cee70f0f6a0d0d/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323333322f496d61676525323035395f4f75742d332e706e67" height='100'/> Calculate the area-fraction of the image filled with (septin) filaments.
@@ -77,6 +80,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 #### [Intensity Ratio Nuclei Cytoplasm Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Intensity-Ratio-Nuclei-Cytoplasm-Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/07e85430f821147445b434ccacbd250f7c0d851d/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313231362f636f6e74726f6c2d696d6167652e706e67" height='100'/> The tool calculates the ratio of the intensity in the nuclei and the cytoplasm. It needs two images as input: the cytoplasm channel and the nuclei channel. The nuclei channel is used to segment the nuclei. The measurements are made in the cytoplasm channel after the background intensity has been corrected. 
+####   [Measure_Border_And_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Border_And_Spots_Tool)
+
+<img align='right' src="https://camo.githubusercontent.com/f52961f446b8594da6641fe0a26f7d024671f0931b9dea20feb64b2b39b77611/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323431352f6f75747075742e706e67" height='100'/> The tool counts the number of spots (foci) per nucleus and measures the intensity, form, size and position of the spots. It also optionally measures the intensity in the membrane of the nucleus. 
 ####   [Phase Contrast Cell Analysis Tool (Trainable WEKA Segmentation)](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Phase-Contrast-Cell-Analysis-Tool-%28Trainable-WEKA-Segmentation%29)
 
 <img align='right' src="https://camo.githubusercontent.com/e595d2688291bbd480dd5f8e81736f126e4b04f9/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313337372f726573756c7430312e706e67" height='100'/> The tool allows to segment cells in non fluorescent microscopy images using the trainable WEKA segmentation. It allows to run a preprocessing that crops and converts images, to apply a classifier created with the Trainable Weka Segmentation plugin to a folder containing images and to open the images in a folder as a stack in the "Trainable Weka Segmentation plugin" to create a classifier. 
@@ -116,14 +122,17 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Load-Corresponding-Images](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Load-Corresponding-Images)
 
 <img align='right' src="https://camo.githubusercontent.com/50b8fe6bc3fd3dd13f0ef8570f0d3cd73a1b774a/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323032362f746f6f6c6261722e706e67" height='20'/> The tool allows to open for each image a second image with the same name from another folder. It displays the two images next to each other. It provides navigation through the list of images. 
+####  [MuVi SPIM_Convert_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MuVi-SPIM_Convert_Tools)
+
+<img align='right' src="https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/sylvain/Macros/MuVi_SPIM_Convert_MIP_Tools/wiki_images/1.montage.PNG" height='100'/> The Muvi-SPIM-Convert_Tools help to convert your hdF5 files comming from a MuVi-SPIM setup. 
 ####   [MRI_ND_To_Hyperstack](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_ND_To_Hyperstack)
 
 <img align='right' src="https://camo.githubusercontent.com/e3017f74f83089448d82a920f85ab1a2f2acf959/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313936332f746f6f6c6261722e706e67" height='20'/> The tools converts images in the .nd format to ImageJ hyperstacks. The user selects an .nd file. An image can consist of multiple positions, frames, z-slices and channels. Each position is converted into an ImageJ hyperstack and written into a subfolder of the folder containing the input image. 
 #### [NDPI export regions](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/NDPI_Export_Regions_Tool)
  <img align='right' src="https://camo.githubusercontent.com/8c6723099eb5741d403866becad3bafed04d1af2/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323237332f6578706f72742d6e6470692d746f6f6c6261722e706e67" height='20'/>The tool exports rectangular regions, defined with the NDP.view 2 software from the highest resolution version of the image and saves them as tif-files.
-####  [MuVi SPIM_Convert_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MuVi-SPIM_Convert_Tools)
+####   [MRI_Opera_export_tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools)
 
-<img align='right' src="https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/sylvain/Macros/MuVi_SPIM_Convert_MIP_Tools/wiki_images/1.montage.PNG" height='100'/> The Muvi-SPIM-Convert_Tools help to convert your hdF5 files comming from a MuVi-SPIM setup. 
+<img align='right' src="https://camo.githubusercontent.com/81d858f4172d8c7b34acf9a0f1b78ad3cf6a943f36960e8e2e1c9aee32dcf6ff/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323432342f6f706572615f746f6f6c7365742e706e67" height='20'/> The tool stitches images from the Opera Phenix HCS System. It reads the Index.idx.xml file to pre-arrange the images and then stitches and fuses them using the Grid/Collection stitching-plugin. Images are stitched by plane and channel. Z-stacks and multi-channel images can optionally be created. Projections can also be create.
  
 ### Single Plugin Tools
 
