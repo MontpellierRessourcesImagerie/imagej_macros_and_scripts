@@ -3,7 +3,7 @@
  * MRI Measure Border and Spots Tool
  * 
  * Measure the mean-intensity at the border of the nucleus in a different channel. 
- * Measure the number, form and size of spots on the nucleus in a different channel. 
+ * Measure the number, form size and position of spots on the nucleus in a different channel. 
  * 
  * (c) 2021 INSERM
  * 
@@ -18,7 +18,6 @@ var _BORDER_RADIUS = 3;
 var _TABLE_NAME = "border and spots measurements";
 var _MIN_NUCLEUS_AREA = 5000;
 var _MIN_FOCI_AREA = 10;
-
 var _SIGMA_BLUR_FILTER = 15;
 var _USE_ROLLING_BALL = false;
 var _ROLLING_BALL_RADIUS = 20;
@@ -28,6 +27,8 @@ var _PROMINENCE_OF_MAXIMA = 350;
 var _THRESHOLD_1 = 10;
 var _THRESHOLD_2 = 50;
 var _DO_WATERSHED = false;
+var _MIN_SIGMA_DOG = 1;
+var _MAX_SIGMA_DOG = 200;
 
 var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _EXT = ".tif";
@@ -57,6 +58,8 @@ macro "analyze image [f2]" {
 macro "analyze image (f2) Action Tool Options" {
 	Dialog.create("measure border and spots options");
 	Dialog.addString("nuclei channel: ", _NUCLEUS_CHANNEL, 15);
+	Dialog.addNumber("min. sigma dog: ", _MIN_SIGMA_DOG);
+	Dialog.addNumber("max. sigma dog: ", _MAX_SIGMA_DOG);
 	Dialog.addChoice("nuclei auto-thresholding method: ", _THRESHOLDING_METHODS, _NUCLEI_THRESHOLDING_METHOD);
 	Dialog.addNumber("min. area nucleus: ", _MIN_NUCLEUS_AREA);
 	Dialog.addString("border channel: ", _BORDER_CHANNEL, 15);
@@ -222,8 +225,7 @@ function measureBorder(dir, title, std) {
 function selectNuclei() {
 	run("Select None");
 	nucleusImageID = getImageID();
-//	setBatchMode(true);
-	applyDoGAndAdjustDisplay(1,200);
+	applyDoGAndAdjustDisplay(_MIN_SIGMA_DOG, _MAX_SIGMA_DOG);
 	inputImageID = getImageID();
 	setAutoThreshold(_NUCLEI_THRESHOLDING_METHOD + " dark");
 	run("Convert to Mask");
@@ -235,8 +237,6 @@ function selectNuclei() {
 	areas = Table.getColumn("Area", "Results");
 	close();
 	run("From ROI Manager");
-//	roiManager("reset");
-//	setBatchMode(false);
 	return areas;
 }
 
@@ -379,7 +379,6 @@ function reportResults() {
 	startIndexFoci = Table.size("Foci");
 	nrNuclei = 0;
 	counter = 0;
-//	setBatchMode(true);
 	for (i = 0; i < nResults; i++) {
 		print("\\Update0: processing line " + (i+1) + " of " + nResults);
 		label = Table.getString("Label", i, "Results");
@@ -502,7 +501,6 @@ function reportResults() {
 		Table.set("mean dist. border", startIndexNuclei+i, distsBorderMean, _TABLE_NAME);
 		Table.set("stdDev. dist. border", startIndexNuclei+i, distsBorderStdDev, _TABLE_NAME);
 	}
-//	setBatchMode(false);
 	close("EDT");
 	close("Mask");
 }
