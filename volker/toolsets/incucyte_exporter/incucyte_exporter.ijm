@@ -552,9 +552,16 @@ function cleanImage() {
 }
 
 function checkAndGetBaseDir() {
+	requires("1.53j");
 	BASE_DIR = call("ij.Prefs.get", "incucyte.basedir", "");
 	while (!isDBRootFolder(BASE_DIR)) {
 		BASE_DIR = getDir("Please select the root folder of the database!");
+	}
+	if (indexOf(BASE_DIR, " ")>-1) {
+		call("ij.Prefs.set", "incucyte.basedir", "");
+		BASE_DIR = "";
+		showMessage("WARNING!", "Your path contains spaces. Please remove all spaces from the path first!");
+		return;
 	}
 	call("ij.Prefs.set", "incucyte.basedir", BASE_DIR);
 }
@@ -697,13 +704,13 @@ function showDialog() {
 	START_HOUR = replace(START_HOUR, "/", "");
 	END_HOUR = replace(END_HOUR, "/", "");
 	
-	Dialog.addString("   start year: ", START_YEAR);
+	Dialog.addString("   start year/month: ", START_YEAR);
 	Dialog.addToSameRow();
-	Dialog.addString("   end year: ", END_YEAR);
+	Dialog.addString("   end year/month: ", END_YEAR);
 	
-	Dialog.addString("   start series: ", START_SERIES);
+	Dialog.addString("   start day: ", START_SERIES);
 	Dialog.addToSameRow();
-	Dialog.addString("   end series: ", END_SERIES);
+	Dialog.addString("   end day: ", END_SERIES);
 
 	Dialog.addString("   start hour: ", START_HOUR);
 	Dialog.addToSameRow();
