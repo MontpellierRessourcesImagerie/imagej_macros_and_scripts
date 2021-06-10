@@ -13,10 +13,10 @@ var PAD_NUMBERS = true;
 var NR = "644";
 
 var PROCESS_ALL = false;
-var START_YEAR = "1900/";
-var END_YEAR = "2200/";
+var START_YEAR = "0001/";
+var END_YEAR = "9901/";
 var START_SERIES = "01/";
-var END_SERIES = "99/";
+var END_SERIES = "31/";
 var START_HOUR = "0000/";
 var END_HOUR = "2359/";
 var START_ROW = "A";
@@ -716,17 +716,17 @@ function showDialog() {
 	Dialog.addToSameRow();
 	Dialog.addString("   end hour: ", END_HOUR);
 
-	Dialog.addString("   start row: ", START_ROW);
+	Dialog.addString("   start well: ", START_ROW);
 	Dialog.addToSameRow();
-	Dialog.addString("   end row: ", END_ROW);
+	Dialog.addString("   end well: ", END_ROW);
 
-	Dialog.addString("   start column: ", START_COL);
+	Dialog.addString("   start image: ", START_COL);
 	Dialog.addToSameRow();
-	Dialog.addString("   end column: ", END_COL);
+	Dialog.addString("   end image: ", END_COL);
 
 	Dialog.addNumber("nuclei channel: ", NUCLEI_CHANNEL);
-	Dialog.addNumber("min object area: ", MIN_CHOCLEA_AREA, 2, 25, "");
-	Dialog.addNumber("min object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
+	Dialog.addNumber("min. object area: ", MIN_CHOCLEA_AREA, 2, 25, "");
+	Dialog.addNumber("max. object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
 		
 	Dialog.show();
 	BASE_DIR = Dialog.getString();
