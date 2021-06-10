@@ -24,7 +24,15 @@ var END_ROW = "Z";
 var START_COL = "01";
 var END_COL = "26";
 var BASE_DIR = "";
-
+var GRID_SIZE_X = 4;
+var GRID_SIZE_Y = 4;
+var OVERLAP = 20;
+var REGRESSION_THRESHOLD = 0.30;
+var MAX_AVG_DISPLACEMENT_THRESHOLD = 2.50;
+var ABS_DISPLACEMENT_THRESHOLD = 3.50;
+var FUSION_METHOD = "Average";
+var FUSION_METHODS = newArray("Linear Blending", "Average", "Max. Intensity", "Min Intensity", "None");
+var FUSION = 1.50;
 var YEARS = newArray(0);
 
 var NUCLEI_CHANNEL = 1;
@@ -233,7 +241,8 @@ function calculateStitchings(dir) {
 	wells = getWells(images);
 	for (i = 0; i < wells.length; i++) {
 		well = wells[i];
-		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x=4 grid_size_y=4 tile_overlap=20 first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C"+NUCLEI_CHANNEL+".tif output_textfile_name="+well+"-C1-translations.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory="+dir);
+		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x="+GRID_SIZE_X+" grid_size_y="+GRID_SIZE_Y+" tile_overlap="+OVERLAP+" first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C1.tif output_textfile_name="+well+"-C1-translations.txt fusion_method=["+FUSION_METHOD+"] regression_threshold="+REGRESSION_THRESHOLD+" max/avg_displacement_threshold="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute_displacement_threshold="+ABS_DISPLACEMENT_THRESHOLD+" compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] output_directory="+dir);
+		close();
 		translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
 		translations = replace(translations, well+"-", dir+well+"-");
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
@@ -279,11 +288,12 @@ function cleanImages() {
 					cleanImage();
 					run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
 					close();
+					
 					translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
 					translations = replace(translations, well+"-", "clean/"+well+"-");
 					File.saveString(translations, outDir + well + "-C1-translations.registered.txt");
 					translations = replace(translations, "-C1.tif", "-C2.tif");
-					File.saveString(translations, outDir + well + "-C2-translations.registered.txt");
+					File.saveString(translations, outDir + well + "-C2-translations.registered.txt"); 
 				}
 				setBatchMode(false);
 			}
@@ -319,13 +329,13 @@ function mergeImages() {
 				setBatchMode(true);
 				for (i = 0; i < wells.length; i++) {
 					well = wells[i];
-					run("Stitch Collection of Images", "browse="+dir+well+"-C1-translations.registered.txt layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					run("Stitch Collection of Images", "layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
 					rename("C1");
 					run("Enhance Contrast", "saturated=0.35");
-					run("Stitch Collection of Images", "browse="+dir+well+"-C2-translations.registered.txt layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					run("Stitch Collection of Images", "layout="+dir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
 					rename("C2");
 					run("Enhance Contrast", "saturated=0.35");
-					run("Stitch Collection of Images", "browse="+tifDir+well+"-P-translations.registered.txt layout="+tifDir+well+"-P-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method=None fusion=1.50 regression=0.30 max/avg=2.50 absolute=3.50");
+					run("Stitch Collection of Images", "layout="+tifDir+well+"-P-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
 					rename("P");					
 					run("Enhance Contrast", "saturated=0.35");
 					run("Merge Channels...", "c1=[C2] c3=[C1] c4=[P] create");
@@ -716,19 +726,30 @@ function showDialog() {
 	Dialog.addToSameRow();
 	Dialog.addString("   end hour: ", END_HOUR);
 
-	Dialog.addString("   start well: ", START_ROW);
+	Dialog.addString("   start row: ", START_ROW);
 	Dialog.addToSameRow();
-	Dialog.addString("   end well: ", END_ROW);
+	Dialog.addString("   end row: ", END_ROW);
 
-	Dialog.addString("   start image: ", START_COL);
+	Dialog.addString("   start column: ", START_COL);
 	Dialog.addToSameRow();
-	Dialog.addString("   end image: ", END_COL);
+	Dialog.addString("   end column: ", END_COL);
 
 	Dialog.addNumber("nuclei channel: ", NUCLEI_CHANNEL);
 	Dialog.addNumber("min. object area: ", MIN_CHOCLEA_AREA, 2, 25, "");
 	Dialog.addNumber("max. object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
-		
+
+	Dialog.addMessage("Stitching:");
+	Dialog.addNumber("grid size x: ", GRID_SIZE_X);
+	Dialog.addNumber("grid size y: ", GRID_SIZE_Y);
+	Dialog.addNumber("overlap: ", OVERLAP);
+	Dialog.addNumber("regression threshold: ", REGRESSION_THRESHOLD);
+	Dialog.addNumber("max/avg displacement threshold: ", MAX_AVG_DISPLACEMENT_THRESHOLD);
+	Dialog.addNumber("abs displacement threshold: ", ABS_DISPLACEMENT_THRESHOLD);
+	Dialog.addChoice("fusion method: ", FUSION_METHODS, FUSION_METHOD);
+	Dialog.addNumber("fusion: ", FUSION);
+			
 	Dialog.show();
+	
 	BASE_DIR = Dialog.getString();
 	call("ij.Prefs.set", "incucyte.basedir", BASE_DIR);
 	checkAndGetBaseDir();
@@ -755,4 +776,13 @@ function showDialog() {
 	NUCLEI_CHANNEL = Dialog.getNumber();
 	MIN_CHOCLEA_AREA = Dialog.getNumber();
 	MAX_CHOCLEA_AREA = Dialog.getNumber();
+
+	GRID_SIZE_X = Dialog.getNumber();
+	GRID_SIZE_Y = Dialog.getNumber();
+	OVERLAP = Dialog.getNumber();
+	REGRESSION_THRESHOLD = Dialog.getNumber();
+	MAX_AVG_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	FUSION_METHOD = Dialog.getChoice();
+	FUSION = Dialog.getNumber();
 }
