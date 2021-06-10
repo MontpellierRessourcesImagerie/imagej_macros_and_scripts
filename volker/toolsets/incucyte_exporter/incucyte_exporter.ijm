@@ -27,7 +27,7 @@ var BASE_DIR = "";
 
 var YEARS = newArray(0);
 
-var NUCLEI_CHANNEL = 2;
+var NUCLEI_CHANNEL = 1;
 var MIN_CHOCLEA_AREA = 2000000000.00;
 var MAX_CHOCLEA_AREA = 100000000000.00;
 
@@ -233,7 +233,7 @@ function calculateStitchings(dir) {
 	wells = getWells(images);
 	for (i = 0; i < wells.length; i++) {
 		well = wells[i];
-		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x=4 grid_size_y=4 tile_overlap=20 first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C1.tif output_textfile_name="+well+"-C1-translations.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory="+dir);
+		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x=4 grid_size_y=4 tile_overlap=20 first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C"+NUCLEI_CHANNEL+".tif output_textfile_name="+well+"-C1-translations.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory="+dir);
 		translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
 		translations = replace(translations, well+"-", dir+well+"-");
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
