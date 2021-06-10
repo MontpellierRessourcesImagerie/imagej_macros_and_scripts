@@ -695,7 +695,7 @@ function showDialog() {
 	checkAndGetBaseDir();
 	dataDir = BASE_DIR+"/EssenFiles/ScanData/";
 	Dialog.create("Options of Incucyte Exporter");
-	Dialog.addString("db base folder: ", BASE_DIR, 50);
+	Dialog.addDirectory("db base folder: ", BASE_DIR);
 
 	START_YEAR = replace(START_YEAR, "/", "");
 	END_YEAR = replace(END_YEAR, "/", "");
@@ -730,6 +730,8 @@ function showDialog() {
 		
 	Dialog.show();
 	BASE_DIR = Dialog.getString();
+	call("ij.Prefs.set", "incucyte.basedir", BASE_DIR);
+	checkAndGetBaseDir();
 	START_YEAR = Dialog.getString();
 	END_YEAR = Dialog.getString();
 	START_SERIES = Dialog.getString();
