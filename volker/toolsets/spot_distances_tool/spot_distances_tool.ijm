@@ -12,9 +12,9 @@
 
 var _SPOTS_CHANNEL = 1;
 var _Z_SLICE = 1;
-var _SIGMA = 3;
-var _PROEMINENCE = 10;
-var _CORRECT_MANUALLY = false;
+var _RADIUS = 8;
+var _PROEMINENCE = 1;
+var _CORRECT_MANUALLY = true;
 var _FILE_EXTENSION = "tif";
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spot_Distances_Tool";
 
@@ -33,8 +33,23 @@ macro "analyze image (f5) Action Tool - C000T4b12a" {
 	analyzeImage();
 }
 
-macro "process image [f5]" {
-	processImage();
+macro "analyze image [f5]" {
+	analyzeImage();
+}
+
+macro "analyze image (f5) Action Tool Options" {
+	Dialog.create("Spot Distances Tool Options");
+	Dialog.addNumber("spots channel: ", _SPOTS_CHANNEL);
+	Dialog.addNumber("spots z-slice: ", _Z_SLICE);
+	Dialog.addNumber("av. spot radius: ", _RADIUS);
+	Dialog.addNumber("proeminence: ", _PROEMINENCE);
+	Dialog.addCheckbox("correct manaully", _CORRECT_MANUALLY);
+	Dialog.show();
+	_SPOTS_CHANNEL  = Dialog.getNumber();
+	_Z_SLICE = Dialog.getNumber();
+	_RADIUS = Dialog.getNumber();
+	_PROEMINENCE = Dialog.getNumber();
+	_CORRECT_MANUALLY = Dialog.getCheckbox();
 }
 
 macro "run batch analysis (f6) Action Tool - C000T4b12b" {
@@ -43,6 +58,13 @@ macro "run batch analysis (f6) Action Tool - C000T4b12b" {
 
 macro "run batch analysis [f6]" {
 	batchProcessImages();
+}
+
+macro "run batch analysis (f6) Action Tool Options" {
+	Dialog.create("Spot Distances Batch Options");
+	Dialog.addString("image file-extension: ", _FILE_EXTENSION);
+	Dialog.show();
+	_FILE_EXTENSION = Dialog.getString();
 }
 
 function analyzeImage() {
@@ -57,11 +79,18 @@ function analyzeImage() {
 		Overlay.activateSelection(0);
 		Overlay.remove
 		run("Add Selection...");
+	} else {
+		if (selectionType==-1) {
+			run("Select All");
+			run("Add Selection...");
+		}
 	}
+	
 	run("Select None");
 	run("Duplicate...", "duplicate channels="+_SPOTS_CHANNEL+"-"+_SPOTS_CHANNEL+" slices="+_Z_SLICE+"-"+_Z_SLICE);
 	spotsInputImageID = getImageID();
-	run("FeatureJ Laplacian", "compute smoothing="+_SIGMA);
+	sigma = _RADIUS / sqrt(2);
+	run("FeatureJ Laplacian", "compute smoothing="+sigma);
 	run("Find Maxima...", "prominence="+_PROEMINENCE+" light output=[Point Selection]");
 	getSelectionCoordinates(xpoints, ypoints);
 	close();
