@@ -93,7 +93,11 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 <img align='right' src="https://camo.githubusercontent.com/f66c0184fed6d7bde076b10551b360cba144d47b/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313834332f636f6e74726f6c2d696d6167652e706e67" height='100'/> The tool allows to measure the diameter of the root and the density of the root hair. 
 ####  [MRI_Spot_Coloc_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spot_Coloc_Tool)
+
 <img align='right' src="https://camo.githubusercontent.com/c1f38e7b32f8cf61fe5f1fcd0ee1e26ed4a87bfc/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323238312f35322d37302d485345542d313030704d2d3438382d3536312d343070657263656e742d3430306d732d32736563315f7731544952462d3536315f74312d312e706e67" height='100'/> The tool counts the number of co-localized spots in two channels over time. It also exports the intensity of each spot over time.
+#### [Spot_Distances_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spot_Distances_Tool)
+
+<img align='right' src="https://camo.githubusercontent.com/809f00d05e951a3cd74870dead1ff334665eaf8fbe013914a102f40d15a04730/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323434372f6578616d706c655f696d6167652e706e67" height='100'/> The tool detects spots and measures the nearest neighbour distances between the spots in the image.
 ####   [Track_Microtubules_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Track_Microtubules_Tool) 
 
 <img align='right' src="https://camo.githubusercontent.com/4e7f5ad704e7609d61df7097e28f456f06024fb0/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323034332f6578616d706c652e706e67" height='100'/> The tool allows to track the ends of fluorescently labelled microtubules, which are becoming shorter and to measure the speed of the movement of each end. It also creates kymograms and plots distance-per-time. 
