@@ -70,19 +70,22 @@ macro "run batch analysis (f6) Action Tool Options" {
 function analyzeImage() {
 	run("Set Measurements...", "display redirect=None decimal=9");
 	inputImageID = getImageID();
-	
+
 	if (selectionType>=0) {
 		Overlay.remove
 		run("Add Selection...");
+		Overlay.setPosition(0, 0, 0);
 	}
 	if (selectionType==-1 && Overlay.size>0) {
 		Overlay.activateSelection(0);
 		Overlay.remove
 		run("Add Selection...");
+		Overlay.setPosition(0, 0, 0);
 	} else {
 		if (selectionType==-1) {
 			run("Select All");
 			run("Add Selection...");
+			Overlay.setPosition(0, 0, 0);
 		}
 	}
 	
@@ -117,6 +120,8 @@ function analyzeImage() {
 	startIndex = nResults;
 	roiManager("measure");
 	endIndex = nResults ;
+	count = roiManager("count");
+	if (count<1) return;
 	run("From ROI Manager");
 	roiManager("reset");
 	
