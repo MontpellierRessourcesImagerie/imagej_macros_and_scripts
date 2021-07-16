@@ -8,7 +8,7 @@
   * 
   * It can be used on an image or on a histogram table.
   *   
-  * (c) 2019-2020, INSERM
+  * (c) 2019-2021, INSERM
   * 
   * written by Volker Baecker at Montpellier Ressources Imagerie (www.mri.cnrs.fr)
   *
@@ -24,6 +24,9 @@ var _DELTA = 0.001;
 var _VALUE_COLUMN = "bin start";
 var _COUNT_COLUMN = "count";
 var _AUTO = true;
+var _LOG_CHOICES = newArray("log_2", "log_e", "log_10");
+var _LOG = "log_e";
+
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Discrete_Histogram_Entropy_Tool";
 
@@ -45,6 +48,7 @@ macro "Discrete Histogram Entropy (f5) Action Tool Options" {
 	Dialog.addString("bin column: ", _VALUE_COLUMN);
 	Dialog.addString("counts column: ", _COUNT_COLUMN);
 	Dialog.addCheckbox("auto", _AUTO);
+	Dialog.addRadioButtonGroup("base of logarithm: ", _LOG_CHOICES, 1, 3, _LOG);
 	Dialog.addHelp(helpURL);
 	Dialog.show();
 	_NBINS = Dialog.getNumber();
@@ -52,6 +56,7 @@ macro "Discrete Histogram Entropy (f5) Action Tool Options" {
 	_VALUE_COLUMN = Dialog.getString();
 	_COUNT_COLUMN = Dialog.getString();
 	_AUTO = Dialog.getCheckbox();
+	_LOG = Dialog.getRadioButton();
 }
 
 /**
@@ -184,8 +189,16 @@ function discreteHistogramEntropy(bins, frequencies) {
 	
 	entropy = 0;
 	for(i=0; i<bins.length; i++) {
-		if (frequencies[i]>0)
-			entropy += frequencies[i]*log(frequencies[i]/binWidth);
+		if (frequencies[i]>0) {
+			logValue = log(frequencies[i]/binWidth);
+			if (_LOG=="log_2") {
+				logValue = logValue/log(2);
+			}
+			if (_LOG=="log_10") {
+				logValue = logValue/log(10);
+			}
+			entropy += frequencies[i] * logValue;
+		}
 	}
 	
 	entropy *= -1;
