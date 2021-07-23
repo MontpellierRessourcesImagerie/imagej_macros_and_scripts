@@ -3,7 +3,7 @@
 * Find spots with automatic scale selection.
 *
 *
-* (c) 2019, INSERM
+* (c) 2019-2021, INSERM
 * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr), Biocampus Montpellier
 *
 **********************************************************************************/
@@ -25,26 +25,27 @@ var _CHANNEL = 2;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Automatic_Scale_Spot_Detection_Tool";
 
+//createScaleSpace();
 findAndLinkScaleSpaceSpots();
 exit();
 
-macro "Automatic scale spot detection Action Tool (f1) - C444D10D19D2cD69D72D82D97Db0Db3Db8Dc1C666D07D09D1eD1fD22D2bD2dD2fD31D32D42D4aD4cD60D6fD77D81D86D8dD90D9aD9bDa2Da6Da7DaeDb5Db6Db9Dc5DcdDceDd0Dd5Dd6Dd7DeaDeeDf2Df5Df6Df9DffC3bbD13D17D24D27D53D54C777D05D18D2eD39D3cD3dD76D8bD99Dd9DddDf4C466D63C777D08D12D1bD29D41D4eD52D5aD6bD75D87D88D89D91D92D93D94Da0Da1Da4Db2Db4DbeDc0Dc8Dc9DcfDd8De0De6Df0Df1DfcDfdC0ffD15D16D33D38D43D65DabDbaDbcDc3DcbDd2Dd4De3C8aaD34D46D47D56D58D67Dd3DdaDdcDfaC555D01D0eD0fD11D21D2aD3bD3fD40D51D5cD5fD62D71D7aD7bD7eD7fD80D8fD95D9fDadDc6Dd1DedDefDf3Df8DfbC1eeD14D23D28D64D66C888D06D68D6aD74D84DbdDdeDdfDebDecDfeC666D02D03D04D0aD0bD0cD1dD20D3aD3eD49D4bD4dD4fD5bD5dD5eD61D6eD70D79D7dD83D85D8cD8eD96D9dD9eDa3Da5Da8DafDb1DbfDe8De9C1eeD48D57DcaDccCbbbD25D26D35D36D37D44D45D55DbbDdbC555D00D0dD1aD1cD30D50D59D6cD6dD73D78D7cD8aD98D9cDa9Db7Dc7De1De5De7Df7C1eeDaaDacDc2Dc4De2De4"{
+macro "Automatic scale spot detection Action Tool (f4) - C444D10D19D2cD69D72D82D97Db0Db3Db8Dc1C666D07D09D1eD1fD22D2bD2dD2fD31D32D42D4aD4cD60D6fD77D81D86D8dD90D9aD9bDa2Da6Da7DaeDb5Db6Db9Dc5DcdDceDd0Dd5Dd6Dd7DeaDeeDf2Df5Df6Df9DffC3bbD13D17D24D27D53D54C777D05D18D2eD39D3cD3dD76D8bD99Dd9DddDf4C466D63C777D08D12D1bD29D41D4eD52D5aD6bD75D87D88D89D91D92D93D94Da0Da1Da4Db2Db4DbeDc0Dc8Dc9DcfDd8De0De6Df0Df1DfcDfdC0ffD15D16D33D38D43D65DabDbaDbcDc3DcbDd2Dd4De3C8aaD34D46D47D56D58D67Dd3DdaDdcDfaC555D01D0eD0fD11D21D2aD3bD3fD40D51D5cD5fD62D71D7aD7bD7eD7fD80D8fD95D9fDadDc6Dd1DedDefDf3Df8DfbC1eeD14D23D28D64D66C888D06D68D6aD74D84DbdDdeDdfDebDecDfeC666D02D03D04D0aD0bD0cD1dD20D3aD3eD49D4bD4dD4fD5bD5dD5eD61D6eD70D79D7dD83D85D8cD8eD96D9dD9eDa3Da5Da8DafDb1DbfDe8De9C1eeD48D57DcaDccCbbbD25D26D35D36D37D44D45D55DbbDdbC555D00D0dD1aD1cD30D50D59D6cD6dD73D78D7cD8aD98D9cDa9Db7Dc7De1De5De7Df7C1eeDaaDacDc2Dc4De2De4"{
 	run('URL...', 'url='+helpURL);
 }
 
-macro "automatic scale spot detection tool help [f1]" {
+macro "automatic scale spot detection tool help [f4]" {
 	run('URL...', 'url='+helpURL);
 }
 
-macro "Detect Spots Action Tool (f2) - C000T4b12s" {
+macro "Detect Spots Action Tool (f5) - C000T4b12s" {
 	detectSpots();
 }
 
-macro "detect spots [f2]" {
+macro "detect spots [f5]" {
 	detectSpots();
 }
 
-macro "Detect Spots Action Tool (f2) Options" {
+macro "Detect Spots Action Tool (f5) Options" {
 	Dialog.create("Detect Spots Options");
 	
 	Dialog.addMessage("Scale Space Options");
@@ -54,9 +55,9 @@ macro "Detect Spots Action Tool (f2) Options" {
 	Dialog.addCheckbox("exclude on edges", _EXCLUDE_ON_EDGES);
 	Dialog.addCheckbox("display scale-space", _DISPLAY_SCALE_SPACE);
 	Dialog.addMessage("Initial Spot Detection Options");
-	Dialog.addCheckbox("auto detect noise tolerance", _AUTO_MAXIMA_PROMINENCE);
+	Dialog.addCheckbox("auto detect proeminence threshold", _AUTO_MAXIMA_PROMINENCE);
 	Dialog.addNumber("radius of variance filter:", _RADIUS_VARIANCE_FILTER);
-	Dialog.addNumber("noise tolerance: ", _MAXIMA_PROMINENCE);
+	Dialog.addNumber("proeminence threshold: ", _MAXIMA_PROMINENCE);
 
 	Dialog.addMessage("Post processing");
 	Dialog.addCheckbox("Merge spots", _MERGE_SPOTS);
@@ -78,15 +79,15 @@ macro "Detect Spots Action Tool (f2) Options" {
 	_MIN_COVERAGE = Dialog.getNumber();
 }
 
-macro "Batch Detect Spots Action Tool (f3) - C000T4b12b" {
+macro "Batch Detect Spots Action Tool (f6) - C000T4b12b" {
 	batchDetectSpots();
 }
 
-macro "batch detect spots [f3]" {
+macro "batch detect spots [f6]" {
 	batchDetectSpots();
 }
 
-macro "Batch Detect Spots Action Tool (f3) Options" {
+macro "Batch Detect Spots Action Tool (f6) Options" {
 	Dialog.create("Batch Spots Detection Options");
 	Dialog.addString("file extension: ", _FILE_EXTENSION);
 	Dialog.addNumber("channel: ", _CHANNEL);
@@ -96,6 +97,13 @@ macro "Batch Detect Spots Action Tool (f3) Options" {
 }
 
 function detectSpots() {
+	run("Set Measurements...", "area mean standard modal min centroid center feret's integrated display redirect=None decimal=9");
+	Overlay.remove;
+	rgb = (bitDepth()==24);
+	if (rgb) {
+		run("Duplicate...", " ");
+		run("16-bit"); 
+	}
 	run("ROI Manager...");
 	setBatchMode(true);
 	Overlay.remove;
@@ -119,15 +127,53 @@ function detectSpots() {
 	run("Clear Results");
 	roiManager("reset");
 	selectImage(imageID);
+	if (rgb) {
+		run("To ROI Manager");
+		close();
+		run("From ROI Manager");
+	}
+	startIndex = nResults;
 	Overlay.measure;
+	endIndex = nResults;
+	reportResults(startIndex, endIndex);
 	print("Done!");
+}
+
+
+function reportResults(startIndex, endIndex) {
+	title = getTitle();
+	if (!isOpen("measurements")) {
+		Table.create("measurements");
+	}
+	if (!isOpen("objects")) {
+		Table.create("objects");
+	}
+	row = Table.size("measurements");
+    areas = Table.getColumn("Area", "Results");
+    count = endIndex-startIndex;
+    areas = Array.slice(areas, startIndex, endIndex);
+    Array.getStatistics(areas, min, max, mean, stdDev);
+    Table.set("image", row, title, "measurements");
+	Table.set("count", row, count, "measurements");
+	Table.set("area mean", row, mean, "measurements");
+	Table.set("area stdDev", row, stdDev, "measurements");
+	Table.set("area min.", row, min, "measurements");
+	Table.set("area max.", row, max, "measurements");
+	for (i = 0; i < nResults; i++) {
+		area = getResult("Area", i);
+		row =  Table.size("objects");
+		Table.set("image", row, title, "objects");
+		Table.set("area", row, area, "objects");
+	}
+	Table.update("measurements");
+	Table.update("objects");
 }
 
 function batchDetectSpots() {
 	dir = getDirectory("Select the input folder!");
 	files = getFileList(dir);
 	images = filterImageFiles(files, dir, _FILE_EXTENSION);
-	out = "";
+	out = "nr\t";
 	summary = "";
 	outPath = dir + File.separator + "out";
 	if (!File.exists(outPath)) File.makeDirectory(outPath);
@@ -138,45 +184,15 @@ function batchDetectSpots() {
 		Stack.setChannel(_CHANNEL);
 		run("Duplicate...", " ");
 		detectSpots();
-		selectWindow("Results");
-		if (i==0) {
-			out = out + Table.headings;
-			summary = "image\tnr. of spots" + Table.headings + "\n";
-		}
-		results = getInfo("window.contents");
-		index = indexOf(results, "\n");
-		results = substring(results, index+1, lengthOf(results));
-		out = out + "\n" + results;
-		
-		nrOfSpots = nResults;
-		run("Summarize");
-		results = getInfo("window.contents");
-		results = split(results, "\n");
-		lines = Array.slice(results, results.length-4 , results.length-1);
-		summary = summary + image + "\t" + nrOfSpots + "\n";
-		for (j = 0; j < lines.length; j++) {
-			line = lines[j];
-			index = indexOf(line, "\t");
-			line = substring(line, index+1, lengthOf(line));
-			summary = summary + "\t\t" + line + "\n";
-		}
 		saveAs("Tiff", outPath + File.separator + image);
 		close();
 		close();
 	}
 	run("Clear Results");
-	String.show("spots", out);
 	path = dir + File.separator + "spots.csv";
-	saveAs("Text", path);
-	selectWindow("spots.csv");
-	run("Close");
-	run("Table... ", "open=["+path+"]");
-	String.show("spots summary", summary);
+	Table.save(path, "objects");
 	path = dir + File.separator + "spots-summary.csv";
-	saveAs("Text", path);
-	selectWindow("spots-summary.csv");
-	run("Close");
-	run("Table... ", "open=["+path+"]");
+	Table.save(path, "measurements");
 }
 
 function filterImageFiles(list, dir, extension) {
@@ -299,6 +315,7 @@ function findMinima(sigmas, imageID, scaleSpaceID) {
 }
 
 function findAndLinkScaleSpaceSpots() {
+	run("Set Measurements...", "area mean standard modal min centroid center bounding feret's integrated median skewness kurtosis stack display redirect=None decimal=9");
 	roiManager("reset");
 	run("Clear Results");
 	sigmas = newArray(nSlices);
@@ -338,7 +355,7 @@ function filterMaxima(imageID, scaleSpaceID) {
 	}
 	roiManager("reset");
 	run("To ROI Manager");
-	roiManager("select", toBeRemoved);
+	roiManager("select", toBeRemoved);removeEdgeSpots
 	roiManager("Delete");
 
 	run("From ROI Manager");
@@ -375,10 +392,11 @@ function removeEdgeSpots() {
 			toBeDeleted = Array.concat(toBeDeleted, i);
 		}
 	}
-	
 	run("To ROI Manager");
-	roiManager("select", toBeDeleted);
-	roiManager("delete");
+	if (toBeDeleted.length>0) {
+		roiManager("select", toBeDeleted);
+		roiManager("delete");
+	}
 	run("From ROI Manager");
 }
 
