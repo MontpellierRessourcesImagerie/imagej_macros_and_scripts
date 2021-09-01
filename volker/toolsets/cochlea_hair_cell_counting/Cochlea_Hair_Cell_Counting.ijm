@@ -11,7 +11,7 @@
   *  in cooperation with Aurélie Saleur
   */
   
-var helpURL = "http://dev.mri.cnrs.fr/projects/imagej-macros/wiki/Cochlea_Hair_Cell_Counting";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Cochlea-Hair-Cell-Counting";
 var _USE_WATERSHED = true;
 var _CORRECT_AFTER_STRAIGHTEN = true;
 var _MIN_SIZE = 10;
