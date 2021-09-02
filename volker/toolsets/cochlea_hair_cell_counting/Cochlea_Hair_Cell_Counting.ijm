@@ -321,28 +321,24 @@ function zProjection() {
 
 function zProjectionSpots() {
 	dir = getDirectory("Select the input folder!");
-	files = getFileList(dir);
-	files = filterDirectories(dir,files);
+	files = getNonEmptyDirectories(dir);
 	print("\\Clear");
 	setBatchMode(true);
 	for(i=0; i<files.length; i++) {
 		print("\\Update1:Calculating projection of image " + (i+1) + " from " + files.length);
 		path = dir + "/" + files[i];
 		images = getFileList(path);
-		imagefound = false;
 		image1="";
-		j=0;
-		while(!imagefound){
-			if(j==images.length){
+		
+		empty = true;
+		for(j=0;j<images.length;j++){
+			if(endsWith(images[j], ".tif")){
+				empty = false;
+				image1 = images[j];
 				break;
 			}
-			if(endsWith(images[j], ".tif")){
-				imagefound=true;
-				image1 = images[j];	
-			}
-			j++;
 		}
-		if(!imagefound){
+		if(empty){
 			continue;
 		}
 		imagePath = dir + "/" + files[i] + "/" + image1;
@@ -357,12 +353,16 @@ function zProjectionSpots() {
 	print("Finished projections");
 }
 
-function filterDirectories(dir,files){
+function getNonEmptyDirectories(dir){
+	files = getFileList(dir);
 	results = newArray(0);
 	for (i=0; i<files.length; i++) {
 		file = files[i];
 		if (File.isDirectory(dir+files[i])) {
-			results = Array.concat(results, file);
+			subfiles = getFileList(dir+files[i]);
+			if(subfiles.length > 0){
+				results = Array.concat(results, file);
+			}
 		}
 	}
 	return results;
