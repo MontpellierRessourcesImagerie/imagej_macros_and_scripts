@@ -1,4 +1,4 @@
-﻿/**
+/**
   * Cochlea Hair Cell Counting
   *
   *  The tool expects a stack of segmented hair cells (mask) in the cochlea.
@@ -189,8 +189,10 @@ function straighten() {
 
     selectImage(imageCellsID);
     close();
-    selectImage(imageSpotsID);
-    close();
+    if(isOpen(imageSpotsID)){
+	    selectImage(imageSpotsID);
+	    close();
+    }
 
     run("Merge Channels...", "c1="+imageSpotsStraightenedTitle+" c2="+imageCellsStraightenedTitle+" create");    
 	run("Set Scale...", "distance=1 known="+pixelWidth+" pixel=1 unit="+unit);
@@ -318,17 +320,31 @@ function zProjection() {
 }
 
 function zProjectionSpots() {
-  dir = getDirectory("Select the input folder!");
-  files = getFileList(dir);
-  files = filterSystemFiles(files);
-   print("\\Clear");
-   setBatchMode(true);
-   for(i=0; i<files.length; i++) {
-	print("\\Update1:Calculating projection of image " + (i+1) + " from " + files.length);
-	path = dir + "/" + files[i];
-	if (File.isDirectory(path)) {
+	dir = getDirectory("Select the input folder!");
+	files = getFileList(dir);
+	files = filterDirectories(dir,files);
+	print("\\Clear");
+	setBatchMode(true);
+	for(i=0; i<files.length; i++) {
+		print("\\Update1:Calculating projection of image " + (i+1) + " from " + files.length);
+		path = dir + "/" + files[i];
 		images = getFileList(path);
-		image1 = images[0];
+		imagefound = false;
+		image1="";
+		j=0;
+		while(!imagefound){
+			if(j==images.length){
+				break;
+			}
+			if(endsWith(images[j], ".tif")){
+				imagefound=true;
+				image1 = images[j];	
+			}
+			j++;
+		}
+		if(!imagefound){
+			continue;
+		}
 		imagePath = dir + "/" + files[i] + "/" + image1;
 		run("Image Sequence...", "open=["+imagePath+"] sort");
 		run("Z Project...", "projection=[Max Intensity]");
@@ -337,16 +353,15 @@ function zProjectionSpots() {
 		close();
 		close();
 	}
-   }
-   setBatchMode("exit and display");
-   print("Finished projections");
+	setBatchMode("exit and display");
+	print("Finished projections");
 }
 
-function filterSystemFiles(files) {
+function filterDirectories(dir,files){
 	results = newArray(0);
 	for (i=0; i<files.length; i++) {
 		file = files[i];
-		if (!endsWith(file, ".db") && !endsWith(file, ".ini")) {
+		if (File.isDirectory(dir+files[i])) {
 			results = Array.concat(results, file);
 		}
 	}
