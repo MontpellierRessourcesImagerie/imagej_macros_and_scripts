@@ -13,12 +13,17 @@ var PAD_NUMBERS = true;
 var NR = "644";
 
 var PROCESS_ALL = false;
+
 var START_YEAR = "0001/";
 var END_YEAR = "9901/";
 var START_SERIES = "01/";
 var END_SERIES = "31/";
 var START_HOUR = "0000/";
 var END_HOUR = "2359/";
+
+var STITCHING_CHANNELS = newArray("C1","C2","P");
+var STITCHING_CHANNEL = STITCHING_CHANNELS[2];
+
 var START_ROW = "A";
 var END_ROW = "Z";
 var START_COL = "01";
@@ -26,21 +31,20 @@ var END_COL = "26";
 var BASE_DIR = "";
 var GRID_SIZE_X = 4;
 var GRID_SIZE_Y = 4;
-var OVERLAP = 20;
-var REGRESSION_THRESHOLD = 0.30;
+
+var OVERLAP = 10;
+var REGRESSION_THRESHOLD = 0.1;
 var MAX_AVG_DISPLACEMENT_THRESHOLD = 2.50;
-var ABS_DISPLACEMENT_THRESHOLD = 3.50;
+var ABS_DISPLACEMENT_THRESHOLD = 200;
+
 var FUSION_METHOD = "Average";
 var FUSION_METHODS = newArray("Linear Blending", "Average", "Max. Intensity", "Min Intensity", "None");
 var FUSION = 1.50;
 var YEARS = newArray(0);
 
-var NUCLEI_CHANNEL = 1;
+var NUCLEI_CHANNEL = 2;
 var MIN_CHOCLEA_AREA = 2000000000.00;
 var MAX_CHOCLEA_AREA = 100000000000.00;
-
-makeTimeSeries();
-exit();
 
 macro "Incucyte Exporter Help (f4) Action Tool-C000T4b12?" {
 	help();
@@ -165,10 +169,10 @@ function report(message) {
 
 function exportAsStdTif() {	
 	checkAndGetBaseDir();
+	timeStart = getTime();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -207,15 +211,18 @@ function exportAsStdTif() {
 			}
 		}
 	}
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
 }
 
 function stitchImages() {
 	checkAndGetBaseDir();
+	timeStart = getTime();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
+	setBatchMode(true);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
@@ -232,6 +239,9 @@ function stitchImages() {
 			}
 		}
 	}
+	setBatchMode(false);
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
 }
 
 
@@ -241,24 +251,34 @@ function calculateStitchings(dir) {
 	wells = getWells(images);
 	for (i = 0; i < wells.length; i++) {
 		well = wells[i];
-		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x="+GRID_SIZE_X+" grid_size_y="+GRID_SIZE_Y+" tile_overlap="+OVERLAP+" first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-C1.tif output_textfile_name="+well+"-C1-translations.txt fusion_method=["+FUSION_METHOD+"] regression_threshold="+REGRESSION_THRESHOLD+" max/avg_displacement_threshold="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute_displacement_threshold="+ABS_DISPLACEMENT_THRESHOLD+" compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] output_directory="+dir);
+
+		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x="+GRID_SIZE_X+" grid_size_y="+GRID_SIZE_Y+" tile_overlap="+OVERLAP+" first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-"+STITCHING_CHANNEL+".tif output_textfile_name="+well+"-"+STITCHING_CHANNEL+"-translations.txt fusion_method=["+FUSION_METHOD+"] regression_threshold="+REGRESSION_THRESHOLD+" max/avg_displacement_threshold="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute_displacement_threshold="+ABS_DISPLACEMENT_THRESHOLD+" compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] output_directory="+dir);
 		close();
-		translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
+		
+		translations = File.openAsString(dir + well+"-"+STITCHING_CHANNEL+"-translations.registered.txt");
 		translations = replace(translations, well+"-", dir+well+"-");
+		
+		translations = replace(translations, "-"+STITCHING_CHANNEL+".tif", "-C1.tif");
 		File.saveString(translations, dir + well+"-C1-translations.registered.txt");
+
 		translations = replace(translations, "-C1.tif", "-C2.tif");
 		File.saveString(translations, dir + well+"-C2-translations.registered.txt");
+		
 		translations = replace(translations, "-C2.tif", "-P.tif");
 		File.saveString(translations, dir + well+"-P-translations.registered.txt");
+			
 	}	
+	
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
 }
 
 function cleanImages() {
 	checkAndGetBaseDir();
+	timeStart = getTime();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -280,6 +300,7 @@ function cleanImages() {
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
 				for (i = 0; i < wells.length; i++) {
 					well = wells[i];
+					print("Cleaning " + dir+well+"...");
 					run("Image Sequence...", "dir="+dir+" filter=("+well+"-..-C1) sort");
 					cleanImage();
 					run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
@@ -299,14 +320,16 @@ function cleanImages() {
 			}
 		}
 	}
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
 }
 
 function mergeImages() {
 	checkAndGetBaseDir();
+	timeStart = getTime();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -346,14 +369,15 @@ function mergeImages() {
 			}
 		}
 	}	
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
 }
 
 function markEmptyImagesOld() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -385,9 +409,8 @@ function markEmptyImagesOld() {
 function markEmptyImages() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -420,9 +443,8 @@ function markEmptyImages() {
 function makeTimeSeries() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	startPositions = getStartPositions();
 	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
@@ -599,9 +621,8 @@ function testIfImageContainsCochlea() {
 function getFirstYearDayAndHour() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	year = -1;
 	for (y=0; y<years.length; y++) {
@@ -627,9 +648,9 @@ function getFirstYearDayAndHour() {
 function getStartPositions() {
 	firstTime = getFirstYearDayAndHour();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";	
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
+	
 	folder = dataDir + firstTime[0] + "/" + firstTime[1] + "/" + firstTime[2] + "/" + NR + "/exported/clean/merged";
 	startPositions = getFileList(folder);
 	startPositions = filterEmpty(startPositions);
@@ -646,12 +667,11 @@ function filterEmpty(files) {
 }
 
 function getTimePoints(position) {
-	timePoints = newArray(0);
 	checkAndGetBaseDir();
 	root = BASE_DIR;
-	files = getFileList(root);
-	if (!contains(files, "EssenFiles/")) exit("db not found!");
-	dataDir = root+"/EssenFiles/ScanData/";
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
+	timePoints = newArray(0);
 	years = getFileList(dataDir);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
@@ -673,10 +693,34 @@ function getTimePoints(position) {
 	return timePoints;
 }
 
+function displayPrettyTime(time_ms){
+	secondElapsed = (time_ms) / 1000;
+	prettyTime = "Duration: ";
+	if(secondElapsed>60){
+		minuteElapsed = floor(secondElapsed/60);
+		if(minuteElapsed>60){
+			hourElapsed = floor(minuteElapsed/60);
+			if(hourElapsed>24){
+				dayElapsed = floor(hourElapsed/24);
+
+				dayElapsed = dayElapsed%24;
+				prettyTime = prettyTime + dayElapsed +" d ";
+			}
+			hourElapsed = hourElapsed%24;
+			prettyTime = prettyTime + hourElapsed +" h ";
+		}
+		minuteElapsed = minuteElapsed % 60;
+		prettyTime = prettyTime + minuteElapsed +" min ";
+	}
+	secondElapsed = secondElapsed % 60;
+	prettyTime = prettyTime + secondElapsed +" s";
+	print(prettyTime);
+}
+
 function getMaxDimensions(position) {
 	timePoints = getTimePoints(position);
 	root = BASE_DIR;
-	dataDir = root+"/EssenFiles/ScanData/";
+	dataDir = root+"EssenFiles/ScanData/";
 	path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
 	
 	run("Bio-Formats Macro Extensions");
@@ -703,7 +747,7 @@ function getMaxDimensions(position) {
 
 function showDialog() {
 	checkAndGetBaseDir();
-	dataDir = BASE_DIR+"/EssenFiles/ScanData/";
+	dataDir = BASE_DIR+"EssenFiles/ScanData/";
 	Dialog.create("Options of Incucyte Exporter");
 	Dialog.addDirectory("db base folder: ", BASE_DIR);
 
@@ -739,6 +783,7 @@ function showDialog() {
 	Dialog.addNumber("max. object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
 
 	Dialog.addMessage("Stitching:");
+	Dialog.addChoice("stitching channel: ", STITCHING_CHANNELS, STITCHING_CHANNEL);
 	Dialog.addNumber("grid size x: ", GRID_SIZE_X);
 	Dialog.addNumber("grid size y: ", GRID_SIZE_Y);
 	Dialog.addNumber("overlap: ", OVERLAP);
@@ -777,6 +822,7 @@ function showDialog() {
 	MIN_CHOCLEA_AREA = Dialog.getNumber();
 	MAX_CHOCLEA_AREA = Dialog.getNumber();
 
+	STITCHING_CHANNEL = Dialog.getChoice();
 	GRID_SIZE_X = Dialog.getNumber();
 	GRID_SIZE_Y = Dialog.getNumber();
 	OVERLAP = Dialog.getNumber();
