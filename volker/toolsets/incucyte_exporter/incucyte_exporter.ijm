@@ -87,7 +87,7 @@ macro "clean images (f7) Action Tool-C000D4aD4bD5aD5bD6aD7aD7bD7cD89D8aD8bC888D2
 }
 
 macro "clean images [f7]" {
-	cleanImage();	
+	cleanImages();	
 }
 
 macro "clean images (f7) Action Tool Options" {
@@ -128,6 +128,10 @@ macro "make time series (f10) Action Tool - C000D25D26D29D2aD52D5dD62D6dD88D92D9
 
 macro "make time series (f10) Action Tool Options" {
 	showDialog();
+}
+
+macro "Modular Make Time Series"{
+	modularMakeTimeSeries();
 }
 
 macro "batch export images [f11]" {
@@ -373,39 +377,6 @@ function mergeImages() {
 	displayPrettyTime(timeEnd-timeStart);
 }
 
-function markEmptyImagesOld() {
-	checkAndGetBaseDir();
-	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
-	dataDir = root+"EssenFiles/ScanData/";
-	years = getFileList(dataDir);
-	for (y=0; y<years.length; y++) {
-		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
-		year = years[y];
-		days = getFileList(dataDir + "/" + year);
-		for(d=0; d<days.length; d++) {
-			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
-			day = days[d];
-			hours = getFileList(dataDir + "/" + year + "/" + day);
-			for(h=0; h<hours.length; h++) {
-				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
-				hour = hours[h];
-				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/clean/merged/";
-				files = getFileList(mergedDir);
-				setBatchMode(true);
-				for (i = 0; i < files.length; i++) {
-					file = files[i];
-					open(mergedDir + file);
-					test = testIfImageContainsCochlea();
-					close("*");
-					if (!test) File.rename(mergedDir + file, mergedDir+"Empty_"+file);
-				}
-				setBatchMode(false);
-			}
-		}
-	}		
-}
-
 function markEmptyImages() {
 	checkAndGetBaseDir();
 	root = BASE_DIR;
@@ -434,13 +405,12 @@ function markEmptyImages() {
 					if (!test) File.rename(mergedDir + file, mergedDir+"Empty_"+file);
 				}
 				setBatchMode(false);
-				return;
 			}
 		}
 	}		
 }
 
-function makeTimeSeries() {
+function old_makeTimeSeries() {//Depreciated
 	checkAndGetBaseDir();
 	root = BASE_DIR;
 	if(!isDBRootFolder(root)) exit("db not found!");
@@ -450,26 +420,26 @@ function makeTimeSeries() {
 		pos = startPositions[i];
 		dims = getMaxDimensions(pos);
 		timePoints = getTimePoints(pos);
-		path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
+		path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/resized/" + pos;
 		for (t=0; t<timePoints.length-1; t++) {
-			path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/" + pos;
+			path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/resized/" + pos;
 			print("aligning image " + path2); 
 			alignImages(path1, path2, dims);
 		}
-		path = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/" + pos;
+		path = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/resized/" + pos;
 		open(path);
-		rename(pos);
+		rename("title_0");
 		for (t=1; t<timePoints.length; t++) {
-			path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/" + pos;
+			path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/resized/" + pos;
 			if (File.exists(path)) {
 				open(path);				
 			}
 			else {
-				path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/Empty_" + pos;	
+				path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/resized/Empty_" + pos;	
 				open(path);				
 			}
 			title = getTitle();
-			run("Concatenate...", " title="+pos+" open image1="+pos+" image2="+title);
+			run("Concatenate...", " title=title_0 open image1=title_0 image2="+title);
 		}
 		saveAs("tiff", dataDir + pos);
 		close();
@@ -477,49 +447,253 @@ function makeTimeSeries() {
 	print("make time-series finished");
 }
 
-function alignImages(path1, path2, dims) {
-	print(path1);
-	print(path2);
+function modularMakeTimeSeries(){
+	Dialog.create("Which step to do ?");
+	Dialog.addCheckbox("Resize Positions", true);
+	Dialog.addCheckbox("Concatenate Series", true);
+	Dialog.addCheckbox("Align Series Manually", true);
+	Dialog.addCheckbox("Align Series with HyperStack Reg", true);
+
+	Dialog.show();
+	resizePos = Dialog.getCheckbox();
+	concatSer = Dialog.getCheckbox();
+	alignMan  = Dialog.getCheckbox();
+	alignHSR  = Dialog.getCheckbox();
+	
+	timeStart = getTime();
+	if(resizePos){
+		resizePositions();
+	}
+	if(concatSer){
+		concatenateSeries();
+	}
+	if(alignMan){
+		alignSeriesManually();
+	}
+	if(alignHSR){
+		alignSeries();
+	}
+	
+	print("make time-series finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function makeTimeSeries(){
+	timeStart = getTime();
+	
+	resizePositions();
+	concatenateSeries();
+	alignSeriesManually();
+	alignSeries();
+	
+	print("make time-series finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function resizePositions(){
+	timeStart = getTime();
+
+	startPositions = getStartPositions();
 	setBatchMode(true);
-	run("Set Measurements...", "mean modal min centroid center integrated stack display redirect=None decimal=3");
-	run("Bio-Formats", "open="+path1+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
-	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");	
-	title1 = getTitle();
-	setAutoThreshold("Default dark");
-	run("Create Selection");
-	run("Measure");
-	x1 = getResult("X", nResults-1);
-	y1 = getResult("Y", nResults-1);
-	run("Bio-Formats", "open="+path2+" autoscale color_mode=Default rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT c_begin=2 c_end=2 c_step=1");
-	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
-	title2 = getTitle();
-	setAutoThreshold("Default dark");
-	run("Create Selection");
-	run("Measure");
-	x2 = getResult("X", nResults-1);
-	y2 = getResult("Y", nResults-1);	
-	dX = x2-x1;
-	dY = y2-y1;
-	toUnscaled(dX);
-	toUnscaled(dY);
-	close("*");
-	open(path2);
-	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
-	title2 = getTitle();
-	run("Translate...", "x="+(-1)*dX+" y="+(-1)*dY+" interpolation=None");
-	open(path1);
-	run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
-	title1 = getTitle();
-	run("Concatenate...", "open image1="+title1+" image2="+title2);
-	run("HyperStackReg ", "transformation=[Rigid Body] channel"+NUCLEI_CHANNEL+" show");
-	run("Duplicate...", "duplicate frames=2-2");
-    save(path2);
-    close();
-    run("Duplicate...", "duplicate frames=1-1");
-    save(path1);
-    close("*");
-    setBatchMode(false);
-	print("align images finished!!!");
+	for (i=0; i<startPositions.length; i++) { //For each well 
+		pos = startPositions[i];
+		if(endsWith(pos, "/")) continue;
+		resizeCanvas(pos);
+	}
+	setBatchMode(false);
+	print("Resize Positions finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function concatenateSeries(){
+	checkAndGetBaseDir();
+	timeStart = getTime();
+
+	root = BASE_DIR;
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root + "EssenFiles/ScanData/";
+	outDir	= dataDir + "concat/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+	
+	subfolders = NR + "/exported/" + "clean/" + "merged/";
+	
+	startPositions = getStartPositions();
+	setBatchMode(true);
+	for (i=0; i<startPositions.length; i++) { //For each well 
+		pos = startPositions[i];
+		if(endsWith(pos, "/")){	continue;}
+		timePoints = getTimePoints(pos);
+		print("Concatenating position " + pos + " " + 0 +"/" + timePoints.length);
+		for (t=0; t<timePoints.length; t++) {
+			path = dataDir + "/" + timePoints[t] + subfolders + "resized/"+ pos;
+			if (File.exists(path)) {
+				open(path);				
+			}
+			else {
+				path = dataDir + "/" + timePoints[t] + subfolders + pos;	
+				open(path);				
+			}
+			if(t==0){
+				rename("title_0");
+			}else{
+				title = getTitle();
+				print("\\Update:Concatenating position " + pos + " " + t + "/" + timePoints.length);
+				run("Concatenate...", " title=title_0 open image1=title_0 image2="+title);
+			}
+		}
+		print("\\Update:Position " + pos + " concatenated:" +outDir+pos);
+		saveAs("tiff", outDir + pos);
+		close();
+	}
+	setBatchMode(false);
+
+	print("Concatenate Series finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function alignSeriesManually(){
+	checkAndGetBaseDir();
+	timeStart = getTime();
+
+	root = BASE_DIR;
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
+	inDir = dataDir + "concat/";
+	outDir = dataDir + "manually_aligned/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+	
+	startPositions = getStartPositions();
+	setBatchMode(true);
+	for (i=0; i<startPositions.length; i++) { //For each well 
+		pos = startPositions[i];
+		if(endsWith(pos, "/")){	continue;}
+		open(inDir + pos);
+		print("Aligning position " + pos);
+		manualAlignment();
+
+		print("\\Update:Position " + pos + " manually Aligned!");
+		saveAs("tiff", outDir + pos);
+		close("*");
+	}
+	setBatchMode(false);
+
+	print("Align Series Manually finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function alignSeries(){
+	checkAndGetBaseDir();
+	timeStart = getTime();
+	alignChannel = "channel2";
+
+	root = BASE_DIR;
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
+	inDir = dataDir + "manually_aligned/";
+	outDir = dataDir + "aligned/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+
+	startPositions = getFileList(inDir);
+	setBatchMode(true);
+	for (i=0; i<startPositions.length; i++) { //For each well 
+		pos = startPositions[i];
+		if(File.isDirectory(inDir+pos)) continue;
+		open(inDir + pos);
+		print("Aligning position " + pos);
+		run("HyperStackReg ", "transformation=[Rigid Body] "+alignChannel+" show");
+		
+		print("Position " + pos + " Aligned!");
+		saveAs("tiff", outDir + pos);
+		close("*");
+	}
+	setBatchMode(false);
+	
+	print("Align Series finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
+function resizeCanvas(pos){
+	print("Resizing Canvas "+pos+"...");
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";
+	subfolders = NR + "/exported/" + "clean/" + "merged/";
+	
+	dims = getMaxDimensions(pos);
+	timePoints = getTimePoints(pos);
+	for (t=0; t<timePoints.length; t++) {	
+		if(!File.isDirectory(dataDir + timePoints[t] + subfolders +"resized/")){
+			File.makeDirectory(dataDir + timePoints[t] + subfolders +"resized/");
+		}
+		path = dataDir + timePoints[t] + subfolders;
+		if(File.exists(path+"Empty_"+pos)){
+			open(path+"Empty_"+pos);
+			
+		}else{
+			open(path + pos);
+		}
+		run("Canvas Size...", "width="+dims[0]+" height="+dims[1]+" position=Center zero");
+		saveAs(path +"resized/"+ pos);
+		close();
+	}
+	print("\\Update:Canvas "+pos+" Resized");
+}
+
+function manualAlignment(){
+	run("Duplicate...", "duplicate channels=2");
+	
+	run("Enhance Contrast...", "saturated=0.2 process_all");
+	
+	setThreshold(65530, 65535);
+	run("Make Binary", "method=Default background=Dark");
+	run("Set Measurements...", "centroid center stack display redirect=None decimal=3");
+	
+	run("Options...", "iterations=20 count=1 do=Nothing");
+	run("Close-", "stack");
+	run("Options...", "iterations=10 count=1 do=Nothing");
+	run("Open", "stack");
+
+	roiManager("Deselect");
+	if(roiManager("count")>=1){
+		roiManager("Delete");
+	}
+	
+	centerX = newArray();
+	centerY = newArray();
+	timePointCount = nSlices;
+	for(s=1;s<=timePointCount;s++){
+		setSlice(s);
+		run("Create Selection");
+		run("Convex Hull");
+		centerX[s-1]=getValue("X");
+		centerY[s-1]=getValue("Y");
+		//print(centerX[s-1]," ",centerY[s-1]);
+	}
+	close();
+	for(s=2;s<=timePointCount;s++){
+		dX=centerX[0]-centerX[s-1];
+		dY=centerY[0]-centerY[s-1];
+		toUnscaled(dX);
+		toUnscaled(dY);
+		for(c=1;c<=3;c++){
+			Stack.setPosition(c, 1, s); 
+			run("Select All");
+			run("Translate...", "x="+dX+" y="+dY+" interpolation=None slice");
+		}
+	}
 }
 
 function padNumbers(image) {
