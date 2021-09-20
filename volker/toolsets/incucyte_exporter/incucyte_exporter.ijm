@@ -22,7 +22,9 @@ var START_HOUR = "0000/";
 var END_HOUR = "2359/";
 
 var STITCHING_CHANNELS = newArray("C1","C2","P");
-var STITCHING_CHANNEL = STITCHING_CHANNELS[1];
+var STITCHING_CHANNEL = STITCHING_CHANNELS[0];
+
+var ALIGNMENT_CHANNEL = "2";
 
 var START_ROW = "A";
 var END_ROW = "Z";
@@ -410,43 +412,6 @@ function markEmptyImages() {
 	}		
 }
 
-function old_makeTimeSeries() {//Depreciated
-	checkAndGetBaseDir();
-	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
-	dataDir = root+"EssenFiles/ScanData/";
-	startPositions = getStartPositions();
-	for (i=0; i<startPositions.length; i++) {
-		pos = startPositions[i];
-		dims = getMaxDimensions(pos);
-		timePoints = getTimePoints(pos);
-		path1 = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/resized/" + pos;
-		for (t=0; t<timePoints.length-1; t++) {
-			path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/resized/" + pos;
-			print("aligning image " + path2); 
-			alignImages(path1, path2, dims);
-		}
-		path = dataDir + "/" + timePoints[0] + NR + "/exported/clean/merged/resized/" + pos;
-		open(path);
-		rename("title_0");
-		for (t=1; t<timePoints.length; t++) {
-			path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/resized/" + pos;
-			if (File.exists(path)) {
-				open(path);				
-			}
-			else {
-				path = dataDir + "/" + timePoints[t] + NR + "/exported/clean/merged/resized/Empty_" + pos;	
-				open(path);				
-			}
-			title = getTitle();
-			run("Concatenate...", " title=title_0 open image1=title_0 image2="+title);
-		}
-		saveAs("tiff", dataDir + pos);
-		close();
-	}
-	print("make time-series finished");
-}
-
 function modularMakeTimeSeries(){
 	Dialog.create("Which step to do ?");
 	Dialog.addCheckbox("Resize Positions", true);
@@ -479,7 +444,7 @@ function modularMakeTimeSeries(){
 	displayPrettyTime(timeEnd-timeStart);
 }
 
-macro "Make One Time Serie Action Tool - C000T2b12TT9b12S" {
+macro "Make One Time Serie" {
 	modularMakeOneTimeSerie();
 }
 function modularMakeOneTimeSerie(){
@@ -683,6 +648,7 @@ function alignPositionManually(pos){
 }
 
 function alignPosition(pos){
+
 	root = BASE_DIR;
 	dataDir = root+"EssenFiles/ScanData/";
 	inDir = dataDir + "manually_aligned/";
@@ -693,7 +659,7 @@ function alignPosition(pos){
 	
 	open(inDir + pos);
 	print("Aligning position " + pos);
-	run("HyperStackReg ", "transformation=[Rigid Body] channel2 show");
+	run("HyperStackReg ", "transformation=[Rigid Body] channel"+ALIGNMENT_CHANNEL+" show");
 	
 	print("Position " + pos + " Aligned!");
 	saveAs("tiff", outDir + pos);
@@ -939,17 +905,7 @@ function displayPrettyTime(time_ms){
 	print(prettyTime);
 }
 
-macro "Test getMaxDimensions"{
-	startPositions = getStartPositions();
-	Dialog.create("Select Position");
-	Dialog.addChoice("Position", startPositions);
-	Dialog.show();
-	pos = Dialog.getChoice();
-	getMaxDimensions(pos);
-}
-
 function getMaxDimensions(position) {
-	verbose = false;
 	timePoints = getTimePoints(position);
 	root = BASE_DIR;
 	dataDir = root+"EssenFiles/ScanData/";
@@ -963,9 +919,6 @@ function getMaxDimensions(position) {
 	
 	maxWidth = width;
 	maxHeight = height;
-	if(verbose){
-		Table.create("Max Dimensions");
-	}
 	for (t=0; t<timePoints.length-1; t++) {
 		path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/" + pos;
 		Ext.setId(path2);
@@ -1024,6 +977,7 @@ function showDialog() {
 	Dialog.addNumber("max. object area: ", MAX_CHOCLEA_AREA, 2, 25, "");
 
 	Dialog.addMessage("Stitching:");
+
 	Dialog.addChoice("stitching channel: ", STITCHING_CHANNELS, STITCHING_CHANNEL);
 	Dialog.addNumber("grid size x: ", GRID_SIZE_X);
 	Dialog.addNumber("grid size y: ", GRID_SIZE_Y);
@@ -1033,6 +987,10 @@ function showDialog() {
 	Dialog.addNumber("abs displacement threshold: ", ABS_DISPLACEMENT_THRESHOLD);
 	Dialog.addChoice("fusion method: ", FUSION_METHODS, FUSION_METHOD);
 	Dialog.addNumber("fusion: ", FUSION);
+
+	Dialog.addMessage("Aligment");
+
+	Dialog.addNumber("Alignment channel", ALIGNMENT_CHANNEL);
 			
 	Dialog.show();
 	
@@ -1072,4 +1030,6 @@ function showDialog() {
 	ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 	FUSION_METHOD = Dialog.getChoice();
 	FUSION = Dialog.getNumber();
+
+	ALIGNMENT_CHANNEL = Dialog.getNumber();
 }
