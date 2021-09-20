@@ -22,7 +22,7 @@ var START_HOUR = "0000/";
 var END_HOUR = "2359/";
 
 var STITCHING_CHANNELS = newArray("C1","C2","P");
-var STITCHING_CHANNEL = STITCHING_CHANNELS[2];
+var STITCHING_CHANNEL = STITCHING_CHANNELS[1];
 
 var START_ROW = "A";
 var END_ROW = "Z";
@@ -479,6 +479,49 @@ function modularMakeTimeSeries(){
 	displayPrettyTime(timeEnd-timeStart);
 }
 
+macro "Make One Time Serie Action Tool - C000T2b12TT9b12S" {
+	modularMakeOneTimeSerie();
+}
+function modularMakeOneTimeSerie(){
+	startPositions =getStartPositions();
+	
+	Dialog.create("Make One Time-series Options");
+	
+	Dialog.addChoice("Position", startPositions);
+	Dialog.addCheckbox("Resize Positions", true);
+	Dialog.addCheckbox("Concatenate Series", true);
+	Dialog.addCheckbox("Align Series Manually", true);
+	Dialog.addCheckbox("Align Series with HyperStack Reg", true);
+
+	Dialog.show();
+	
+	pos = Dialog.getChoice();
+	resizePos = Dialog.getCheckbox();
+	concatSer = Dialog.getCheckbox();
+	alignMan  = Dialog.getCheckbox();
+	alignHSR  = Dialog.getCheckbox();
+	
+	timeStart = getTime();
+	setBatchMode(true);
+	if(resizePos){
+		resizeCanvas(pos);
+	}
+	if(concatSer){
+		concatenatePosition(pos);
+	}
+	if(alignMan){
+		alignPositionManually(pos);
+	}
+	if(alignHSR){
+		alignPosition(pos);
+	}
+	setBatchMode(false);
+	
+	print("make one time-series finished");
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart);
+}
+
 function makeTimeSeries(){
 	timeStart = getTime();
 	
@@ -493,11 +536,12 @@ function makeTimeSeries(){
 }
 
 function resizePositions(){
+	checkAndGetBaseDir();
 	timeStart = getTime();
 
-	startPositions = getStartPositions();
 	setBatchMode(true);
-	for (i=0; i<startPositions.length; i++) { //For each well 
+	startPositions = getStartPositions();
+	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
 		if(endsWith(pos, "/")) continue;
 		resizeCanvas(pos);
@@ -511,47 +555,15 @@ function resizePositions(){
 function concatenateSeries(){
 	checkAndGetBaseDir();
 	timeStart = getTime();
-
-	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
-	dataDir = root + "EssenFiles/ScanData/";
-	outDir	= dataDir + "concat/";
-	if(!File.isDirectory(outDir)){
-		File.makeDirectory(outDir); 
-	}
 	
-	subfolders = NR + "/exported/" + "clean/" + "merged/";
-	
-	startPositions = getStartPositions();
 	setBatchMode(true);
-	for (i=0; i<startPositions.length; i++) { //For each well 
+	startPositions = getStartPositions();
+	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
 		if(endsWith(pos, "/")){	continue;}
-		timePoints = getTimePoints(pos);
-		print("Concatenating position " + pos + " " + 0 +"/" + timePoints.length);
-		for (t=0; t<timePoints.length; t++) {
-			path = dataDir + "/" + timePoints[t] + subfolders + "resized/"+ pos;
-			if (File.exists(path)) {
-				open(path);				
-			}
-			else {
-				path = dataDir + "/" + timePoints[t] + subfolders + pos;	
-				open(path);				
-			}
-			if(t==0){
-				rename("title_0");
-			}else{
-				title = getTitle();
-				print("\\Update:Concatenating position " + pos + " " + t + "/" + timePoints.length);
-				run("Concatenate...", " title=title_0 open image1=title_0 image2="+title);
-			}
-		}
-		print("\\Update:Position " + pos + " concatenated:" +outDir+pos);
-		saveAs("tiff", outDir + pos);
-		close();
+		concatenatePosition(pos);
 	}
 	setBatchMode(false);
-
 	print("Concatenate Series finished");
 	timeEnd = getTime();
 	displayPrettyTime(timeEnd-timeStart);
@@ -560,80 +572,47 @@ function concatenateSeries(){
 function alignSeriesManually(){
 	checkAndGetBaseDir();
 	timeStart = getTime();
-
-	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
-	dataDir = root+"EssenFiles/ScanData/";
-	inDir = dataDir + "concat/";
-	outDir = dataDir + "manually_aligned/";
-	if(!File.isDirectory(outDir)){
-		File.makeDirectory(outDir); 
-	}
 	
-	startPositions = getStartPositions();
 	setBatchMode(true);
-	for (i=0; i<startPositions.length; i++) { //For each well 
+	startPositions = getStartPositions();
+	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
 		if(endsWith(pos, "/")){	continue;}
-		open(inDir + pos);
-		print("Aligning position " + pos);
-		manualAlignment();
-
-		print("\\Update:Position " + pos + " manually Aligned!");
-		saveAs("tiff", outDir + pos);
-		close("*");
+		alignPositionManually(pos);
 	}
 	setBatchMode(false);
-
 	print("Align Series Manually finished");
 	timeEnd = getTime();
 	displayPrettyTime(timeEnd-timeStart);
 }
 
+
 function alignSeries(){
 	checkAndGetBaseDir();
 	timeStart = getTime();
-	alignChannel = "channel2";
 
-	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
-	dataDir = root+"EssenFiles/ScanData/";
-	inDir = dataDir + "manually_aligned/";
-	outDir = dataDir + "aligned/";
-	if(!File.isDirectory(outDir)){
-		File.makeDirectory(outDir); 
-	}
-
-	startPositions = getFileList(inDir);
 	setBatchMode(true);
-	for (i=0; i<startPositions.length; i++) { //For each well 
+	startPositions = getStartPositions();
+	for (i=0; i<startPositions.length; i++) {
 		pos = startPositions[i];
-		if(File.isDirectory(inDir+pos)) continue;
-		open(inDir + pos);
-		print("Aligning position " + pos);
-		run("HyperStackReg ", "transformation=[Rigid Body] "+alignChannel+" show");
-		
-		print("Position " + pos + " Aligned!");
-		saveAs("tiff", outDir + pos);
-		close("*");
+		if(endsWith(pos, "/")){	continue;}
+		alignPosition(pos);
 	}
 	setBatchMode(false);
-	
 	print("Align Series finished");
 	timeEnd = getTime();
 	displayPrettyTime(timeEnd-timeStart);
 }
 
+
 function resizeCanvas(pos){
-	print("Resizing Canvas "+pos+"...");
-	checkAndGetBaseDir();
 	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	subfolders = NR + "/exported/" + "clean/" + "merged/";
 	
 	dims = getMaxDimensions(pos);
 	timePoints = getTimePoints(pos);
+	print("Resizing Canvas "+pos+"...");
 	for (t=0; t<timePoints.length; t++) {	
 		if(!File.isDirectory(dataDir + timePoints[t] + subfolders +"resized/")){
 			File.makeDirectory(dataDir + timePoints[t] + subfolders +"resized/");
@@ -650,6 +629,75 @@ function resizeCanvas(pos){
 		close();
 	}
 	print("\\Update:Canvas "+pos+" Resized");
+}
+
+function concatenatePosition(pos){
+	root = BASE_DIR;
+	dataDir = root + "EssenFiles/ScanData/";
+	subfolders = NR + "/exported/" + "clean/" + "merged/";
+	outDir	= dataDir + "concat/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+	
+	timePoints = getTimePoints(pos);
+	print("Concatenating position " + pos + " " + 0 +"/" + timePoints.length);
+	for (t=0; t<timePoints.length; t++) {
+		path = dataDir + "/" + timePoints[t] + subfolders + "resized/"+ pos;
+		if (File.exists(path)) {
+			open(path);				
+		}
+		else {
+			path = dataDir + "/" + timePoints[t] + subfolders + pos;	
+			open(path);				
+		}
+		if(t==0){
+			rename("title_0");
+		}else{
+			title = getTitle();
+			print("\\Update:Concatenating position " + pos + " " + t + "/" + timePoints.length);
+			run("Concatenate...", " title=title_0 open image1=title_0 image2="+title);
+		}
+	}
+	print("\\Update:Position " + pos + " concatenated:" +outDir+pos);
+	saveAs("tiff", outDir + pos);
+	close();
+}
+
+function alignPositionManually(pos){
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	inDir = dataDir + "concat/";
+	outDir = dataDir + "manually_aligned/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+	
+	open(inDir + pos);
+	print("Aligning position " + pos);
+	manualAlignment();
+	
+	print("\\Update:Position " + pos + " manually Aligned!");
+	saveAs("tiff", outDir + pos);
+	close("*");
+}
+
+function alignPosition(pos){
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	inDir = dataDir + "manually_aligned/";
+	outDir = dataDir + "aligned/";
+	if(!File.isDirectory(outDir)){
+		File.makeDirectory(outDir); 
+	}
+	
+	open(inDir + pos);
+	print("Aligning position " + pos);
+	run("HyperStackReg ", "transformation=[Rigid Body] channel2 show");
+	
+	print("Position " + pos + " Aligned!");
+	saveAs("tiff", outDir + pos);
+	close("*");
 }
 
 function manualAlignment(){
@@ -891,7 +939,17 @@ function displayPrettyTime(time_ms){
 	print(prettyTime);
 }
 
+macro "Test getMaxDimensions"{
+	startPositions = getStartPositions();
+	Dialog.create("Select Position");
+	Dialog.addChoice("Position", startPositions);
+	Dialog.show();
+	pos = Dialog.getChoice();
+	getMaxDimensions(pos);
+}
+
 function getMaxDimensions(position) {
+	verbose = false;
 	timePoints = getTimePoints(position);
 	root = BASE_DIR;
 	dataDir = root+"EssenFiles/ScanData/";
@@ -905,14 +963,23 @@ function getMaxDimensions(position) {
 	
 	maxWidth = width;
 	maxHeight = height;
-	
+	if(verbose){
+		Table.create("Max Dimensions");
+	}
 	for (t=0; t<timePoints.length-1; t++) {
 		path2 = dataDir + "/" + timePoints[t+1] + NR + "/exported/clean/merged/" + pos;
-		Ext.setId(path1);
+		Ext.setId(path2);
 		Ext.getSizeX(width);
 		Ext.getSizeY(height);
 		if (width > maxWidth) maxWidth = width;
 		if (height > maxHeight) maxHeight = height;
+		if(verbose){
+			Table.set("timePoint", t, timePoints[t+1]);
+			Table.set("width" , t, width );
+			Table.set("height", t, height);
+			Table.set("maxWidth" , t, maxWidth );
+			Table.set("maxHeight", t, maxHeight);
+		}
 	}
 	
 	Ext.close();
