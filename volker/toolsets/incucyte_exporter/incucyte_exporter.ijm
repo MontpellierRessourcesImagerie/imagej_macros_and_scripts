@@ -152,7 +152,7 @@ function help() {
 	run('URL...', 'url='+helpURL);
 }
 
-function batchExportImages() {
+function old_batchExportImages() {
 	report("starting export...");
 	exportAsStdTif();
 	report("starting stitch...");
@@ -168,6 +168,55 @@ function batchExportImages() {
 	report("export finished");
 }
 
+function batchExportImages(){
+	Dialog.create("Batch Export Options");
+	
+	Dialog.addCheckbox("Export as Standard Tif", true);
+	Dialog.addCheckbox("Stitch Images", true);
+	Dialog.addCheckbox("Clean Images ", true);
+	Dialog.addCheckbox("Merge Images ", true);
+	Dialog.addCheckbox("Mark Empty Images", true);
+	Dialog.addCheckbox("Make Time Series", true);
+
+	Dialog.show();
+	
+	exportTif	= Dialog.getCheckbox();
+	stitchImg	= Dialog.getCheckbox();
+	cleanImg	= Dialog.getCheckbox();
+	mergeImg	= Dialog.getCheckbox();
+	markEmpty	= Dialog.getCheckbox();
+	makeTimeSer	= Dialog.getCheckbox();
+	
+
+	setBatchMode(true);
+	if(exportTif){
+		report("starting export...");
+		exportAsStdTif();
+	}
+	if(stitchImg){
+		report("starting stitch...");
+		stitchImages();
+	}
+	if(cleanImg){
+		report("starting clean...");
+		cleanImages();
+	}
+	if(mergeImg){
+		report("starting merge...");
+		mergeImages();
+	}
+	if(markEmpty){
+		report("starting mark empty...");
+		markEmptyImages();
+	}
+	if(makeTimeSer){
+		report("starting align...");
+		makeTimeSeries();
+	}
+	report("export finished");
+	setBatchMode(false);
+}
+
 function report(message) {
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 	print(""+year+(month+1)+dayOfMonth+"-"+hour+":"+minute+":"+second+"."+msec + " -- " + message);
@@ -177,9 +226,9 @@ function exportAsStdTif() {
 	checkAndGetBaseDir();
 	timeStart = getTime();
 	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
+	setBatchMode(true);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
@@ -195,7 +244,6 @@ function exportAsStdTif() {
 				images = getFileList(inDir);
 				outDir =  inDir + "exported/";
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
-				setBatchMode(true);
 				for(i=0; i<images.length; i++) {
 					image = images[i];			
 					if (File.isDirectory(inDir+image) || !endsWith(image, ".tif")) continue;
@@ -213,19 +261,18 @@ function exportAsStdTif() {
 					saveAs("tiff", outDir+image);
 					close();
 				}
-				setBatchMode(false);
 			}
 		}
 	}
+	setBatchMode(false);
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Export as Standard Tif");
 }
 
 function stitchImages() {
 	checkAndGetBaseDir();
 	timeStart = getTime();
 	root = BASE_DIR;
-	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
 	setBatchMode(true);
@@ -247,7 +294,7 @@ function stitchImages() {
 	}
 	setBatchMode(false);
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Stitch Images");
 }
 
 
@@ -272,11 +319,7 @@ function calculateStitchings(dir) {
 		
 		translations = replace(translations, "-C2.tif", "-P.tif");
 		File.saveString(translations, dir + well+"-P-translations.registered.txt");
-			
 	}	
-	
-	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
 }
 
 function cleanImages() {
@@ -286,6 +329,7 @@ function cleanImages() {
 	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
+	setBatchMode(true);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
@@ -301,7 +345,6 @@ function cleanImages() {
 				files = getFileList(dir);
 				images = filterChannelOneImages(files);
 				wells = getWells(images);
-				setBatchMode(true);
 				outDir = dir + "clean/";
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
 				for (i = 0; i < wells.length; i++) {
@@ -322,12 +365,12 @@ function cleanImages() {
 					translations = replace(translations, "-C1.tif", "-C2.tif");
 					File.saveString(translations, outDir + well + "-C2-translations.registered.txt"); 
 				}
-				setBatchMode(false);
 			}
 		}
 	}
+	setBatchMode(false);
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Clean Images");
 }
 
 function mergeImages() {
@@ -337,6 +380,7 @@ function mergeImages() {
 	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
+	setBatchMode(true);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
@@ -355,7 +399,6 @@ function mergeImages() {
 				wells = getWells(images);
 				outDir =  dir + "merged/";
 				if (!File.exists(outDir)) File.makeDirectory(outDir);
-				setBatchMode(true);
 				for (i = 0; i < wells.length; i++) {
 					well = wells[i];
 					run("Stitch Collection of Images", "layout="+dir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
@@ -371,20 +414,22 @@ function mergeImages() {
 					saveAs("tiff", outDir + well + ".tif");
 					run("Close All");
 				}
-				setBatchMode(false);
 			}
 		}
 	}	
+	setBatchMode(false);
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Merge Images");
 }
 
 function markEmptyImages() {
 	checkAndGetBaseDir();
+	timeStart = getTime();
 	root = BASE_DIR;
 	if(!isDBRootFolder(root)) exit("db not found!");
 	dataDir = root+"EssenFiles/ScanData/";
 	years = getFileList(dataDir);
+	setBatchMode(true);
 	for (y=0; y<years.length; y++) {
 		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
 		year = years[y];
@@ -398,7 +443,6 @@ function markEmptyImages() {
 				hour = hours[h];
 				mergedDir = dataDir + "/" + year + "/" + day + "/" + hour + "/" + NR + "/exported/clean/merged/";
 				files = getFileList(mergedDir);
-				setBatchMode(true);
 				for (i = 0; i < files.length; i++) {
 					file = files[i];
 					open(mergedDir + file);
@@ -406,10 +450,13 @@ function markEmptyImages() {
 					close("*");
 					if (!test) File.rename(mergedDir + file, mergedDir+"Empty_"+file);
 				}
-				setBatchMode(false);
+				
 			}
 		}
-	}		
+	}
+	setBatchMode(false);
+	timeEnd = getTime();
+	displayPrettyTime(timeEnd-timeStart,"Mark Empty Images");	
 }
 
 function modularMakeTimeSeries(){
@@ -441,13 +488,10 @@ function modularMakeTimeSeries(){
 	
 	print("make time-series finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Modular Make Time Series" + resizePos+""+concatSer+""+alignMan+""+alignHSR);
 }
 
 macro "Make One Time Serie" {
-	modularMakeOneTimeSerie();
-}
-function modularMakeOneTimeSerie(){
 	startPositions =getStartPositions();
 	
 	Dialog.create("Make One Time-series Options");
@@ -465,6 +509,11 @@ function modularMakeOneTimeSerie(){
 	concatSer = Dialog.getCheckbox();
 	alignMan  = Dialog.getCheckbox();
 	alignHSR  = Dialog.getCheckbox();
+	
+	modularMakeOneTimeSerie(pos,resizePos,concatSer,alignMan,alignHSR);
+}
+function modularMakeOneTimeSerie(pos,resizePos,concatSer,alignMan,alignHSR){
+	
 	
 	timeStart = getTime();
 	setBatchMode(true);
@@ -484,7 +533,8 @@ function modularMakeOneTimeSerie(){
 	
 	print("make one time-series finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Modular Make One Time Series" + resizePos+""+concatSer+""+alignMan+""+alignHSR);
+
 }
 
 function makeTimeSeries(){
@@ -497,7 +547,7 @@ function makeTimeSeries(){
 	
 	print("make time-series finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Make Time Series");
 }
 
 function resizePositions(){
@@ -514,7 +564,7 @@ function resizePositions(){
 	setBatchMode(false);
 	print("Resize Positions finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Resize Positions");
 }
 
 function concatenateSeries(){
@@ -531,7 +581,7 @@ function concatenateSeries(){
 	setBatchMode(false);
 	print("Concatenate Series finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Concatenate Series");
 }
 
 function alignSeriesManually(){
@@ -548,7 +598,7 @@ function alignSeriesManually(){
 	setBatchMode(false);
 	print("Align Series Manually finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Align Series Manually");
 }
 
 
@@ -566,7 +616,7 @@ function alignSeries(){
 	setBatchMode(false);
 	print("Align Series finished");
 	timeEnd = getTime();
-	displayPrettyTime(timeEnd-timeStart);
+	displayPrettyTime(timeEnd-timeStart,"Align Series");
 }
 
 
@@ -626,7 +676,7 @@ function concatenatePosition(pos){
 	}
 	print("\\Update:Position " + pos + " concatenated:" +outDir+pos);
 	saveAs("tiff", outDir + pos);
-	close();
+	close("*");
 }
 
 function alignPositionManually(pos){
@@ -639,7 +689,7 @@ function alignPositionManually(pos){
 	}
 	
 	open(inDir + pos);
-	print("Aligning position " + pos);
+	print("Manually Aligning position " + pos);
 	manualAlignment();
 	
 	print("\\Update:Position " + pos + " manually Aligned!");
@@ -648,7 +698,6 @@ function alignPositionManually(pos){
 }
 
 function alignPosition(pos){
-
 	root = BASE_DIR;
 	dataDir = root+"EssenFiles/ScanData/";
 	inDir = dataDir + "manually_aligned/";
@@ -881,8 +930,12 @@ function getTimePoints(position) {
 	return timePoints;
 }
 
-function displayPrettyTime(time_ms){
-	secondElapsed = (time_ms) / 1000;
+function displayPrettyTime(time_ms,message){
+	secondElapsed 	= (time_ms) / 1000;
+	minuteElapsed 	= 0;
+	hourElapsed 	= 0;
+	dayElapsed		= 0;
+	
 	prettyTime = "Duration: ";
 	if(secondElapsed>60){
 		minuteElapsed = floor(secondElapsed/60);
@@ -902,7 +955,19 @@ function displayPrettyTime(time_ms){
 	}
 	secondElapsed = secondElapsed % 60;
 	prettyTime = prettyTime + secondElapsed +" s";
-	print(prettyTime);
+	print(message + ":" + prettyTime);
+	
+	if(Table.title == "Results"){
+		Table.create("Durations");
+	}
+	size = Table.size;
+	Table.set("Action",size,message,"Durations");
+	Table.set("Day",size,dayElapsed,"Durations");
+	Table.set("Hour",size,hourElapsed,"Durations");
+	Table.set("Minute",size,minuteElapsed,"Durations");
+	Table.set("Second",size,secondElapsed,"Durations");
+	Table.update;
+	
 }
 
 function getMaxDimensions(position) {
@@ -1032,4 +1097,221 @@ function showDialog() {
 	FUSION = Dialog.getNumber();
 
 	ALIGNMENT_CHANNEL = Dialog.getNumber();
+}
+
+macro "TMP Stitch with propagation on one position" {
+	
+	checkAndGetBaseDir();
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	firstTime = getFirstYearDayAndHour();
+	firstTimeFolder = dataDir + firstTime[0] + firstTime[1] + firstTime[2] + NR + "/exported/";
+	files = getFileList(firstTimeFolder);
+	images = filterChannelOneImages(files);
+	wells=getWells(images);
+
+	
+	Dialog.create("Stitch with propagation on one position");
+	
+	Dialog.addChoice("Position", wells);
+	Dialog.addCheckbox("Calculate First Stitching", true);
+	Dialog.addCheckbox("Propagate Stitching", true);
+	Dialog.addCheckbox("Clean Well", true);
+	Dialog.addCheckbox("Execute Stitching", true);
+	Dialog.addCheckbox("Concatenate Time-serie", true);
+
+	Dialog.show();
+	
+	pos = Dialog.getChoice();
+	calcStitch = Dialog.getCheckbox();
+	propStitch = Dialog.getCheckbox();
+	cleanWell  = Dialog.getCheckbox();
+	execStitch = Dialog.getCheckbox();
+	concatTime = Dialog.getCheckbox();
+	
+
+	setBatchMode(true);
+	
+	if(calcStitch){
+		calculateOneStitching(firstTimeFolder,pos);
+	}
+	if(propStitch){
+		propagateStitching(pos);
+	}
+	if(cleanWell){
+		cleanOnePosition(pos);
+	}
+	if(execStitch){
+		stitchPositionAtEachTime(pos);
+	}
+	if(concatTime){
+		concatenatePosition(pos+".tif");
+	}
+	setBatchMode(false);
+	print("Stitching of well " + pos + " finished");
+}
+
+
+
+function stitchAllChannels(inDir,well){
+	cleanDir = inDir + "clean/";
+	outDir = cleanDir + "merged/";
+	if (!File.exists(outDir)) File.makeDirectory(outDir);
+	
+	run("Stitch Collection of Images", "layout="+cleanDir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
+	rename("C1");
+	run("Enhance Contrast", "saturated=0.35");
+	run("Stitch Collection of Images", "layout="+cleanDir+well+"-C2-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
+	rename("C2");
+	run("Enhance Contrast", "saturated=0.35");
+	run("Stitch Collection of Images", "layout="+inDir+well+"-P-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
+	rename("P");				
+	run("Enhance Contrast", "saturated=0.35");
+	run("Merge Channels...", "c1=[C2] c3=[C1] c4=[P] create");
+	saveAs("tiff", outDir + well + ".tif");
+	run("Close All");
+}
+
+
+function calculateOneStitching(dir,well){
+	run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x="+GRID_SIZE_X+" grid_size_y="+GRID_SIZE_Y+" tile_overlap="+OVERLAP+" first_file_index_i=1 directory="+dir+" file_names="+well+"-{ii}-"+STITCHING_CHANNEL+".tif output_textfile_name="+well+"-"+STITCHING_CHANNEL+"-translations.txt fusion_method=["+FUSION_METHOD+"] regression_threshold="+REGRESSION_THRESHOLD+" max/avg_displacement_threshold="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute_displacement_threshold="+ABS_DISPLACEMENT_THRESHOLD+" compute_overlap subpixel_accuracy computation_parameters=[Save memory (but be slower)] output_directory="+dir);
+	close();
+	
+	translations = File.openAsString(dir + well+"-"+STITCHING_CHANNEL+"-translations.registered.txt");
+	translations = replace(translations, well+"-", dir+well+"-");
+	
+	translations = replace(translations, "-"+STITCHING_CHANNEL+".tif", "-C1.tif");
+	File.saveString(translations, dir + well+"-C1-translations.registered.txt");
+
+	translations = replace(translations, "-C1.tif", "-C2.tif");
+	File.saveString(translations, dir + well+"-C2-translations.registered.txt");
+	
+	translations = replace(translations, "-C2.tif", "-P.tif");
+	File.saveString(translations, dir + well+"-P-translations.registered.txt");
+}
+
+function propagateStitching(pos){
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	firstDir = "";
+	years = getFileList(dataDir);
+	setBatchMode(true);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + year + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				if(firstDir == ""){
+					firstDir = dataDir + year + day + hour + NR + "/exported/" + pos;
+					print("Propagating Stiching from : "+firstDir+"...");
+					translations = File.openAsString(firstDir+"-C1-translations.registered.txt");
+				}
+				else{
+					translations = File.openAsString(firstDir+"-C1-translations.registered.txt");
+					currentDir = dataDir + year + day + hour + NR + "/exported/" + pos;
+				
+					print("Propagating Stiching to : "+currentDir+"...");
+					translations = replace(translations, firstDir, currentDir);
+					File.saveString(translations, currentDir + "-C1-translations.registered.txt");
+					
+					translations = replace(translations, "-C1.tif", "-C2.tif");
+					File.saveString(translations, currentDir + "-C2-translations.registered.txt");
+					
+					translations = replace(translations, "-C2.tif", "-P.tif");
+					File.saveString(translations, currentDir + "-P-translations.registered.txt");
+				}
+				
+			}
+		}
+	}
+	setBatchMode(false);
+}
+
+function cleanOnePosition(pos){
+	checkAndGetBaseDir();
+	timeStart = getTime();
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	years = getFileList(dataDir);
+	setBatchMode(true);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + year + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				dir = dataDir + year + day + hour + NR + "/exported/";
+				outDir = dir + "clean/";
+				if (!File.exists(outDir)) File.makeDirectory(outDir);
+				well=replace(pos,".tif","");
+				print("Cleaning " + dir+well+"...");
+				run("Image Sequence...", "dir="+dir+" filter=("+well+"-..-C1) sort");
+				cleanImage();
+				run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
+				close();
+				run("Image Sequence...", "dir="+dir+" filter=("+well+"-..-C2) sort");
+				cleanImage();
+				run("Image Sequence... ", "dir="+outDir+" format=TIFF use");
+				close();
+				
+				translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
+				translations = replace(translations, well+"-", "clean/"+well+"-");
+				File.saveString(translations, outDir + well + "-C1-translations.registered.txt");
+				translations = replace(translations, "-C1.tif", "-C2.tif");
+				File.saveString(translations, outDir + well + "-C2-translations.registered.txt"); 
+			}
+		}
+	}
+	setBatchMode(false);
+}
+
+function translateConfigClean(dir,well){
+	cleanDir = dir+"clean/";
+	translations = File.openAsString(dir + well+"-C1-translations.registered.txt");
+	translations = replace(translations, well+"-", "clean/"+well+"-");
+	File.saveString(translations, cleanDir + well + "-C1-translations.registered.txt");
+	translations = replace(translations, "-C1.tif", "-C2.tif");
+	File.saveString(translations, cleanDir + well + "-C2-translations.registered.txt"); 
+}
+
+function stitchPositionAtEachTime(pos){
+	checkAndGetBaseDir();
+	timeStart = getTime();
+	root = BASE_DIR;
+	dataDir = root+"EssenFiles/ScanData/";
+	subfolders = NR + "/exported/";
+	
+	years = getFileList(dataDir);
+	setBatchMode(true);
+	for (y=0; y<years.length; y++) {
+		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
+		year = years[y];
+		days = getFileList(dataDir + year);
+		for(d=0; d<days.length; d++) {
+			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
+			day = days[d];
+			hours = getFileList(dataDir + year + day);
+			for(h=0; h<hours.length; h++) {
+				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
+				hour = hours[h];
+				dir = dataDir + year + day + hour + subfolders;
+				
+				print("Merging " + dir + pos + "...");
+				stitchAllChannels(dir,pos);	
+			}
+		}
+	}
+	setBatchMode(false);
+	
 }
