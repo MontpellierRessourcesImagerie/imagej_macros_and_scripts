@@ -1,5 +1,5 @@
 count = roiManager("count");
-newImage("growth cones", "8-bit white", 256, 256, 1);
+newImage("growth cones", "8-bit white", 512, 512, 1);
 width = getWidth();
 height = getHeight();
 centerY = height/2;
@@ -14,11 +14,11 @@ y0=0;
 for (i = 0; i < count; i++) {
 	roiManager("select", i);
 	getSelectionCoordinates(xpoints, ypoints);
-	makeLine(xpoints[0], ypoints[0], xpoints[xpoints.length-1], ypoints[ypoints.length-1]);
+	makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
 	angle = getValue("Angle");
 	run("Select None");
 	roiManager("select", i);
-	run("Rotate...", "  angle="+angle);
+	run("Rotate...", " rotate angle="+angle);
 	getSelectionCoordinates(xpoints, ypoints);
 	x = getValue("X");
 	y = getValue("Y");
@@ -35,7 +35,7 @@ for (i = 0; i < count; i++) {
 	
 	if(ypoints[0]<y){
 		print(i, ypoints[0], y);
-		run("Rotate...", "  angle=180");	
+		run("Rotate...", " angle=180");	
 	}  
 
 	getSelectionCoordinates(xpoints, ypoints);
@@ -45,8 +45,8 @@ for (i = 0; i < count; i++) {
 	by = getValue("BY");
 	bHeight = getValue("Height");
 	
-	x1 = minOf(xpoints[0],  xpoints[xpoints.length-1]);
-	x2 = maxOf(xpoints[0],  xpoints[xpoints.length-1]);
+	x1 = minOf(xpoints[0],  xpoints[1]);
+	x2 = maxOf(xpoints[0],  xpoints[1]);
 	deltaX = x1+(x2-x1)/2-bx;
 	deltaY = bHeight;
 	
