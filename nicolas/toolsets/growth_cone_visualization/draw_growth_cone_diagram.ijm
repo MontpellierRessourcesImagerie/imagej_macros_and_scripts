@@ -6,7 +6,7 @@ centerY = height/2;
 centerX = width/2;
 Overlay.remove;
 run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
-colors = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "black");
+colors = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "orange","brown","purple","black");
 colorIndex = 0;
 x0=0;
 y0=0;
@@ -29,9 +29,9 @@ for (i = 0; i < count; i++) {
 	deltaY = y - by;
 	Roi.move(centerX-deltaX, centerY-deltaY);	
 	color = colors[colorIndex];
-	colorIndex = (colorIndex + 1) % 7;
+	colorIndex = (colorIndex + 1) % 10;
 	Roi.setStrokeColor(color);
-	Roi.setStrokeWidth(1);
+	Roi.setStrokeWidth(2);
 	
 	if(ypoints[0]<y){
 		print(i, ypoints[0], y);
