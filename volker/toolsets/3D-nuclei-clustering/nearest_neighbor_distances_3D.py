@@ -29,7 +29,7 @@ def calculateNNDsByCluster(tableName):
 	offset = 0;
 	for cluster in clusters:
 		dplist = []
-		for nr, x, y, z in cluster:
+		for x, y, z, nr in cluster:
 			array = []
 			array.append(x)
 			array.append(y)
