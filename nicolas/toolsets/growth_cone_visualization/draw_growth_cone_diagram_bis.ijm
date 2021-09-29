@@ -6,12 +6,14 @@ centerY = height/2;
 centerX = width/2;
 Overlay.remove;
 run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
-colors = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "orange","brown","purple","black");
-// colors = newArray(#FF0000,#00FFFF,#0000FF,#0000A0,#AdD8E6,#800080,#FFFF00,#00FF00,#FF00FF,#C0C0C0,#808080,#000000,#FFA500,#A52A2A,#800000,#008000,#008000,#808000)
-// colors = newArray(FF0000,00FFFF,0000FF,0000A0,AdD8E6,800080,FFFF00,00FF00,FF00FF,C0C0C0,808080,000000,FFA500,A52A2A,800000,008000,008000,808000)
+// colors = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "orange","brown","purple","black");
+// colors = newArray(0xFF0000,0x00FFFF,0x0000FF,0x0000A0,0xAdD8E6,0x800080,0xFFFF00,0x00FF00,0xFF00FF,0xC0C0C0,0x808080,0x000000,0xFFA500,0xA52A2A,0x800000,0x008000,
+// 0x008000,0x808000)
 
 
 colorIndex = 0;
+color=0;
+colors=0;
 x0=0;
 y0=0;
 
@@ -32,48 +34,47 @@ for (i = 0; i < count; i++) {
 	deltaX = x - bx;
 	deltaY = y - by;
 	Roi.move(centerX-deltaX, centerY-deltaY);	
-	color = colors[colorIndex];
-	colorIndex = (colorIndex + 1) % 10;
 	
-    pas = 100*255/count;
-	if (count <= 255){
-		alpha = (i+1)*pas; 
-		beta  = (i+1)*pas;  
-		gamma = (i+1)*pas;
+	// colors = colors[colorIndex];
+	// colorIndex = (colorIndex + 1) % 10;
+	
+    /******* Compute R,G,B Components ***************************/
+    /******* Space Sampling Method    ***************************/
+    pas = 256*i;
+    if (count <= 256){
+		alpha = (i+4)*pas; 
+		beta  = (i)*pas;  
+		gamma = (i-4)*pas;
 	}
-	color=0;
-	color = alpha*255 + beta*255 + gamma*255;
 
-	print("alpha= " + alpha);
-	print("beta= " + beta);
-	print("gamma= " + gamma);
-	print("color = " + gamma);
-	print("\n");
-	
-	
-	
+	/******* Compute Color Norm and Display it   ****************/
+	color=0; 
+	color = sqrt( Math.pow(alpha,2) + Math.pow(beta,2) + Math.pow(gamma,2) )*256;
 	Roi.setStrokeColor(color);
-	Roi.setStrokeWidth(2);
 	
+	/******* Display The Indicated ROI_Lines   ******************/
+	Roi.setStrokeWidth(2);
+
+	/******* ROI PI Rotation      *******************************/
 	if(ypoints[0]<y){
 		print(i, ypoints[0], y);
 		run("Rotate...", " angle=180");	
-	}  
-
+	}
+	  
+	/******* Fix and Compute Translation Coord. ******************/
 	getSelectionCoordinates(xpoints, ypoints);
 	x = getValue("X");
 	y = getValue("Y");
 	bx = getValue("BX");
 	by = getValue("BY");
 	bHeight = getValue("Height");
-	
 	x1 = minOf(xpoints[0],  xpoints[1]);
 	x2 = maxOf(xpoints[0],  xpoints[1]);
 	deltaX = x1+(x2-x1)/2-bx;
 	deltaY = bHeight;
-	
+
+	/******* Move the Selected ROI ********************************/
 	Roi.move(centerX-deltaX, centerY-deltaY);	
-	// setColor(alpha*255, beta*255, gamma*255);
 	
 	Overlay.addSelection;
 	
