@@ -14,7 +14,7 @@ var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _DEAD_CELLS_CHANNEL = 1;
 var _DEAD_CELLS_THRESHOLDING_METHOD = "Triangle";
 var _COCHLEA_CHANNEL = 2;
-var _COCHLEA_THRESHOLDING_METHOD = "Li";
+var _COCHLEA_THRESHOLDING_METHOD = "IsoData";
 var _INTERPOLATION_LENGTH = 20;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_COCHLEA_TOOLS";
@@ -32,7 +32,7 @@ macro "measure cochlea [f5]" {
 }
 
 macro "analyze image (f5) Action Tool - C000T4b12a" {
-	processImage();
+	analyzeImage();
 }
 
 macro "analyze image (f5) Action Tool Options" {
@@ -54,31 +54,41 @@ function analyzeImage() {
 	getSelectionBounds(xOffset, yOffset, width, height);
 	run("Set Measurements...", "area stack display redirect=None decimal=9");
 	getStatistics(totalArea);
+	
+	setBatchMode("hide");
 	inputImageID = getImageID();
 	areasDeadCells = measureAreasOfDeadCells(xOffset, yOffset);
+	
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
-	areasOfCochlea = measureAreaOfChochlea(xOffset, yOffset);
-	lengthsOfChochlea = measureLengthOfCochlea(xOffset, yOffset, inputImageID);
+	areasOfCochlea = measureAreaOfCochlea(xOffset, yOffset);
+	lengthsOfCochlea = measureLengthOfCochlea(xOffset, yOffset, inputImageID);
+	
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	areasOfDeadCellsInCochlea = measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID);
+	
 	roiManager("reset");
 	selectImage("cochlea");
 	close();
+	
 	selectImage("dead_cells");
 	close();
+	
 	run("Clear Results");
+	
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	tableTitle = "cochlea results";
+	setBatchMode(false);
+	
 	Table.create(tableTitle);
 	Table.showRowIndexes(true, tableTitle);
 	Table.set("total area", 0, totalArea, tableTitle);
 	Table.setColumn("rel. area dead cells", areasDeadCells, tableTitle);
 	Table.setColumn("rel. area cochlea", areasOfCochlea, tableTitle);
 	Table.setColumn("rel. area dead cells in cochlea", areasOfDeadCellsInCochlea, tableTitle);
-	Table.setColumn("length of cochlea", lengthsOfChochlea, tableTitle);
+	Table.setColumn("length of cochlea", lengthsOfCochlea, tableTitle);
 }
 
 function measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID) {
@@ -88,6 +98,7 @@ function measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID) {
 	maskID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
+		showProgress(i, nSlices);
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -114,7 +125,7 @@ function measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID) {
 	return areas;
 }
 
-function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {	
+function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {
 	imageID = getImageID();
 	run("Duplicate...", "duplicate");
 	skeletonID = getImageID();
@@ -123,6 +134,7 @@ function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {
 	run("Clear Results");
 	run("Skeletonize", "stack");
 	for (i = 1; i <= nSlices; i++) {
+		showProgress(i, nSlices);
 		Stack.setFrame(i);
 		run("Geodesic Diameter", "label="+title+" distances=[Chessknight (5,7,11)] export");
 		roiManager("Select", i-1);
@@ -152,12 +164,13 @@ function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {
 	return lengths;
 }
 
-function measureAreaOfChochlea(xOffset, yOffset) {
+function measureAreaOfCochlea(xOffset, yOffset) {
 	getStatistics(totalArea);
 	extractCochlea(xOffset, yOffset);
 	imageID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
+		showProgress(i, nSlices);
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -173,15 +186,17 @@ function measureAreaOfChochlea(xOffset, yOffset) {
 function extractCochlea(xOffset, yOffset) {
 	resetMinAndMax();
 	inputImageID = getImageID();
+	
 	Stack.setChannel(_COCHLEA_CHANNEL);
 	run("Duplicate...", "duplicate channels="+_COCHLEA_CHANNEL+"-"+_COCHLEA_CHANNEL);
 	resetMinAndMax();
-	setAutoThreshold(_COCHLEA_THRESHOLDING_METHOD + " dark");
-	run("Convert to Mask", "method=Li background=Dark calculate");
+	run("Convert to Mask", "method="+_COCHLEA_THRESHOLDING_METHOD+" background=Dark calculate");
+	run("Dilate", "stack");
 	run("Fill Holes", "stack");
+	run("Erode", "stack");
 	maskID = getImageID();
-	setBatchMode(true);
 	for (i = 1; i <= nSlices; i++) {
+		showProgress(i, nSlices);
 		Stack.setFrame(i);
 		run("Analyze Particles...", "size=0-Infinity display clear add slice");
 		areas = Table.getColumn("Area", "Results");
@@ -189,7 +204,6 @@ function extractCochlea(xOffset, yOffset) {
 		indexOfBiggest = ranks[ranks.length - 1];
 		roiManager("select", indexOfBiggest);
 		run("Clear Outside", "slice");
-
 		selectImage(inputImageID);
 		Stack.setFrame(i);
 		roiManager("select", indexOfBiggest);
@@ -207,19 +221,20 @@ function extractCochlea(xOffset, yOffset) {
 	}
 	Stack.setFrame(1);
 	rename("cochlea");
-	setBatchMode(false);
 }
 
 function measureAreasOfDeadCells(xOffset, yOffset) {
 	getStatistics(totalArea);
 	inputImageID = getImageID();
+	
 	Stack.setChannel(_DEAD_CELLS_CHANNEL);
-	setBatchMode(true);
 	run("Duplicate...", "duplicate channels="+_DEAD_CELLS_CHANNEL+"-"+_DEAD_CELLS_CHANNEL);
 	run("Convert to Mask", "method="+_DEAD_CELLS_THRESHOLDING_METHOD+" background=Dark calculate");
+	
 	maskID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
+		showProgress(i, nSlices);
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -241,6 +256,5 @@ function measureAreasOfDeadCells(xOffset, yOffset) {
 		areas[i-1] = area / totalArea;
 	}
 	rename("dead_cells");
-	setBatchMode(false);
 	return areas;
 }
