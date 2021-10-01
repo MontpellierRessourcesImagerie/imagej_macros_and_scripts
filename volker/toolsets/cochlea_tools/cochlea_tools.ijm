@@ -65,21 +65,27 @@ macro "analyze image (f5) Action Tool Options" {
 }
 
 function analyzeImage() {
+	if(nImages==0){
+		Dialog.create("Select the input file");
+		Dialog.addFile("Input File","");
+		Dialog.show();
+		open(Dialog.getString());
+	}
+	
 	Overlay.remove;
 	getSelectionBounds(xOffset, yOffset, width, height);
 	run("Set Measurements...", "area stack display redirect=None decimal=9");
 	getStatistics(totalArea);
 	setBatchMode("hide");
+	setBatchMode("show");
 	inputImageID = getImageID();
 	areasDeadCells = measureAreasOfDeadCells(xOffset, yOffset);
-
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	areasOfCochlea = measureAreaOfCochlea(xOffset, yOffset);
 	setBatchMode("exit and display");
-	lengthsOfCochlea = measureLengthOfCochlea(xOffset, yOffset, inputImageID);
-
-	setBatchMode(true);
+	lengthsOfCochlea = measureLengthOfCochlea(xOffset, yOffset, inputImageID);	
+	setBatchMode("hide");
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	areasOfDeadCellsInCochlea = measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID);
@@ -93,7 +99,7 @@ function analyzeImage() {
 	
 	run("Clear Results");
 	close("Results");
-	close("Roi Manager");
+	//close("Roi Manager");
 	selectImage(inputImageID);
 	setSlice(2);
 	makeRectangle(xOffset, yOffset, width, height);
@@ -162,7 +168,6 @@ function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {
 		roiManager("select",ranks[i]);
 		run("Clear Outside", "slice");
 		run("Skeletonize", "slice");
-		
 		run("Geodesic Diameter", "label="+title+" distances=[Chessknight (5,7,11)] export");
 		roiManager("Select", roiManager("count")-1);
 		run("Interpolate", "interval="+_INTERPOLATION_LENGTH+" smooth ");
