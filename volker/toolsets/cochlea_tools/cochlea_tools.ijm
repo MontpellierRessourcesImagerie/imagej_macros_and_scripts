@@ -17,6 +17,13 @@ var _COCHLEA_CHANNEL = 2;
 var _COCHLEA_THRESHOLDING_METHOD = "IsoData";
 var _INTERPOLATION_LENGTH = 20;
 
+var _CLOSE_COUNT = 1;
+
+var _COCHLEA_SIZE_THRESHOLD = 800000000;
+var _COCHLEA_SIZE_THRESHOLD_M = _COCHLEA_SIZE_THRESHOLD/100000;
+
+
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_COCHLEA_TOOLS";
 
 macro "cochlea tools help [f4]" {
@@ -42,28 +49,37 @@ macro "analyze image (f5) Action Tool Options" {
 	Dialog.addNumber("cochlea channel: ", _COCHLEA_CHANNEL);
 	Dialog.addChoice("cochlea thresholding method: ", _THRESHOLDING_METHODS, _COCHLEA_THRESHOLDING_METHOD);
 	Dialog.addNumber("interpolation length: ", _INTERPOLATION_LENGTH);
+	Dialog.addNumber("Close Count", _CLOSE_COUNT);
+	Dialog.addMessage("Minimal Size for an object to be considered as part of the cochlea");
+	Dialog.addNumber("Cochlea Size Threshold", _COCHLEA_SIZE_THRESHOLD_M,0,10,"000 000 microns^2");
 	Dialog.show();
+
 	_DEAD_CELLS_CHANNEL = Dialog.getNumber();
 	_DEAD_CELLS_THRESHOLDING_METHOD = Dialog.getChoice();
 	_COCHLEA_CHANNEL = Dialog.getNumber();
 	_COCHLEA_THRESHOLDING_METHOD = Dialog.getChoice();
 	_INTERPOLATION_LENGTH = Dialog.getNumber();	
+	_CLOSE_COUNT = Dialog.getNumber();
+	_COCHLEA_SIZE_THRESHOLD_M = Dialog.getNumber();
+	_COCHLEA_SIZE_THRESHOLD = _COCHLEA_SIZE_THRESHOLD_M * 100000;
 }
 
 function analyzeImage() {
+	Overlay.remove;
 	getSelectionBounds(xOffset, yOffset, width, height);
 	run("Set Measurements...", "area stack display redirect=None decimal=9");
 	getStatistics(totalArea);
-	
 	setBatchMode("hide");
 	inputImageID = getImageID();
 	areasDeadCells = measureAreasOfDeadCells(xOffset, yOffset);
-	
+
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	areasOfCochlea = measureAreaOfCochlea(xOffset, yOffset);
+	setBatchMode("exit and display");
 	lengthsOfCochlea = measureLengthOfCochlea(xOffset, yOffset, inputImageID);
-	
+
+	setBatchMode(true);
 	selectImage(inputImageID);
 	makeRectangle(xOffset, yOffset, width, height);
 	areasOfDeadCellsInCochlea = measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID);
@@ -76,8 +92,10 @@ function analyzeImage() {
 	close();
 	
 	run("Clear Results");
-	
+	close("Results");
+	close("Roi Manager");
 	selectImage(inputImageID);
+	setSlice(2);
 	makeRectangle(xOffset, yOffset, width, height);
 	tableTitle = "cochlea results";
 	setBatchMode(false);
@@ -129,44 +147,60 @@ function measureLengthOfCochlea(xOffset, yOffset, inputImageID) {
 	imageID = getImageID();
 	run("Duplicate...", "duplicate");
 	skeletonID = getImageID();
-	title = getTitle();
+	//title = getTitle();
 	roiManager("reset");
 	run("Clear Results");
-	run("Skeletonize", "stack");
-	for (i = 1; i <= nSlices; i++) {
-		showProgress(i, nSlices);
-		Stack.setFrame(i);
+
+	Stack.setFrame(1);
+	run("Analyze Particles...", "size=10000-Infinity display clear add slice");
+	areas = Table.getColumn("Area", "Results");
+	ranks = Array.rankPositions(areas);
+
+	for(i=0;i<ranks.length;i++){
+		run("Duplicate...", " ");
+		title = getTitle();
+		roiManager("select",ranks[i]);
+		run("Clear Outside", "slice");
+		run("Skeletonize", "slice");
+		
 		run("Geodesic Diameter", "label="+title+" distances=[Chessknight (5,7,11)] export");
-		roiManager("Select", i-1);
+		roiManager("Select", roiManager("count")-1);
 		run("Interpolate", "interval="+_INTERPOLATION_LENGTH+" smooth ");
 		run("Interpolate", "interval=1 smooth adjust");
 		roiManager("Update");
-
-		selectImage(inputImageID);
-		Stack.setFrame(i);
-		roiManager("select", i-1);
+		close();
+	}
+	cochleaLength = 0;
+	selectImage(inputImageID);
+	for(i=0;i<ranks.length;i++){
+		roiManager("select", roiManager("count")-(1+i));
+		Stack.setFrame(1);
 		getSelectionBounds(x, y, width, height);
 		Roi.move(x+xOffset, y+yOffset);
 		Roi.setGroup(3);
 		Roi.setStrokeColor("white");
 		Overlay.addSelection;
-		Overlay.setPosition(_COCHLEA_CHANNEL, 0, i);
+		Overlay.setPosition(_COCHLEA_CHANNEL, 0, 1);
+		roiManager("measure");
 		run("Select None");
-
-		selectImage(skeletonID);
-		run("Select None");
+		cochleaLength = cochleaLength + Table.get("Length", nResults-1,"Results");
 	}
-	Stack.setFrame(1);
-	roiManager("measure");
-	lengths = Table.getColumn("Length", "Results");
+	close("cochlea-1-GeodDiameters");
+	close("cochlea-2-GeodDiameters");
+	selectImage(skeletonID);
 	close();
+	
 	selectImage(imageID);
+
+	lengths = newArray();
+	lengths[0] = cochleaLength;
 	return lengths;
 }
 
 function measureAreaOfCochlea(xOffset, yOffset) {
 	getStatistics(totalArea);
 	extractCochlea(xOffset, yOffset);
+	
 	imageID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
@@ -182,7 +216,6 @@ function measureAreaOfCochlea(xOffset, yOffset) {
 	return areas;
 }
 
-
 function extractCochlea(xOffset, yOffset) {
 	resetMinAndMax();
 	inputImageID = getImageID();
@@ -190,23 +223,52 @@ function extractCochlea(xOffset, yOffset) {
 	Stack.setChannel(_COCHLEA_CHANNEL);
 	run("Duplicate...", "duplicate channels="+_COCHLEA_CHANNEL+"-"+_COCHLEA_CHANNEL);
 	resetMinAndMax();
-	run("Convert to Mask", "method="+_COCHLEA_THRESHOLDING_METHOD+" background=Dark calculate");
-	run("Dilate", "stack");
+	setAutoThreshold(""+_COCHLEA_THRESHOLDING_METHOD+" dark no-reset stack");
+	run("Convert to Mask", "method="+_COCHLEA_THRESHOLDING_METHOD+" background=Dark");
+
+	for(g=0;g<_CLOSE_COUNT;g++){
+		run("Dilate", "stack");
+	}
 	run("Fill Holes", "stack");
-	run("Erode", "stack");
+	for(g=0;g<_CLOSE_COUNT;g++){
+		run("Erode", "stack");
+	}
 	maskID = getImageID();
 	for (i = 1; i <= nSlices; i++) {
 		showProgress(i, nSlices);
 		Stack.setFrame(i);
-		run("Analyze Particles...", "size=0-Infinity display clear add slice");
+		run("Analyze Particles...", "size=10000-Infinity display clear add slice");
+		
 		areas = Table.getColumn("Area", "Results");
 		ranks = Array.rankPositions(areas);
-		indexOfBiggest = ranks[ranks.length - 1];
-		roiManager("select", indexOfBiggest);
+
+		biggestArea = areas[ranks[ranks.length - 1]];
+
+		sizeThreshold = _COCHLEA_SIZE_THRESHOLD;
+		
+		cochleaParts = newArray();
+		cochleaParts = Array.trim(cochleaParts, 0);
+		tooSmall = false;
+		while(!tooSmall){
+			index = ranks[ranks.length - (1+cochleaParts.length)];
+			if(areas[index]>=sizeThreshold){
+				cochleaParts = Array.concat(cochleaParts,index);
+				//Array.print(cochleaParts);
+			}else{
+				tooSmall = true;
+			}
+		}
+		if(cochleaParts.length < 1){
+				cochleaParts = Array.concat(cochleaParts,ranks[ranks.length - 1]);
+		}
+	
+		roiManager("select",cochleaParts);
+		roiManager("combine");
 		run("Clear Outside", "slice");
 		selectImage(inputImageID);
 		Stack.setFrame(i);
-		roiManager("select", indexOfBiggest);
+		roiManager("select", cochleaParts);
+		roiManager("combine");
 		getSelectionBounds(x, y, width, height);
 		Roi.move(x+xOffset, y+yOffset);
 		Roi.setGroup(2);
