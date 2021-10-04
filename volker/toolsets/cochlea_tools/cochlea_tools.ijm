@@ -24,6 +24,8 @@ var _CLOSE_COUNT = 1;
 var _COCHLEA_SIZE_THRESHOLD = 800000000;
 var _COCHLEA_SIZE_THRESHOLD_M = _COCHLEA_SIZE_THRESHOLD/100000;
 
+var _BATCH = false;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_COCHLEA_TOOLS";
 
 macro "Cochlea tools help [f4]" {
@@ -35,10 +37,12 @@ macro "Cochlea tools help (f4) Action Tool - C000L0090C001Da0C002Db0C001Dc0C000L
 }
 
 macro "Measure Area of Dead Cells [f5]"{
+	_BATCH = false;
 	measureAreasOfDeadCellsAction();
 }
 
 macro "Measure Area of Dead Cells (f5) Action Tool - C000 T2b12A Tab12D"{
+	_BATCH = false;
 	measureAreasOfDeadCellsAction();
 }
 
@@ -47,10 +51,12 @@ macro "Measure Area of Dead Cells (f5) Action Tool Options"{
 }
 
 macro "Measure Area of Cochlea [f6]"{
+	_BATCH = false;
 	measureAreaOfCochleaAction();
 }
 
 macro "Measure Area of Cochlea (f6) Action Tool - C000 T2b12A Tab12C"{
+	_BATCH = false;
 	measureAreaOfCochleaAction();
 }
 
@@ -59,9 +65,11 @@ macro "Measure Area of Cochlea (f6) Action Tool Options"{
 }
 
 macro "Measure Length of Cochlea [f7]"{
+	_BATCH = false;
 	measureLengthOfCochleaAction();
 }
 macro "Measure Length of Cochlea (f7) Action Tool - C000 T2b12L Tab12C"{
+	_BATCH = false;
 	measureLengthOfCochleaAction();
 }
 macro "Measure Length of Cochlea (f7) Action Tool Options"{
@@ -69,9 +77,11 @@ macro "Measure Length of Cochlea (f7) Action Tool Options"{
 }
 
 macro "Measure Area of Dead Cells in Cochlea [f8]"{
+	_BATCH = false;
 	measureDeadCellsAreaInCochleaAction();
 }
 macro "Measure Area of Dead Cells in Cochlea (f8) Action Tool - C000 T2b12D Tab12C"{
+	_BATCH = false;
 	measureDeadCellsAreaInCochleaAction();
 }
 macro "Measure Area of Dead Cells in Cochlea (f8) Action Tool Options"{
@@ -79,10 +89,12 @@ macro "Measure Area of Dead Cells in Cochlea (f8) Action Tool Options"{
 }
 
 macro "Analyze cochlea [f9]" {
+	_BATCH = false;
 	analyzeImage();
 }
 
 macro "Analyze image (f9) Action Tool - C000T4b12a" {
+	_BATCH = false;
 	analyzeImage();
 }
 
@@ -90,7 +102,22 @@ macro "Analyze image (f9) Action Tool Options" {
 	showDialog();
 }
 
+macro "Batch Analyze [f10]" {
+	_BATCH = true;
+	batchAnalyzeImage();
+}
+
+macro "Batch image (f10) Action Tool - C000T4b12b" {
+	_BATCH = true;
+	batchAnalyzeImage();
+}
+
+macro "Batch Analyze image (f10) Action Tool Options" {
+	showDialog();
+}
+
 function analyzeImage() {
+	print(_BATCH);
 	if(nImages==0){
 		Dialog.create("Select the input file");
 		Dialog.addFile("Input File","");
@@ -148,7 +175,7 @@ function measureDeadCellsAreaInCochlea(xOffset, yOffset, inputImageID) {
 	maskID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
-		showProgress(i, nSlices);
+		if(!_BATCH){	showProgress(i, nSlices);}
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -234,7 +261,7 @@ function measureAreaOfCochlea(xOffset, yOffset) {
 	imageID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
-		showProgress(i, nSlices);
+		if(!_BATCH){	showProgress(i, nSlices);}
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -265,7 +292,7 @@ function extractCochlea(xOffset, yOffset) {
 	}
 	maskID = getImageID();
 	for (i = 1; i <= nSlices; i++) {
-		showProgress(i, nSlices);
+		if(!_BATCH){	showProgress(i, nSlices);}
 		Stack.setFrame(i);
 		run("Analyze Particles...", "size=10000-Infinity display clear add slice");
 		
@@ -326,7 +353,7 @@ function measureAreasOfDeadCells(xOffset, yOffset) {
 	maskID = getImageID();
 	areas = newArray(nSlices);
 	for (i = 1; i <= nSlices; i++) {
-		showProgress(i, nSlices);
+		if(!_BATCH){	showProgress(i, nSlices);}
 		Stack.setFrame(i);
 		setThreshold(1, 255);
 		run("Create Selection");
@@ -459,6 +486,50 @@ function measureDeadCellsAreaInCochleaAction(){
 	makeRectangle(xOffset, yOffset, width, height);
 }
 
+function batchAnalyzeImage(){
+	inputDirectory = getDir("Enter Cochlea Folder");
+	files = getFileList(inputDirectory);
+	outputDirectory = inputDirectory + "output/";
+	if(!File.exists(outputDirectory)){
+		File.makeDirectory(outputDirectory);
+	}
+
+	batchTableTitle = "Batch "+_TABLE_TITLE;
+	Table.create(batchTableTitle);
+	indexLastFile = 0 ;
+	
+	for(f=0;f<files.length;f++){
+		showProgress(f, files.length);
+		if(!endsWith(files[f],".tif")){continue;}	
+		open(inputDirectory+files[f]);
+		imageTitle = getTitle();
+		analyzeImage();
+
+		areaTot = Table.get("total area", 0, _TABLE_TITLE);
+		areaDC 	= Table.getColumn("rel. area dead cells", _TABLE_TITLE);
+		areaC 	= Table.getColumn("rel. area cochlea", _TABLE_TITLE);
+		areaDCC	= Table.getColumn("rel. area dead cells in cochlea", _TABLE_TITLE);
+		lengthC = Table.getColumn("length of cochlea", _TABLE_TITLE);
+
+		for(i=0;i<areaDC.length;i++){
+			Table.set("file name"			, i+indexLastFile, imageTitle,	batchTableTitle);
+			Table.set("timepoint"			, i+indexLastFile, i+1,			batchTableTitle);
+			Table.set("total area"			, i+indexLastFile, areaTot, 	batchTableTitle);
+			Table.set("rel. area dead cells", i+indexLastFile, areaDC[i],	batchTableTitle);
+			Table.set("rel. area cochlea"	, i+indexLastFile, areaC[i], 	batchTableTitle);
+			Table.set("rel. area dead cells in cochlea", i+indexLastFile, areaDCC[i], batchTableTitle);
+			if(i==0){
+				Table.set("length of cochlea"	, i+indexLastFile, lengthC[i],batchTableTitle);
+			}
+		}
+		Table.update(batchTableTitle);
+		indexLastFile = indexLastFile + areaDC.length;
+		saveAs("tiff", outputDirectory+files[f]);
+		close(files[f]);
+	}
+	Table.save(outputDirectory+"Batch Cochlea Results.csv",batchTableTitle);
+	saveAs("Results", outputDirectory+"Batch Cochlea Results.csv");
+}
 
 function showDialog(){	
 	Dialog.create("cochlea tools options");
@@ -480,5 +551,4 @@ function showDialog(){
 	_CLOSE_COUNT = Dialog.getNumber();
 	_COCHLEA_SIZE_THRESHOLD_M = Dialog.getNumber();
 	_COCHLEA_SIZE_THRESHOLD = _COCHLEA_SIZE_THRESHOLD_M * 100000;
-}
 }
