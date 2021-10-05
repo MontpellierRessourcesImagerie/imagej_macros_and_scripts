@@ -58,34 +58,14 @@ function filterZIPFiles(files){
 	return zipFiles;
 }
 
-/************************  drawRois() **********************/
-function drawRois(ROI_File_Name,FileIndex) {
-	roiManager("reset");
-	roiManager("Open", ROI_File_Name);
-	print(ROI_File_Name);
-	count = roiManager("count");
-	Image_Name = "growth cones "+FileIndex;
-	newImage(Image_Name, "8-bit black", IMAGE_SIZE, IMAGE_SIZE, 1);
-	width = getWidth();
-	height = getHeight();
-	baseY = height-BORDER_WIDTH;
-	centerX = width/2;
-	Overlay.remove;
-	
-	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
-	
-	colorIndex = 0;
-	color=0; colors=0;
-	x0=0; y0=0;
-	
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
+function drawROI(color) {
 		getSelectionCoordinates(xpoints, ypoints);
 		makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
 		angle = getValue("Angle");
 		run("Select None");
 		roiManager("select", i);
 		run("Rotate...", " rotate angle="+angle);
+
 		getSelectionCoordinates(xpoints, ypoints);
 		x = getValue("X");
 		y = getValue("Y");
@@ -95,21 +75,6 @@ function drawRois(ROI_File_Name,FileIndex) {
 		deltaX = x - bx;
 		deltaY = y - by;
 		Roi.move(centerX-deltaX, baseY-deltaY);	
-		
-		// colors = colors[colorIndex];
-		// colorIndex = (colorIndex + 1) % 10;
-	
-		if (count<256){
-			Color_Pas_Ech = 256/(count);
-		}
-		else {
-			print("Error" + count);
-			exit("Error roi number is not inf to count");
-		} 
-		
-	    // ******* Move the Selected ROI ********************************/
-		color=0;
-		color = (i*Color_Pas_Ech) +  Color_Pas_Ech;
 		
 		/******* Display The Indicated ROI_Lines   ******************/
 		print("color = "+color);
@@ -138,14 +103,44 @@ function drawRois(ROI_File_Name,FileIndex) {
 		deltaX = x1+(x2-x1)/2-bx;
 		deltaY = bHeight;
 				
-		// Array.getStatistics(ypoints, min, max, mean, std);
-		// deltaY = min+(max-min)/2-by;
-
 		/******* Move the Selected ROI ********************************/
 		Roi.move(centerX-deltaX, baseY-deltaY);	
 		
 		Overlay.addSelection;
-				
+}
+
+/************************  drawRois() **********************/
+function drawRois(ROI_File_Name,FileIndex) {
+	roiManager("reset");
+	roiManager("Open", ROI_File_Name);
+	print(ROI_File_Name);
+	count = roiManager("count");
+	Image_Name = "growth cones "+FileIndex;
+	newImage(Image_Name, "8-bit black", IMAGE_SIZE, IMAGE_SIZE, 1);
+	width = getWidth();
+	height = getHeight();
+	baseY = height-BORDER_WIDTH;
+	centerX = width/2;
+	Overlay.remove;
+	
+	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
+	
+	colorIndex = 0;
+	color=0; colors=0;
+	x0=0; y0=0;
+	
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		if (count<256){
+			Color_Pas_Ech = 256/(count);
+		}
+		else {
+			print("Error" + count);
+			exit("Error roi number is not inf to count");
+		} 
+		color=0;
+		color = (i*Color_Pas_Ech) +  Color_Pas_Ech;
+		drawROI(color);
 	}
 	run("Select None");
 	im_ID = getImageID();
