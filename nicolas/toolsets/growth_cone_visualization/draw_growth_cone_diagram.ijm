@@ -1,3 +1,5 @@
+var BORDER_WIDTH = 75;
+
 macro "growth coneof the macro" {
        draw_roi_growth_cone();
 }
@@ -8,6 +10,7 @@ macro "growth coneof the macro" {
 function draw_roi_growth_cone() { 
 // man function description
 
+Files_With_Zip ="";
 dir = getDir("Please select the input folder!");
 files = getFileList(dir);
 suffix =".zip";
@@ -68,13 +71,14 @@ function filterZIPFiles(files){
 function drawRois(ROI_File_Name,FileIndex) {
 	roiManager("reset");
 	roiManager("Open", ROI_File_Name);
+	print(ROI_File_Name);
 	count = roiManager("count");
 	Image_Name = "growth cones "+FileIndex;
 	newImage(Image_Name, "8-bit black", 512, 512, 1);
 	
 	width = getWidth();
 	height = getHeight();
-	centerY = height/2;
+	baseY = height-BORDER_WIDTH;
 	centerX = width/2;
 	Overlay.remove;
 	
@@ -100,7 +104,7 @@ function drawRois(ROI_File_Name,FileIndex) {
 		bHeight = getValue("Height");
 		deltaX = x - bx;
 		deltaY = y - by;
-		Roi.move(centerX-deltaX, centerY-deltaY);	
+		Roi.move(centerX-deltaX, baseY-deltaY);	
 		
 		// colors = colors[colorIndex];
 		// colorIndex = (colorIndex + 1) % 10;
@@ -138,15 +142,17 @@ function drawRois(ROI_File_Name,FileIndex) {
 		x1 = minOf(xpoints[0],  xpoints[1]);
 		x2 = maxOf(xpoints[0],  xpoints[1]);
 		y1 = minOf(ypoints[0],  ypoints[1]);
-		y2 = maxOf(ypoints[0],  xpoints[1]);
+		y2 = maxOf(ypoints[0],  ypoints[1]);
 		
 		
 		deltaX = x1+(x2-x1)/2-bx;
-		Array.getStatistics(ypoints, min, max, mean, std);
-		deltaY = min+(max-min)/2-by;
+		deltaY = bHeight;
+				
+		// Array.getStatistics(ypoints, min, max, mean, std);
+		// deltaY = min+(max-min)/2-by;
 
 		/******* Move the Selected ROI ********************************/
-		Roi.move(centerX-deltaX, centerY-deltaY);	
+		Roi.move(centerX-deltaX, baseY-deltaY);	
 		
 		Overlay.addSelection;
 				
@@ -155,6 +161,6 @@ function drawRois(ROI_File_Name,FileIndex) {
 	im_ID = getImageID();
 	return im_ID;
 }
-}
+
 
 
