@@ -1,58 +1,49 @@
 var BORDER_WIDTH = 75;
+var GAMMA = 0.5;
+var IMAGE_SIZE = 512;
 
-macro "growth coneof the macro" {
-       draw_roi_growth_cone();
-}
-
-
-
-
-function draw_roi_growth_cone() { 
-// man function description
-
-Files_With_Zip ="";
-dir = getDir("Please select the input folder!");
-files = getFileList(dir);
-suffix =".zip";
-Array.print(files);
-images_Id = newArray();
-run("Close All");
-Files_With_Zip = filterZIPFiles(files);
-print("\\Clear");
-Array.print(Files_With_Zip);
-print("file = "+dir);
-
-for (i = 0; i<Files_With_Zip.length; i++){
-	if(endsWith(Files_With_Zip[i], suffix)){
-		Roi_Name = dir + Files_With_Zip[i];
-		print("file With Path = " + Roi_Name);
-		images_Id[i]= drawRois(Roi_Name,i);
-		selectImage(images_Id[i]); 
-		run("RGB Color", "");
-	}
-	else {
-		exit("Error Message : No File Zip");
-	}
-}
-
+numberOfImages = batchDrawGrowthCones();
 /********************   run("Images RGB To Stack" and Flatten) and make a montage **********/
 print("images_ID");
 run("Images to Stack", "name=Stack title=[growth cones] use keep");
-//run("Images to Stack", "");
-run("Flatten", "");
+run("Flatten", "stack");
 
-M_Number_Cols = Files_With_Zip.length/2;
-M_Number_Rows = Files_With_Zip.length - M_Number_Cols;
+M_Number_Cols = numberOfImages/2;
+M_Number_Rows = numberOfImages - M_Number_Cols;
 M_Param_Input = "columns=" + M_Number_Cols + " rows=" + M_Number_Rows + " scale=0.5 label";
-run("Gamma...");
+run("Gamma...", "value="+GAMMA+" stack");
 run("Make Montage...", M_Param_Input);
 run("Invert");
-
-
+close("\\Others");
 //*******************************************************  Program end ******************************************************// 
 //***************************************************************************************************************************//
-macro "RoiProcessor_Groth_Cone" {
 
+function batchDrawGrowthCones() { 
+	dir = getDir("Please select the input folder!");
+	files = getFileList(dir);
+	suffix =".zip";
+	Array.print(files);
+	images_Id = newArray();
+	run("Close All");
+	zipFiles = filterZIPFiles(files);
+	print("\\Clear");
+	Array.print(zipFiles);
+	print("file = "+dir);
+	
+	for (i = 0; i<zipFiles.length; i++){
+		if(endsWith(zipFiles[i], suffix)){
+			Roi_Name = dir + zipFiles[i];
+			print("file With Path = " + Roi_Name);
+			images_Id[i]= drawRois(Roi_Name,i);
+			selectImage(images_Id[i]); 
+			run("RGB Color", "");
+		}
+		else {
+			exit("Error Message : No File Zip");
+		}
+	}
+	numberOfImages = zipFiles.length;
+	return numberOfImages;
 }
 
 //************************  Look for zip files **********************/
@@ -74,8 +65,7 @@ function drawRois(ROI_File_Name,FileIndex) {
 	print(ROI_File_Name);
 	count = roiManager("count");
 	Image_Name = "growth cones "+FileIndex;
-	newImage(Image_Name, "8-bit black", 512, 512, 1);
-	
+	newImage(Image_Name, "8-bit black", IMAGE_SIZE, IMAGE_SIZE, 1);
 	width = getWidth();
 	height = getHeight();
 	baseY = height-BORDER_WIDTH;
