@@ -1,0 +1,25 @@
+package analysis;
+
+import gdsc.colocalisation.ColocalisationThreshold;
+import ij.ImagePlus;
+import ij.WindowManager;
+
+public class CorrelationCalculator {
+	
+	public static double calculateCorrelation(ImagePlus image1, ImagePlus image2, int roiIndex) {
+		ColocalisationThreshold colocalisationThreshold = new ColocalisationThreshold(image1, image2, 1);
+		colocalisationThreshold.correlate();
+		double result = colocalisationThreshold.getRTotal();
+		return result;
+	}
+	
+	public static String correlation(String image1Title, String image2Title) {
+		ImagePlus image1 = WindowManager.getImage(image1Title);
+		ImagePlus image2 = WindowManager.getImage(image2Title);
+		int roiIndex = 0;
+		if (image2.getRoi()!=null) roiIndex = 2;
+		if (image1.getRoi()!=null) roiIndex = 1;
+		double correlation = calculateCorrelation(image1, image2, roiIndex);
+		return Double.toString(correlation);
+	}
+}
