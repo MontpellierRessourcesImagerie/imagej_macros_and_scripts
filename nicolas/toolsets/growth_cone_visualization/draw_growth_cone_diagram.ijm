@@ -151,12 +151,11 @@ function normalizeROI() {
 		deltaY = y - by;
 		
 		Roi.move(centerX-deltaX, centerY-deltaY);	
-		
-		run("Rotate...", "angle="+angle);
 
-		Roi.move(centerX-deltaX, centerY-deltaY);	
+		run("Rotate...", "angle="+angle);
 		
 		getSelectionCoordinates(xpoints, ypoints);
+		y = getValue("Y");
 		
 		/******* ROI PI Rotation      *******************************/
 		if(ypoints[0]<y){
@@ -177,11 +176,12 @@ function normalizeROI() {
 		y2 = maxOf(ypoints[0],  ypoints[1]);
 		
 		deltaX = x1+(x2-x1)/2-bx;
-		deltaY = bHeight;
+		deltaY = abs(y2 - by);
 		// deltaY = y1+(y2-y1)/2-by;
 				
 		// ******* Move the Selected ROI ********************************/
 		Roi.move(centerX-deltaX, baseY-deltaY);	
+		drawLine(0, baseY, width, baseY);
 }
 
 /************************  drawRois() **********************/
