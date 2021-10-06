@@ -22,11 +22,10 @@ var _INTERPOLATION_LENGTH = 20;
 var _CLOSE_COUNT = 1;
 
 var _COCHLEA_SIZE_THRESHOLD = 800000000;
-var _COCHLEA_SIZE_THRESHOLD_M = _COCHLEA_SIZE_THRESHOLD/100000;
 
 var _BATCH = false;
 
-var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_COCHLEA_TOOLS";
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Cochlea_Tools";
 
 macro "Cochlea tools help [f4]" {
 	run('URL...', 'url='+helpURL);
@@ -102,17 +101,17 @@ macro "Analyze image (f9) Action Tool Options" {
 	showDialog();
 }
 
-macro "Batch Analyze [f10]" {
+macro "Batch analyze images [f10]" {
 	_BATCH = true;
 	batchAnalyzeImage();
 }
 
-macro "Batch image (f10) Action Tool - C000T4b12b" {
+macro "Batch analyze images (f10) Action Tool - C000T4b12b" {
 	_BATCH = true;
 	batchAnalyzeImage();
 }
 
-macro "Batch Analyze image (f10) Action Tool Options" {
+macro "Batch analyze images (f10) Action Tool Options" {
 	showDialog();
 }
 
@@ -537,10 +536,9 @@ function showDialog(){
 	Dialog.addChoice("dead cells thresholding method: ", _THRESHOLDING_METHODS, _DEAD_CELLS_THRESHOLDING_METHOD);
 	Dialog.addNumber("cochlea channel: ", _COCHLEA_CHANNEL);
 	Dialog.addChoice("cochlea thresholding method: ", _THRESHOLDING_METHODS, _COCHLEA_THRESHOLDING_METHOD);
-	Dialog.addNumber("interpolation length: ", _INTERPOLATION_LENGTH);
 	Dialog.addNumber("Close Count", _CLOSE_COUNT);
-	Dialog.addMessage("Minimal Size for an object to be considered as part of the cochlea");
-	Dialog.addNumber("Cochlea Size Threshold", _COCHLEA_SIZE_THRESHOLD_M,0,10,"000 000 microns^2");
+	Dialog.addNumber("Cochlea Size Threshold", _COCHLEA_SIZE_THRESHOLD,0,10,"");
+	Dialog.addNumber("interpolation length: ", _INTERPOLATION_LENGTH);
 	Dialog.show();
 
 	_DEAD_CELLS_CHANNEL = Dialog.getNumber();
@@ -549,6 +547,5 @@ function showDialog(){
 	_COCHLEA_THRESHOLDING_METHOD = Dialog.getChoice();
 	_INTERPOLATION_LENGTH = Dialog.getNumber();	
 	_CLOSE_COUNT = Dialog.getNumber();
-	_COCHLEA_SIZE_THRESHOLD_M = Dialog.getNumber();
-	_COCHLEA_SIZE_THRESHOLD = _COCHLEA_SIZE_THRESHOLD_M * 100000;
+	_COCHLEA_SIZE_THRESHOLD = Dialog.getNumber();
 }
