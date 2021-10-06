@@ -1,13 +1,17 @@
 
 //************************************************ *****************var global vraibles initilization  ******************************/
+var COLUMNS = 3;
+var ROWS = 2;
 var BORDER_WIDTH = 75;
-var GAMMA = 0.9;
 var IMAGE_SIZE = 512;
 var STROKE_WIDTH = 2;
 var TMP_IMAGE_PREFIX = "xxxTMP";
+var TMP_IMAGE_SIZE = 5000;
+
+var GAMMA = 0.9;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
 
-batchDrawGrowthCones();
+normalizeROI();
 exit();
 
 //*******************************************************  Program end ******************************************************// 
@@ -28,9 +32,37 @@ macro "draw growth cones (f5) Action Tool-C000T4b12d" {
 	drawRois("Growth Cones");
 }
 
+
+macro "draw growth cones (f5) Action Tool Options" {
+	Dialog.create("Growth Cones Visualizer Options");
+	Dialog.addNumber("columns: ", COLUMNS);
+	Dialog.addNumber("rows: ", ROWS);
+	Dialog.addNumber("border width: ", BORDER_WIDTH);
+	Dialog.addNumber("image size: ", IMAGE_SIZE);
+	Dialog.addNumber("stroke width: ", STROKE_WIDTH);
+	
+	Dialog.show();
+
+	COLUMNS = Dialog.getNumber();
+	ROWS = Dialog.getNumber();
+	BORDER_WIDTH = Dialog.getNumber();
+	IMAGE_SIZE = Dialog.getNumber();
+ 	STROKE_WIDTH = Dialog.getNumber();
+}
+
 macro "draw growth cones [f5]" {
 	drawRois("Growth Cones");
 }
+
+macro "batch draw growth cones [f6]" {
+	batchDrawGrowthCones();
+}
+
+
+macro "batch draw growth cones (f6) Action Tool-C000T4b12b" {
+	batchDrawGrowthCones();
+}
+
 
 function batchDrawGrowthCones() { 
 	dir = getDir("Please select the input folder!");
@@ -43,6 +75,7 @@ function batchDrawGrowthCones() {
 	Array.print(zipFiles);
 	print("file = "+dir);
 
+	setBatchMode(true);
 	/* zip files exist or no **/
 	for (i = 0; i<zipFiles.length; i++){
 		if(endsWith(zipFiles[i], suffix)){
@@ -73,15 +106,14 @@ function batchDrawGrowthCones() {
 	}
 	stackID = getImageID();
 	run("Flatten", "stack");
-	
-	M_Number_Cols = numberOfImages/2;
-	M_Number_Rows = numberOfImages - M_Number_Cols;
-	M_Param_Input = "columns=" + M_Number_Cols + " rows=" + M_Number_Rows + " scale=0.5 label";
 	run("Gamma...", "value="+GAMMA+" stack");
-	run("Make Montage...", M_Param_Input);
+	
+	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 label";
+	run("Make Montage...", montageParameters);
 	run("Invert");
 	selectImage(stackID);
 	close();
+	setBatchMode("exit and display");
 }
 
 //************************  Look for zip files **********************/
@@ -96,11 +128,12 @@ function filterZIPFiles(files){
 	return zipFiles;
 }
 
-function drawROI(color) {
+function normalizeROI() {
 		width = getWidth();
 		height = getHeight();
 		baseY = height-BORDER_WIDTH;
 		centerX = width/2;
+		centerY = height/2;
 
 		getSelectionCoordinates(xpoints, ypoints);
 		makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
@@ -117,22 +150,16 @@ function drawROI(color) {
 		deltaX = x - bx;
 		deltaY = y - by;
 		
-		Roi.move(centerX-deltaX, baseY-deltaY);	
-		Roi.move(centerX-deltaX, baseY-deltaY);	
+		Roi.move(centerX-deltaX, centerY-deltaY);	
 		
-		run("Rotate...", " rotate angle="+angle);
+		run("Rotate...", "angle="+angle);
 
+		Roi.move(centerX-deltaX, centerY-deltaY);	
+		
 		getSelectionCoordinates(xpoints, ypoints);
 		
-		
-		
-		/******* Display The Indicated ROI_Lines   ******************/
-		Roi.setStrokeColor(color,color,color);
-		Roi.setStrokeWidth(STROKE_WIDTH);
-	
 		/******* ROI PI Rotation      *******************************/
 		if(ypoints[0]<y){
-			print(i, ypoints[0], y);
 			run("Rotate...", " angle=180");	
 		}
 		  
@@ -155,12 +182,11 @@ function drawROI(color) {
 				
 		// ******* Move the Selected ROI ********************************/
 		Roi.move(centerX-deltaX, baseY-deltaY);	
-		Overlay.addSelection;
 }
 
 /************************  drawRois() **********************/
 function drawRois(title) {
-	newImage(title, "8-bit black", IMAGE_SIZE, IMAGE_SIZE, 1);
+	newImage(title, "8-bit black", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
 	count = roiManager("count");
 
 	Overlay.remove;
@@ -170,10 +196,21 @@ function drawRois(title) {
 	for (i = 0; i < count; i++) {
 		roiManager("select", i);
 		color = getColor(i, count);
-		drawROI(color);
+		normalizeROI();
+		/******* Display The Indicated ROI_Lines   ******************/
+		Roi.setStrokeColor(color,color,color);
+		Roi.setStrokeWidth(STROKE_WIDTH);
+		Overlay.addSelection;
 	}
 	run("Select None");
 	imageID = getImageID();
+	x = TMP_IMAGE_SIZE / 2 -IMAGE_SIZE / 2;
+	y = TMP_IMAGE_SIZE - IMAGE_SIZE;
+	width = IMAGE_SIZE;
+	height = IMAGE_SIZE;
+	makeRectangle(x, y, width, height);
+	run("Crop");
+	run("Select None");
 	return imageID;
 }
 
