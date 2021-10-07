@@ -10,9 +10,10 @@ var MONTAGE_BORDER = 0;
 var TMP_IMAGE_PREFIX = "xxxTMP";
 var TMP_IMAGE_SIZE = 5000;
 var DRAW_LINE = true;
-
-var GAMMA = 0.9;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
+var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors");
+var COLOR_SCHEME = "default";
+var TWELVE_COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "yellow");
 
 batchDrawGrowthCones();
 exit();
@@ -46,6 +47,7 @@ macro "draw growth cones (f5) Action Tool Options" {
 	Dialog.addNumber("stroke width: ", STROKE_WIDTH);
 	Dialog.addNumber("montage border width: ", MONTAGE_BORDER);
 	Dialog.addCheckbox("draw base-line", DRAW_LINE);
+	Dialog.addChoice("color scheme: ", COLOR_SCHEMES, COLOR_SCHEME);
 	
 	Dialog.show();
 
@@ -57,6 +59,7 @@ macro "draw growth cones (f5) Action Tool Options" {
  	STROKE_WIDTH = Dialog.getNumber();
  	MONTAGE_BORDER = Dialog.getNumber();
  	DRAW_LINE = Dialog.getCheckbox();
+ 	COLOR_SCHEME = Dialog.getChoice();
 }
 
 macro "draw growth cones [f5]" {
@@ -94,10 +97,6 @@ function batchDrawGrowthCones() {
 			experimentName = cleanRoiName(roiFileName);
 			title = TMP_IMAGE_PREFIX + "_" + experimentName;
 			drawRois(title);
-			oldImageID = getImageID();
-			run("Flatten", "stack");
-			selectImage(oldImageID);
-			close();
 		}
 		else {
 			exit("Error Message : No File Zip");
@@ -113,12 +112,9 @@ function batchDrawGrowthCones() {
 	    Property.setSliceLabel(label);
 	}
 	stackID = getImageID();
-
-	run("Gamma...", "value="+GAMMA+" stack");
 	
 	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 border="+MONTAGE_BORDER+" label";
 	run("Make Montage...", montageParameters);
-	run("Invert");
 	selectImage(stackID);
 	close();
 	setBatchMode("exit and display");
@@ -194,7 +190,7 @@ function normalizeROI() {
 
 /************************  drawRois() **********************/
 function drawRois(title) {
-	newImage(title, "8-bit black", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
+	newImage(title, "8-bit white", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
 	count = roiManager("count");
 
 	Overlay.remove;
@@ -206,7 +202,11 @@ function drawRois(title) {
 		color = getColor(i, count);
 		normalizeROI();
 		/******* Display The Indicated ROI_Lines   ******************/
-		Roi.setStrokeColor(color,color,color);
+		if (COLOR_SCHEME=="12 colors") {
+			Roi.setStrokeColor(color);
+		} else {
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
 		Roi.setStrokeWidth(STROKE_WIDTH);
 		Overlay.addSelection;
 	}
@@ -218,6 +218,7 @@ function drawRois(title) {
 	height = IMAGE_HEIGHT;
 	makeRectangle(x, y, width, height);
 	run("Crop");
+	flattenInsitu();
 	run("Select None");
 	return imageID;
 }
@@ -231,14 +232,50 @@ function cleanRoiName(roiName) {
 
 
 function getColor(index, count) {
-	if (count<256){
-			Color_Pas_Ech = 256/(count);
-		}
-		else {
-			print("Error" + count);
-			exit("Error roi number is not inf to count");
-		} 
-		color = (index*Color_Pas_Ech) +  Color_Pas_Ech;
-		return color;
+	color = 0;
+	if (COLOR_SCHEME=="default") {
+		color = getColorDefault(index, count);
+	}
+	if (COLOR_SCHEME=="linear-distributed") {
+		color = getColorLinearDistributed(index, count);
+	}	
+	if (COLOR_SCHEME=="12 colors") {
+		color = getColor12Colors(index, count);
+	}
+	return color;
+}
+
+
+function getColor12Colors(index, count) {
+	len = TWELVE_COLORS.length;
+	i = index % len;
+	return TWELVE_COLORS[i];
+}
+
+function getColorDefault(index, count) {
+	stepWidth = 256 / count;
+	value = (index*stepWidth) +  stepWidth;	
+	color = newArray(value, value, value);
+	return color;
+}
+
+function getColorRGB(index, count) {
+	
+}
+
+function getColorLinearDistributed(index, count) {
+	stepWidth = 128/count;
+	offset = 0;
+	value = offset + (index*stepWidth);
+	print("color value: " + value);
+	color = newArray(value, value, value);
+	return color;
+}
+
+function flattenInsitu() {
+	oldImageID = getImageID();
+	run("Flatten", "stack");
+	selectImage(oldImageID);
+	close();
 }
 
