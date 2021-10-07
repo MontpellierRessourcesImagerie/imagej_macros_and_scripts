@@ -2,16 +2,19 @@
 //************************************************ *****************var global vraibles initilization  ******************************/
 var COLUMNS = 3;
 var ROWS = 2;
-var BORDER_WIDTH = 75;
-var IMAGE_SIZE = 512;
-var STROKE_WIDTH = 2;
+var BORDER_WIDTH = 30;
+var IMAGE_WIDTH = 300;
+var IMAGE_HEIGHT = 290;
+var STROKE_WIDTH = 1;
+var MONTAGE_BORDER = 0;
 var TMP_IMAGE_PREFIX = "xxxTMP";
 var TMP_IMAGE_SIZE = 5000;
+var DRAW_LINE = true;
 
 var GAMMA = 0.9;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
 
-normalizeROI();
+batchDrawGrowthCones();
 exit();
 
 //*******************************************************  Program end ******************************************************// 
@@ -38,16 +41,22 @@ macro "draw growth cones (f5) Action Tool Options" {
 	Dialog.addNumber("columns: ", COLUMNS);
 	Dialog.addNumber("rows: ", ROWS);
 	Dialog.addNumber("border width: ", BORDER_WIDTH);
-	Dialog.addNumber("image size: ", IMAGE_SIZE);
+	Dialog.addNumber("image width: ", IMAGE_WIDTH);
+	Dialog.addNumber("image height: ", IMAGE_HEIGHT);
 	Dialog.addNumber("stroke width: ", STROKE_WIDTH);
+	Dialog.addNumber("montage border width: ", MONTAGE_BORDER);
+	Dialog.addCheckbox("draw base-line", DRAW_LINE);
 	
 	Dialog.show();
 
 	COLUMNS = Dialog.getNumber();
 	ROWS = Dialog.getNumber();
 	BORDER_WIDTH = Dialog.getNumber();
-	IMAGE_SIZE = Dialog.getNumber();
+	IMAGE_WIDTH = Dialog.getNumber();
+	IMAGE_HEIGHT = Dialog.getNumber();
  	STROKE_WIDTH = Dialog.getNumber();
+ 	MONTAGE_BORDER = Dialog.getNumber();
+ 	DRAW_LINE = Dialog.getCheckbox();
 }
 
 macro "draw growth cones [f5]" {
@@ -69,7 +78,6 @@ function batchDrawGrowthCones() {
 	files = getFileList(dir);
 	suffix =".zip";
 	Array.print(files);
-	imageIDs = newArray();
 	zipFiles = filterZIPFiles(files);
 	print("\\Clear");
 	Array.print(zipFiles);
@@ -85,18 +93,18 @@ function batchDrawGrowthCones() {
 			roiFileName = File.getName(roiPath);
 			experimentName = cleanRoiName(roiFileName);
 			title = TMP_IMAGE_PREFIX + "_" + experimentName;
-			imageIDs[i]= drawRois(title);
-			selectImage(imageIDs[i]); 
-			run("RGB Color", "");
+			drawRois(title);
+			oldImageID = getImageID();
+			run("Flatten", "stack");
+			selectImage(oldImageID);
+			close();
 		}
 		else {
 			exit("Error Message : No File Zip");
 		}
 	}
-	numberOfImages = imageIDs.length;
 	
 	/********************   run("Images RGB To Stack" and Flatten) and make a montage **********/
-	print("images_ID");
 	run("Images to Stack", "name=Stack title=["+TMP_IMAGE_PREFIX+"] use");
 	for (i = 1; i <= nSlices; i++) {
 	    setSlice(i);
@@ -105,10 +113,10 @@ function batchDrawGrowthCones() {
 	    Property.setSliceLabel(label);
 	}
 	stackID = getImageID();
-	run("Flatten", "stack");
+
 	run("Gamma...", "value="+GAMMA+" stack");
 	
-	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 label";
+	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 border="+MONTAGE_BORDER+" label";
 	run("Make Montage...", montageParameters);
 	run("Invert");
 	selectImage(stackID);
@@ -181,7 +189,7 @@ function normalizeROI() {
 				
 		// ******* Move the Selected ROI ********************************/
 		Roi.move(centerX-deltaX, baseY-deltaY);	
-		drawLine(0, baseY, width, baseY);
+		if (DRAW_LINE) drawLine(0, baseY, width, baseY);
 }
 
 /************************  drawRois() **********************/
@@ -204,10 +212,10 @@ function drawRois(title) {
 	}
 	run("Select None");
 	imageID = getImageID();
-	x = TMP_IMAGE_SIZE / 2 -IMAGE_SIZE / 2;
-	y = TMP_IMAGE_SIZE - IMAGE_SIZE;
-	width = IMAGE_SIZE;
-	height = IMAGE_SIZE;
+	x = TMP_IMAGE_SIZE / 2 -IMAGE_WIDTH / 2;
+	y = TMP_IMAGE_SIZE - IMAGE_HEIGHT;
+	width = IMAGE_WIDTH;
+	height = IMAGE_HEIGHT;
 	makeRectangle(x, y, width, height);
 	run("Crop");
 	run("Select None");
