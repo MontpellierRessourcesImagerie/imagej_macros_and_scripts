@@ -1,7 +1,23 @@
+/***
+ * 
+ * MRI Growth Cone Visualization
+ * 
+ * Make a montage in which each image contains the overlay of all rois in a zip-file. 
+ * The orientation is normalized according to the line formed by the first two points of 
+ * the selection.
+ * 
+ * (c) 2021, INSERM
+ * 
+ * written by Nicolas Nafati and Volker Baecker 
+ * at Montpellier Ressources Imagerie, 
+ * Biocampus Montpellier, INSERM, CNRS, 
+ * University of Montpellier (www.mri.cnrs.fr)
+ * 
+**/
 
-//************************************************ *****************var global vraibles initilization  ******************************/
-var COLUMNS = 3;
-var ROWS = 2;
+//************************************************ *****************global variables initilization  ******************************/
+var COLUMNS = 2;
+var ROWS = 3;
 var BORDER_WIDTH = 30;
 var IMAGE_WIDTH = 300;
 var IMAGE_HEIGHT = 290;
@@ -12,7 +28,7 @@ var TMP_IMAGE_SIZE = 5000;
 var DRAW_LINE = true;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
 var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors");
-var COLOR_SCHEME = "default";
+var COLOR_SCHEME = "12 colors";
 var TWELVE_COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "yellow");
 
 batchDrawGrowthCones();
@@ -78,33 +94,32 @@ macro "batch draw growth cones (f6) Action Tool-C000T4b12b" {
 
 function batchDrawGrowthCones() { 
 	dir = getDir("Please select the input folder!");
+	setBatchMode(true);
+	createImagesFromRoiZipFiles(dir);
+	run("Images to Stack", "name=Stack title=["+TMP_IMAGE_PREFIX+"] use");
+	makeMontage();
+	setBatchMode("exit and display");
+}
+
+function createImagesFromRoiZipFiles(dir) {
 	files = getFileList(dir);
-	suffix =".zip";
-	Array.print(files);
 	zipFiles = filterZIPFiles(files);
 	print("\\Clear");
-	Array.print(zipFiles);
-	print("file = "+dir);
-
-	setBatchMode(true);
-	/* zip files exist or no **/
-	for (i = 0; i<zipFiles.length; i++){
-		if(endsWith(zipFiles[i], suffix)){
-			roiPath = dir + zipFiles[i];
-			roiManager("reset");
-			roiManager("Open", roiPath);
-			roiFileName = File.getName(roiPath);
-			experimentName = cleanRoiName(roiFileName);
-			title = TMP_IMAGE_PREFIX + "_" + experimentName;
-			drawRois(title);
-		}
-		else {
-			exit("Error Message : No File Zip");
-		}
+	if (zipFiles.length < 1) {
+		exit("Error Message : No File Zip");
 	}
-	
-	/********************   run("Images RGB To Stack" and Flatten) and make a montage **********/
-	run("Images to Stack", "name=Stack title=["+TMP_IMAGE_PREFIX+"] use");
+	for (i = 0; i<zipFiles.length; i++){
+		roiPath = dir + zipFiles[i];
+		roiManager("reset");
+		roiManager("Open", roiPath);
+		roiFileName = File.getName(roiPath);
+		experimentName = cleanRoiName(roiFileName);
+		title = TMP_IMAGE_PREFIX + "_" + experimentName;
+		drawRois(title);
+	}
+}
+
+function makeMontage() {
 	for (i = 1; i <= nSlices; i++) {
 	    setSlice(i);
 	    label = Property.getSliceLabel();
@@ -112,17 +127,15 @@ function batchDrawGrowthCones() {
 	    Property.setSliceLabel(label);
 	}
 	stackID = getImageID();
-	
 	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 border="+MONTAGE_BORDER+" label";
 	run("Make Montage...", montageParameters);
 	selectImage(stackID);
 	close();
-	setBatchMode("exit and display");
 }
 
 //************************  Look for zip files **********************/
 function filterZIPFiles(files){
-	// suffix =".zip";
+	suffix =".zip";
 	zipFiles = newArray();
 	for (i = 0; i < files.length; i++){
 		if(endsWith(files[i], suffix)){
@@ -137,36 +150,15 @@ function normalizeROI() {
 		height = getHeight();
 		baseY = height-BORDER_WIDTH;
 		centerX = width/2;
-		centerY = height/2;
+		centerY = height/2;	
+		normalizeRotation(centerX, centerY);
+		normalizePosition(centerX, baseY);
+		if (DRAW_LINE) drawLine(0, baseY, width, baseY);
+}
 
-		getSelectionCoordinates(xpoints, ypoints);
-		makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
-		angle = getValue("Angle");
-		run("Select None");
 
-		makeSelection("polygon", xpoints, ypoints);
-
-		x = getValue("X");
-		y = getValue("Y");
-		bx = getValue("BX");
-		by = getValue("BY");
-		bHeight = getValue("Height");
-		deltaX = x - bx;
-		deltaY = y - by;
-		
-		Roi.move(centerX-deltaX, centerY-deltaY);	
-
-		run("Rotate...", "angle="+angle);
-		
-		getSelectionCoordinates(xpoints, ypoints);
-		y = getValue("Y");
-		
-		/******* ROI PI Rotation      *******************************/
-		if(ypoints[0]<y){
-			run("Rotate...", " angle=180");	
-		}
-		  
-		/******* Fix and Compute Translation Coord. ******************/
+function normalizePosition(centerX, baseY) {
+		/******* Compute Translation Coord. ******************/
 		getSelectionCoordinates(xpoints, ypoints);
 		x = getValue("X");
 		y = getValue("Y");
@@ -175,33 +167,48 @@ function normalizeROI() {
 		bHeight = getValue("Height");
 		x1 = minOf(xpoints[0],  xpoints[1]);
 		x2 = maxOf(xpoints[0],  xpoints[1]);
-		
-		y1 = minOf(ypoints[0],  ypoints[1]);
 		y2 = maxOf(ypoints[0],  ypoints[1]);
-		
 		deltaX = x1+(x2-x1)/2-bx;
 		deltaY = abs(y2 - by);
-		// deltaY = y1+(y2-y1)/2-by;
-				
-		// ******* Move the Selected ROI ********************************/
+		// ******* Move the ROI ********************************/
 		Roi.move(centerX-deltaX, baseY-deltaY);	
-		if (DRAW_LINE) drawLine(0, baseY, width, baseY);
 }
 
-/************************  drawRois() **********************/
+function normalizeRotation(centerX, centerY) {
+		centerX = width/2;
+		centerY = height/2;
+		getSelectionCoordinates(xpoints, ypoints);
+		makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
+		angle = getValue("Angle");
+		run("Select None");
+		makeSelection("polygon", xpoints, ypoints);
+		x = getValue("X");
+		y = getValue("Y");
+		bx = getValue("BX");
+		by = getValue("BY");
+		bHeight = getValue("Height");
+		deltaX = x - bx;
+		deltaY = y - by;
+		Roi.move(centerX-deltaX, centerY-deltaY);	
+		run("Rotate...", "angle="+angle);
+		getSelectionCoordinates(xpoints, ypoints);
+		y = getValue("Y");
+		/******* Normalize oriantation, so that the base-line is at the bottom side  *******************************/
+		if(ypoints[0]<y){
+			run("Rotate...", " angle=180");	
+		}
+}
+
+
 function drawRois(title) {
 	newImage(title, "8-bit white", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
 	count = roiManager("count");
-
 	Overlay.remove;
-	
 	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
-	
 	for (i = 0; i < count; i++) {
 		roiManager("select", i);
 		color = getColor(i, count);
 		normalizeROI();
-		/******* Display The Indicated ROI_Lines   ******************/
 		if (COLOR_SCHEME=="12 colors") {
 			Roi.setStrokeColor(color);
 		} else {
@@ -210,17 +217,18 @@ function drawRois(title) {
 		Roi.setStrokeWidth(STROKE_WIDTH);
 		Overlay.addSelection;
 	}
-	run("Select None");
-	imageID = getImageID();
+	cropImage();
+	flattenInsitu();
+}
+
+function cropImage() {
 	x = TMP_IMAGE_SIZE / 2 -IMAGE_WIDTH / 2;
 	y = TMP_IMAGE_SIZE - IMAGE_HEIGHT;
 	width = IMAGE_WIDTH;
 	height = IMAGE_HEIGHT;
 	makeRectangle(x, y, width, height);
 	run("Crop");
-	flattenInsitu();
 	run("Select None");
-	return imageID;
 }
 
 function cleanRoiName(roiName) { 
@@ -229,7 +237,6 @@ function cleanRoiName(roiName) {
 	name = String.trim(name);
 	return name;
 }
-
 
 function getColor(index, count) {
 	color = 0;
@@ -274,8 +281,11 @@ function getColorLinearDistributed(index, count) {
 
 function flattenInsitu() {
 	oldImageID = getImageID();
+	title = getTitle();
 	run("Flatten", "stack");
 	selectImage(oldImageID);
 	close();
+	rename(title);
+	run("Select None");
 }
 
