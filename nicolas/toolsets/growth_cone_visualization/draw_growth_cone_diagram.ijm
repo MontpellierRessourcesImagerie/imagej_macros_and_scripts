@@ -21,14 +21,14 @@ var ROWS = 3;
 var BORDER_WIDTH = 30;
 var IMAGE_WIDTH = 300;
 var IMAGE_HEIGHT = 290;
-var STROKE_WIDTH = 1;
+var STROKE_WIDTH = 2;
 var MONTAGE_BORDER = 0;
 var TMP_IMAGE_PREFIX = "xxxTMP";
 var TMP_IMAGE_SIZE = 5000;
 var DRAW_LINE = true;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
-var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors");
-var COLOR_SCHEME = "12 colors";
+var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors","RGB colors");
+var COLOR_SCHEME = "RGB colors";
 var TWELVE_COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "yellow");
 
 batchDrawGrowthCones();
@@ -76,7 +76,7 @@ macro "draw growth cones (f5) Action Tool Options" {
  	MONTAGE_BORDER = Dialog.getNumber();
  	DRAW_LINE = Dialog.getCheckbox();
  	COLOR_SCHEME = Dialog.getChoice();
-}
+ }
 
 macro "draw growth cones [f5]" {
 	drawRois("Growth Cones");
@@ -85,7 +85,6 @@ macro "draw growth cones [f5]" {
 macro "batch draw growth cones [f6]" {
 	batchDrawGrowthCones();
 }
-
 
 macro "batch draw growth cones (f6) Action Tool-C000T4b12b" {
 	batchDrawGrowthCones();
@@ -199,19 +198,26 @@ function normalizeRotation(centerX, centerY) {
 		}
 }
 
-
 function drawRois(title) {
 	newImage(title, "8-bit white", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
-	count = roiManager("count");
+    imageId = getImageID();
+    count = roiManager("count");
 	Overlay.remove;
 	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
 	for (i = 0; i < count; i++) {
 		roiManager("select", i);
 		color = getColor(i, count);
 		normalizeROI();
-		if (COLOR_SCHEME=="12 colors") {
+		if (COLOR_SCHEME=="linear-distributed") {
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
+		else if (COLOR_SCHEME=="12 colors") {
 			Roi.setStrokeColor(color);
-		} else {
+		} 
+		else if (COLOR_SCHEME=="RGB colors"){
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		} 
+		else{ 
 			Roi.setStrokeColor(color[0],color[1],color[2]);
 		}
 		Roi.setStrokeWidth(STROKE_WIDTH);
@@ -249,9 +255,11 @@ function getColor(index, count) {
 	if (COLOR_SCHEME=="12 colors") {
 		color = getColor12Colors(index, count);
 	}
+	if (COLOR_SCHEME=="RGB colors") {
+		color = getColorRGB(index,count);
+	}
 	return color;
 }
-
 
 function getColor12Colors(index, count) {
 	len = TWELVE_COLORS.length;
@@ -267,14 +275,40 @@ function getColorDefault(index, count) {
 }
 
 function getColorRGB(index, count) {
-	
+	/** Init Var Matrix **/
+	reds = newArray(256); 
+	greens = newArray(256); 
+	blues = newArray(256);
+	inv_reds = newArray(256); 
+	inv_greens = newArray(256); 
+	inv_blues = newArray(256);
+	/** Look for values of Look Up Table **/
+	run("physics");
+	getLut(reds, greens, blues);
+	//**  color power provessing **/
+	step = 256/count;
+	inv_blues[index] = (blues[index] + 255*Math.pow(index*step,0.5))%255;
+	inv_greens[index] = (greens[index] + 255*Math.pow(index*step,0.5))%255;
+	inv_reds[index] = (reds[index] + 255*Math.pow(10*index*step,0.5))%255;
+	/** Set New values of Look Up Table **/
+	run("physics");
+	setLut(inv_reds, inv_greens, inv_blues);
+	run("8-bit");
+	run("Invert LUT");
+	run("Invert LUT");
+	/** exporte results **/
+	ind = index % 255;
+	color1 = inv_reds[ind]; 
+	color2 = inv_greens[ind]; 
+	color3 = inv_blues[ind];
+	color = newArray(color1,color2,color3);
+	return color;
 }
 
 function getColorLinearDistributed(index, count) {
 	stepWidth = 128/count;
 	offset = 0;
-	value = offset + (index*stepWidth);
-	print("color value: " + value);
+	value = offset + (index+1)*stepWidth;
 	color = newArray(value, value, value);
 	return color;
 }
@@ -282,6 +316,7 @@ function getColorLinearDistributed(index, count) {
 function flattenInsitu() {
 	oldImageID = getImageID();
 	title = getTitle();
+	setBackgroundColor(255, 255, 255);
 	run("Flatten", "stack");
 	selectImage(oldImageID);
 	close();
