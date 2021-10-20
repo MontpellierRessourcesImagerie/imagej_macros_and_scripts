@@ -1,12 +1,12 @@
 var _NUCLEUS_CHANNEL = 1;
 var _SPOTS1_CHANNEL = 2;
 var _SPOTS2_CHANNEL = 3;
-var _SIGMA = 1;
-var _MAX_FINDER_THRESHOLD = 35;
-var _RADIUS_XY = 3;
-var _RADIUS_Z = 5;
-var _NOISE = 20;
 
+var _SIGMA = newArray(1,1);
+var _MAX_FINDER_THRESHOLD = newArray(35,35);
+var _RADIUS_XY = newArray(0.3,0.4);
+var _RADIUS_Z = newArray(0.4,0.5);
+var _NOISE = newArray(20,20);
 
 var _J_TABLE_A = "SC1";
 var _J_TABLE_B = "SC2";
@@ -15,13 +15,18 @@ var _J_ACTIONS = newArray("DistanceMatrix",
 						"CumulatedNeighbors",
 						"PlotDistanceDistribution",
 						"CountCloserNeighbors",
-						"GetCloserPairs");
+						"GetCloserPairs",
+						"GetNearestNeighbors",
+						"GetMeanDistances"
+						);
 
 var _J_MORE_ARGS = newArray("", //Get Distance Matrix
 							"", //Get Cumulated Neighbors
-							"256", //Get Distance Distribution
+							"32", //Get Distance Distribution
 							"1",	//Count Neighbors Closer
-							"1"); //Get Pairs Close
+							"0.52",//Get Pairs Close
+							"",
+							""); 
 
 
 macro "Get Spots Outside of Nucleus Action Tool - C000T4b12S"{
@@ -48,7 +53,8 @@ var cmdSpots = newArray("Get Spots Outside of Nucleus",
 					"Segment Nucleus", 
 					"Detect Spots", 
 					"Remove Spots in Nucleus", 
-					"Filter spots in RT");
+					"Filter spots in RT"
+					);
 var menuSpots = newMenu("Get Spots Outside of Nucleus Menu Tool", cmdSpots);
 macro "Get Spots Outside of Nucleus Menu Tool - C000T4b12S"{
 	label = getArgument();
@@ -58,6 +64,7 @@ macro "Get Spots Outside of Nucleus Menu Tool - C000T4b12S"{
 	if(label == cmdSpots[4])	detectSpotsAction();
 	if(label == cmdSpots[5])	removeSpotsInNucleusAction();
 	if(label == cmdSpots[6])	filterSpotsAction();
+	
 }
 						
 var cmdJython = newArray("Execute Jython",
@@ -67,7 +74,10 @@ var cmdJython = newArray("Execute Jython",
 					"Get Cumulated Neighbors", 
 					"Get Distance Distribution", 
 					"Count Neighbors Closer", 
-					"Get Pairs Closer");
+					"Get Pairs Closer",
+					"Get Nearest Neighbors",
+					"Get Mean Distances"
+					);
 var menuJython = newMenu("Execute Jython Menu Tool", cmdJython);
 macro "Execute Jython Menu Tool - C000T4b12P"{
 	label = getArgument();
@@ -78,6 +88,8 @@ macro "Execute Jython Menu Tool - C000T4b12P"{
 	if(label == cmdJython[5])	getDistanceDistributionAction();
 	if(label == cmdJython[6])	countNeighborsCloserAction();
 	if(label == cmdJython[7])	getPairsCloserAction();
+	if(label == cmdJython[8])	getNearestNeighborsAction();
+	if(label == cmdJython[9])	getMeanDistancesAction();
 }
 
 macro "unused Tool - " {}  // leave empty slot
@@ -89,10 +101,21 @@ macro "Prepare Table for Napari Action Tool - C000T4b12p"{
 
 	strHeads = Table.headings();
 	heads = split(strHeads,"\t");
-	Dialog.addChoice("X Column",heads,heads[0]);
-	Dialog.addChoice("Y Column",heads,heads[1]);
-	Dialog.addChoice("Z Column",heads,heads[2]);
-	Dialog.addChoice("V Column",heads,heads[heads.length-1]);
+	iX = 0;
+	iY = 1;
+	iZ = 2;
+	iV = 3;
+	for(i=heads.length-1;i>=0;i--){
+		if(heads[i]=="X" || heads[i]=="x"){	iX = i;}
+		if(heads[i]=="Y" || heads[i]=="y"){	iY = i;}
+		if(heads[i]=="Z" || heads[i]=="z"){	iZ = i;}
+		if(heads[i]=="V" || heads[i]=="v"){	iV = i;}
+		
+	}
+	Dialog.addChoice("X Column",heads,heads[iX]);
+	Dialog.addChoice("Y Column",heads,heads[iY]);
+	Dialog.addChoice("Z Column",heads,heads[iZ]);
+	Dialog.addChoice("V Column",heads,heads[iV]);
 
 	Dialog.show();
 
@@ -105,13 +128,17 @@ macro "Prepare Table for Napari Action Tool - C000T4b12p"{
 	prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vHeader);
 }
 
+macro "TEMP Action Tool - C000 T0b09T T3b09m Tcb09p"{
+	prepareTableForPairExport(true);
+}
+
 /***	****	***/
 /***  getSpots	***/
 /***	****	***/
 function getSpotsOutsideOfNucleusAction(){
-	getSpotsOutsideOfNucleus(_SPOTS1_CHANNEL,_NUCLEUS_CHANNEL);
+	getSpotsOutsideOfNucleus(_SPOTS1_CHANNEL,_NUCLEUS_CHANNEL,0);
 	Table.rename("Results", "SC1");
-	getSpotsOutsideOfNucleus(_SPOTS2_CHANNEL,_NUCLEUS_CHANNEL);
+	getSpotsOutsideOfNucleus(_SPOTS2_CHANNEL,_NUCLEUS_CHANNEL,1);
 	Table.rename("Results", "SC2");
 }
 
@@ -121,8 +148,8 @@ function detectSpotsAction(){
 	Dialog.addChoice("Channel", channels);
 	Dialog.show();
 	spotsChannel = Dialog.getChoice();
-	
-	detectSpots(spotsChannel, _SIGMA);
+
+	detectSpots(spotsChannel, 0);
 }
 
 function removeSpotsInNucleusAction(){
@@ -187,10 +214,18 @@ function getPairsCloserAction(){
 	runJython(_J_ACTIONS[4],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[4]);
 }
 
+function getNearestNeighborsAction(){
+	runJython(_J_ACTIONS[5],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[5]);
+}
+
+function getMeanDistancesAction(){
+	runJython(_J_ACTIONS[6],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[6]);
+}
+
 /***	****	****	***/
 /***  GetSpots Analysis	***/
 /***	****	****	***/
-function getSpotsOutsideOfNucleus(spotsChannel,nucleusChannel){
+function getSpotsOutsideOfNucleus(spotsChannel,nucleusChannel,paramID){
 	setBatchMode(true);
 	inputImageID = getImageID();
 	
@@ -198,7 +233,7 @@ function getSpotsOutsideOfNucleus(spotsChannel,nucleusChannel){
 	nucleusMask = segmentNucleus(nucleusChannel);
 
 	selectImage(inputImageID);
-	detectSpots(spotsChannel, _SIGMA);
+	detectSpots(spotsChannel, paramID);
 	spots = getImageID();
 	
 	maskedSpots = removeSpotsInNucleus(spots,nucleusMask);
@@ -221,15 +256,19 @@ function segmentNucleus(channel) {
 	return maskID;
 }
 
-function detectSpots(channel, sigma) {
+function detectSpots(channel, paramID) {
 	inputImageID = getImageID();
 	run("Duplicate...", "duplicate channels="+channel+"-"+channel);
+	getVoxelSize(width, height, depth, unit);
+	radiusXY = _RADIUS_XY[paramID] / width;
+	radiusZ = _RADIUS_Z[paramID] / depth;
+	
 	channelImage = getImageID();
-	run("FeatureJ Laplacian", "compute smoothing=" + sigma);	
+	run("FeatureJ Laplacian", "compute smoothing=" + _SIGMA[paramID]);	
 	laplaceImage = getImageID();
 	run("8-bit");
 	run("Invert", "stack");
-	run("3D Maxima Finder", "minimmum="+_MAX_FINDER_THRESHOLD+" radiusxy="+_RADIUS_XY+" radiusz="+_RADIUS_Z+" noise="+_NOISE);
+	run("3D Maxima Finder", "minimmum="+_MAX_FINDER_THRESHOLD[paramID]+" radiusxy="+radiusXY+" radiusz="+radiusZ+" noise="+_NOISE[paramID]);
 	setThreshold(1, 65535);
 	setOption("BlackBackground", false);
 	run("Convert to Mask", "method=Default background=Dark");
@@ -279,6 +318,142 @@ function filterSpots(imageID,voxelWidth,voxelHeight,voxelDepth) {
 	Table.rename("spots", "Results");
 }
 
+
+/***	****	***/
+/***	Temp	***/
+/***	****	***/
+
+macro "Get Gaussian"{
+	getGaussian();
+}
+
+function getGaussian(){
+	tableName="Nearest Neighbors SC2>SC1";
+	distanceColumn = "Distance";
+	Table.sort(distanceColumn,tableName);
+	distances = Table.getColumn(distanceColumn);
+	Fit.doFit('Gaussian',Array.getSequence(distances.length),distances);
+	Fit.plot()
+	center = Fit.p(2);
+	sigma = Fit.p(3);
+	nSteps = 32
+	Table.create("G_Outb2");
+	for(i=0;i<nSteps;i++){
+		thresholdX = center - (i * sigma);
+		thresholdY = Fit.f(thresholdX);
+		Table.set("i",i,i);
+		Table.set("C - i*Sigma",i,thresholdX);
+		Table.set("f(C - i*Sigma)",i,thresholdY);
+		print("ThresholdX = C - "+i+" * sigma = "+thresholdX);
+		print("ThresholdY = f("+thresholdX+") = "+thresholdY);
+		print("");
+	}
+	print(Fit.f(150));
+}
+/*
+macro "Make Final Table"{
+	makeFinalTableAction();
+}
+
+function makeFinalTableAction(){
+	Dialog.create("Final Table");
+	addPointsTablesDialog();
+	Dialog.show();
+	tableA = Dialog.getChoice();
+	tableB = Dialog.getChoice();
+
+	makeFinalTable(tableA,tableB);
+}
+*/
+macro "Make Final Table"{
+	makeFinalTableAction();
+}
+
+function makeFinalTableAction(){
+	
+	runJython(_J_ACTIONS[5],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[5]);
+	tableA = "Nearest Neighbors SC1>SC2";
+	tableB = "Nearest Neighbors SC2>SC1";
+	makeFinalTable(tableA,tableB);
+}
+
+
+
+//A means from A to B
+//B means from B to A
+function makeFinalTable(tableA,tableB){
+	finalTable = "Final Table";
+	Table.create(finalTable);
+
+	nbPointsA = Table.size(tableA);
+	nbPointsB = Table.size(tableB);
+
+	nearestOf = newArray(nbPointsA+nbPointsB);
+	for(i=0;i<nbPointsA+nbPointsB;i++){
+		if(i<nbPointsA){
+			nearestOf[i]="a";
+		}else{
+			nearestOf[i]="b";
+		}
+	}
+
+	itselfA = Array.getSequence(nbPointsA);
+	neighborsA = Table.getColumn("ID Neighbor",tableA);
+	distanceA = Table.getColumn("Distance",tableA);
+
+	itselfB = Array.getSequence(nbPointsB);
+	neighborsB = Table.getColumn("ID Neighbor",tableB);
+	distanceB = Table.getColumn("Distance",tableB);	
+	 trash = newArray();
+	 t=0;
+	 for(idB=0;idB<nbPointsB;idB++){
+		for(idA=0;idA<nbPointsA;idA++){
+			if(idB == neighborsA[idA] && idA == neighborsB[idB]){
+				trash[t++]=idB;
+				nearestOf[idA]="ab";
+				break;
+			}
+		}
+	 }
+
+	 for(t=0;t<trash.length;t++){
+	 		print(trash[t]);
+			itselfB = Array.deleteIndex(itselfB,trash[t]-t);
+			neighborsB = Array.deleteIndex(neighborsB,trash[t]-t);
+			distanceB = Array.deleteIndex(distanceB,trash[t]-t);
+			nearestOf = Array.deleteIndex(nearestOf,nbPointsA+trash[t]-t);
+	 }
+	
+
+	nbPointsA = Table.size(tableA);
+	nbPointsB = Table.size(tableB);
+	
+	for(i=0;i<nearestOf.length;i++){
+		if(i<nbPointsA){
+			indexA = i;
+			Table.set("ID A", i, itselfA[indexA],finalTable);
+			Table.set("ID B", i, neighborsA[indexA],finalTable);
+			
+			Table.set("Distance", i, distanceA[indexA],finalTable);
+			
+		}else{
+			indexB = i-nbPointsA;
+			Table.set("ID A", i, neighborsB[indexB],finalTable);
+			Table.set("ID B", i, itselfB[indexB],finalTable);
+			
+			Table.set("Distance", i, distanceB[indexB],finalTable);
+			
+		}
+		Table.set("Nearest neighbor of A", i, nearestOf[i].contains("a") ,finalTable);
+		Table.set("Nearest neighbor of B", i, nearestOf[i].contains("b")  ,finalTable);
+	}
+	
+}
+
+//For Each line of Final Table,
+//Draw a line between SC1 [ID A-1] th line and SC2 [ID B -1] th line with different colors according to distance ?
+
+
 /***	****	***/
 /***	Misc	***/
 /***	****	***/
@@ -321,6 +496,46 @@ function prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vH
 	}
 }
 
+
+function prepareTableForPairExport(transformToPixel){
+	inTable = Table.title();
+	headings = Table.headings
+	tableHeader = split(headings,"\t");
+	
+	outTable = "Results";
+	if(inTable ==outTable){
+		Table.rename(inTable, inTable+"-1");
+		inTable = Table.title();
+	}
+	Table.create(outTable);
+
+	width = 1;
+	height = 1;
+	depth = 1;
+	if(transformToPixel){
+		getVoxelSize(width, height, depth, unit);
+	}
+	
+	count = Table.size(inTable);
+	for (i = 0; i < count; i++) {
+		row = Table.size(outTable);
+		for(h=0;h<tableHeader.length;h++){
+			if(tableHeader[h]=="")	continue;
+			currentVal = Table.get(tableHeader[h], i,inTable);
+			if(startsWith(tableHeader[h], "x")){
+				currentVal = currentVal / width;
+			}
+			if(startsWith(tableHeader[h], "y")){
+				currentVal = currentVal / height;
+			}
+			if(startsWith(tableHeader[h], "z")){
+				currentVal = currentVal / depth;
+			}
+			Table.set(tableHeader[h], row, currentVal, outTable);
+		}
+	}
+}
+
 function showConfigDialog(){
 	Dialog.create("Get Spots Options");
 	
@@ -352,22 +567,6 @@ function showJythonConfigDialog(){
 	}
 }
 
-function addDetectSpotDialog(){
-	Dialog.addNumber("Sigma of Laplacian", _SIGMA);
-	Dialog.addNumber("Local Maxima Threshold", _MAX_FINDER_THRESHOLD);
-	Dialog.addNumber("Local Maxima Radius XY", _RADIUS_XY);
-	Dialog.addNumber("Local Maxima Radius Z ", _RADIUS_Z);
-	Dialog.addNumber("Local Maxima Noise", _NOISE);
-}
-
-function getDetectSpotDialog(){
-	_SIGMA=Dialog.getNumber();
-	_MAX_FINDER_THRESHOLD=Dialog.getNumber();
-	_RADIUS_XY=Dialog.getNumber();
-	_RADIUS_Z=Dialog.getNumber();
-	_NOISE=Dialog.getNumber();
-}
-
 function addChannelsDialog(){
 	Dialog.addNumber("Nucleus Channel", _NUCLEUS_CHANNEL);
 	Dialog.addNumber("First Spots Channel", _SPOTS1_CHANNEL);
@@ -378,6 +577,45 @@ function getChannelsDialog(){
 	_NUCLEUS_CHANNEL=Dialog.getNumber();
 	_SPOTS1_CHANNEL =Dialog.getNumber();
 	_SPOTS2_CHANNEL =Dialog.getNumber();
+}
+
+function addDetectSpotDialog(){
+	Dialog.addNumber("Sigma of Laplacian", _SIGMA[0]);
+	Dialog.addToSameRow();
+	Dialog.addNumber("", _SIGMA[1]);
+	
+	Dialog.addNumber("Local Maxima Threshold", _MAX_FINDER_THRESHOLD[0]);
+	Dialog.addToSameRow();
+	Dialog.addNumber("", _MAX_FINDER_THRESHOLD[1]);
+	
+	Dialog.addNumber("Local Maxima Radius XY", _RADIUS_XY[0]);
+	Dialog.addToSameRow();
+	Dialog.addNumber("", _RADIUS_XY[1]);
+	
+	Dialog.addNumber("Local Maxima Radius Z ", _RADIUS_Z[0]);
+	Dialog.addToSameRow();
+	Dialog.addNumber("", _RADIUS_Z[1]);
+	
+	Dialog.addNumber("Local Maxima Noise", _NOISE[0]);
+	Dialog.addToSameRow();
+	Dialog.addNumber("", _NOISE[1]);
+}
+
+function getDetectSpotDialog(){
+	_SIGMA[0]=Dialog.getNumber();
+	_SIGMA[1]=Dialog.getNumber();
+	
+	_MAX_FINDER_THRESHOLD[0]=Dialog.getNumber();
+	_MAX_FINDER_THRESHOLD[1]=Dialog.getNumber();
+	
+	_RADIUS_XY[0]=Dialog.getNumber();
+	_RADIUS_XY[1]=Dialog.getNumber();
+	
+	_RADIUS_Z[0]=Dialog.getNumber();
+	_RADIUS_Z[1]=Dialog.getNumber();
+	
+	_NOISE[0]=Dialog.getNumber();
+	_NOISE[1]=Dialog.getNumber();
 }
 
 function addPointsTablesDialog(){
@@ -391,9 +629,6 @@ function getPointsTablesDialog(){
 	_J_TABLE_A = Dialog.getChoice();
 	_J_TABLE_B = Dialog.getChoice();
 }
-
-
-
 
 
 

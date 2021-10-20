@@ -23,6 +23,12 @@ def main(action,tableName1,tableName2,moreArgs):
 	if action == "GetCloserPairs":
 		getCloseCoordPairs(tableName1,tableName2,moreArgs)
 
+	if action == "GetNearestNeighbors":
+		getNearestNeighbors(tableName1,tableName2)
+
+	if action == "GetMeanDistances":
+		getMeanDistances(tableName1,tableName2)
+
 def calculateDistanceMatrix(tableName1,tableName2):
 	pointsA = pointList3DFromRT(tableName1)
 	pointsB = pointList3DFromRT(tableName2)
@@ -55,6 +61,7 @@ def countCloserNeighbors(tableName1,tableName2,threshold):
 
 
 def getCloseCoordPairs(tableName1,tableName2,threshold):
+	IJ.log("Entering Get Close Pairs")
 	if threshold != "":
 		distanceThreshold = float(threshold)
 	else:
@@ -63,23 +70,95 @@ def getCloseCoordPairs(tableName1,tableName2,threshold):
 	pointsA = pointList3DFromRT(tableName1)
 	pointsB = pointList3DFromRT(tableName2)
 
-	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB = calculateNearestNeighbors(pointsA,pointsB)
-	
+	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB =  calculateNearestNeighbors(pointsA,pointsB)
+
 	pairs = getPairsCloserThan(distanceThreshold,neighborsDistancesA,idNearestA)+getPairsCloserThan(distanceThreshold,neighborsDistancesB,idNearestB,True)
 
 	pairsCoords = getCoordsOfPairs(pointsA,pointsB,pairs)
 	copyMatrixToRt2D(pairsCoords,"Pairs Coords",useFirstRowAsHeader=True)
+
+
+def getNearestNeighbors(tableName1,tableName2):
+
+	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB = calculateNearestNeighborsFromRT(tableName1,tableName2)
+
+	nearestNeighborsA = []
+	nearestNeighborsA.append(("Distance",))
+	nearestNeighborsA.append(("ID Neighbor",))
+	nearestNeighborsA[0]=(nearestNeighborsA[0]+tuple(neighborsDistancesA))
+	nearestNeighborsA[1]=(nearestNeighborsA[1]+tuple(idNearestA))
+	copyMatrixToRt2D(nearestNeighborsA,"Nearest Neighbors "+tableName1+">"+tableName2,useFirstRowAsHeader=True)
+
+	nearestNeighborsB = []
+	nearestNeighborsB.append(("Distance",))
+	nearestNeighborsB.append(("ID Neighbor",))
+	nearestNeighborsB[0]=(nearestNeighborsB[0]+tuple(neighborsDistancesB))
+	nearestNeighborsB[1]=(nearestNeighborsB[1]+tuple(idNearestB))
+	copyMatrixToRt2D(nearestNeighborsB,"Nearest Neighbors "+tableName2+">"+tableName1,useFirstRowAsHeader=True)
+
+	return nearestNeighborsA,nearestNeighborsB
+
+
+def calculateNearestNeighborsFromRT(tableName1,tableName2):
+	pointsA = pointList3DFromRT(tableName1)
+	pointsB = pointList3DFromRT(tableName2)
+
+	return calculateNearestNeighbors(pointsA,pointsB)
+
+def getMeanDistances(tableName1,tableName2):
+	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB = calculateNearestNeighborsFromRT(tableName1,tableName2)
+
+	minA, maxA, sumA, meanA, varianceA, stdDevA = getStatistics(neighborsDistancesA)
+	IJ.log("Statistics Distances from "+tableName1+">"+tableName2)
+	IJ.log("Min ="+str(minA))
+	IJ.log("Max ="+str(maxA))
+	IJ.log("Sum ="+str(sumA))
+	IJ.log("Mean ="+str(meanA))
+	IJ.log("Variance ="+str(varianceA))
+	IJ.log("Std Dev ="+str(stdDevA))
+	IJ.log(" ")
+
+	minA, maxA, sumA, meanA, varianceA, stdDevA = getStatistics(neighborsDistancesB)
+	IJ.log("Statistics Distances from "+tableName2+">"+tableName1)
+	IJ.log("Min ="+str(minA))
+	IJ.log("Max ="+str(maxA))
+	IJ.log("Sum ="+str(sumA))
+	IJ.log("Mean ="+str(meanA))
+	IJ.log("Variance ="+str(varianceA))
+	IJ.log("Std Dev ="+str(stdDevA))
+
+def getStatistics(dataset):
+	min = dataset[0]
+	max = dataset[0]
+	sum = 0
+
+	for d in dataset:
+		sum += d
+		if d < min:
+			min = d
+		if d > max:
+			max = d
+
+	mean = sum / len(dataset)
+
+	sumOfSquare = 0
+	for d in dataset:
+		sumOfSquare += (d - mean)**2
+
+	variance = sumOfSquare / len(dataset)-1
+	stdDev = math.sqrt(variance)
+
+	return min, max, sum, mean, variance, stdDev
+
 
 def plotDistanceDistribution(tableName1,tableName2,nbCategories):
 	if nbCategories != "":
 		histogramSize = int(nbCategories)
 	else:
 		histogramSize = 256
-
-	pointsA = pointList3DFromRT(tableName1)
-	pointsB = pointList3DFromRT(tableName2)
-
-	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB = calculateNearestNeighbors(pointsA,pointsB)
+	
+	neighborsDistancesA, neighborsDistancesB, idNearestA, idNearestB = calculateNearestNeighborsFromRT(tableName1,tableName2)
+	
 	histo1 = makeHistogram(neighborsDistancesA,histogramSize)
 	copyMatrixToRt2D(histo1,"Distance Distribution "+tableName1+">"+tableName2,useFirstRowAsHeader=True)
 	histo2 = makeHistogram(neighborsDistancesB,histogramSize)
@@ -270,6 +349,7 @@ def copyMatrixToRt2D(matrix,tableName="Results",sizeX=-1,sizeY=-1,useFirstRowAsH
 
 	for indexX in range(sizeX):
 		for indexY in range(sizeY):
+
 			if useFirstRowAsHeader:
 				if indexY == 0:
 					continue
@@ -320,6 +400,10 @@ def pointList3DFromRT(tableName,modifierX = 0,modifierY = 0,modifierZ = 0, XColu
 	X = rt.getColumn(rt.getColumnIndex(XColumn))
 	Y = rt.getColumn(rt.getColumnIndex(YColumn))
 	Z = rt.getColumn(rt.getColumnIndex(ZColumn))
+	# X = rt.getColumn(XColumn)
+	# Y = rt.getColumn(YColumn)
+	# Z = rt.getColumn(ZColumn)
+	
 	dplist = []
 	for x, y, z in zip(X, Y, Z):
 		array = []
