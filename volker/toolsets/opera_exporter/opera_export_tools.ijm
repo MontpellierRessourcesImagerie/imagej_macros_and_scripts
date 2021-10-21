@@ -38,6 +38,7 @@ var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
+var _STITCH_ON_PROJECTION = false;
 
 launchExport();
 exit();
@@ -95,6 +96,7 @@ function launchExport() {
 	}
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
+	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
 	if (_CREATE_Z_STACK) options = options + " --stack";
 	if (_MERGE_CHANNELS) options = options + " --merge";
 	if (_DO_MIP) options = options + " --mip";
@@ -122,6 +124,8 @@ function launchExport() {
 function setOptions() {
 	Dialog.create("Options");
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
 	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
 	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
@@ -156,6 +160,7 @@ function setOptions() {
 	
 	Dialog.show();
 	_ZSLICE = Dialog.getNumber();
+	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
 	_CREATE_Z_STACK = Dialog.getCheckbox();
 	_MERGE_CHANNELS = Dialog.getCheckbox();

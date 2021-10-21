@@ -14,6 +14,7 @@ def main(args):
 	parser = getArgumentParser()
  	params = parser.parse_args(args)
  	experiment = PhenixHCSExperiment.fromIndexFile(params.index_file);
+ 	srcPath = experiment.getPath();
 	print(experiment)
 	wells = experiment.getPlates()[0].getWells()
 	if not params.wells == 'all':
@@ -25,14 +26,21 @@ def main(args):
 		if zPos==0:
 			zPos = zSize / 2
 		if params.wells=='all' or well.getID() in listOfWellIDS:
-			well.calculateStitching(zPos, 0, params)
+			names, newNames = well.createTileConfig(zPos, 0, params.channel)
+			if params.stitchOnMIP:
+				well.createMIPFromInputImages(dims, params, params.channel)
+			else:
+				well.copyImages(srcPath, srcPath+"/work", names, newNames);
+			well.calculateStitching(params)
+			for newName in newNames:
+				os.remove(srcPath+"/work/"+newName)
 			well.applyStitching(params)	
 			if params.stack:
 				well.createStack(dims, params)
 			if params.merge:
 				well.mergeChannels(dims, params)
- 			if params.mip:
- 				well.mip(dims, params)
+			if params.mip:
+				well.mip(dims, params)
  						
 def getArgumentParser():
 	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
@@ -40,6 +48,7 @@ def getArgumentParser():
 	parser.add_argument("--slice", "-s", default=0, type=int, help='the slice used to calculate the stitching, 0 for the middle slice')
 	parser.add_argument("--channel", "-c", default=1, type=int, help='the channel used to calculate the stitching')
 	parser.add_argument("--stack", default=False, action='store_true', help='create z-stacks of the mosaics')
+	parser.add_argument("--stitchOnMIP", default=False, action='store_true', help='use the z-projection to calculate the stitching')
 	parser.add_argument("--merge", default=False, action='store_true', help='merge the channels into a hyperstack')
 	parser.add_argument("--mip", default=False, action='store_true', help='apply a maximum intensity projection per channel')
 	parser.add_argument("--normalize", default=False, action='store_true', help='normalize the intensities of the images in a mosaic')
@@ -180,8 +189,6 @@ class Well(object):
 		yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
 		names = [image.getURL() for image in images]
 		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
-		for name, newName in zip(names, newNames):
-			shutil.copy(srcPath+"/"+name, path+"/"+newName)
 		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
 		with open(tileConfPath, 'w') as f:
 			f.write("# Define the number of dimensions we are working on\n")
@@ -192,17 +199,20 @@ class Well(object):
 				f.write(name+";"+" ; (" + str(x) + "," + str(y)+")"+"\n")
 		return names, newNames;
 
-	
-	def calculateStitching(self, zPosition, timePoint, params):
+
+	def copyImages(srcPath, path, names, newNames):
+		for name, newName in zip(names, newNames):
+			shutil.copy(srcPath+"/"+name, path+"/"+newName)
+		
+	def calculateStitching(self, params):
 		'''
 		Create an initial TileConfiguration from the meta-data in the work-folder 
 		and use it for the stitching. Replace the TileConfiguration by the one
 		created by the stitching.
-		'''   
-		path = self.experiment.getPath();
-		names, newNames = self.createTileConfig(zPosition, timePoint, params.channel)
-		if not os.path.exists(path+"/out"):
-			os.mkdir(path+"/out")
+		'''   	
+		srcPath = self.experiment.getPath();
+		if not os.path.exists(srcPath+"/out"):
+			os.mkdir(srcPath+"/out")
 		fusionMethod = params.fusion_method
 		if "Max_" in fusionMethod:
 			fusionMethod = fusionMethod.replace("Max_", "Max. ")
@@ -214,7 +224,7 @@ class Well(object):
 			fusionMethod = "Intensity of random input tile"
 		parameters = "type=[Positions from file] " + \
 					 "order=[Defined by TileConfiguration] " + \
-					 "directory=["+path+"/work/] " + \
+					 "directory=["+srcPath+"/work/] " + \
 					 "layout_file=TileConfiguration.txt " + \
 					 "fusion_method=["+fusionMethod+"] " + \
 					 "regression_threshold=" + str(params.regression_threshold) + " " +\
@@ -224,17 +234,15 @@ class Well(object):
 					 "subpixel_accuracy " + \
 					 "computation_parameters=[Save computation time (but use more RAM)] " + \
 					 "image_output=[Write to disk] " \
-					 "output_directory=["+path+"/out/] "
+					 "output_directory=["+srcPath+"/out/] "
 		now = datetime.now().time()
 		print(now)
 		IJ.run("Grid/Collection stitching", parameters)
 		now = datetime.now().time()
 		print(now)
-		os.remove(path+"/work/TileConfiguration.txt")
-		os.rename(path+"/work/TileConfiguration.registered.txt", path+"/work/TileConfiguration.txt")
-		os.remove(path+"/out/img_t1_z1_c1")
-		for newName in newNames:
-			os.remove(path+"/work/"+newName)
+		os.remove(srcPath+"/work/TileConfiguration.txt")
+		os.rename(srcPath+"/work/TileConfiguration.registered.txt", srcPath+"/work/TileConfiguration.txt")
+		os.remove(srcPath+"/out/img_t1_z1_c1")
 
 	def applyStitching(self, params):
 		path = self.experiment.getPath();
@@ -407,7 +415,34 @@ class Well(object):
 					imp.close()
 					for aPath in toBeDeleted:
 						os.remove(aPath)
-	
+
+	def createMIPFromInputImages(self, dims, params, channel):
+		slices = dims[2]
+		timePoints = dims[3]
+		path = self.experiment.getPath()
+		fields = self.getFields()
+		for t in range(0, timePoints):
+			index = 0
+			for f in fields:
+				images = self.getImagesForTimeFieldAndChannel(t, f, channel)
+				imps = []	
+				title = ""
+				for image in images:
+					IJ.open(path + "/" + image.getURL())
+					IJ.run(params.colours[channel-1])
+					title = image.getURL()
+					imp = IJ.getImage()
+					imps.append(imp)
+				if title:	
+					imp = ImagesToStack.run(imps)
+					name = title[:9] + title[12:]
+					projImp = ZProjector.run(imp,"max")
+					url = path + "/work/" + str(index).zfill(2)+".tif"
+					IJ.save(projImp, url)
+					imp.close()
+					projImp.close()
+				index = index + 1
+			
 	def mergeChannels(self, dims, params):			
 		slices = dims[2]
 		channels = dims[4]
@@ -457,6 +492,9 @@ class Well(object):
 			for c in range(1, channels+1):
 				channelURL = url[:6] + "-ch" + str(c) + url[7:]
 				images.append(path + "/out/" + channelURL)
+		self.mipImages(images)
+
+	def mipImages(self, images):
 		for url in images:
 			IJ.open(url)
 			imp = IJ.getImage()
@@ -464,7 +502,7 @@ class Well(object):
 			IJ.save(projImp, url)
 			imp.close()
 			projImp.close()
-		
+	
 	def getImagesPerChannel(self, channels):
 		allImages = self.getImages()
 		res = []
@@ -472,6 +510,11 @@ class Well(object):
 			filtered = [image for image in allImages if image.getChannel()==c]
 			res.append(filtered);
 		return res
+
+	def getImagesForTimeFieldAndChannel(self, timePoint, field, channel):
+		allImages = self.getImages()
+		images = [image for image in allImages if image.getTime()==timePoint and image.getChannel()==channel and image.getField()==field]
+		return images
 
 	def getMergedImageName(self):
 		allImages = self.getImages()
