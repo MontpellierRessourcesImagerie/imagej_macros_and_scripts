@@ -39,7 +39,10 @@ var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
 var _STITCH_ON_PROJECTION = false;
-
+var _KEEP_STACKS_OF_FIELDS = false;
+var _KEEP_STACKS_OF_MOSAICS = false;
+var	_KEEP_SINGLE_CHANNEL_IMAGES = false;
+	
 launchExport();
 exit();
 
@@ -127,9 +130,19 @@ function setOptions() {
 	Dialog.addToSameRow();
 	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
+
 	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("keep stacks of fields", _KEEP_STACKS_OF_FIELDS);
+		
 	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("keep stacks of mosaics", _KEEP_STACKS_OF_MOSAICS);
+	
 	Dialog.addCheckbox("apply z-projection", _DO_MIP);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("keep single channel images", _KEEP_SINGLE_CHANNEL_IMAGES);
+	
 	Dialog.addMessage("Image correction/normalization:");
 	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
 	Dialog.addNumber("rolling ball radius (0 to switch off): ", _ROLLING_BALL_RADIUS);
@@ -162,9 +175,13 @@ function setOptions() {
 	_ZSLICE = Dialog.getNumber();
 	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
+
 	_CREATE_Z_STACK = Dialog.getCheckbox();
+	_KEEP_STACKS_OF_FIELDS = Dialog.getCheckbox();
 	_MERGE_CHANNELS = Dialog.getCheckbox();
+	_KEEP_STACKS_OF_MOSAICS = Dialog.getCheckbox();
 	_DO_MIP = Dialog.getCheckbox();	
+	_KEEP_SINGLE_CHANNEL_IMAGES = Dialog.getCheckbox();
 
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
