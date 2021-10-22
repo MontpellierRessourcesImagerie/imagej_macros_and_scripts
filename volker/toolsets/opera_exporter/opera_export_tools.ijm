@@ -19,7 +19,7 @@ var _BYTES_TO_READ = 10000;
 var _WELLS = newArray(0);
 var _SELECTED_WELLS = newArray(0);
 var _WELLS_NAMES = newArray(0);
-var _WELLS_NAMES_FILE = "wellNames"
+var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
 var _CREATE_Z_STACK = true;
 var _MERGE_CHANNELS = true;
@@ -106,9 +106,33 @@ function launchExport() {
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
-	if (_CREATE_Z_STACK) options = options + " --stack";
-	if (_MERGE_CHANNELS) options = options + " --merge";
-	if (_DO_MIP) options = options + " --mip";
+	//if (_CREATE_Z_STACK) options = options + " --stack";
+	//if (_MERGE_CHANNELS) options = options + " --merge";
+	//if (_DO_MIP) options = options + " --mip";
+
+	if(_EXPORT_Z_STACK_FIELDS) options = options+ "--zStackFields";
+	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ "--zStackFieldsComposite";
+	if(_EXPORT_PROJECTION_FIELDS) options = options+ "--projectionFields";
+	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ "--projectionFieldsComposite";
+	
+	if(_EXPORT_Z_STACK_MOSAIC) options = options+ "--zStackMosaic";
+	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ "--zStackMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC) options = options+ "--projectionMosaic";
+	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ "--projectionMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ "--projectionMosaicRGB";
+	
+	tmp = "";
+	channelSelected = false;
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(_EXPORT_RGB_CHANNEL[i]){
+			tmp = tmp+"1";
+			channelSelected = true;
+		}else{
+			tmp = tmp+"0";
+		}
+	}
+	if(channelSelected)	options = options+ "--channelRGB"+tmp;
+	
 	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
 	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
@@ -130,6 +154,19 @@ function launchExport() {
 	print("The eagle has landed!!!");
 }
 
+var _EXPORT_Z_STACK_FIELDS = true;
+var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
+var _EXPORT_PROJECTION_FIELDS = true;
+var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
+var _EXPORT_Z_STACK_MOSAIC = true;
+var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC = true;
+var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC_RGB = true;
+
+var _NB_CHANNELS = 4;
+var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
+
 function setOptions() {
 	Dialog.create("Options");
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
@@ -137,17 +174,32 @@ function setOptions() {
 	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
 
-	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
+
+	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
 	Dialog.addToSameRow();
-	Dialog.addCheckbox("keep stacks of fields", _KEEP_STACKS_OF_FIELDS);
-		
-	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("keep stacks of mosaics", _KEEP_STACKS_OF_MOSAICS);
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_FIELDS_COMPOSITE);
 	
-	Dialog.addCheckbox("apply z-projection", _DO_MIP);
+	Dialog.addCheckbox("Export Projections of Fields", _EXPORT_PROJECTION_FIELDS);
 	Dialog.addToSameRow();
-	Dialog.addCheckbox("keep single channel images", _KEEP_SINGLE_CHANNEL_IMAGES);
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_FIELDS_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Z-Stack of Mosaics", _EXPORT_Z_STACK_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_MOSAIC_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Projection of Mosaics", _EXPORT_PROJECTION_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_MOSAIC_COMPOSITE);
+
+	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
+
+	Dialog.addMessage("Invert and export RGB of channel:");
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(i!=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addCheckbox(i,_EXPORT_RGB_CHANNEL[i]);
+	}
 	
 	Dialog.addMessage("Image correction/normalization:");
 	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
@@ -182,13 +234,28 @@ function setOptions() {
 	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
 
+
+	_EXPORT_Z_STACK_FIELDS = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
+	}
+/*
 	_CREATE_Z_STACK = Dialog.getCheckbox();
 	_KEEP_STACKS_OF_FIELDS = Dialog.getCheckbox();
 	_MERGE_CHANNELS = Dialog.getCheckbox();
 	_KEEP_STACKS_OF_MOSAICS = Dialog.getCheckbox();
 	_DO_MIP = Dialog.getCheckbox();	
 	_KEEP_SINGLE_CHANNEL_IMAGES = Dialog.getCheckbox();
-
+*/
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_NORMALIZE = Dialog.getCheckbox();
