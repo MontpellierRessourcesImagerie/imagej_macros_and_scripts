@@ -14,10 +14,12 @@
 */
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
-var _OPERA_INDEX_FILE = ""
+var _OPERA_INDEX_FILE = "";
 var _BYTES_TO_READ = 10000;
-var _SELECTED_WELLS = newArray(0);
 var _WELLS = newArray(0);
+var _SELECTED_WELLS = newArray(0);
+var _WELLS_NAMES = newArray(0);
+var _WELLS_NAMES_FILE = "wellNames"
 var _EXPORT_ALL = true;
 var _CREATE_Z_STACK = true;
 var _MERGE_CHANNELS = true;
@@ -65,6 +67,10 @@ macro "Select wells (f6) Action Tool - C111D22C000L3242CcccL5262C000L7282CcccL92
 
 macro "select wells [f6]" {
 	selectWells();
+}
+
+macro "Rename Wells Action Tool - C000T6b12T"{
+	renameWells();
 }
 
 macro "Set options (f7) Action Tool - CaaaD61C555L7181CaaaD91C222L6292C888D33CcccD43C333D53C111D63CeeeL7383C111D93C333Da3CcccDb3C888Dc3C666D24C000L3444C444D54CcccD64D94C444Da4C000Lb4c4C666Dd4CeeeD15C000D25CbbbD35Dc5C000Dd5CeeeDe5CcccD16C111D26C666D36CbbbD66C333D76C222D86CbbbD96C666Dc6C111Dd6CcccDe6C888D27C111D37C222D67C666D77C444D87C333D97C111Dc7C888Dd7D28C111D38C222D68C555D78C444D88C222D98C111Dc8C888Dd8CcccD19C111D29C666D39CbbbD69C222L7989CbbbD99C666Dc9C111Dd9CcccDe9D1aC000D2aCbbbD3aDcaC000DdaCeeeDeaC444D2bC000L3b4bC444D5bCcccD6bD9bC444DabC000LbbcbC666DdbC888D3cCbbbD4cC222D5cC111D6cCeeeL7c8cC111D9cC222DacCbbbDbcC888DccC222L6d9dCaaaD6eC444L7e8eCaaaD9e" {
@@ -193,6 +199,7 @@ function selectWells() {
 	_WELLS = getWells();
 	wells = _WELLS;
 	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
+	
 	Dialog.create("Select Wells");
 	lastRow = "00";
 	for (i = 0; i < wells.length; i++) {
@@ -205,12 +212,65 @@ function selectWells() {
 		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
 	}
 	Dialog.addCheckbox("export all", _EXPORT_ALL);
+	
 	Dialog.show();
+	
 	for (i = 0; i < wells.length; i++) {
-		well = wells[i];
 		_SELECTED_WELLS[i] = Dialog.getCheckbox();
 	}
 	_EXPORT_ALL = Dialog.getCheckbox();
+
+	
+}
+
+function renameWells() {
+	_OPERA_INDEX_FILE = getIndexFile();
+	_WELLS = getWells();
+	wells = _WELLS;
+
+	wellsNameUndefined = false;
+	if (_WELLS_NAMES.length != _WELLS.length){
+		wellsNameUndefined =true;
+		_WELLS_NAMES = newArray(_WELLS.length);
+	}
+	
+	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+	
+	if(File.exists(baseDir + _WELLS_NAMES_FILE)){
+		str = File.openAsString(baseDir + _WELLS_NAMES_FILE);
+		lines=split(str,"\n");
+		for(i=0;i<_WELLS.length;i++){
+			line = split(lines[i],":");
+			_WELLS_NAMES[i]=line[1];
+		}
+		wellsNameUndefined = false;
+	}
+	
+	Dialog.create("Rename Wells");
+	lastRow = "00";
+	for(i=0;i<_WELLS.length;i++){
+		well = wells[i];
+		if(wellsNameUndefined){
+			_WELLS_NAMES[i]="r"+substring(well, 0, 2)+"c"+substring(well, 2, 4);
+		}
+		
+		row = substring(well, 0, 2);  
+		if (row==lastRow) {
+			Dialog.addToSameRow();
+		}
+		lastRow = row;
+		Dialog.addString(well, _WELLS_NAMES[i],8);
+	}
+
+	Dialog.show();
+
+	path = baseDir + _WELLS_NAMES_FILE;
+	File.delete(baseDir + _WELLS_NAMES_FILE);
+	for(i=0;i<_WELLS.length;i++){
+		well = wells[i];
+		_WELLS_NAMES[i] = Dialog.getString();
+		File.append(""+well+":"+_WELLS_NAMES[i]+"", path);
+	}
 }
 
 function setIndexFile() {
