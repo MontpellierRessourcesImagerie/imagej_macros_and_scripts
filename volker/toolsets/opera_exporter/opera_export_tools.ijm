@@ -14,10 +14,12 @@
 */
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
-var _OPERA_INDEX_FILE = ""
+var _OPERA_INDEX_FILE = "";
 var _BYTES_TO_READ = 10000;
-var _SELECTED_WELLS = newArray(0);
 var _WELLS = newArray(0);
+var _SELECTED_WELLS = newArray(0);
+var _WELLS_NAMES = newArray(0);
+var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
 var _CREATE_Z_STACK = true;
 var _MERGE_CHANNELS = true;
@@ -38,7 +40,11 @@ var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
-
+var _STITCH_ON_PROJECTION = false;
+var _KEEP_STACKS_OF_FIELDS = false;
+var _KEEP_STACKS_OF_MOSAICS = false;
+var	_KEEP_SINGLE_CHANNEL_IMAGES = false;
+	
 launchExport();
 exit();
 
@@ -64,6 +70,10 @@ macro "Select wells (f6) Action Tool - C111D22C000L3242CcccL5262C000L7282CcccL92
 
 macro "select wells [f6]" {
 	selectWells();
+}
+
+macro "Rename Wells Action Tool - C000T6b12T"{
+	renameWells();
 }
 
 macro "Set options (f7) Action Tool - CaaaD61C555L7181CaaaD91C222L6292C888D33CcccD43C333D53C111D63CeeeL7383C111D93C333Da3CcccDb3C888Dc3C666D24C000L3444C444D54CcccD64D94C444Da4C000Lb4c4C666Dd4CeeeD15C000D25CbbbD35Dc5C000Dd5CeeeDe5CcccD16C111D26C666D36CbbbD66C333D76C222D86CbbbD96C666Dc6C111Dd6CcccDe6C888D27C111D37C222D67C666D77C444D87C333D97C111Dc7C888Dd7D28C111D38C222D68C555D78C444D88C222D98C111Dc8C888Dd8CcccD19C111D29C666D39CbbbD69C222L7989CbbbD99C666Dc9C111Dd9CcccDe9D1aC000D2aCbbbD3aDcaC000DdaCeeeDeaC444D2bC000L3b4bC444D5bCcccD6bD9bC444DabC000LbbcbC666DdbC888D3cCbbbD4cC222D5cC111D6cCeeeL7c8cC111D9cC222DacCbbbDbcC888DccC222L6d9dCaaaD6eC444L7e8eCaaaD9e" {
@@ -95,9 +105,34 @@ function launchExport() {
 	}
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
-	if (_CREATE_Z_STACK) options = options + " --stack";
-	if (_MERGE_CHANNELS) options = options + " --merge";
-	if (_DO_MIP) options = options + " --mip";
+	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
+	//if (_CREATE_Z_STACK) options = options + " --stack";
+	//if (_MERGE_CHANNELS) options = options + " --merge";
+	//if (_DO_MIP) options = options + " --mip";
+
+	if(_EXPORT_Z_STACK_FIELDS) options = options+ "--zStackFields";
+	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ "--zStackFieldsComposite";
+	if(_EXPORT_PROJECTION_FIELDS) options = options+ "--projectionFields";
+	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ "--projectionFieldsComposite";
+	
+	if(_EXPORT_Z_STACK_MOSAIC) options = options+ "--zStackMosaic";
+	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ "--zStackMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC) options = options+ "--projectionMosaic";
+	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ "--projectionMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ "--projectionMosaicRGB";
+	
+	tmp = "";
+	channelSelected = false;
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(_EXPORT_RGB_CHANNEL[i]){
+			tmp = tmp+"1";
+			channelSelected = true;
+		}else{
+			tmp = tmp+"0";
+		}
+	}
+	if(channelSelected)	options = options+ "--channelRGB"+tmp;
+	
 	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
 	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
@@ -119,13 +154,53 @@ function launchExport() {
 	print("The eagle has landed!!!");
 }
 
+var _EXPORT_Z_STACK_FIELDS = true;
+var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
+var _EXPORT_PROJECTION_FIELDS = true;
+var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
+var _EXPORT_Z_STACK_MOSAIC = true;
+var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC = true;
+var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC_RGB = true;
+
+var _NB_CHANNELS = 4;
+var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
+
 function setOptions() {
 	Dialog.create("Options");
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
-	Dialog.addCheckbox("create z-stack", _CREATE_Z_STACK);
-	Dialog.addCheckbox("merge channels", _MERGE_CHANNELS);
-	Dialog.addCheckbox("apply z-projection", _DO_MIP);
+
+
+	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_FIELDS_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Projections of Fields", _EXPORT_PROJECTION_FIELDS);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_FIELDS_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Z-Stack of Mosaics", _EXPORT_Z_STACK_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_MOSAIC_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Projection of Mosaics", _EXPORT_PROJECTION_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_MOSAIC_COMPOSITE);
+
+	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
+
+	Dialog.addMessage("Invert and export RGB of channel:");
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(i!=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addCheckbox(i,_EXPORT_RGB_CHANNEL[i]);
+	}
+	
 	Dialog.addMessage("Image correction/normalization:");
 	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
 	Dialog.addNumber("rolling ball radius (0 to switch off): ", _ROLLING_BALL_RADIUS);
@@ -156,11 +231,31 @@ function setOptions() {
 	
 	Dialog.show();
 	_ZSLICE = Dialog.getNumber();
+	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
-	_CREATE_Z_STACK = Dialog.getCheckbox();
-	_MERGE_CHANNELS = Dialog.getCheckbox();
-	_DO_MIP = Dialog.getCheckbox();	
 
+
+	_EXPORT_Z_STACK_FIELDS = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
+	}
+/*
+	_CREATE_Z_STACK = Dialog.getCheckbox();
+	_KEEP_STACKS_OF_FIELDS = Dialog.getCheckbox();
+	_MERGE_CHANNELS = Dialog.getCheckbox();
+	_KEEP_STACKS_OF_MOSAICS = Dialog.getCheckbox();
+	_DO_MIP = Dialog.getCheckbox();	
+	_KEEP_SINGLE_CHANNEL_IMAGES = Dialog.getCheckbox();
+*/
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_NORMALIZE = Dialog.getCheckbox();
@@ -188,6 +283,7 @@ function selectWells() {
 	_WELLS = getWells();
 	wells = _WELLS;
 	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
+	
 	Dialog.create("Select Wells");
 	lastRow = "00";
 	for (i = 0; i < wells.length; i++) {
@@ -200,12 +296,65 @@ function selectWells() {
 		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
 	}
 	Dialog.addCheckbox("export all", _EXPORT_ALL);
+	
 	Dialog.show();
+	
 	for (i = 0; i < wells.length; i++) {
-		well = wells[i];
 		_SELECTED_WELLS[i] = Dialog.getCheckbox();
 	}
 	_EXPORT_ALL = Dialog.getCheckbox();
+
+	
+}
+
+function renameWells() {
+	_OPERA_INDEX_FILE = getIndexFile();
+	_WELLS = getWells();
+	wells = _WELLS;
+
+	wellsNameUndefined = false;
+	if (_WELLS_NAMES.length != _WELLS.length){
+		wellsNameUndefined =true;
+		_WELLS_NAMES = newArray(_WELLS.length);
+	}
+	
+	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+	
+	if(File.exists(baseDir + _WELLS_NAMES_FILE)){
+		str = File.openAsString(baseDir + _WELLS_NAMES_FILE);
+		lines=split(str,"\n");
+		for(i=0;i<_WELLS.length;i++){
+			line = split(lines[i],":");
+			_WELLS_NAMES[i]=line[1];
+		}
+		wellsNameUndefined = false;
+	}
+	
+	Dialog.create("Rename Wells");
+	lastRow = "00";
+	for(i=0;i<_WELLS.length;i++){
+		well = wells[i];
+		if(wellsNameUndefined){
+			_WELLS_NAMES[i]="r"+substring(well, 0, 2)+"c"+substring(well, 2, 4);
+		}
+		
+		row = substring(well, 0, 2);  
+		if (row==lastRow) {
+			Dialog.addToSameRow();
+		}
+		lastRow = row;
+		Dialog.addString(well, _WELLS_NAMES[i],8);
+	}
+
+	Dialog.show();
+
+	path = baseDir + _WELLS_NAMES_FILE;
+	File.delete(baseDir + _WELLS_NAMES_FILE);
+	for(i=0;i<_WELLS.length;i++){
+		well = wells[i];
+		_WELLS_NAMES[i] = Dialog.getString();
+		File.append(""+well+":"+_WELLS_NAMES[i]+"", path);
+	}
 }
 
 function setIndexFile() {

@@ -8,14 +8,17 @@ from  ij.gui import Roi
 from ij import IJ
 from  ij.plugin.frame import RoiManager
 from java.awt import Color
+from ij.gui import NewImage
 
 xPoints = []
 yPoints = []
 ip = IJ.getImage()	
-pw = ip.getCalibration().pixelWidth
-vd = ip.getCalibration().pixelDepth
+title = ip.getTitle()
+width = ip.getWidth()
+height = ip.getHeight()
+nip = NewImage.createShortImage(title+"-mask", width, height, ip.getNSlices(), NewImage.FILL_BLACK)
 
-index = 1; 
+index = 1
 for c in LimeSeg.allCells:
 	roisX = {}
 	roisY = {}
@@ -30,12 +33,14 @@ for c in LimeSeg.allCells:
 		roisX[z].append(dn.pos.x)
 		roisY[z].append(dn.pos.y)
 
-	roiManager = RoiManager.getInstance()
 	for key in roisX.keys():
 		roi = PolygonRoi(roisX[key], roisY[key], Roi.POLYGON)
 		roi = PolygonRoi(roi.getConvexHull(), Roi.POLYGON)
 		roi.setPosition(key)
-		roi.setColor(Color(index, index, index))
-		roi.setFillColor(Color(index, index, index))
-		roiManager.addRoi(roi)
+		nip.setSlice(key)
+		nip.getProcessor().setValue(index)
+		nip.getProcessor().fill(roi)	
 	index = index + 1
+nip.show()
+IJ.resetMinAndMax(nip);
+IJ.run(nip, "3-3-2 RGB", "");
