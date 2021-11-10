@@ -8,6 +8,11 @@ var _RADIUS_XY = newArray(0.3,0.4);
 var _RADIUS_Z = newArray(0.4,0.5);
 var _NOISE = newArray(20,20);
 
+//<Name of the channel> Spots
+var _TABLE_SPOTS_1 = "SC1";
+var _TABLE_SPOTS_2 = "SC2";
+var _TABLE_NEIGHBORS = "Final Table";
+
 var _J_TABLE_A = "SC1";
 var _J_TABLE_B = "SC2";
 
@@ -37,12 +42,41 @@ macro "Get Spots Outside of Nucleus Action Tool Options"{
 	showConfigDialog();
 }
 
-macro "Execute Jython Action Tool - C000T4b12P "{
-	executeJythonAction();
+macro "Get Nearest Neighbors Action Tool - C000T4b12N "{
+	getNearestNeighborsAction();
 }
 
-macro "Execute Jython Action Tool Options "{
-	showJythonConfigDialog();
+macro "Export Results Action Tool - C000T4b12E "{
+	exportResultsAction();
+}
+
+function getNearestNeighborsAction(){
+	getSpotsOutsideOfNucleusAction();
+	makeFinalTableAction();
+}
+
+function exportSpots(baseFolder){
+	Table.save(baseFolder+_TABLE_SPOTS_1,_TABLE_SPOTS_1);
+	Table.save(baseFolder+_TABLE_SPOTS_2,_TABLE_SPOTS_2);
+}
+
+function exportNeighbors(baseFolder){
+	Table.save(baseFolder+_TABLE_NEIGHBORS,_TABLE_NEIGHBORS);
+}
+
+function exportResults(baseFolder){
+	exportSpots(baseFolder);
+	exportNeighbors(baseFolder);
+}
+
+function exportResultsAction(){
+	Dialog.create("Enter the Export Folder");
+	Dialog.addDirectory("Export folder","");
+	Dialog.show();
+	baseFolder = Dialog.getString();
+	
+	getNearestNeighborsAction();
+	exportResults(baseFolder);
 }
 
 macro "Unused Tool-1 - " {}  // leave empty slot
@@ -83,13 +117,13 @@ macro "Execute Jython Menu Tool - C000T4b12P"{
 	label = getArgument();
 	if(label == cmdJython[0])	executeJythonAction();
 	if(label == cmdJython[1])	showJythonConfigDialog();
-	if(label == cmdJython[3])	getDistanceMatrixAction();
-	if(label == cmdJython[4])	getCumulatedNeighborsAction();
-	if(label == cmdJython[5])	getDistanceDistributionAction();
-	if(label == cmdJython[6])	countNeighborsCloserAction();
-	if(label == cmdJython[7])	getPairsCloserAction();
-	if(label == cmdJython[8])	getNearestNeighborsAction();
-	if(label == cmdJython[9])	getMeanDistancesAction();
+	if(label == cmdJython[3])	j_getDistanceMatrixAction();
+	if(label == cmdJython[4])	j_getCumulatedNeighborsAction();
+	if(label == cmdJython[5])	j_getDistanceDistributionAction();
+	if(label == cmdJython[6])	j_countNeighborsCloserAction();
+	if(label == cmdJython[7])	j_getPairsCloserAction();
+	if(label == cmdJython[8])	j_getNearestNeighborsAction();
+	if(label == cmdJython[9])	j_getMeanDistancesAction();
 }
 
 macro "unused Tool - " {}  // leave empty slot
@@ -194,31 +228,31 @@ function executeJythonAction(){
 	runJython(action,_J_TABLE_A,_J_TABLE_B,moreArgs);
 }
 
-function getDistanceMatrixAction(){
+function j_getDistanceMatrixAction(){
 	runJython(_J_ACTIONS[0],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[0]);
 }
 
-function getCumulatedNeighborsAction(){
+function j_getCumulatedNeighborsAction(){
 	runJython(_J_ACTIONS[1],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[1]);
 }
 
-function getDistanceDistributionAction(){
+function j_getDistanceDistributionAction(){
 	runJython(_J_ACTIONS[2],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[2]);
 }
 
-function countNeighborsCloserAction(){
+function j_countNeighborsCloserAction(){
 	runJython(_J_ACTIONS[3],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[3]);	
 }
 
-function getPairsCloserAction(){
+function j_getPairsCloserAction(){
 	runJython(_J_ACTIONS[4],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[4]);
 }
 
-function getNearestNeighborsAction(){
+function j_getNearestNeighborsAction(){
 	runJython(_J_ACTIONS[5],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[5]);
 }
 
-function getMeanDistancesAction(){
+function j_getMeanDistancesAction(){
 	runJython(_J_ACTIONS[6],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[6]);
 }
 
@@ -350,21 +384,7 @@ function getGaussian(){
 	}
 	print(Fit.f(150));
 }
-/*
-macro "Make Final Table"{
-	makeFinalTableAction();
-}
 
-function makeFinalTableAction(){
-	Dialog.create("Final Table");
-	addPointsTablesDialog();
-	Dialog.show();
-	tableA = Dialog.getChoice();
-	tableB = Dialog.getChoice();
-
-	makeFinalTable(tableA,tableB);
-}
-*/
 macro "Make Final Table"{
 	makeFinalTableAction();
 }
@@ -376,8 +396,6 @@ function makeFinalTableAction(){
 	tableB = "Nearest Neighbors SC2>SC1";
 	makeFinalTable(tableA,tableB);
 }
-
-
 
 //A means from A to B
 //B means from B to A
@@ -404,24 +422,24 @@ function makeFinalTable(tableA,tableB){
 	itselfB = Array.getSequence(nbPointsB);
 	neighborsB = Table.getColumn("ID Neighbor",tableB);
 	distanceB = Table.getColumn("Distance",tableB);	
-	 trash = newArray();
-	 t=0;
-	 for(idB=0;idB<nbPointsB;idB++){
+	duplicates = newArray();
+	t=0;
+	for(idB=0;idB<nbPointsB;idB++){
 		for(idA=0;idA<nbPointsA;idA++){
 			if(idB == neighborsA[idA] && idA == neighborsB[idB]){
-				trash[t++]=idB;
+				duplicates[t++]=idB;
 				nearestOf[idA]="ab";
 				break;
 			}
 		}
 	 }
 
-	 for(t=0;t<trash.length;t++){
-	 		print(trash[t]);
-			itselfB = Array.deleteIndex(itselfB,trash[t]-t);
-			neighborsB = Array.deleteIndex(neighborsB,trash[t]-t);
-			distanceB = Array.deleteIndex(distanceB,trash[t]-t);
-			nearestOf = Array.deleteIndex(nearestOf,nbPointsA+trash[t]-t);
+	 for(t=0;t<duplicates.length;t++){
+ 		print(duplicates[t]);
+		itselfB = Array.deleteIndex(itselfB,duplicates[t]-t);
+		neighborsB = Array.deleteIndex(neighborsB,duplicates[t]-t);
+		distanceB = Array.deleteIndex(distanceB,duplicates[t]-t);
+		nearestOf = Array.deleteIndex(nearestOf,nbPointsA+duplicates[t]-t);
 	 }
 	
 
@@ -450,8 +468,46 @@ function makeFinalTable(tableA,tableB){
 	
 }
 
-//For Each line of Final Table,
-//Draw a line between SC1 [ID A-1] th line and SC2 [ID B -1] th line with different colors according to distance ?
+macro "Send Active Image to Napari Action Tool - C000 T6b12I"{
+	sendImageToNapari();
+}
+
+macro "Send Spots to Napari Action Tool - C000 T6b12S"{
+	sendPointsToNapari();
+}
+
+macro "Send Neighbors to Napari Action Tool - C000 T6b12N"{
+	sendDistancesToNapari();
+}
+
+function sendImageToNapari(){
+	sendToNapari("sendActiveImage","","");
+}
+
+function sendPointsToNapari(){
+	headers = Table.headings();
+	headings = split(headers,"\t");
+	Table.deleteColumn(headings[5],_TABLE_SPOTS_1);
+	Table.deleteColumn(headings[6],_TABLE_SPOTS_1);
+	Table.deleteColumn(headings[7],_TABLE_SPOTS_1);
+	Table.deleteColumn(headings[5],_TABLE_SPOTS_2);
+	Table.deleteColumn(headings[6],_TABLE_SPOTS_2);
+	Table.deleteColumn(headings[7],_TABLE_SPOTS_2);
+	sendToNapari("sendPoints",_TABLE_SPOTS_1,_TABLE_SPOTS_2);
+}
+
+function sendDistancesToNapari(){
+	sendToNapari("sendLines",_TABLE_NEIGHBORS);
+}
+
+
+function sendToNapari(action,table1,table2){
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/3D_spot_py_interface.py");
+	parameter = "action="+action+",tableName1="+table1+",tableName2="+table2;
+	
+	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
+}
 
 
 /***	****	***/
@@ -468,7 +524,7 @@ function runJython(action,table1,table2,matrixTable){
 function prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vHeader){
 	inTable = Table.title();
 	outTable = "Results";
-	if(inTable ==outTable){
+	if(inTable == outTable){
 		Table.rename(inTable, inTable+"-1");
 		inTable = Table.title();
 	}
@@ -487,13 +543,14 @@ function prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vH
 		y = Table.get(yHeader, i,inTable) / height;
 		z = Table.get(zHeader, i,inTable) / depth;
 		v = Table.get(vHeader, i,inTable);
-		
+		print(x+"-"+y+"-"+z+"-"+v);
 		row = Table.size(outTable);
 		Table.set("X", row, x, outTable);
 		Table.set("Y", row, y, outTable);
 		Table.set("Z", row, z, outTable);
 		Table.set("V", row, v, outTable);
 	}
+	Table.update(outTable);
 }
 
 
@@ -630,22 +687,105 @@ function getPointsTablesDialog(){
 	_J_TABLE_B = Dialog.getChoice();
 }
 
+macro "Export To NaparIO"{
+	exportToNaparIOAction();
+}
+function exportToNaparIOAction(){
+	Dialog.create("Enter the Export Folder");
+	Dialog.addDirectory("Export folder","");
+	Dialog.show();
+	baseFolder = Dialog.getString();
+	exportToNaparIO(baseFolder);
+}
+
+function exportToNaparIO(baseFolder){
+	configFile = baseFolder +"config.yml";
+	configString = initConfigFile();
+	configString = exportImagesToNaparIO(baseFolder,configString);
+	configString = exportSpotsToNaparIO (baseFolder,configString);
+	configString = exportLinesToNaparIO (baseFolder,configString);
+
+	file = File.open(configFile);
+	print(file,configString);
+}
+
+var _COLORS = newArray("magenta","cyan","yellow","red","green","blue","orange","brown","white");
+var _POINTS_COLORS = newArray("inferno","viridis");
+function exportImagesToNaparIO(baseFolder,configString){
+	print("Images to NaparIO");
+	sliceLabels = Property.getSliceLabel
+	sliceLabelsSplit = split(sliceLabels, "/");
+	getDimensions(width, height, channels, slices, frames);
+	title = getTitle();
+	run("Deinterleave", "how="+channels+" keep");
+	for (i = 1; i < channels+1; i++) {
+		selectImage(title+" #"+i);
+		if(sliceLabelsSplit.length>=i+1){
+			save(baseFolder+sliceLabelsSplit[i+1]+".tif");
+			filename = sliceLabelsSplit[i+1]+".tif";
+			configString = addLayerToConfig(configString,sliceLabelsSplit[i+1],filename,"image",_COLORS[i-1]);
+			
+			selectImage(title+" #"+i);
+			close();
+		}
+	}
+	return configString;
+}
+
+function exportSpotsToNaparIO(baseFolder,configString){
+	print("Spots to NaparIO");
+	for(i=0;i<2;i++){
+		tableName = "_";
+		if(i==0){
+			tableName = _TABLE_SPOTS_1;
+		}else{
+			tableName = _TABLE_SPOTS_2;
+		}
+		layerName = "tmpSpots "+i;
+		fileName = layerName+".csv";
+		makeSpotsCSV(baseFolder,fileName,tableName);
+		configString = addLayerToConfig(configString,layerName,fileName,"points",_POINTS_COLORS[i]);		
+	}
+	return configString;
+}
+
+function makeSpotsCSV(baseFolder,fileName,tableName){
+	selectWindow(tableName);
+	prepareTableForNapariExport(false,"Z","Y","X","V");
+	Table.applyMacro("V = V/255","Results");
+	Table.renameColumn("X", "axis-0","Results");
+	Table.renameColumn("Y", "axis-1","Results");
+	Table.renameColumn("Z", "axis-2","Results");
+	Table.renameColumn("V", "confidence","Results");
+	Table.save(baseFolder+fileName,"Results");
+}
+
+function exportLinesToNaparIO(baseFolder,configString){
+	print("Lines to NaparIO");
+	
+	return configString;
+	
+}
 
 
+function initConfigFile(){
+	layer = "layers:\n"
+	out = addCalibrationToConfig();
+	out = out + layer;
+	print(out);
+	return out;
+}
 
+function addCalibrationToConfig(){
+	getVoxelSize(width, height, depth, unit);
+	cal = "calibration:\n" + "  x: "+width +"\n" + "  y: "+height+"\n" + "  z: "+depth +"\n";
+	return cal;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function addLayerToConfig(configString,name,filename,type,colormap){
+	layer =	"- name: "+name+"\n"+
+			"  filename: "+filename+"\n"+
+			"  type: "+type+"\n"+
+			"  colormap: "+colormap+"\n";
+	return configString+layer;
+}
