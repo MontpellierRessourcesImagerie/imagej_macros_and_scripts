@@ -44,6 +44,19 @@ var _STITCH_ON_PROJECTION = false;
 var _KEEP_STACKS_OF_FIELDS = false;
 var _KEEP_STACKS_OF_MOSAICS = false;
 var	_KEEP_SINGLE_CHANNEL_IMAGES = false;
+
+var _EXPORT_Z_STACK_FIELDS = true;
+var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
+var _EXPORT_PROJECTION_FIELDS = true;
+var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
+var _EXPORT_Z_STACK_MOSAIC = true;
+var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC = true;
+var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC_RGB = true;
+
+var _NB_CHANNELS = 4;
+var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
 	
 launchExport();
 exit();
@@ -95,6 +108,8 @@ macro "launch export [f8]" {
 function launchExport() {
 	print("3, 2, 1, go...");
 	_OPERA_INDEX_FILE = getIndexFile();
+	//_OPERA_INDEX_FILE = "/mnt/data/ltellez/Opera_Export/Coleno_smFISH_p3p4_oligopool5_screenC5A10MALAT1_210722__2021-07-22T16_46_51-Measurement 1/Images/Index.idx.xml";
+
 	options = "--wells=";
 	if (_EXPORT_ALL) options = options + "all";
 	else {
@@ -106,20 +121,17 @@ function launchExport() {
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
-	//if (_CREATE_Z_STACK) options = options + " --stack";
-	//if (_MERGE_CHANNELS) options = options + " --merge";
-	//if (_DO_MIP) options = options + " --mip";
-
-	if(_EXPORT_Z_STACK_FIELDS) options = options+ "--zStackFields";
-	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ "--zStackFieldsComposite";
-	if(_EXPORT_PROJECTION_FIELDS) options = options+ "--projectionFields";
-	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ "--projectionFieldsComposite";
 	
-	if(_EXPORT_Z_STACK_MOSAIC) options = options+ "--zStackMosaic";
-	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ "--zStackMosaicComposite";
-	if(_EXPORT_PROJECTION_MOSAIC) options = options+ "--projectionMosaic";
-	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ "--projectionMosaicComposite";
-	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ "--projectionMosaicRGB";
+	if(_EXPORT_Z_STACK_FIELDS) options = options+ " --zStackFields";
+	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ " --zStackFieldsComposite";
+	if(_EXPORT_PROJECTION_FIELDS) options = options+ " --projectionFields";
+	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ " --projectionFieldsComposite";
+	
+	if(_EXPORT_Z_STACK_MOSAIC) options = options+ " --zStackMosaic";
+	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ " --zStackMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC) options = options+ " --projectionMosaic";
+	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ " --projectionMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ " --projectionMosaicRGB";
 	
 	tmp = "";
 	channelSelected = false;
@@ -131,7 +143,7 @@ function launchExport() {
 			tmp = tmp+"0";
 		}
 	}
-	if(channelSelected)	options = options+ "--channelRGB"+tmp;
+	if(channelSelected)	options = options+ "--channelRGB="+tmp;
 	
 	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
@@ -154,18 +166,6 @@ function launchExport() {
 	print("The eagle has landed!!!");
 }
 
-var _EXPORT_Z_STACK_FIELDS = true;
-var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
-var _EXPORT_PROJECTION_FIELDS = true;
-var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
-var _EXPORT_Z_STACK_MOSAIC = true;
-var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
-var _EXPORT_PROJECTION_MOSAIC = true;
-var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
-var _EXPORT_PROJECTION_MOSAIC_RGB = true;
-
-var _NB_CHANNELS = 4;
-var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
 
 function setOptions() {
 	Dialog.create("Options");
@@ -248,14 +248,7 @@ function setOptions() {
 	for(i=0;i<_NB_CHANNELS;i++){
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
-/*
-	_CREATE_Z_STACK = Dialog.getCheckbox();
-	_KEEP_STACKS_OF_FIELDS = Dialog.getCheckbox();
-	_MERGE_CHANNELS = Dialog.getCheckbox();
-	_KEEP_STACKS_OF_MOSAICS = Dialog.getCheckbox();
-	_DO_MIP = Dialog.getCheckbox();	
-	_KEEP_SINGLE_CHANNEL_IMAGES = Dialog.getCheckbox();
-*/
+	
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_NORMALIZE = Dialog.getCheckbox();
