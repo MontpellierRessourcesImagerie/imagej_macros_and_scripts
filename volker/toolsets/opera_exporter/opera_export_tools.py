@@ -15,6 +15,8 @@ _PROJECT_FOLDER = "/projection/"
 _Z_STACK_MOSAIC_FOLDER = "/stackMosaic/"
 _PROJECT_MOSAIC_FOLDER = "/projectionMosaic/"
 _PROJECT_MOSAIC_RGB_FOLDER = "/projectionMosaicRGB/"
+_PROJECT_MOSAIC_CHAN_FOLDER = "/projectionMosaicChannel/"
+
 
 def main(args):
 	parser = getArgumentParser()
@@ -81,25 +83,18 @@ def main(args):
 				#export RGB
 
 			channelList = list(params.channelRGB)
+			print(channelList)
 
 			for i in range(len(channelList)):
-				if channelList[i]:
-					if params.zStackMosaic: #If we don't have the projection yet
-						#Project Z-Stack Mosaic (one channel)
+				if channelList[i] =="1":
+					if not params.projectionMosaic:
+						IJ.log("Projecting Mosaic, channel "+str(i+1))
+						well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
 						pass		
-					#Convert projection Mosaic to 8-bit 
-					#export 8-bit 
+					well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
 				
 			well.renameAllOutputs(params)
 			
-			#well.applyStitching(params)	
-			
-			#if params.stack:
-			#	well.createStack(dims, params)
-			#if params.merge:
-			#	well.mergeChannels(dims, params)
-			#if params.mip:
-			#	well.mip(dims, params)
 def getArgumentParser():
 	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
 	parser.add_argument("--wells", "-w", default='all', help='either "all" or a string of the form "01010102" defining the wells to be exported')
@@ -532,10 +527,9 @@ class Well(object):
 
 		rgbStackMerge = RGBStackMerge()
 		
+		fields = self.getFields()
 		for t in range(0, timePoints):
-			
-			fRange = 16
-			for f in range(fRange):
+			for f in range(len(fields)):
 				channelImps = []
 				for c in range(1, channels+1):
 					imps = []
@@ -648,33 +642,46 @@ class Well(object):
 			imagesURL = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)) and coordName in f and contains in f)]
 		return imagesURL
 
-	def projectMosaic(self, params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=False):
+	def projectMosaic(self, params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=False,channelExport="All"):
 		#From stackMosaic
 		path = self.experiment.getPath()
 		stackPath = path + stackFolder
+		containsString = "ch"
+		if channelExport != "All":
+			channelNumber = str(int(channelExport) + 1)
+			containsString = containsString + channelNumber
 		imagesURL = self.getImagesInFolder(stackPath,getFullPath=True,contains="ch")
 		self.mipImages(imagesURL, outputFolder=outputFolder)
 		if exportComposite:
 			print("Composite Export of projected Mosaic is unavailable")
 			
-	def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER):
+	def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All"):
 		path = self.experiment.getPath()
 		inputPath = path + inputFolder
 		outputPath = path + outputFolder
 		if not os.path.isdir(outputPath):
 			os.mkdir(outputPath)
-		imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains="ch")
-		#imagesURL = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)) and '-ch' in f)]
+		containsString = "ch"
+		if channelExport != "All":
+			channelNumber = str(int(channelExport) + 1)
+			containsString = containsString + channelNumber
+		imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains=containsString)
 		options = ""
 		itt = 1
+		
 		for url in imagesURL:
 			IJ.open(inputPath+url)
 			options= options +"c"+str(itt)+"="+url+" "
 			itt=itt+1
+			
 		IJ.run("Merge Channels...", options)
 		imp = IJ.getImage()
-		aFile = outputPath + imagesURL[0][:7] + imagesURL[0][10:]
+		if channelExport == "All":
+			aFile = outputPath + imagesURL[0][:7] + imagesURL[0][10:]
+		else:
+			aFile = outputPath + imagesURL[0]
 		IJ.save(imp, aFile)
+		imp.close()
 
 			
 	def mergeChannels(self, dims, params):			
@@ -841,8 +848,9 @@ class Well(object):
 		channelList = list(params.channelRGB)
 
 		for i in range(len(channelList)):
-			if channelList[i]:
-				pass
+			if channelList[i] == "1":
+				self.renameImagesInFolder(_PROJECT_MOSAIC_RGB_FOLDER,_PROJECT_MOSAIC_RGB_FOLDER)
+				break
 		
 
 	def renameImagesInFolder(self,inputFolder,outputFolder):

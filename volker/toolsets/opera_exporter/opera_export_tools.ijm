@@ -40,10 +40,8 @@ var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
+
 var _STITCH_ON_PROJECTION = false;
-var _KEEP_STACKS_OF_FIELDS = false;
-var _KEEP_STACKS_OF_MOSAICS = false;
-var	_KEEP_SINGLE_CHANNEL_IMAGES = false;
 
 var _EXPORT_Z_STACK_FIELDS = true;
 var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
@@ -143,7 +141,7 @@ function launchExport() {
 			tmp = tmp+"0";
 		}
 	}
-	if(channelSelected)	options = options+ "--channelRGB="+tmp;
+	if(channelSelected)	options = options+ " --channelRGB="+tmp;
 	
 	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
@@ -198,7 +196,7 @@ function setOptions() {
 		if(i!=0){
 			Dialog.addToSameRow();
 		}
-		Dialog.addCheckbox(i,_EXPORT_RGB_CHANNEL[i]);
+		Dialog.addCheckbox(i+1,_EXPORT_RGB_CHANNEL[i]);
 	}
 	
 	Dialog.addMessage("Image correction/normalization:");
