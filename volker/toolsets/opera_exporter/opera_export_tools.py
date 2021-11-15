@@ -33,12 +33,12 @@ def main(args):
 	if not params.wells == 'all':
 		listOfWellIDS = splitIntoChunksOfSize(params.wells, 4)	
 	for well in wells:
-		dims = well.getDimensions()
-		zSize = dims[2]
-		zPos = params.slice
-		if zPos==0:
-			zPos = zSize / 2
 		if params.wells=='all' or well.getID() in listOfWellIDS:
+			dims = well.getDimensions()
+			zSize = dims[2]
+			zPos = params.slice
+			if zPos==0:
+				zPos = zSize / 2
 			IJ.log("Create Tile Config")
 			names, newNames = well.createTileConfig(zPos, 0, params.channel)
 			
@@ -83,14 +83,13 @@ def main(args):
 				#export RGB
 
 			channelList = list(params.channelRGB)
-			print(channelList)
 
 			for i in range(len(channelList)):
 				if channelList[i] =="1":
 					if not params.projectionMosaic:
 						IJ.log("Projecting Mosaic, channel "+str(i+1))
 						well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
-						pass		
+							
 					well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
 				
 			well.renameAllOutputs(params)
@@ -370,7 +369,6 @@ class Well(object):
 
 
 	def applyStitchingProjection(self, params, outputFolder ='/out/',exportComposite=False):
-		print("This Method is currently Out of Service, a crash is expected soon!")
 		dims = self.getDimensions()
 		slices = dims[2]
 		timePoints = dims[3]
@@ -652,8 +650,6 @@ class Well(object):
 			containsString = containsString + channelNumber
 		imagesURL = self.getImagesInFolder(stackPath,getFullPath=True,contains="ch")
 		self.mipImages(imagesURL, outputFolder=outputFolder)
-		if exportComposite:
-			print("Composite Export of projected Mosaic is unavailable")
 			
 	def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All"):
 		path = self.experiment.getPath()
@@ -849,7 +845,7 @@ class Well(object):
 
 		for i in range(len(channelList)):
 			if channelList[i] == "1":
-				self.renameImagesInFolder(_PROJECT_MOSAIC_RGB_FOLDER,_PROJECT_MOSAIC_RGB_FOLDER)
+				self.renameImagesInFolder(_PROJECT_MOSAIC_CHAN_FOLDER,_PROJECT_MOSAIC_CHAN_FOLDER)
 				break
 		
 

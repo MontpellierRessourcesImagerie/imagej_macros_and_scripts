@@ -191,7 +191,7 @@ function setOptions() {
 
 	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
 
-	Dialog.addMessage("Invert and export RGB of channel:");
+	Dialog.addMessage("export single channel:");
 	for(i=0;i<_NB_CHANNELS;i++){
 		if(i!=0){
 			Dialog.addToSameRow();
