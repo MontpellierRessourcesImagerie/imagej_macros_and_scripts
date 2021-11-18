@@ -470,5 +470,66 @@ function getFlatfieldCoefficients(channelNumber){
 			}
 		}
 	}
-	return 10;
+	return coeffClean;
+}
+
+macro "correctFlatfield"{
+	correctFlatfield();
+}
+
+function correctFlatfield(){
+	channels = getChannelsFromIndex();
+	nbChannels = channels.length;
+	//filelist = getFileList(_IN) 
+
+	for(i=1;i<=nbChannels;i++){
+		coeffs = getFlatfieldCoefficients(i);
+		backgroundID = createBackgroundImage(coeffs,newArray(2160,2160));
+		break;
+		for (i = 0; i < lengthOf(filelist); i++) {
+			if (endsWith(filelist[i], ".tif")&& indexOf(filelist[i], "ch"+i)) { 
+				open(directory + File.separator + filelist[i]);
+			}
+	    } 
+	}
+}
+
+function createBackgroundImage(coeffs,size){
+	newImage("background", "16-bit", size[0], size[1], 1);
+	imageID = getImageID();
+ 	w = getWidth(); 
+ 	h = getHeight();
+ 	setBatchMode(true);
+ 	Table.create("Background values");
+ 	i=0;
+	for (y=0; y<h; y++) {
+		for (x=0; x<w; x++){
+			pixelOut = getValueOfPixelAfterPolynom(coeffs,x,y,size[0], size[1]);
+			setPixel(x, y, pixelOut);
+			Table.set("pixelIntensity",i,pixelOut);
+			i=i+1;
+		}
+	}
+ 	setBatchMode(false);
+	run("Enhance Contrast", "saturated=0.35");
+	return imageID;
+}
+
+function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
+	polX = (x/(0.5*scaleX))-1;
+	polY = (y/(0.5*scaleY))-1;
+	pixelValue = getValueOfPolynom(coeffs,x,y);
+	//print(pixelValue);
+	outValue = pixelValue*100;
+	return outValue;
+}
+
+function getValueOfPolynom(coeffs,x,y){
+	outPixelValue0= 0 + coeffs[0]; 
+	outPixelValue1= 0 + coeffs[1]	* polX 				 	+ coeffs[2] * polY;
+	outPixelValue2= 0 + coeffs[3]	* polX*polX 			+ coeffs[4] * polX*polY 			+ coeffs[5] * polY*polY;
+	outPixelValue3= 0 + coeffs[6]	* polX*polX*polX 		+ coeffs[7] * polX*polX*polY 		+ coeffs[8] * polX*polY*polY 		+ coeffs[9] * polY*polY*polY;
+	outPixelValue4= 0 + coeffs[10]	* polX*polX*polX*polX 	+ coeffs[11]* polX*polX*polX*polY	+ coeffs[12]* polX*polX*polY*polY 	+ coeffs[13]* polX*polY*polY*polY + coeffs[14] * polY*polY*polY*polY;
+	outPixelValue = outPixelValue0+outPixelValue1+outPixelValue2+outPixelValue3+outPixelValue4;
+	return outPixelValue;
 }
