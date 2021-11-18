@@ -15,7 +15,7 @@
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
 var _OPERA_INDEX_FILE = "";
-var _BYTES_TO_READ = 10000;
+var _BYTES_TO_READ = 10000000;
 var _WELLS = newArray(0);
 var _SELECTED_WELLS = newArray(0);
 var _WELLS_NAMES = newArray(0);
@@ -41,6 +41,8 @@ var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
 
+var _CHANNEL_PER_ROW_IN_DIALOG = 2;
+
 var _STITCH_ON_PROJECTION = false;
 
 var _EXPORT_Z_STACK_FIELDS = true;
@@ -53,8 +55,8 @@ var _EXPORT_PROJECTION_MOSAIC = true;
 var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
 var _EXPORT_PROJECTION_MOSAIC_RGB = true;
 
-var _NB_CHANNELS = 4;
-var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
+var _MAX_NB_CHANNELS = 7;
+var _EXPORT_RGB_CHANNEL = newArray(_MAX_NB_CHANNELS);
 	
 launchExport();
 exit();
@@ -106,8 +108,7 @@ macro "launch export [f8]" {
 function launchExport() {
 	print("3, 2, 1, go...");
 	_OPERA_INDEX_FILE = getIndexFile();
-	//_OPERA_INDEX_FILE = "/mnt/data/ltellez/Opera_Export/Coleno_smFISH_p3p4_oligopool5_screenC5A10MALAT1_210722__2021-07-22T16_46_51-Measurement 1/Images/Index.idx.xml";
-
+	
 	options = "--wells=";
 	if (_EXPORT_ALL) options = options + "all";
 	else {
@@ -133,7 +134,7 @@ function launchExport() {
 	
 	tmp = "";
 	channelSelected = false;
-	for(i=0;i<_NB_CHANNELS;i++){
+	for(i=0;i<_EXPORT_RGB_CHANNEL.length;i++){
 		if(_EXPORT_RGB_CHANNEL[i]){
 			tmp = tmp+"1";
 			channelSelected = true;
@@ -166,6 +167,8 @@ function launchExport() {
 
 
 function setOptions() {
+	channelName = getChannelsFromIndex();
+	nbChannels = channelName.length;
 	Dialog.create("Options");
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 	Dialog.addToSameRow();
@@ -192,11 +195,11 @@ function setOptions() {
 	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
 
 	Dialog.addMessage("export single channel:");
-	for(i=0;i<_NB_CHANNELS;i++){
-		if(i!=0){
+	for(i=0;i<nbChannels;i++){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
 			Dialog.addToSameRow();
 		}
-		Dialog.addCheckbox(i+1,_EXPORT_RGB_CHANNEL[i]);
+		Dialog.addCheckbox(channelName[i],_EXPORT_RGB_CHANNEL[i]);
 	}
 	
 	Dialog.addMessage("Image correction/normalization:");
@@ -215,17 +218,13 @@ function setOptions() {
 	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
 	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
 	Dialog.addMessage("Colours:");
-	Dialog.addChoice("ch1: ", _COLORS, _SELECTED_COLORS[0]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch2: ", _COLORS, _SELECTED_COLORS[1]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch3: ", _COLORS, _SELECTED_COLORS[2]);
-	Dialog.addChoice("ch4: ", _COLORS, _SELECTED_COLORS[3]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch5: ", _COLORS, _SELECTED_COLORS[4]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch6: ", _COLORS, _SELECTED_COLORS[5]);
-	Dialog.addChoice("ch7: ", _COLORS, _SELECTED_COLORS[6]);
+
+	for(i=0;i<nbChannels;i++){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addChoice(channelName[i], _COLORS, _SELECTED_COLORS[i]);
+	}
 	
 	Dialog.show();
 	_ZSLICE = Dialog.getNumber();
@@ -243,7 +242,7 @@ function setOptions() {
 	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
 	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
 
-	for(i=0;i<_NB_CHANNELS;i++){
+	for(i=0;i<nbChannels.length;i++){
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
 	
@@ -260,13 +259,9 @@ function setOptions() {
 	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 
-	_SELECTED_COLORS[0] = Dialog.getChoice();
-	_SELECTED_COLORS[1] = Dialog.getChoice();
-	_SELECTED_COLORS[2] = Dialog.getChoice();
-	_SELECTED_COLORS[3] = Dialog.getChoice();
-	_SELECTED_COLORS[4] = Dialog.getChoice();
-	_SELECTED_COLORS[5] = Dialog.getChoice();
-	_SELECTED_COLORS[6] = Dialog.getChoice();
+	for(i=0;i<nbChannels.length;i++){
+		_SELECTED_COLORS[i]=Dialog.getChoice();
+	}
 }
 
 function selectWells() {
@@ -412,4 +407,68 @@ function getNrOfRowsAndColumns() {
 	}
 	res = newArray(nrRows, nrCols);
 	return res;
+}
+macro "getChannelsNames"{
+	getChannelsFromIndex();
+}
+
+function getChannelsFromIndex(){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	print("Reading indexFile");
+	startMarker = "ChannelName: ";
+	endMarker = ", Version: ";
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, "<FlatfieldProfile>")) {
+			startIndex = indexOf(line,startMarker)+startMarker.length;
+			endIndex = indexOf(line,endMarker);
+			channelName = substring(line, startIndex, endIndex);
+			channels = Array.concat(channels,channelName);
+		}
+	}
+	return channels;
+}
+
+macro "getFlatfieldCoefficients"{
+	getFlatfieldCoefficients(1);
+}
+function getFlatfieldCoefficients(channelNumber){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	print("Reading indexFile");
+	startMarker = "Coefficients: ";
+	endMarker = ", Dims: ";
+	count = 0;
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, "<FlatfieldProfile>")) {
+			count = count+1;
+			if(count==channelNumber){
+				startIndex = indexOf(line,startMarker)+startMarker.length;
+				endIndex = indexOf(line,endMarker);
+				coeffLine = substring(line, startIndex, endIndex);
+				coeffDirty = split(coeffLine,",");
+				coeffClean = newArray(coeffDirty.length);
+				for(tmp=0;tmp<coeffDirty.length;tmp++){
+					coeffClean[tmp] = String.trim( replace(replace(coeffDirty[tmp], "[", ""),"]","") );
+				}
+				Array.print(coeffClean);
+				
+			}
+		}
+	}
+	return 10;
 }

@@ -1,4 +1,10 @@
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Opera_wellnames_from_CSV";
+
 var _WELLNAMES_FILE = "wellNames.txt"
+
+macro "wellNames from CSV help (f4) Action Tool - C000T4b12?"{
+	run('URL...', 'url='+helpURL);
+}
 
 macro "Export to wellNames Action Tool - C000T4b12E"{
 	exportWellNamesAction();
