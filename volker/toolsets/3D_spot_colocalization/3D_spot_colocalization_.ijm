@@ -356,7 +356,7 @@ function filterSpots(imageID,voxelWidth,voxelHeight,voxelDepth) {
 /***	****	***/
 /***	Temp	***/
 /***	****	***/
-
+/*
 macro "Get Gaussian"{
 	getGaussian();
 }
@@ -384,6 +384,7 @@ function getGaussian(){
 	}
 	print(Fit.f(150));
 }
+*/
 
 macro "Make Final Table"{
 	makeFinalTableAction();
