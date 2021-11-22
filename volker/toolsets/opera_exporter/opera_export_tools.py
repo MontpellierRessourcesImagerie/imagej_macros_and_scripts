@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from ij import IJ
 import os
+from ij import Prefs
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
 from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge
@@ -16,16 +17,14 @@ _Z_STACK_MOSAIC_FOLDER = "/stackMosaic/"
 _PROJECT_MOSAIC_FOLDER = "/projectionMosaic/"
 _PROJECT_MOSAIC_RGB_FOLDER = "/projectionMosaicRGB/"
 _PROJECT_MOSAIC_CHAN_FOLDER = "/projectionMosaicChannel/"
+_WORK_FOLDER = "/work/"
 
 
 def main(args):
 	parser = getArgumentParser()
 	params = parser.parse_args(args)
-	if(params.index_file2==''):
-		experiment = PhenixHCSExperiment.fromIndexFile(params.index_file);
-	else:
-		experiment = PhenixHCSExperiment.fromIndexFile(params.index_file+" "+params.index_file2);
-		
+	experiment = PhenixHCSExperiment.fromIndexFile(params.index_file);
+	
 	srcPath = experiment.getPath();
 	print(experiment)
 	print(srcPath)
@@ -38,9 +37,13 @@ def main(args):
 			zSize = dims[2]
 			zPos = params.slice
 			if zPos==0:
-				zPos = zSize / 2
+				zPos = max(zSize / 2,1)
 			IJ.log("Create Tile Config")
-			names, newNames = well.createTileConfig(zPos, 0, params.channel)
+			if params.stitchOnMIP:
+				names, newNames = well.createTileConfig(1, 0, params.channel)
+			else:
+				names, newNames = well.createTileConfig(zPos, 0, params.channel)
+			
 			
 			if params.stitchOnMIP:
 				IJ.log("Create MIP to calculate Stitching")
@@ -75,24 +78,29 @@ def main(args):
 					well.applyStitchingProjection(params, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=params.projectionMosaicComposite)
 			
 			if params.projectionMosaicRGB:
-				if not params.projectionMosaic:
-					IJ.log("Projecting Mosaic")
-					well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=params.projectionMosaicComposite)
-				#Convert projection Mosaic to RGB
-				well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER)
-				#export RGB
-
+				if params.projectionMosaic:
+					well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER)
+				else:
+					if not params.zStackMosaic:
+						well.applyStitchingProjection(params, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite)
+					else:
+						well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite)
+					well.convertToRGB(params, inputFolder=_WORK_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER)
+				
 			channelList = list(params.channelRGB)
 
 			for i in range(len(channelList)):
 				if channelList[i] =="1":
-					if not params.projectionMosaic:
-						IJ.log("Projecting Mosaic, channel "+str(i+1))
-						well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
-							
-					well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
-				
+					if params.projectionMosaic:
+						well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
+					else:
+						if not params.zStackMosaic:
+							well.applyStitchingProjection(params, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite) # ???
+						else:
+							well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
+						well.convertToRGB(params, inputFolder=_WORK_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
 			well.renameAllOutputs(params)
+			
 			
 def getArgumentParser():
 	parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
@@ -126,7 +134,6 @@ def getArgumentParser():
 	parser.add_argument("--subtract-background-skip", "-k", default=0.3, type=float, help='skip limit for the find and subtract background operation')
 	parser.add_argument('--colours', "-C", type=lambda s: re.split(' |,', s), default=["Blue", "Green", "Red"], help='colors of the channels')
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
-	parser.add_argument("index_file2", default='', help='path to the Index.idx.xml file2')
 	return parser
 
 def splitIntoChunksOfSize(some_string, x):
@@ -247,9 +254,18 @@ class Well(object):
 			os.mkdir(path)
 		tileConfPath = path + "/TileConfiguration.txt"
 		allImages = self.getImages()
+
+		print(len(allImages))
+		print(str(zPosition)+"/"+str(channel)+"/"+str(timePoint));
+		for image in allImages:
+			print(str(image.getPlane())+"/"+str(image.getChannel())+"/"+str(image.getTime()));
+		
 		images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
+		print(len(images))
 		xCoords = [int(round(image.getX()/float(image.getPixelWidth()))) for image in images]
+		print(len(xCoords))
 		yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
+		print(len(yCoords))
 		names = [image.getURL() for image in images]
 		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
 		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
@@ -369,6 +385,9 @@ class Well(object):
 
 
 	def applyStitchingProjection(self, params, outputFolder ='/out/',exportComposite=False):
+		#if outputFolder == _WORK_FOLDER:
+		#	self.emptyWorkFolder()
+				
 		dims = self.getDimensions()
 		slices = dims[2]
 		timePoints = dims[3]
@@ -397,6 +416,9 @@ class Well(object):
 				name = title[:6] +"-"+title[16:]
 				IJ.log("+ Composite: "+name);
 				IJ.save(composite, outputPath + name)
+			else:
+				for im in channelImps:
+					im.close();		
 
 	def doSubtractBackground(self, params, path, names):
 		for name in names:
@@ -641,7 +663,9 @@ class Well(object):
 		return imagesURL
 
 	def projectMosaic(self, params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_FOLDER, exportComposite=False,channelExport="All"):
-		#From stackMosaic
+		#if outputFolder == _WORK_FOLDER:
+		#	self.emptyWorkFolder()
+				
 		path = self.experiment.getPath()
 		stackPath = path + stackFolder
 		containsString = "ch"
@@ -651,7 +675,7 @@ class Well(object):
 		imagesURL = self.getImagesInFolder(stackPath,getFullPath=True,contains="ch")
 		self.mipImages(imagesURL, outputFolder=outputFolder)
 			
-	def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All"):
+	def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All",invert=False):
 		path = self.experiment.getPath()
 		inputPath = path + inputFolder
 		outputPath = path + outputFolder
@@ -664,18 +688,30 @@ class Well(object):
 		imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains=containsString)
 		options = ""
 		itt = 1
-		
 		for url in imagesURL:
+			if channelExport != "All":
+				channelMin = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Min",0)
+				channelMax = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Max",255)
+			else:
+				channelMin = Prefs.get("operaExportTools.channel"+str(itt)+"Min",0)
+				channelMax = Prefs.get("operaExportTools.channel"+str(itt)+"Max",255)
+			IJ.log("Min="+str(channelMin)+"Max="+str(channelMax))
 			IJ.open(inputPath+url)
+			IJ.setMinAndMax(channelMin,channelMax)
 			options= options +"c"+str(itt)+"="+url+" "
 			itt=itt+1
 			
-		IJ.run("Merge Channels...", options)
-		imp = IJ.getImage()
 		if channelExport == "All":
+			IJ.run("Merge Channels...", options)
+			imp = IJ.getImage()
 			aFile = outputPath + imagesURL[0][:7] + imagesURL[0][10:]
 		else:
+			imp = IJ.getImage()
+			IJ.run(imp, "8-bit", "stack");
 			aFile = outputPath + imagesURL[0]
+		
+		if invert:
+			IJ.run(imp, "Invert", "stack");
 		IJ.save(imp, aFile)
 		imp.close()
 
@@ -762,12 +798,18 @@ class Well(object):
 
 	def copyImagesToWorkFolder(self, images):
 		srcPath = self.experiment.getPath()
-		path = srcPath + "/work"
+		path = srcPath + _WORK_FOLDER
 		names = [image.getURL() for image in images]
 		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
 		for name, newName in zip(names, newNames):
 			shutil.copy(srcPath+"/"+name, path+"/"+newName)
 		return names, newNames
+
+	def emptyWorkFolder(self):
+		srcPath = self.experiment.getPath()
+		path = srcPath + _WORK_FOLDER
+		shutil.rmtree(path)
+		
 
 	def runGridCollectionStitching(self, computeOverlap=False , outputFolder = "/out/"):
 		path = self.experiment.getPath();

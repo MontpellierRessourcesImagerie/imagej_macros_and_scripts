@@ -10,7 +10,7 @@
     
    (c) 2021, INSERM
    
-   written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+   written by Volker Baecker and Léo Tellez-Arenas at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
 */
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
@@ -55,6 +55,7 @@ var _EXPORT_PROJECTION_MOSAIC = true;
 var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
 var _EXPORT_PROJECTION_MOSAIC_RGB = true;
 
+var _NB_CHANNELS = -1;
 var _MAX_NB_CHANNELS = 7;
 var _EXPORT_RGB_CHANNEL = newArray(_MAX_NB_CHANNELS);
 	
@@ -134,7 +135,11 @@ function launchExport() {
 	
 	tmp = "";
 	channelSelected = false;
-	for(i=0;i<_EXPORT_RGB_CHANNEL.length;i++){
+	if(_NB_CHANNELS==-1){
+		channelName = getChannelsFromIndex();
+		_NB_CHANNELS = channelName.length;
+	}
+	for(i=0;i<_NB_CHANNELS;i++){
 		if(_EXPORT_RGB_CHANNEL[i]){
 			tmp = tmp+"1";
 			channelSelected = true;
@@ -161,20 +166,24 @@ function launchExport() {
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
+	setBatchMode(true);
 	call("ij.plugin.Macro_Runner.runPython", script, options); 
+	setBatchMode(false);
 	print("The eagle has landed!!!");
 }
 
-
 function setOptions() {
 	channelName = getChannelsFromIndex();
-	nbChannels = channelName.length;
+	_NB_CHANNELS = channelName.length;
 	Dialog.create("Options");
+	items = newArray("Z-Slice","Max Intensity Projection");
+	Dialog.addMessage("Base for stitching",14);
+	
+	Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
 
+	Dialog.addMessage("Export Options",14);
 
 	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
 	Dialog.addToSameRow();
@@ -194,41 +203,60 @@ function setOptions() {
 
 	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
 
-	Dialog.addMessage("export single channel:");
-	for(i=0;i<nbChannels;i++){
+	Dialog.addMessage("invert and export individual channel:");
+	for(i=0;i<_NB_CHANNELS;i++){
 		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
 			Dialog.addToSameRow();
 		}
 		Dialog.addCheckbox(channelName[i],_EXPORT_RGB_CHANNEL[i]);
 	}
 	
-	Dialog.addMessage("Image correction/normalization:");
-	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
-	Dialog.addNumber("rolling ball radius (0 to switch off): ", _ROLLING_BALL_RADIUS);
+	Dialog.addMessage("Image correction/normalization:",14);
+	Dialog.addNumber("pseudo flat field radius (0 = off): ", _PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addNumber("rolling ball radius (0 = off): ", _ROLLING_BALL_RADIUS);
 	Dialog.addCheckbox("normalize", _NORMALIZE);
-	Dialog.addNumber("find background radius (0 to switch off): ", _FIND_AND_SUB_BACK_RADIUS);
+	Dialog.addNumber("find background radius (0 = off): ", _FIND_AND_SUB_BACK_RADIUS);
 	Dialog.addToSameRow();
 	Dialog.addNumber("find background offset: ", _FIND_AND_SUB_BACK_OFFSET);
 	Dialog.addNumber("find background iterations: ", _FIND_AND_SUB_BACK_ITERATIONS);
 	Dialog.addToSameRow();
 	Dialog.addNumber("find background skip limit: ", _FIND_AND_SUB_BACK_SKIP);
-	Dialog.addMessage("Fusion parameters:");
+	
+	Dialog.addMessage("Fusion parameters:",14);
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
 	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
 	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
 	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
-	Dialog.addMessage("Colours:");
+	Dialog.addMessage("Export Colours:",14);
 
-	for(i=0;i<nbChannels;i++){
+	for(i=0;i<_NB_CHANNELS;i++){
 		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
 			Dialog.addToSameRow();
 		}
 		Dialog.addChoice(channelName[i], _COLORS, _SELECTED_COLORS[i]);
 	}
+
+	Dialog.addMessage("Export Bounds:",14);
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		minMax=getMinMax(i+1);
+		Dialog.addNumber(channelName[i]+":  Min",minMax[0]);
+		Dialog.addToSameRow();
+		Dialog.addNumber("Max",minMax[1]);
+	}
+	
 	
 	Dialog.show();
+
+	stitchingBase = Dialog.getRadioButton();
+	if(stitchingBase == items[1]){
+		_STITCH_ON_PROJECTION = true;
+	}else{
+		_STITCH_ON_PROJECTION = false;
+	}
+	
 	_ZSLICE = Dialog.getNumber();
-	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
+	//_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
 
 
@@ -242,7 +270,7 @@ function setOptions() {
 	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
 	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
 
-	for(i=0;i<nbChannels.length;i++){
+	for(i=0;i<_NB_CHANNELS;i++){
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
 	
@@ -259,38 +287,56 @@ function setOptions() {
 	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 
-	for(i=0;i<nbChannels.length;i++){
+	for(i=0;i<_NB_CHANNELS;i++){
 		_SELECTED_COLORS[i]=Dialog.getChoice();
+	}
+	for(i=1;i<=_NB_CHANNELS;i++){
+		min=Dialog.getNumber();
+		max=Dialog.getNumber();
+		saveMinMax(i,min,max);
+	}
+	
+}
+
+macro "channelBounds"{
+	setChannelBounds();
+	channelName = getChannelsFromIndex();
+	_NB_CHANNELS = channelName.length;
+	for(i=1;i<=_NB_CHANNELS;i++){
+		minMax=getMinMax(i);
+		print("min="+minMax[0]);
+		print("max="+minMax[1]);
 	}
 }
 
-function selectWells() {
-	_OPERA_INDEX_FILE = getIndexFile();
-	_WELLS = getWells();
-	wells = _WELLS;
-	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
-	
-	Dialog.create("Select Wells");
-	lastRow = "00";
-	for (i = 0; i < wells.length; i++) {
-		well = wells[i];
-		row = substring(well, 0, 2);  
-		if (row==lastRow) {
-			Dialog.addToSameRow();
-		}
-		lastRow = row;
-		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
+function setChannelBounds(){
+	channelName = getChannelsFromIndex();
+	_NB_CHANNELS = channelName.length;
+	Dialog.create("Channel Bounds");
+	for(i=1;i<=_NB_CHANNELS;i++){
+		minMax=getMinMax(i);
+		Dialog.addNumber("Min",minMax[0]);
+		Dialog.addToSameRow();
+		Dialog.addNumber("Max",minMax[1]);
 	}
-	Dialog.addCheckbox("export all", _EXPORT_ALL);
-	
-	Dialog.show();
-	
-	for (i = 0; i < wells.length; i++) {
-		_SELECTED_WELLS[i] = Dialog.getCheckbox();
-	}
-	_EXPORT_ALL = Dialog.getCheckbox();
 
-	
+	Dialog.show();
+	for(i=1;i<=_NB_CHANNELS;i++){
+		min=Dialog.getNumber();
+		max=Dialog.getNumber();
+		saveMinMax(i,min,max);
+	}
+}
+
+function saveMinMax(channel,min,max){
+	setParameterDefault("channel"+channel+"Min",min);	
+	setParameterDefault("channel"+channel+"Max",max);	
+}
+
+function getMinMax(channel){
+	min = getParameterDefault("channel"+channel+"Min",0);
+	max = getParameterDefault("channel"+channel+"Max",65534);
+	return newArray(min,max);
 }
 
 function renameWells() {
@@ -343,26 +389,55 @@ function renameWells() {
 	}
 }
 
+function selectWells() {
+	_OPERA_INDEX_FILE = getIndexFile();
+	_WELLS = getWells();
+	wells = _WELLS;
+	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
+	
+	Dialog.create("Select Wells");
+	lastRow = "00";
+	for (i = 0; i < wells.length; i++) {
+		well = wells[i];
+		row = substring(well, 0, 2);  
+		if (row==lastRow) {
+			Dialog.addToSameRow();
+		}
+		lastRow = row;
+		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
+	}
+	Dialog.addCheckbox("export all", _EXPORT_ALL);
+	
+	Dialog.show();
+	
+	for (i = 0; i < wells.length; i++) {
+		_SELECTED_WELLS[i] = Dialog.getCheckbox();
+	}
+	_EXPORT_ALL = Dialog.getCheckbox();
+
+	
+}
+
 function setIndexFile() {
 	newFile  = File.openDialog("Please select the index file (Index.idx.xml)!");
 	newFile = replace(newFile, "\\", "/");
 	if (File.exists(newFile)) {
-		setIndexFileDefault(newFile);
+		setParameterDefault("indexFile",newFile);
 	}
 }
 
 function getIndexFile() {
 	res = _OPERA_INDEX_FILE;
-	if (!File.exists(res)) res = getIndexFileDefault();
+	if (!File.exists(res)) res = getParameterDefault("indexFile","");
 	return res;
 }
 
-function getIndexFileDefault() {
-	return call("ij.Prefs.get", "operaExportTools.indexFile", "");
+function getParameterDefault(parameter,default) {
+	return call("ij.Prefs.get", "operaExportTools."+parameter, default);
 }
 
-function setIndexFileDefault(path) {
-	call("ij.Prefs.set", "operaExportTools.indexFile", path); 
+function setParameterDefault(parameter,value) {
+	call("ij.Prefs.set", "operaExportTools."+parameter, value); 
 }
 
 function getWells() {
@@ -421,7 +496,7 @@ function getChannelsFromIndex(){
 	nrRows = 0;
 	channels = newArray();
 	
-	print("Reading indexFile");
+	//print("Reading indexFile");
 	startMarker = "ChannelName: ";
 	endMarker = ", Version: ";
 	for (i = 0; i < lines.length; i++) {
@@ -448,7 +523,7 @@ function getFlatfieldCoefficients(channelNumber){
 	nrRows = 0;
 	channels = newArray();
 	
-	print("Reading indexFile");
+	//print("Reading indexFile");
 	startMarker = "Coefficients: ";
 	endMarker = ", Dims: ";
 	count = 0;
@@ -480,22 +555,46 @@ macro "correctFlatfield"{
 function correctFlatfield(){
 	channels = getChannelsFromIndex();
 	nbChannels = channels.length;
-	//filelist = getFileList(_IN) 
-
+	directory = "/home/ltellez/Documents/Data/2111/Bordignon_testRawImages_20XconfOverlap__2021-11-18T10_43_27-Measurement/Images";
+	
+	filelist = getFileList(directory); 
+	imageSize =newArray(2160,2160);
 	for(i=1;i<=nbChannels;i++){
 		coeffs = getFlatfieldCoefficients(i);
-		backgroundID = createBackgroundImage(coeffs,newArray(2160,2160));
-		break;
+		originalBackgroundID = createBackgroundImage(coeffs,imageSize);
 		for (i = 0; i < lengthOf(filelist); i++) {
-			if (endsWith(filelist[i], ".tif")&& indexOf(filelist[i], "ch"+i)) { 
+			showProgress(i, lengthOf(filelist));
+			print("Looking at file "+filelist[i]);
+			print(endsWith(filelist[i], ".tiff"));
+			print(indexOf(filelist[i], "ch"));
+			if (endsWith(filelist[i], ".tiff")&& (indexOf(filelist[i], "ch")> -1)) { 
+			
 				open(directory + File.separator + filelist[i]);
+				imageID = getImageID();
+run("32-bit");
+			 	run("Enhance Contrast...", "saturated=0 normalize");
+				getStatistics(area, mean);
+				selectImage(originalBackgroundID);
+				run("Duplicate...", " ");
+				backgroundID = getImageID();
+				
+				for (y=0; y<imageSize[1]; y++) {
+					for (x=0; x<imageSize[0]; x++){
+						pixelOut = getPixel(x, y) * mean;
+						setPixel(x, y, pixelOut);
+					}
+				}
+				imageCalculator("substract create", imageID, backgroundID);
+
+				setMinAndMax(0, 1);
+				break;
 			}
 	    } 
 	}
 }
 
 function createBackgroundImage(coeffs,size){
-	newImage("background", "16-bit", size[0], size[1], 1);
+	newImage("background", "32-bit", size[0], size[1], 1);
 	imageID = getImageID();
  	w = getWidth(); 
  	h = getHeight();
@@ -511,7 +610,7 @@ function createBackgroundImage(coeffs,size){
 		}
 	}
  	setBatchMode(false);
-	run("Enhance Contrast", "saturated=0.35");
+ 	run("Enhance Contrast...", "saturated=0 normalize");
 	return imageID;
 }
 
@@ -520,8 +619,7 @@ function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
 	polY = (y/(0.5*scaleY))-1;
 	pixelValue = getValueOfPolynom(coeffs,x,y);
 	//print(pixelValue);
-	outValue = pixelValue*100;
-	return outValue;
+	return pixelValue;
 }
 
 function getValueOfPolynom(coeffs,x,y){
