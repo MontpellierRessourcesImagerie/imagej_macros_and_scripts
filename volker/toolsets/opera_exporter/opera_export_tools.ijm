@@ -10,12 +10,12 @@
     
    (c) 2021, INSERM
    
-   written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+   written by Volker Baecker and Léo Tellez-Arenas at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
 */
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
 var _OPERA_INDEX_FILE = "";
-var _BYTES_TO_READ = 10000;
+var _BYTES_TO_READ = 10000000;
 var _WELLS = newArray(0);
 var _SELECTED_WELLS = newArray(0);
 var _WELLS_NAMES = newArray(0);
@@ -40,10 +40,24 @@ var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
+
+var _CHANNEL_PER_ROW_IN_DIALOG = 2;
+
 var _STITCH_ON_PROJECTION = false;
-var _KEEP_STACKS_OF_FIELDS = false;
-var _KEEP_STACKS_OF_MOSAICS = false;
-var	_KEEP_SINGLE_CHANNEL_IMAGES = false;
+
+var _EXPORT_Z_STACK_FIELDS = true;
+var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
+var _EXPORT_PROJECTION_FIELDS = true;
+var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
+var _EXPORT_Z_STACK_MOSAIC = true;
+var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC = true;
+var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
+var _EXPORT_PROJECTION_MOSAIC_RGB = true;
+
+var _NB_CHANNELS = -1;
+var _MAX_NB_CHANNELS = 7;
+var _EXPORT_RGB_CHANNEL = newArray(_MAX_NB_CHANNELS);
 	
 launchExport();
 exit();
@@ -95,6 +109,7 @@ macro "launch export [f8]" {
 function launchExport() {
 	print("3, 2, 1, go...");
 	_OPERA_INDEX_FILE = getIndexFile();
+	
 	options = "--wells=";
 	if (_EXPORT_ALL) options = options + "all";
 	else {
@@ -106,23 +121,24 @@ function launchExport() {
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
-	//if (_CREATE_Z_STACK) options = options + " --stack";
-	//if (_MERGE_CHANNELS) options = options + " --merge";
-	//if (_DO_MIP) options = options + " --mip";
-
-	if(_EXPORT_Z_STACK_FIELDS) options = options+ "--zStackFields";
-	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ "--zStackFieldsComposite";
-	if(_EXPORT_PROJECTION_FIELDS) options = options+ "--projectionFields";
-	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ "--projectionFieldsComposite";
 	
-	if(_EXPORT_Z_STACK_MOSAIC) options = options+ "--zStackMosaic";
-	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ "--zStackMosaicComposite";
-	if(_EXPORT_PROJECTION_MOSAIC) options = options+ "--projectionMosaic";
-	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ "--projectionMosaicComposite";
-	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ "--projectionMosaicRGB";
+	if(_EXPORT_Z_STACK_FIELDS) options = options+ " --zStackFields";
+	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ " --zStackFieldsComposite";
+	if(_EXPORT_PROJECTION_FIELDS) options = options+ " --projectionFields";
+	if(_EXPORT_PROJECTION_FIELDS_COMPOSITE) options = options+ " --projectionFieldsComposite";
+	
+	if(_EXPORT_Z_STACK_MOSAIC) options = options+ " --zStackMosaic";
+	if(_EXPORT_Z_STACK_MOSAIC_COMPOSITE) options = options+ " --zStackMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC) options = options+ " --projectionMosaic";
+	if(_EXPORT_PROJECTION_MOSAIC_COMPOSITE) options = options+ " --projectionMosaicComposite";
+	if(_EXPORT_PROJECTION_MOSAIC_RGB) options = options+ " --projectionMosaicRGB";
 	
 	tmp = "";
 	channelSelected = false;
+	if(_NB_CHANNELS==-1){
+		channelName = getChannelsFromIndex();
+		_NB_CHANNELS = channelName.length;
+	}
 	for(i=0;i<_NB_CHANNELS;i++){
 		if(_EXPORT_RGB_CHANNEL[i]){
 			tmp = tmp+"1";
@@ -131,7 +147,7 @@ function launchExport() {
 			tmp = tmp+"0";
 		}
 	}
-	if(channelSelected)	options = options+ "--channelRGB"+tmp;
+	if(channelSelected)	options = options+ " --channelRGB="+tmp;
 	
 	if (_NORMALIZE) options = options + " --normalize";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
@@ -150,30 +166,24 @@ function launchExport() {
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
+	setBatchMode(true);
 	call("ij.plugin.Macro_Runner.runPython", script, options); 
+	setBatchMode(false);
 	print("The eagle has landed!!!");
 }
 
-var _EXPORT_Z_STACK_FIELDS = true;
-var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
-var _EXPORT_PROJECTION_FIELDS = true;
-var _EXPORT_PROJECTION_FIELDS_COMPOSITE = false;
-var _EXPORT_Z_STACK_MOSAIC = true;
-var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
-var _EXPORT_PROJECTION_MOSAIC = true;
-var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
-var _EXPORT_PROJECTION_MOSAIC_RGB = true;
-
-var _NB_CHANNELS = 4;
-var _EXPORT_RGB_CHANNEL = newArray(_NB_CHANNELS);
-
 function setOptions() {
+	channelName = getChannelsFromIndex();
+	_NB_CHANNELS = channelName.length;
 	Dialog.create("Options");
+	items = newArray("Z-Slice","Max Intensity Projection");
+	Dialog.addMessage("Base for stitching",14);
+	
+	Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("or use projection for stitching", _STITCH_ON_PROJECTION);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
 
+	Dialog.addMessage("Export Options",14);
 
 	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
 	Dialog.addToSameRow();
@@ -193,45 +203,60 @@ function setOptions() {
 
 	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
 
-	Dialog.addMessage("Invert and export RGB of channel:");
+	Dialog.addMessage("invert and export individual channel:");
 	for(i=0;i<_NB_CHANNELS;i++){
-		if(i!=0){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
 			Dialog.addToSameRow();
 		}
-		Dialog.addCheckbox(i,_EXPORT_RGB_CHANNEL[i]);
+		Dialog.addCheckbox(channelName[i],_EXPORT_RGB_CHANNEL[i]);
 	}
 	
-	Dialog.addMessage("Image correction/normalization:");
-	Dialog.addNumber("pseudo flat field radius (0 to switch off): ", _PSEUDO_FLAT_FIELD_RADIUS);
-	Dialog.addNumber("rolling ball radius (0 to switch off): ", _ROLLING_BALL_RADIUS);
+	Dialog.addMessage("Image correction/normalization:",14);
+	Dialog.addNumber("pseudo flat field radius (0 = off): ", _PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addNumber("rolling ball radius (0 = off): ", _ROLLING_BALL_RADIUS);
 	Dialog.addCheckbox("normalize", _NORMALIZE);
-	Dialog.addNumber("find background radius (0 to switch off): ", _FIND_AND_SUB_BACK_RADIUS);
+	Dialog.addNumber("find background radius (0 = off): ", _FIND_AND_SUB_BACK_RADIUS);
 	Dialog.addToSameRow();
 	Dialog.addNumber("find background offset: ", _FIND_AND_SUB_BACK_OFFSET);
 	Dialog.addNumber("find background iterations: ", _FIND_AND_SUB_BACK_ITERATIONS);
 	Dialog.addToSameRow();
 	Dialog.addNumber("find background skip limit: ", _FIND_AND_SUB_BACK_SKIP);
-	Dialog.addMessage("Fusion parameters:");
+	
+	Dialog.addMessage("Fusion parameters:",14);
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
 	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
 	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
 	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
-	Dialog.addMessage("Colours:");
-	Dialog.addChoice("ch1: ", _COLORS, _SELECTED_COLORS[0]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch2: ", _COLORS, _SELECTED_COLORS[1]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch3: ", _COLORS, _SELECTED_COLORS[2]);
-	Dialog.addChoice("ch4: ", _COLORS, _SELECTED_COLORS[3]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch5: ", _COLORS, _SELECTED_COLORS[4]);
-	Dialog.addToSameRow();
-	Dialog.addChoice("ch6: ", _COLORS, _SELECTED_COLORS[5]);
-	Dialog.addChoice("ch7: ", _COLORS, _SELECTED_COLORS[6]);
+	Dialog.addMessage("Export Colours:",14);
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addChoice(channelName[i], _COLORS, _SELECTED_COLORS[i]);
+	}
+
+	Dialog.addMessage("Export Bounds:",14);
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		minMax=getMinMax(i+1);
+		Dialog.addNumber(channelName[i]+":  Min",minMax[0]);
+		Dialog.addToSameRow();
+		Dialog.addNumber("Max",minMax[1]);
+	}
+	
 	
 	Dialog.show();
+
+	stitchingBase = Dialog.getRadioButton();
+	if(stitchingBase == items[1]){
+		_STITCH_ON_PROJECTION = true;
+	}else{
+		_STITCH_ON_PROJECTION = false;
+	}
+	
 	_ZSLICE = Dialog.getNumber();
-	_STITCH_ON_PROJECTION = Dialog.getCheckbox();
+	//_STITCH_ON_PROJECTION = Dialog.getCheckbox();
 	_CHANNEL = Dialog.getNumber();
 
 
@@ -248,14 +273,7 @@ function setOptions() {
 	for(i=0;i<_NB_CHANNELS;i++){
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
-/*
-	_CREATE_Z_STACK = Dialog.getCheckbox();
-	_KEEP_STACKS_OF_FIELDS = Dialog.getCheckbox();
-	_MERGE_CHANNELS = Dialog.getCheckbox();
-	_KEEP_STACKS_OF_MOSAICS = Dialog.getCheckbox();
-	_DO_MIP = Dialog.getCheckbox();	
-	_KEEP_SINGLE_CHANNEL_IMAGES = Dialog.getCheckbox();
-*/
+	
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_NORMALIZE = Dialog.getCheckbox();
@@ -269,42 +287,56 @@ function setOptions() {
 	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
 
-	_SELECTED_COLORS[0] = Dialog.getChoice();
-	_SELECTED_COLORS[1] = Dialog.getChoice();
-	_SELECTED_COLORS[2] = Dialog.getChoice();
-	_SELECTED_COLORS[3] = Dialog.getChoice();
-	_SELECTED_COLORS[4] = Dialog.getChoice();
-	_SELECTED_COLORS[5] = Dialog.getChoice();
-	_SELECTED_COLORS[6] = Dialog.getChoice();
+	for(i=0;i<_NB_CHANNELS;i++){
+		_SELECTED_COLORS[i]=Dialog.getChoice();
+	}
+	for(i=1;i<=_NB_CHANNELS;i++){
+		min=Dialog.getNumber();
+		max=Dialog.getNumber();
+		saveMinMax(i,min,max);
+	}
+	
 }
 
-function selectWells() {
-	_OPERA_INDEX_FILE = getIndexFile();
-	_WELLS = getWells();
-	wells = _WELLS;
-	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
-	
-	Dialog.create("Select Wells");
-	lastRow = "00";
-	for (i = 0; i < wells.length; i++) {
-		well = wells[i];
-		row = substring(well, 0, 2);  
-		if (row==lastRow) {
-			Dialog.addToSameRow();
-		}
-		lastRow = row;
-		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
+macro "channelBounds"{
+	setChannelBounds();
+	channelName = getChannelsFromIndex();
+	_NB_CHANNELS = channelName.length;
+	for(i=1;i<=_NB_CHANNELS;i++){
+		minMax=getMinMax(i);
+		print("min="+minMax[0]);
+		print("max="+minMax[1]);
 	}
-	Dialog.addCheckbox("export all", _EXPORT_ALL);
-	
-	Dialog.show();
-	
-	for (i = 0; i < wells.length; i++) {
-		_SELECTED_WELLS[i] = Dialog.getCheckbox();
-	}
-	_EXPORT_ALL = Dialog.getCheckbox();
+}
 
-	
+function setChannelBounds(){
+	channelName = getChannelsFromIndex();
+	_NB_CHANNELS = channelName.length;
+	Dialog.create("Channel Bounds");
+	for(i=1;i<=_NB_CHANNELS;i++){
+		minMax=getMinMax(i);
+		Dialog.addNumber("Min",minMax[0]);
+		Dialog.addToSameRow();
+		Dialog.addNumber("Max",minMax[1]);
+	}
+
+	Dialog.show();
+	for(i=1;i<=_NB_CHANNELS;i++){
+		min=Dialog.getNumber();
+		max=Dialog.getNumber();
+		saveMinMax(i,min,max);
+	}
+}
+
+function saveMinMax(channel,min,max){
+	setParameterDefault("channel"+channel+"Min",min);	
+	setParameterDefault("channel"+channel+"Max",max);	
+}
+
+function getMinMax(channel){
+	min = getParameterDefault("channel"+channel+"Min",0);
+	max = getParameterDefault("channel"+channel+"Max",65534);
+	return newArray(min,max);
 }
 
 function renameWells() {
@@ -357,26 +389,55 @@ function renameWells() {
 	}
 }
 
+function selectWells() {
+	_OPERA_INDEX_FILE = getIndexFile();
+	_WELLS = getWells();
+	wells = _WELLS;
+	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
+	
+	Dialog.create("Select Wells");
+	lastRow = "00";
+	for (i = 0; i < wells.length; i++) {
+		well = wells[i];
+		row = substring(well, 0, 2);  
+		if (row==lastRow) {
+			Dialog.addToSameRow();
+		}
+		lastRow = row;
+		Dialog.addCheckbox(well, _SELECTED_WELLS[i]);
+	}
+	Dialog.addCheckbox("export all", _EXPORT_ALL);
+	
+	Dialog.show();
+	
+	for (i = 0; i < wells.length; i++) {
+		_SELECTED_WELLS[i] = Dialog.getCheckbox();
+	}
+	_EXPORT_ALL = Dialog.getCheckbox();
+
+	
+}
+
 function setIndexFile() {
 	newFile  = File.openDialog("Please select the index file (Index.idx.xml)!");
 	newFile = replace(newFile, "\\", "/");
 	if (File.exists(newFile)) {
-		setIndexFileDefault(newFile);
+		setParameterDefault("indexFile",newFile);
 	}
 }
 
 function getIndexFile() {
 	res = _OPERA_INDEX_FILE;
-	if (!File.exists(res)) res = getIndexFileDefault();
+	if (!File.exists(res)) res = getParameterDefault("indexFile","");
 	return res;
 }
 
-function getIndexFileDefault() {
-	return call("ij.Prefs.get", "operaExportTools.indexFile", "");
+function getParameterDefault(parameter,default) {
+	return call("ij.Prefs.get", "operaExportTools."+parameter, default);
 }
 
-function setIndexFileDefault(path) {
-	call("ij.Prefs.set", "operaExportTools.indexFile", path); 
+function setParameterDefault(parameter,value) {
+	call("ij.Prefs.set", "operaExportTools."+parameter, value); 
 }
 
 function getWells() {
@@ -421,4 +482,152 @@ function getNrOfRowsAndColumns() {
 	}
 	res = newArray(nrRows, nrCols);
 	return res;
+}
+macro "getChannelsNames"{
+	getChannelsFromIndex();
+}
+
+function getChannelsFromIndex(){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	//print("Reading indexFile");
+	startMarker = "ChannelName: ";
+	endMarker = ", Version: ";
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, "<FlatfieldProfile>")) {
+			startIndex = indexOf(line,startMarker)+startMarker.length;
+			endIndex = indexOf(line,endMarker);
+			channelName = substring(line, startIndex, endIndex);
+			channels = Array.concat(channels,channelName);
+		}
+	}
+	return channels;
+}
+
+macro "getFlatfieldCoefficients"{
+	getFlatfieldCoefficients(1);
+}
+function getFlatfieldCoefficients(channelNumber){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	//print("Reading indexFile");
+	startMarker = "Coefficients: ";
+	endMarker = ", Dims: ";
+	count = 0;
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, "<FlatfieldProfile>")) {
+			count = count+1;
+			if(count==channelNumber){
+				startIndex = indexOf(line,startMarker)+startMarker.length;
+				endIndex = indexOf(line,endMarker);
+				coeffLine = substring(line, startIndex, endIndex);
+				coeffDirty = split(coeffLine,",");
+				coeffClean = newArray(coeffDirty.length);
+				for(tmp=0;tmp<coeffDirty.length;tmp++){
+					coeffClean[tmp] = String.trim( replace(replace(coeffDirty[tmp], "[", ""),"]","") );
+				}
+				Array.print(coeffClean);
+				
+			}
+		}
+	}
+	return coeffClean;
+}
+
+macro "correctFlatfield"{
+	correctFlatfield();
+}
+
+function correctFlatfield(){
+	channels = getChannelsFromIndex();
+	nbChannels = channels.length;
+	directory = "/home/ltellez/Documents/Data/2111/Bordignon_testRawImages_20XconfOverlap__2021-11-18T10_43_27-Measurement/Images";
+	
+	filelist = getFileList(directory); 
+	imageSize =newArray(2160,2160);
+	for(i=1;i<=nbChannels;i++){
+		coeffs = getFlatfieldCoefficients(i);
+		originalBackgroundID = createBackgroundImage(coeffs,imageSize);
+		for (i = 0; i < lengthOf(filelist); i++) {
+			showProgress(i, lengthOf(filelist));
+			print("Looking at file "+filelist[i]);
+			print(endsWith(filelist[i], ".tiff"));
+			print(indexOf(filelist[i], "ch"));
+			if (endsWith(filelist[i], ".tiff")&& (indexOf(filelist[i], "ch")> -1)) { 
+			
+				open(directory + File.separator + filelist[i]);
+				imageID = getImageID();
+run("32-bit");
+			 	run("Enhance Contrast...", "saturated=0 normalize");
+				getStatistics(area, mean);
+				selectImage(originalBackgroundID);
+				run("Duplicate...", " ");
+				backgroundID = getImageID();
+				
+				for (y=0; y<imageSize[1]; y++) {
+					for (x=0; x<imageSize[0]; x++){
+						pixelOut = getPixel(x, y) * mean;
+						setPixel(x, y, pixelOut);
+					}
+				}
+				imageCalculator("substract create", imageID, backgroundID);
+
+				setMinAndMax(0, 1);
+				break;
+			}
+	    } 
+	}
+}
+
+function createBackgroundImage(coeffs,size){
+	newImage("background", "32-bit", size[0], size[1], 1);
+	imageID = getImageID();
+ 	w = getWidth(); 
+ 	h = getHeight();
+ 	setBatchMode(true);
+ 	Table.create("Background values");
+ 	i=0;
+	for (y=0; y<h; y++) {
+		for (x=0; x<w; x++){
+			pixelOut = getValueOfPixelAfterPolynom(coeffs,x,y,size[0], size[1]);
+			setPixel(x, y, pixelOut);
+			Table.set("pixelIntensity",i,pixelOut);
+			i=i+1;
+		}
+	}
+ 	setBatchMode(false);
+ 	run("Enhance Contrast...", "saturated=0 normalize");
+	return imageID;
+}
+
+function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
+	polX = (x/(0.5*scaleX))-1;
+	polY = (y/(0.5*scaleY))-1;
+	pixelValue = getValueOfPolynom(coeffs,x,y);
+	//print(pixelValue);
+	return pixelValue;
+}
+
+function getValueOfPolynom(coeffs,x,y){
+	outPixelValue0= 0 + coeffs[0]; 
+	outPixelValue1= 0 + coeffs[1]	* polX 				 	+ coeffs[2] * polY;
+	outPixelValue2= 0 + coeffs[3]	* polX*polX 			+ coeffs[4] * polX*polY 			+ coeffs[5] * polY*polY;
+	outPixelValue3= 0 + coeffs[6]	* polX*polX*polX 		+ coeffs[7] * polX*polX*polY 		+ coeffs[8] * polX*polY*polY 		+ coeffs[9] * polY*polY*polY;
+	outPixelValue4= 0 + coeffs[10]	* polX*polX*polX*polX 	+ coeffs[11]* polX*polX*polX*polY	+ coeffs[12]* polX*polX*polY*polY 	+ coeffs[13]* polX*polY*polY*polY + coeffs[14] * polY*polY*polY*polY;
+	outPixelValue = outPixelValue0+outPixelValue1+outPixelValue2+outPixelValue3+outPixelValue4;
+	return outPixelValue;
 }
