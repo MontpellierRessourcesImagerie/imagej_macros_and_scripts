@@ -178,8 +178,12 @@ function setOptions() {
 	Dialog.create("Options");
 	items = newArray("Z-Slice","Max Intensity Projection");
 	Dialog.addMessage("Base for stitching",14);
-	
-	Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);
+
+	if(_STITCH_ON_PROJECTION){
+		Dialog.addRadioButtonGroup("", items, 1, 2, items[1]);
+	}else{
+		Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);
+	}
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
 
