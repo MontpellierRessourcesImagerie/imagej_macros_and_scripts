@@ -178,11 +178,10 @@ function setOptions() {
 	Dialog.create("Options");
 	items = newArray("Z-Slice","Max Intensity Projection");
 	Dialog.addMessage("Base for stitching",14);
-
 	if(_STITCH_ON_PROJECTION){
 		Dialog.addRadioButtonGroup("", items, 1, 2, items[1]);
 	}else{
-		Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);
+		Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);	
 	}
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 	Dialog.addNumber("channel for stitching", _CHANNEL);
@@ -502,13 +501,14 @@ function getChannelsFromIndex(){
 	
 	//print("Reading indexFile");
 	startMarker = "ChannelName: ";
-	endMarker = ", Version: ";
+	endMarker = ",";
 	for (i = 0; i < lines.length; i++) {
 		line = String.trim(lines[i]);
 		if (startsWith(line, "<FlatfieldProfile>")) {
 			startIndex = indexOf(line,startMarker)+startMarker.length;
-			endIndex = indexOf(line,endMarker);
-			channelName = substring(line, startIndex, endIndex);
+			channelName = substring(line, startIndex);
+			endIndex = indexOf(channelName,endMarker);
+			channelName = substring(channelName, 0, endIndex);
 			channels = Array.concat(channels,channelName);
 		}
 	}
@@ -518,6 +518,7 @@ function getChannelsFromIndex(){
 macro "getFlatfieldCoefficients"{
 	getFlatfieldCoefficients(1);
 }
+
 function getFlatfieldCoefficients(channelNumber){
 	indexFile = getIndexFile();
 	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
@@ -553,47 +554,64 @@ function getFlatfieldCoefficients(channelNumber){
 }
 
 macro "correctFlatfield"{
+	setBatchMode(true);
 	correctFlatfield();
+	setBatchMode(false);
 }
 
 function correctFlatfield(){
+	_OPERA_INDEX_FILE = getIndexFile();
 	channels = getChannelsFromIndex();
 	nbChannels = channels.length;
-	directory = "/home/ltellez/Documents/Data/2111/Bordignon_testRawImages_20XconfOverlap__2021-11-18T10_43_27-Measurement/Images";
-	
-	filelist = getFileList(directory); 
-	imageSize =newArray(2160,2160);
-	for(i=1;i<=nbChannels;i++){
-		coeffs = getFlatfieldCoefficients(i);
+	directory = File.getDirectory(_OPERA_INDEX_FILE);
+	outDirectory = directory + "/noBG/";
+	print(outDirectory);
+	filelist = getFileList(directory);
+	imageSize = newArray(2);
+	for (i = 0; i < lengthOf(filelist); i++) {
+		if (endsWith(filelist[i], ".tiff")){
+			open(directory+filelist[i]);
+			imageSize[0]=getWidth();
+			imageSize[1]=getHeight();
+			close();
+		}
+	}
+	for(chan=1;chan<=nbChannels;chan++){
+		coeffs = getFlatfieldCoefficients(chan);
 		originalBackgroundID = createBackgroundImage(coeffs,imageSize);
+	    close();
 		for (i = 0; i < lengthOf(filelist); i++) {
 			showProgress(i, lengthOf(filelist));
-			print("Looking at file "+filelist[i]);
-			print(endsWith(filelist[i], ".tiff"));
-			print(indexOf(filelist[i], "ch"));
-			if (endsWith(filelist[i], ".tiff")&& (indexOf(filelist[i], "ch")> -1)) { 
+			
+			if (endsWith(filelist[i], ".tiff")&& (indexOf(filelist[i], "ch"+chan)> -1)) { 
 			
 				open(directory + File.separator + filelist[i]);
 				imageID = getImageID();
-run("32-bit");
-			 	run("Enhance Contrast...", "saturated=0 normalize");
-				getStatistics(area, mean);
-				selectImage(originalBackgroundID);
-				run("Duplicate...", " ");
-				backgroundID = getImageID();
+				getStatistics(areaI, meanI, minI, maxI, stdDevI);
 				
+				bgPixels = Table.getColumn("pixelIntensity");
+				Array.getStatistics(bgPixels, minB, maxB, meanB, stdDevB);
+				
+				newImage("background_rescaled", "16-bit",imageSize[0], imageSize[1], 1);
+ 				backgroundID = getImageID();
+ 				
+ 				tableItt=0;
 				for (y=0; y<imageSize[1]; y++) {
 					for (x=0; x<imageSize[0]; x++){
-						pixelOut = getPixel(x, y) * mean;
+						pixel = Table.get("pixelIntensity",tableItt);
+						a = meanI - meanB;
+						b= stdDevI / stdDevB; 
+						pixelOut = a + (pixel * b);
 						setPixel(x, y, pixelOut);
+						tableItt=tableItt+1;
 					}
 				}
 				imageCalculator("substract create", imageID, backgroundID);
-
-				setMinAndMax(0, 1);
-				break;
+				saveAs(outDirectory+filelist[i]);
+				close();
+				close();	
 			}
-	    } 
+	    }
 	}
 }
 
@@ -602,7 +620,6 @@ function createBackgroundImage(coeffs,size){
 	imageID = getImageID();
  	w = getWidth(); 
  	h = getHeight();
- 	setBatchMode(true);
  	Table.create("Background values");
  	i=0;
 	for (y=0; y<h; y++) {
@@ -613,8 +630,7 @@ function createBackgroundImage(coeffs,size){
 			i=i+1;
 		}
 	}
- 	setBatchMode(false);
- 	run("Enhance Contrast...", "saturated=0 normalize");
+ 	//run("Enhance Contrast...", "saturated=0 normalize");
 	return imageID;
 }
 
