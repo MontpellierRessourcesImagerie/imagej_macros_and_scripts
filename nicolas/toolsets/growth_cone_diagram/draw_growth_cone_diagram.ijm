@@ -15,9 +15,9 @@
  * 
 **/
 
-//************************************************ *****************global variables initilization  ******************************/
-var COLUMNS = 2;
-var ROWS = 3;
+//***************************************************************global variables initilization  ******************************//
+var COLUMNS = 3;
+var ROWS = 1;
 var BORDER_WIDTH = 30;
 var IMAGE_WIDTH = 300;
 var IMAGE_HEIGHT = 290;
@@ -27,16 +27,14 @@ var TMP_IMAGE_PREFIX = "xxxTMP";
 var TMP_IMAGE_SIZE = 5000;
 var DRAW_LINE = true;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Growth_Cone_Visualizer";
-var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors","RGB colors");
+// var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors","RGB colors");
+var COLOR_SCHEMES = newArray("default", "linear-distributed", "12 colors","RGB colors", "RGB_LUT_Linear","RGB_LUT_non-Linear");
 var COLOR_SCHEME = "RGB colors";
 var TWELVE_COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "yellow");
 var LOOKUPTABLE_LIST_PARAM = getList("LUTs");
-// var LOOKUPTABLE="glasbey";
-// var LOOKUPTABLE="glasbey";
 var LOOKUPTABLE="glasbey inverted";
 var STRETCH_LUT = false;
 var STRETCH_LUT_Linear = false;
-
 
 batchDrawGrowthCones();
 exit();
@@ -75,9 +73,6 @@ macro "draw growth cones (f5) Action Tool Options" {
 	Dialog.addCheckbox("draw base-line", DRAW_LINE);
 	Dialog.addChoice("color scheme: ", COLOR_SCHEMES, COLOR_SCHEME);
 	Dialog.addChoice("LookUpTable: ", LOOKUPTABLE_LIST_PARAM, LOOKUPTABLE);
-	Dialog.addCheckbox("stretch colors", STRETCH_LUT);
-	Dialog.addCheckbox("stretch in unLinear Mode",STRETCH_LUT_Linear);
-	
 	Dialog.show();
 
 	COLUMNS = Dialog.getNumber();
@@ -90,8 +85,6 @@ macro "draw growth cones (f5) Action Tool Options" {
  	DRAW_LINE = Dialog.getCheckbox();
  	COLOR_SCHEME = Dialog.getChoice();
  	LOOKUPTABLE = Dialog.getChoice(); 
- 	STRETCH_LUT = Dialog.getCheckbox();
- 	STRETCH_LUT_Linear = Dialog.getCheckbox();
 }
 
 macro "draw growth cones [f5]" {
@@ -105,7 +98,6 @@ macro "batch draw growth cones [f6]" {
 macro "batch draw growth cones (f6) Action Tool-C000T4b12b" {
 	batchDrawGrowthCones();
 }
-
 
 function batchDrawGrowthCones() { 
 	dir = getDir("Please select the input folder!");
@@ -131,16 +123,66 @@ function createImagesFromRoiZipFiles(dir) {
 		experimentName = cleanRoiName(roiFileName);
 		title = TMP_IMAGE_PREFIX + "_" + experimentName;
 		drawRois(title);
+		if (ROWS==1 && COLUMNS==1){
+			drawRois(title);	
+		}
 	}
 }
 
+function drawRois(title) {
+	newImage(title, "8-bit white", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
+    imageId = getImageID();
+    count = roiManager("count");
+    Overlay.remove;
+	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		color = getColor(i, count);
+		normalizeROI();
+		if (COLOR_SCHEME=="default") {
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
+		else if (COLOR_SCHEME=="linear-distributed") {
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
+		else if (COLOR_SCHEME=="12 colors") {
+			Roi.setStrokeColor(color);
+		} 
+		else if (COLOR_SCHEME=="RGB colors"){
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		} 
+		else if (COLOR_SCHEME=="RGB_LUT_Linear"){
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
+		else if (COLOR_SCHEME=="RGB_LUT_non-Linear"){
+			Roi.setStrokeColor(color[0],color[1],color[2]);
+		}
+		Roi.setStrokeWidth(STROKE_WIDTH);
+		Overlay.addSelection;
+	}
+	cropImage();
+	flattenInsitu();
+}
+
+
 function makeMontage() {
 	for (i = 1; i <= nSlices; i++) {
-	    setSlice(i);
+		setSlice(i);
 	    label = Property.getSliceLabel();
 	    label = replace(label, TMP_IMAGE_PREFIX +"_", "");
 	    Property.setSliceLabel(label);
 	}
+	if (ROWS==1 && COLUMNS==1){
+		COLUMNS=COLUMNS+1;
+		// getInfo("slice.label");
+		setSlice(1);
+		run("Add Slice");
+		// label="ROI_"+i; 
+		setSlice(1);
+		label = Property.getSliceLabel();
+	    label = replace(label, TMP_IMAGE_PREFIX +"_", "");
+        Property.setSliceLabel(label);
+	 }
 	stackID = getImageID();
 	montageParameters = "columns=" + COLUMNS + " rows=" + ROWS + " scale=1 border="+MONTAGE_BORDER+" label";
 	run("Make Montage...", montageParameters);
@@ -148,7 +190,7 @@ function makeMontage() {
 	close();
 }
 
-//************************  Look for zip files **********************/
+//************************  Look for zip files ***********************/
 function filterZIPFiles(files){
 	suffix =".zip";
 	zipFiles = newArray();
@@ -214,84 +256,6 @@ function normalizeRotation(centerX, centerY) {
 		}
 }
 
-function drawRois(title) {
-	newImage(title, "8-bit white", TMP_IMAGE_SIZE, TMP_IMAGE_SIZE, 1);
-    imageId = getImageID();
-    count = roiManager("count");
-    Image_Vect_Rs = newArray(count);
-    Image_Vect_Gs = newArray(count);
-    Image_Vect_Bs = newArray(count);
-    Array_Count = newArray(count);
-    
-    Overlay.remove;
-	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		color = getColor(i, count);
-		normalizeROI();
-		if (COLOR_SCHEME=="linear-distributed") {
-			Roi.setStrokeColor(color[0],color[1],color[2]);
-		}
-		else if (COLOR_SCHEME=="12 colors") {
-			Roi.setStrokeColor(color);
-		} 
-		else if (COLOR_SCHEME=="RGB colors"){
-			Roi.setStrokeColor(color[0],color[1],color[2]);
-		} 
-		else if (STRETCH_LU){ 
-			Roi.setStrokeColor(color[0],color[1],color[2]);
-		}
-		Roi.setStrokeWidth(STROKE_WIDTH);
-		Overlay.addSelection;
-		Image_Vect_Rs[i]= color[0];
-		Image_Vect_Gs[i]= color[1];
-		Image_Vect_Bs[i]= color[2];
-		Array_Count[i] = i;
-	}
-	Image_Vect_Rs_Fourier = Array.fourier(Image_Vect_Rs, "Hamming");
-	Image_Vect_Gs_Fourier = Array.fourier(Image_Vect_Gs, "Hamming");
-	Image_Vect_Bs_Fourier = Array.fourier(Image_Vect_Bs, "Hamming");
-	// image_ID_Fourier = getImageID();
-	// selectImage(image_ID_Fourier);
-	// newImage("RGB_Sig", "8 bit", 256, 1, 1);
-	// ROI_ToSpectrum(Image_Vect_Rs_Fourier,Image_Vect_Gs_Fourier,Image_Vect_Bs_Fourier,Array_Count);
-	// run("Select None");
-	// run("Make Montage...", "columns=2 rows=3 scale=1 font=14");
-	// run("Images to Stack", "name=RGB_Sig title=["+TMP_IMAGE_PREFIX+"] use");
-	// run("Make Montage");
-	// run("Make Montage...", "columns=2 rows=3 scale=1 font=14");
-	// run("Make Montage...", "columns=2 rows=3 scale=1");
-	// close();
-	// Plot.create("GSeg and index exp", "index", "GSig", Image_Vect_Gs);
-	// Plot.create("BSeg and index exp", "index", "Bsig", Image_Vect_Bs);
-
-	cropImage();
-	flattenInsitu();
-}
-
-function ROI_ToSpectrum(Roi_Rs,Roi_Gs,Roi_Bs,Array_Count) {
-	// newImage("RGB_Sig", "8 bit", 256, 256, 1);
-	oldImageID = getImageID();
-	Plot.create("RGB Sig", "index", "RGB_Sig",Roi_Rs);
-	selectWindow("RGB Sig");
-	Plot.setColor("red");
-	Plot.add("box", Array_Count, Roi_Gs);
-	Plot.add("line", Array_Count, Roi_Gs);
-	selectWindow("RGB Sig");
-	Plot.setColor("green");
-	Plot.add("Circle", Array_Count, Roi_Bs);
-	Plot.add("line", Array_Count, Roi_Bs);
-	Plot.setColor("blue");
-	Plot.show;
-	run("Images to Stack", "  title=RGB use");
-	// run("Images to Stack", "name=[RGB Sig] title=RGB use");
-	// run("Images to Stack", "title= RGB Sig fill=white use");
-	// run("Images to Stack", "name=RGB-=_Sig title=RGB-=_Sig fill=white use");
-	// Plot.show;
-	// selectImage(oldImageID);
-	// close();
-	// run("Select None");
-}
 
 function cropImage() {
 	x = TMP_IMAGE_SIZE / 2 -IMAGE_WIDTH / 2;
@@ -321,7 +285,7 @@ function getColor(index, count) {
 	if (COLOR_SCHEME=="12 colors") {
 		color = getColor12Colors(index, count);
 	}
-	if (COLOR_SCHEME=="RGB colors") {
+	if (COLOR_SCHEME=="RGB colors" || COLOR_SCHEME=="RGB_LUT_Linear" || COLOR_SCHEME=="RGB_LUT_non-Linear" ) {
 		color = getColorRGB(index,count);
 	}
 	return color;
@@ -352,12 +316,15 @@ function getColorRGB(index, count) {
 	close();
 	mappedIndex = index;
 	stepWidth = round(255/count);
-	if (STRETCH_LUT && STRETCH_LUT_Linear) {
-		mappedIndex = (index * stepWidth)%255;
-	}else if (STRETCH_LUT && (!STRETCH_LUT_Linear)){
-		mappedIndex = (Math.pow(index * stepWidth,2))%255;
+	if (COLOR_SCHEME == "RGB colors"){
+		mappedIndex = (index)%255;
 	}
-	print(mappedIndex);
+	else if (COLOR_SCHEME=="RGB_LUT_Linear"){
+		mappedIndex = (stepWidth + (index * stepWidth)) % 255;
+	}
+	else if (COLOR_SCHEME=="RGB_LUT_non-Linear"){
+		mappedIndex = (Math.pow(index * stepWidth,2)) % 255;
+	}
 	/** exporte results **/
 	color1 = reds[mappedIndex]; 
 	color2 = greens[mappedIndex]; 
@@ -386,4 +353,3 @@ function flattenInsitu() {
 	rename(title);
 	run("Select None");
 }
-

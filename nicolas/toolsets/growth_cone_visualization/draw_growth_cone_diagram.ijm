@@ -16,8 +16,8 @@
 **/
 
 //***************************************************************global variables initilization  ******************************//
-var COLUMNS = 2;
-var ROWS = 3;
+var COLUMNS = 3;
+var ROWS = 1;
 var BORDER_WIDTH = 30;
 var IMAGE_WIDTH = 300;
 var IMAGE_HEIGHT = 290;
@@ -123,6 +123,7 @@ function createImagesFromRoiZipFiles(dir) {
 		experimentName = cleanRoiName(roiFileName);
 		title = TMP_IMAGE_PREFIX + "_" + experimentName;
 		drawRois(title);
+		//drawRois(title,zipFiles.length);
 	}
 }
 
@@ -130,6 +131,7 @@ function makeMontage() {
 	for (i = 1; i <= nSlices; i++) {
 	    setSlice(i);
 	    label = Property.getSliceLabel();
+	    // label="ROI_"+i; 
 	    label = replace(label, TMP_IMAGE_PREFIX +"_", "");
 	    Property.setSliceLabel(label);
 	}
@@ -214,7 +216,14 @@ function drawRois(title) {
 	run("Set Measurements...", "area mean min centroid perimeter bounding fit shape redirect=None decimal=3");
 	for (i = 0; i < count; i++) {
 		roiManager("select", i);
-		color = getColor(i, count);
+
+		if(count==1){
+			color = getColor(i+10, count);	
+		}
+		else{	
+			color = getColor(i, count);
+		}	
+		
 		normalizeROI();
 		if (COLOR_SCHEME=="default") {
 			Roi.setStrokeColor(color[0],color[1],color[2]);
@@ -295,6 +304,10 @@ function getColorRGB(index, count) {
 	blues = newArray(256);
 	/** Look for values of Look Up Table **/
 	newImage("tmp_lut", "8-bit", 256, 1, 1);
+	
+    // Id_8bits_Pallete = getImageID();
+	// selectImage(Id_8bits_Pallete);
+		
 	run(LOOKUPTABLE);
 	getLut(reds, greens, blues);
 	close();
@@ -304,7 +317,7 @@ function getColorRGB(index, count) {
 		mappedIndex = (index)%255;
 	}
 	else if (COLOR_SCHEME=="RGB_LUT_Linear"){
-		mappedIndex = (index * stepWidth) % 255;
+		mappedIndex = (stepWidth + (index * stepWidth)) % 255;
 	}
 	else if (COLOR_SCHEME=="RGB_LUT_non-Linear"){
 		mappedIndex = (Math.pow(index * stepWidth,2)) % 255;

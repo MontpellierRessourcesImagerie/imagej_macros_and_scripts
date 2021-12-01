@@ -56,12 +56,12 @@ function getNearestNeighborsAction(){
 }
 
 function exportSpots(baseFolder){
-	Table.save(baseFolder+_TABLE_SPOTS_1,_TABLE_SPOTS_1);
-	Table.save(baseFolder+_TABLE_SPOTS_2,_TABLE_SPOTS_2);
+	Table.save(baseFolder+_TABLE_SPOTS_1+".csv",_TABLE_SPOTS_1);
+	Table.save(baseFolder+_TABLE_SPOTS_2+".csv",_TABLE_SPOTS_2);
 }
 
 function exportNeighbors(baseFolder){
-	Table.save(baseFolder+_TABLE_NEIGHBORS,_TABLE_NEIGHBORS);
+	Table.save(baseFolder+_TABLE_NEIGHBORS+".csv",_TABLE_NEIGHBORS);
 }
 
 function exportResults(baseFolder){
@@ -75,7 +75,7 @@ function exportResultsAction(){
 	Dialog.show();
 	baseFolder = Dialog.getString();
 	
-	getNearestNeighborsAction();
+	//getNearestNeighborsAction();
 	exportResults(baseFolder);
 }
 
@@ -356,7 +356,7 @@ function filterSpots(imageID,voxelWidth,voxelHeight,voxelDepth) {
 /***	****	***/
 /***	Temp	***/
 /***	****	***/
-
+/*
 macro "Get Gaussian"{
 	getGaussian();
 }
@@ -384,6 +384,7 @@ function getGaussian(){
 	}
 	print(Fit.f(150));
 }
+*/
 
 macro "Make Final Table"{
 	makeFinalTableAction();
@@ -741,7 +742,7 @@ function exportSpotsToNaparIO(baseFolder,configString){
 		}else{
 			tableName = _TABLE_SPOTS_2;
 		}
-		layerName = "tmpSpots "+i;
+		layerName = tableName;
 		fileName = layerName+".csv";
 		makeSpotsCSV(baseFolder,fileName,tableName);
 		configString = addLayerToConfig(configString,layerName,fileName,"points",_POINTS_COLORS[i]);		
@@ -761,10 +762,45 @@ function makeSpotsCSV(baseFolder,fileName,tableName){
 }
 
 function exportLinesToNaparIO(baseFolder,configString){
-	print("Lines to NaparIO");
+	j_getPairsCloserAction();
+	tableName = "Pairs Coords";
 	
+	layerName = tableName;
+	fileName = layerName+".csv";
+	makeLinesCSV(baseFolder,fileName,tableName);
+	configString = addLayerToConfig(configString,layerName,fileName,"shapes","magenta");		
+
 	return configString;
+}
+
+
+function makeLinesCSV(baseFolder,fileName,tableName){
+	selectWindow(tableName);
 	
+	prepareTableForPairExport(true);
+	Table.create("Line-Results");
+	for (i = 0; i < nResults(); i++) {
+		for(lineStep = 0 ;lineStep <2 ;lineStep++){
+			lineIndex = 2*i + lineStep;
+			stepLeter = "";
+			if(lineStep %2 == 0){
+				stepLeter = "A";	
+			}else{
+				stepLeter = "B";
+			}
+			X = Table.get("x"+stepLeter,i,"Results");
+			Y = Table.get("y"+stepLeter,i,"Results");
+			Z = Table.get("z"+stepLeter,i,"Results");
+			
+			Table.set("index", lineIndex, i,"Line-Results");
+			Table.set("shape-type", lineIndex, "line","Line-Results");
+			Table.set("vertex-index", lineIndex, lineStep,"Line-Results");
+			Table.set("axis-0",lineIndex,Z,"Line-Results");
+			Table.set("axis-1",lineIndex,Y,"Line-Results");
+			Table.set("axis-2",lineIndex,X,"Line-Results");	
+		}
+	}
+	Table.save(baseFolder+fileName,"Line-Results");
 }
 
 
