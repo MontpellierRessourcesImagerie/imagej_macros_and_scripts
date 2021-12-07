@@ -121,6 +121,9 @@ def getArgumentParser():
 	parser.add_argument("--projectionMosaicRGB",default=False,action='store_true',help='export the projection of mosaics RGB')
 	parser.add_argument("--channelRGB",default="0000",help='Each character is a flag to export a channel, from left to right (1,2,3,4)')
 
+	parser.add_argument("--overlap", default=20, type=int, help='Percentge of overlap between the tiles')
+	parser.add_argument("--computeOverlap", default=False, action='store_true',help='Compute the overlap or use approximate grid coordinates')
+	
 	parser.add_argument("--normalize", default=False, action='store_true', help='normalize the intensities of the images in a mosaic')
 	parser.add_argument("--fusion-method", default="Linear_Blending", help='the fusion method, "Linear_Blending", "Average", "Median" ,"Max_Intensity", "Min_Intensity" or "random"')
 	parser.add_argument("--regression-threshold", "-r", default=0.3, type=float, help='if the regression threshold between two images after the individual stitching are below that number they are assumed to be non-overlapping')
@@ -292,6 +295,11 @@ class Well(object):
 		srcPath = self.experiment.getPath();
 		if not os.path.exists(srcPath+"/out"):
 			os.mkdir(srcPath+"/out")
+		computeOverlap = params.computeOverlap
+		#computeOverlap = False
+		computeString = ""
+		if computeOverlap:
+			computeString = "compute_overlap "
 		fusionMethod = params.fusion_method
 		if "Max_" in fusionMethod:
 			fusionMethod = fusionMethod.replace("Max_", "Max. ")
@@ -309,7 +317,7 @@ class Well(object):
 					 "regression_threshold=" + str(params.regression_threshold) + " " +\
 					 "max/avg_displacement_threshold=" + str(params.displacement_threshold) + " "+\
 					 "absolute_displacement_threshold=" + str(params.abs_displacement_threshold) + " "+\
-					 "compute_overlap " + \
+					 computeString + \
 					 "subpixel_accuracy " + \
 					 "computation_parameters=[Save computation time (but use more RAM)] " + \
 					 "image_output=[Write to disk] " \
@@ -319,8 +327,10 @@ class Well(object):
 		IJ.run("Grid/Collection stitching", parameters)
 		now = datetime.now().time()
 		print(now)
-		os.remove(srcPath+"/work/TileConfiguration.txt")
-		os.rename(srcPath+"/work/TileConfiguration.registered.txt", srcPath+"/work/TileConfiguration.txt")
+		if computeOverlap:
+			print("Writing new Tile Configuration")
+			os.remove(srcPath+"/work/TileConfiguration.txt")
+			os.rename(srcPath+"/work/TileConfiguration.registered.txt", srcPath+"/work/TileConfiguration.txt")
 		os.remove(srcPath+"/out/img_t1_z1_c1")
 		
 	def executeStitching(self, params, path, newNames=None, outputFolder='out'):
@@ -826,11 +836,6 @@ class Well(object):
 					 "absolute_displacement_threshold=3.50 "
 		if computeOverlap: 
 			parameters = parameters + "compute_overlap "
-		#parameters = parameters + \
-		#			 "subpixel_accuracy " + \
-		#			 "computation_parameters=[Save computation time (but use more RAM)] " + \
-		#			 "image_output=[Write to disk] " \
-		#			 "output_directory=["+outputPath+"] "
 		parameters = parameters + \
 					 "subpixel_accuracy " + \
 					 "computation_parameters=[Save computation time (but use more RAM)] " + \
