@@ -56,7 +56,8 @@ function exportWellNames(inputCSV,outputFile){
 		for(column = columnOffset;column < nbTableColumn-columnOffset;column++){
 			currentValue = Table.getString(tableHeadings[column], row);
 			if(isNotNull(currentValue)){
-				stringToAdd = String.pad(row-rowOffset+1,2)+String.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
+				stringToAdd = IJ.pad(row-rowOffset+1,2)+IJ.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
+				//stringToAdd = String.pad(row-rowOffset+1,2)+String.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
 				wellNamesContent = wellNamesContent + stringToAdd;
 			}
 		}
