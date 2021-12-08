@@ -26,6 +26,7 @@ var _MERGE_CHANNELS = true;
 var _DO_MIP = false;
 var _ZSLICE = 0;
 var _CHANNEL = 1;
+var _COMPUTE_OVERLAP = true;
 var _FUSION_METHODS = newArray("Linear_Blending", "Average", "Median", "Max_Intensity", "Min_Intensity", "random");
 var _FUSION_METHOD = "Linear_Blending";
 var _REGRESSION_THRESHOLD = 0.30;
@@ -150,6 +151,7 @@ function launchExport() {
 	if(channelSelected)	options = options+ " --channelRGB="+tmp;
 	
 	if (_NORMALIZE) options = options + " --normalize";
+	if (_COMPUTE_OVERLAP) options = options + " --computeOverlap";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
 	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
 	options = options + " --displacement-threshold=" + _DISPLACEMENT_THRESHOLD;
@@ -216,6 +218,7 @@ function setOptions() {
 	
 	Dialog.addMessage("Image correction/normalization:",14);
 	Dialog.addNumber("pseudo flat field radius (0 = off): ", _PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addToSameRow();
 	Dialog.addNumber("rolling ball radius (0 = off): ", _ROLLING_BALL_RADIUS);
 	Dialog.addCheckbox("normalize", _NORMALIZE);
 	Dialog.addNumber("find background radius (0 = off): ", _FIND_AND_SUB_BACK_RADIUS);
@@ -226,9 +229,12 @@ function setOptions() {
 	Dialog.addNumber("find background skip limit: ", _FIND_AND_SUB_BACK_SKIP);
 	
 	Dialog.addMessage("Fusion parameters:",14);
+	Dialog.addCheckbox("Compute Overlap", _COMPUTE_OVERLAP);
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
+	Dialog.addToSameRow();
 	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
 	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
+	Dialog.addToSameRow();
 	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
 	Dialog.addMessage("Export Colours:",14);
 
@@ -285,6 +291,7 @@ function setOptions() {
 	_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
 	_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
 
+	_COMPUTE_OVERLAP = Dialog.getCheckbox();
 	_FUSION_METHOD = Dialog.getChoice();
 	_REGRESSION_THRESHOLD = Dialog.getNumber();
 	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
@@ -494,12 +501,8 @@ function getChannelsFromIndex(){
 	indexFile = getIndexFile();
 	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
 	lines = split(content, "\n");
-	found=false;
-	nrCols = 0;
-	nrRows = 0;
 	channels = newArray();
 	
-	//print("Reading indexFile");
 	startMarker = "ChannelName: ";
 	endMarker = ",";
 	for (i = 0; i < lines.length; i++) {
@@ -517,6 +520,24 @@ function getChannelsFromIndex(){
 
 macro "getFlatfieldCoefficients"{
 	getFlatfieldCoefficients(1);
+}
+
+function getDataFromIndex(lineStart,startMarker,endMarker){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	outData = newArray();
+	
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, lineStart)) {
+			startIndex = indexOf(line,startMarker)+startMarker.length;
+			subString = substring(line, startIndex);
+			subString = substring(subString, 0, indexOf(subString,endMarker));
+			outData = Array.concat(outData,subString);
+		}
+	}
+	return outData;
 }
 
 function getFlatfieldCoefficients(channelNumber){
@@ -576,9 +597,12 @@ function correctFlatfield(){
 			close();
 		}
 	}
+
+	channelMeans = getDataFromIndex("<FlatfieldProfile>",", Mean: ",", ");
 	for(chan=1;chan<=nbChannels;chan++){
 		coeffs = getFlatfieldCoefficients(chan);
 		originalBackgroundID = createBackgroundImage(coeffs,imageSize);
+		currentMean = channelMeans[chan-1];
 	    close();
 		for (i = 0; i < lengthOf(filelist); i++) {
 			showProgress(i, lengthOf(filelist));
@@ -599,8 +623,11 @@ function correctFlatfield(){
 				for (y=0; y<imageSize[1]; y++) {
 					for (x=0; x<imageSize[0]; x++){
 						pixel = Table.get("pixelIntensity",tableItt);
-						a = meanI - meanB;
-						b= stdDevI / stdDevB; 
+						a = 0;
+						b= currentMean; 
+						
+						//a = meanI - meanB;
+						//b= stdDevI / stdDevB; 
 						pixelOut = a + (pixel * b);
 						setPixel(x, y, pixelOut);
 						tableItt=tableItt+1;
