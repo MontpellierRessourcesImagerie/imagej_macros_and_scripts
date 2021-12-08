@@ -16,6 +16,7 @@ ip = IJ.getImage()
 title = ip.getTitle()
 width = ip.getWidth()
 height = ip.getHeight()
+cal = ip.getCalibration()
 nip = NewImage.createShortImage(title+"-mask", width, height, ip.getNSlices(), NewImage.FILL_BLACK)
 
 index = 1
@@ -25,14 +26,15 @@ for c in LimeSeg.allCells:
 	LimeSeg.currentCell=c
 	ct = c.getCellTAt(1) 
 	for dn in ct.dots:
-		z = int(round(dn.pos.z))
+		fac = cal.pixelDepth / cal.pixelWidth
+		z = int(round(dn.pos.z/fac)) 
+		print(z)
 		if not z in roisX:
 			roisX[z] = []
 		if not z in roisY:
 			roisY[z] = []	
 		roisX[z].append(dn.pos.x)
 		roisY[z].append(dn.pos.y)
-
 	for key in roisX.keys():
 		roi = PolygonRoi(roisX[key], roisY[key], Roi.POLYGON)
 		roi = PolygonRoi(roi.getConvexHull(), Roi.POLYGON)
