@@ -4,6 +4,15 @@
  * Segment and track the cells. Construct the lineage of the cells. 
  * Measure intensity in the cytoplasm and in the membrane of the cells.
  * 
+ * For the time being these are just some tools on the way to the solution.
+ * 
+ * - export the frames with the "f"-button
+ * - use cellpose in batch mode to segment the cells
+ * - use the r and s button to remove wrongly segmented objects in the empty middle of the cyst
+ * - the p button propagates the labels in time by using the label at the center of the cell in the previous timestep
+ * - the b button calculates the boundaries of the cells
+ * - the l button shrinks the labels 
+ * 
  *  (c) 2021, INSERM
  *  
   * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
@@ -11,6 +20,8 @@
 
 var DIAMETERXY = 30;
 var RADIUSZ = 9;
+var NUMBER_OF_ERODES = 4;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Cyst_Analyzer";
 
 removeLabelsInTheCenterForFrame();
@@ -56,6 +67,39 @@ macro "propagate labels [f8]" {
 	propagateLabels();	
 }
 
+macro "label boundaries [f9]" {
+	calculateLabelBoundaries();
+}
+
+macro "label boundaries (f9) Action Tool - C000T4b12b" {
+	calculateLabelBoundaries();
+}
+
+macro "skrink labels [f10]" {
+	shrinkLabels();	
+}
+
+macro "shrink labels (f10) Action Tool - C000T4b12l" {
+	shrinkLabels();	
+}
+
+function shrinkLabels() {
+	labelImageID = getImageID();
+	calculateLabelBoundaries();
+	boundariesImageID = getImageID();
+	run("16-bit");	
+	run("Macro...", "code=v=(v>0)*65535 stack");
+	imageCalculator("Subtract create stack", labelImageID, boundariesImageID);
+	run("Minimum...", "radius="+NUMBER_OF_ERODES+" stack");
+	selectImage(boundariesImageID);
+	close();
+}
+
+function calculateLabelBoundaries() {
+	getDimensions(width, height, channels, slices, frames);
+	run("Label Boundaries");
+	run("Stack to Hyperstack...", "order=xyczt(default) channels="+channels+" slices="+slices+" frames="+frames+" display=Color");
+}
 
 function exportFrames() {
 	path = getDir("Select the output-folder!");
