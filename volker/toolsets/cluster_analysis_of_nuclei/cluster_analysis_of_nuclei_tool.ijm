@@ -22,6 +22,7 @@ var _CHANNEL = "DAPI";
 var _OUT_FOLDER = "control";
 var _SAVE_CONTROL_IMAGE = true;
 var _SAVE_CONTROL_SNAPSHOT = false;
+var _NO_DETECTION = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Cluster-Analysis-of-Nuclei-Tool";
 
@@ -43,8 +44,11 @@ macro "cluster nuclei (f5) Action Tool - C000T4b12c" {
 
 macro "cluster nuclei (f5) Action Tool Options" {
 	 Dialog.create("Cluster Nuclei Options");
+	 Dialog.addMessage("Detection");
 	 Dialog.addNumber("sigma of gaussian filter: ", _SIGMA);
 	 Dialog.addNumber("noise: ", _NOISE);
+	 Dialog.addCheckbox("no detection", _NO_DETECTION);
+	 Dialog.addMessage("Clustering");
 	 Dialog.addNumber("threshold: ", _THRESHOLD);
 	 Dialog.addNumber("max. dist: ", _MAX_DIST);
 	 Dialog.addNumber("min. pts.: ", _MIN_PTS);
@@ -53,6 +57,7 @@ macro "cluster nuclei (f5) Action Tool Options" {
 	 
 	 _SIGMA = Dialog.getNumber();	
 	 _NOISE = Dialog.getNumber();	
+	 _NO_DETECTION = Dialog.getCheckbox();
 	 _THRESHOLD = Dialog.getNumber();	
 	 _MAX_DIST = Dialog.getNumber();	
 	 _MIN_PTS = Dialog.getNumber();	
@@ -86,7 +91,7 @@ macro "select clustered nuclei [f9]" {
 	selectAllClustered();
 }
 
-macro "select unclustered nuclei (f9) Action Tool - C037T1d13sT9d13cC555" {
+macro "select clustered nuclei (f9) Action Tool - C037T1d13sT9d13cC555" {
 	selectAllClustered();
 }
 
@@ -117,18 +122,24 @@ macro "run batch (f10) Action Tool Options" {
 function clusterNuclei(batch) {
 	run("Set Measurements...", "area mean standard modal min centroid center integrated display redirect=None decimal=3");
 	if (!batch) setBatchMode(true);
-	run("Duplicate...", " ");
-	run("Gaussian Blur...", "sigma=" + _SIGMA);
-	run("Find Maxima...", "noise="+_NOISE+" output=[Point Selection] exclude");
-	run("Clear Results");
-	run("Measure");
-	
+	if (!_NO_DETECTION) {
+		run("Duplicate...", " ");
+		run("Gaussian Blur...", "sigma=" + _SIGMA);
+		run("Find Maxima...", "noise="+_NOISE+" output=[Point Selection] exclude");
+		run("Clear Results");
+		run("Measure");
+		close();
+	}
 	xCoordinates = newArray();
 	yCoordinates = newArray();
-	
+
+	threshold = _THRESHOLD;
+	headings = Table.headings("Results");
+	index = indexOf(headings, "Mean");
+	if (index==-1) threshold = -99999999;
 	for(i=0; i<nResults; i++) {
 		mean = getResult("Mean", i);
-		if (mean>_THRESHOLD) {
+		if (mean>threshold) {
 			x = getResult("X", i);
 			y = getResult("Y", i);
 			xCoordinates = Array.concat(xCoordinates, x);
@@ -136,7 +147,6 @@ function clusterNuclei(batch) {
 		}
 	}
 	
-	close();
 	if (!batch) setBatchMode(false);
 	makeSelection("point",xCoordinates,yCoordinates);
 	roiManager("reset");
