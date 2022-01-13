@@ -381,6 +381,8 @@ function loadWellNames(){
 
 function renameWells() {
 	_OPERA_INDEX_FILE = getIndexFile();
+	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+	
 	_WELLS = getWells();
 	wells = _WELLS;
 
@@ -388,7 +390,7 @@ function renameWells() {
 
 	Dialog.create("Rename Wells");
 	lastRow = "00";
-	for(i=0;i<_WELLS.length;i++){
+	for(i=0;i<wells.length;i++){
 		well = wells[i];
 		row = substring(well, 0, 2);  
 		if (row==lastRow) {
@@ -402,7 +404,7 @@ function renameWells() {
 
 	path = baseDir + _WELLS_NAMES_FILE;
 	File.delete(baseDir + _WELLS_NAMES_FILE);
-	for(i=0;i<_WELLS.length;i++){
+	for(i=0;i<wells.length;i++){
 		well = wells[i];
 		_WELLS_NAMES[i] = Dialog.getString();
 		File.append(""+well+":"+_WELLS_NAMES[i]+"", path);
