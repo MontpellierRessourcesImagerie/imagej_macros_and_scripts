@@ -121,9 +121,7 @@ def getArgumentParser():
 	parser.add_argument("--projectionMosaicRGB",default=False,action='store_true',help='export the projection of mosaics RGB')
 	parser.add_argument("--channelRGB",default="0000",help='Each character is a flag to export a channel, from left to right (1,2,3,4)')
 
-	parser.add_argument("--overlap", default=20, type=int, help='Percentge of overlap between the tiles')
 	parser.add_argument("--computeOverlap", default=False, action='store_true',help='Compute the overlap or use approximate grid coordinates')
-	
 	parser.add_argument("--normalize", default=False, action='store_true', help='normalize the intensities of the images in a mosaic')
 	parser.add_argument("--fusion-method", default="Linear_Blending", help='the fusion method, "Linear_Blending", "Average", "Median" ,"Max_Intensity", "Min_Intensity" or "random"')
 	parser.add_argument("--regression-threshold", "-r", default=0.3, type=float, help='if the regression threshold between two images after the individual stitching are below that number they are assumed to be non-overlapping')
