@@ -8,6 +8,7 @@ files = getFileList(dir);
 folders = filterFolders(files);
 Array.print(folders);
 for (i = 0; i < folders.length; i++) {
+	showProgress(i+1, folders.length);
 	folder = dir + folders[i] + SUBFOLDER;
 	File.makeDirectory(destDir + "/" + folders[i]);
 	files = getFileList(folder);
