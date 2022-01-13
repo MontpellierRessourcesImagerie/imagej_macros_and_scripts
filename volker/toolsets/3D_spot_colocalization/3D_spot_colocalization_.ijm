@@ -1,3 +1,6 @@
+var _COLORS = newArray("magenta","cyan","yellow","red","green","blue","orange","brown","white");
+var _POINTS_COLORS = newArray("inferno","viridis");
+
 var _NUCLEUS_CHANNEL = 1;
 var _SPOTS1_CHANNEL = 2;
 var _SPOTS2_CHANNEL = 3;
@@ -9,12 +12,12 @@ var _RADIUS_Z = newArray(0.4,0.5);
 var _NOISE = newArray(20,20);
 
 //<Name of the channel> Spots
-var _TABLE_SPOTS_1 = "SC1";
-var _TABLE_SPOTS_2 = "SC2";
-var _TABLE_NEIGHBORS = "Final Table";
+var _TABLE_SPOTS_1 = "C"+_SPOTS1_CHANNEL+"-Spots";
+var _TABLE_SPOTS_2 = "C"+_SPOTS2_CHANNEL+"-Spots";
+var _TABLE_NEIGHBORS = "Neighbors";
 
-var _J_TABLE_A = "SC1";
-var _J_TABLE_B = "SC2";
+var _J_TABLE_A = _TABLE_SPOTS_1;
+var _J_TABLE_B = _TABLE_SPOTS_2;
 
 var _J_ACTIONS = newArray("DistanceMatrix",
 						"CumulatedNeighbors",
@@ -22,7 +25,8 @@ var _J_ACTIONS = newArray("DistanceMatrix",
 						"CountCloserNeighbors",
 						"GetCloserPairs",
 						"GetNearestNeighbors",
-						"GetMeanDistances"
+						"GetMeanDistances",
+						"CalculateRipley"
 						);
 
 var _J_MORE_ARGS = newArray("", //Get Distance Matrix
@@ -31,42 +35,46 @@ var _J_MORE_ARGS = newArray("", //Get Distance Matrix
 							"1",	//Count Neighbors Closer
 							"0.52",//Get Pairs Close
 							"",
-							""); 
+							"",
+							""
+							); 
+
+var _VOLUME_NUCLEI = -1;
+var _VOLUME_CYTOPLASM = -1;
 
 
 macro "Get Spots Outside of Nucleus Action Tool - C000T4b12S"{
 	getSpotsOutsideOfNucleusAction();
+	sendPointsToNapari();
 }
 
 macro "Get Spots Outside of Nucleus Action Tool Options"{
-	showConfigDialog();
+	showSpotsConfigDialog();
 }
 
 macro "Get Nearest Neighbors Action Tool - C000T4b12N "{
+	j_calculateRipleyAction();
+	radius = findColocThreshold("Ripley's Table");
+	_J_MORE_ARGS[4] = radius;
 	getNearestNeighborsAction();
+	neighborsTableA = "Nearest Neighbors "+_TABLE_SPOTS_1+">"+_TABLE_SPOTS_2;
+	neighborsTableB = "Nearest Neighbors "+_TABLE_SPOTS_2+">"+_TABLE_SPOTS_1;
+	countColocs(neighborsTableA,neighborsTableB,radius);
+	sendDistancesToNapari();
+}
+
+macro "Get Nearest Neighbors Action Tool Options "{
+	showNeighborsConfigDialog();
 }
 
 macro "Export Results Action Tool - C000T4b12E "{
+	
 	exportResultsAction();
 }
 
 function getNearestNeighborsAction(){
-	getSpotsOutsideOfNucleusAction();
-	makeFinalTableAction();
-}
-
-function exportSpots(baseFolder){
-	Table.save(baseFolder+_TABLE_SPOTS_1+".csv",_TABLE_SPOTS_1);
-	Table.save(baseFolder+_TABLE_SPOTS_2+".csv",_TABLE_SPOTS_2);
-}
-
-function exportNeighbors(baseFolder){
-	Table.save(baseFolder+_TABLE_NEIGHBORS+".csv",_TABLE_NEIGHBORS);
-}
-
-function exportResults(baseFolder){
-	exportSpots(baseFolder);
-	exportNeighbors(baseFolder);
+	//getSpotsOutsideOfNucleusAction();
+	makeNeighborsTableAction();
 }
 
 function exportResultsAction(){
@@ -75,16 +83,43 @@ function exportResultsAction(){
 	Dialog.show();
 	baseFolder = Dialog.getString();
 	
-	//getNearestNeighborsAction();
 	exportResults(baseFolder);
 }
 
-macro "Unused Tool-1 - " {}  // leave empty slot
+function exportResults(baseFolder){
+	exportTable(baseFolder,_TABLE_SPOTS_1);
+	exportTable(baseFolder,_TABLE_SPOTS_2);
+	exportTable(baseFolder,_TABLE_NEIGHBORS);
+}
+
+function exportTable(baseFolder,tableName){
+	Table.save(baseFolder+tableName+".csv",tableName);
+}
+
+macro "Unused Tool 0 - " {}  // leave empty slot
+
+var cmdSendToNapari = newArray("Send Everything",
+					"--",
+					"Send Active Image", 
+					"Send Spots", 
+					"Send Neighbors Lines"
+					);
+var menuSpots = newMenu("Send to Napari Menu Tool", cmdSendToNapari);
+macro "Send to Napari Menu Tool - C000T4b12^"{
+	label = getArgument();
+	if(label == cmdSendToNapari[0])	sendEverythingToNapari();
+	if(label == cmdSendToNapari[2])	sendImageToNapari();
+	if(label == cmdSendToNapari[3])	sendPointsToNapari();
+	if(label == cmdSendToNapari[4])	sendDistancesToNapari();
+}
+
+macro "Unused Tool 1 - " {}  // leave empty slot
 
 var cmdSpots = newArray("Get Spots Outside of Nucleus",
 					"Open Settings Dialog",
 					"--",
-					"Segment Nucleus", 
+					"Segment Nucleus",
+					"Segment Cytoplasm",
 					"Detect Spots", 
 					"Remove Spots in Nucleus", 
 					"Filter spots in RT"
@@ -93,12 +128,12 @@ var menuSpots = newMenu("Get Spots Outside of Nucleus Menu Tool", cmdSpots);
 macro "Get Spots Outside of Nucleus Menu Tool - C000T4b12S"{
 	label = getArgument();
 	if(label == cmdSpots[0])	getSpotsOutsideOfNucleusAction();
-	if(label == cmdSpots[1])	showConfigDialog();
+	if(label == cmdSpots[1])	showSpotsConfigDialog();
 	if(label == cmdSpots[3])	segmentNucleus(_NUCLEUS_CHANNEL);
-	if(label == cmdSpots[4])	detectSpotsAction();
-	if(label == cmdSpots[5])	removeSpotsInNucleusAction();
-	if(label == cmdSpots[6])	filterSpotsAction();
-	
+	if(label == cmdSpots[4])	segmentCytoplasm(3);
+	if(label == cmdSpots[5])	detectSpotsAction();
+	if(label == cmdSpots[6])	removeSpotsInNucleusAction();
+	if(label == cmdSpots[7])	filterSpotsAction();
 }
 						
 var cmdJython = newArray("Execute Jython",
@@ -110,7 +145,8 @@ var cmdJython = newArray("Execute Jython",
 					"Count Neighbors Closer", 
 					"Get Pairs Closer",
 					"Get Nearest Neighbors",
-					"Get Mean Distances"
+					"Get Mean Distances",
+					"Calculate Ripley"
 					);
 var menuJython = newMenu("Execute Jython Menu Tool", cmdJython);
 macro "Execute Jython Menu Tool - C000T4b12P"{
@@ -124,12 +160,11 @@ macro "Execute Jython Menu Tool - C000T4b12P"{
 	if(label == cmdJython[7])	j_getPairsCloserAction();
 	if(label == cmdJython[8])	j_getNearestNeighborsAction();
 	if(label == cmdJython[9])	j_getMeanDistancesAction();
+	if(label == cmdJython[10])	j_calculateRipleyAction();
 }
 
-macro "unused Tool - " {}  // leave empty slot
-
-macro "Prepare Table for Napari Action Tool - C000T4b12p"{
-	Dialog.create("Prepare Table for Napari");
+macro "Prepare Spots Table for Napari"{
+	Dialog.create("Prepare Spots Table for Napari");
 
 	Dialog.addCheckbox("Are initial coords in microns",true);
 
@@ -162,18 +197,22 @@ macro "Prepare Table for Napari Action Tool - C000T4b12p"{
 	prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vHeader);
 }
 
-macro "TEMP Action Tool - C000 T0b09T T3b09m Tcb09p"{
-	prepareTableForPairExport(true);
+macro "Prepare Distances Table for Napari"{
+	prepareTableForPairExport(true,"");
 }
+
 
 /***	****	***/
 /***  getSpots	***/
 /***	****	***/
 function getSpotsOutsideOfNucleusAction(){
 	getSpotsOutsideOfNucleus(_SPOTS1_CHANNEL,_NUCLEUS_CHANNEL,0);
-	Table.rename("Results", "SC1");
+	if(isOpen(_TABLE_SPOTS_1)){	close(_TABLE_SPOTS_1);}
+	Table.rename("Results", _TABLE_SPOTS_1);
+	
 	getSpotsOutsideOfNucleus(_SPOTS2_CHANNEL,_NUCLEUS_CHANNEL,1);
-	Table.rename("Results", "SC2");
+	if(isOpen(_TABLE_SPOTS_2)){	close(_TABLE_SPOTS_2);}
+	Table.rename("Results", _TABLE_SPOTS_2);
 }
 
 function detectSpotsAction(){
@@ -256,6 +295,12 @@ function j_getMeanDistancesAction(){
 	runJython(_J_ACTIONS[6],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[6]);
 }
 
+function j_calculateRipleyAction(){
+	_VOLUME_CYTOPLASM = calculateCytoplasmVolume();
+	_VOLUME_NUCLEI = calculateNucleiVolume();
+	runJython(_J_ACTIONS[7],_J_TABLE_A,_J_TABLE_B,_VOLUME_CYTOPLASM - _VOLUME_NUCLEI);
+}
+
 /***	****	****	***/
 /***  GetSpots Analysis	***/
 /***	****	****	***/
@@ -265,16 +310,24 @@ function getSpotsOutsideOfNucleus(spotsChannel,nucleusChannel,paramID){
 	
 	getVoxelSize(width, height, depth, unit);
 	nucleusMask = segmentNucleus(nucleusChannel);
-
+	
+	selectImage(inputImageID);
+	cytoplasmMask = segmentCytoplasm(spotsChannel);
+	
 	selectImage(inputImageID);
 	detectSpots(spotsChannel, paramID);
 	spots = getImageID();
 	
-	maskedSpots = removeSpotsInNucleus(spots,nucleusMask);
+	maskedNucleiSpots = removeSpotsInNucleus(spots,nucleusMask);
+	maskedSpots = removeSpotsInNucleus(maskedNucleiSpots,cytoplasmMask);
 	
 	selectImage(spots);
 	close();
+	selectImage(maskedNucleiSpots);
+	close();
 	selectImage(nucleusMask);
+	close();
+	selectImage(cytoplasmMask);
 	close();
 
 	filterSpots(maskedSpots,width, height, depth);
@@ -287,6 +340,34 @@ function segmentNucleus(channel) {
 	maskID = getImageID();
 	setOption("BlackBackground", false);
 	run("Convert to Mask", "method=Default background=Dark");
+	return maskID;
+}
+
+function segmentCytoplasm(channel) {
+	run("Duplicate...", "duplicate channels="+channel+"-"+channel);
+	maskID = getImageID();
+	setOption("BlackBackground", false);
+	run("Convert to Mask", "method=Percentile background=Default calculate");
+	for (i = 1; i <= nSlices; i++) {
+	    setSlice(i);
+		run("Analyze Particles...", "size=10000-Infinity pixel add slice");
+		if (roiManager("count")>1){
+			print("Multiple Particles for only one slice");
+		}
+		roiManager("select", 0);
+
+		run("Create Mask");	
+		run("Select All");
+		run("Copy");
+		close();
+		selectImage(maskID);
+		run("Paste");
+		roiManager("delete");
+		if(roiManager("count")>1){
+			roiManager("delete");
+		}
+	}
+	run("Invert","stack");
 	return maskID;
 }
 
@@ -356,53 +437,23 @@ function filterSpots(imageID,voxelWidth,voxelHeight,voxelDepth) {
 /***	****	***/
 /***	Temp	***/
 /***	****	***/
-/*
-macro "Get Gaussian"{
-	getGaussian();
+
+macro "Make Neighbors Table"{
+	makeNeighborsTableAction();
 }
 
-function getGaussian(){
-	tableName="Nearest Neighbors SC2>SC1";
-	distanceColumn = "Distance";
-	Table.sort(distanceColumn,tableName);
-	distances = Table.getColumn(distanceColumn);
-	Fit.doFit('Gaussian',Array.getSequence(distances.length),distances);
-	Fit.plot()
-	center = Fit.p(2);
-	sigma = Fit.p(3);
-	nSteps = 32
-	Table.create("G_Outb2");
-	for(i=0;i<nSteps;i++){
-		thresholdX = center - (i * sigma);
-		thresholdY = Fit.f(thresholdX);
-		Table.set("i",i,i);
-		Table.set("C - i*Sigma",i,thresholdX);
-		Table.set("f(C - i*Sigma)",i,thresholdY);
-		print("ThresholdX = C - "+i+" * sigma = "+thresholdX);
-		print("ThresholdY = f("+thresholdX+") = "+thresholdY);
-		print("");
-	}
-	print(Fit.f(150));
-}
-*/
-
-macro "Make Final Table"{
-	makeFinalTableAction();
-}
-
-function makeFinalTableAction(){
-	
+function makeNeighborsTableAction(){
 	runJython(_J_ACTIONS[5],_J_TABLE_A,_J_TABLE_B,_J_MORE_ARGS[5]);
-	tableA = "Nearest Neighbors SC1>SC2";
-	tableB = "Nearest Neighbors SC2>SC1";
-	makeFinalTable(tableA,tableB);
+	tableA = "Nearest Neighbors "+_TABLE_SPOTS_1+">"+_TABLE_SPOTS_2;
+	tableB = "Nearest Neighbors "+_TABLE_SPOTS_2+">"+_TABLE_SPOTS_1;
+	makeNeighborsTable(tableA,tableB);
 }
 
 //A means from A to B
 //B means from B to A
-function makeFinalTable(tableA,tableB){
-	finalTable = "Final Table";
-	Table.create(finalTable);
+function makeNeighborsTable(tableA,tableB){
+	neighborsTable = _TABLE_NEIGHBORS;
+	Table.create(neighborsTable);
 
 	nbPointsA = Table.size(tableA);
 	nbPointsB = Table.size(tableB);
@@ -442,42 +493,29 @@ function makeFinalTable(tableA,tableB){
 		distanceB = Array.deleteIndex(distanceB,duplicates[t]-t);
 		nearestOf = Array.deleteIndex(nearestOf,nbPointsA+duplicates[t]-t);
 	 }
-	
-
 	nbPointsA = Table.size(tableA);
-	nbPointsB = Table.size(tableB);
 	
 	for(i=0;i<nearestOf.length;i++){
 		if(i<nbPointsA){
 			indexA = i;
-			Table.set("ID A", i, itselfA[indexA],finalTable);
-			Table.set("ID B", i, neighborsA[indexA],finalTable);
-			
-			Table.set("Distance", i, distanceA[indexA],finalTable);
-			
+			Table.set("ID A", i, itselfA[indexA],neighborsTable);
+			Table.set("ID B", i, neighborsA[indexA],neighborsTable);
+			Table.set("Distance", i, distanceA[indexA],neighborsTable);
 		}else{
 			indexB = i-nbPointsA;
-			Table.set("ID A", i, neighborsB[indexB],finalTable);
-			Table.set("ID B", i, itselfB[indexB],finalTable);
-			
-			Table.set("Distance", i, distanceB[indexB],finalTable);
-			
+			Table.set("ID A", i, neighborsB[indexB],neighborsTable);
+			Table.set("ID B", i, itselfB[indexB],neighborsTable);
+			Table.set("Distance", i, distanceB[indexB],neighborsTable);
 		}
-		Table.set("Nearest neighbor of A", i, nearestOf[i].contains("a") ,finalTable);
-		Table.set("Nearest neighbor of B", i, nearestOf[i].contains("b")  ,finalTable);
+		Table.set("Nearest neighbor of A", i, nearestOf[i].contains("a") ,neighborsTable);
+		Table.set("Nearest neighbor of B", i, nearestOf[i].contains("b")  ,neighborsTable);
 	}
 	
 }
 
-macro "Send Active Image to Napari Action Tool - C000 T6b12I"{
+function sendEverythingToNapari(){
 	sendImageToNapari();
-}
-
-macro "Send Spots to Napari Action Tool - C000 T6b12S"{
 	sendPointsToNapari();
-}
-
-macro "Send Neighbors to Napari Action Tool - C000 T6b12N"{
 	sendDistancesToNapari();
 }
 
@@ -486,19 +524,22 @@ function sendImageToNapari(){
 }
 
 function sendPointsToNapari(){
-	headers = Table.headings();
-	headings = split(headers,"\t");
-	Table.deleteColumn(headings[5],_TABLE_SPOTS_1);
-	Table.deleteColumn(headings[6],_TABLE_SPOTS_1);
-	Table.deleteColumn(headings[7],_TABLE_SPOTS_1);
-	Table.deleteColumn(headings[5],_TABLE_SPOTS_2);
-	Table.deleteColumn(headings[6],_TABLE_SPOTS_2);
-	Table.deleteColumn(headings[7],_TABLE_SPOTS_2);
+	removeMicronsFromPointsTable(_TABLE_SPOTS_1,"X","Y","Z");
+	removeMicronsFromPointsTable(_TABLE_SPOTS_2,"X","Y","Z");
+	
 	sendToNapari("sendPoints",_TABLE_SPOTS_1,_TABLE_SPOTS_2);
+
+	addMicronsToPointsTable(_TABLE_SPOTS_1,"X","Y","Z");
+	Table.update(_TABLE_SPOTS_1);
+	addMicronsToPointsTable(_TABLE_SPOTS_2,"X","Y","Z");
+	Table.update(_TABLE_SPOTS_2);
 }
 
 function sendDistancesToNapari(){
-	sendToNapari("sendLines",_TABLE_NEIGHBORS);
+	j_getPairsCloserAction();
+	tableName = "Pairs Coords";
+	prepareTableForPairExport(true,tableName);
+	sendToNapari("sendLines",tableName,"");
 }
 
 
@@ -514,6 +555,116 @@ function sendToNapari(action,table1,table2){
 /***	****	***/
 /***	Misc	***/
 /***	****	***/
+
+macro "FindColocThreshold"{
+	findColocThreshold("Ripley's Table");
+}
+
+function findColocThreshold(table){
+	tableLength = Table.size(table);
+	firstRadiusUnder = -1;
+	alreadyUnder = false;
+	for(idx=0;idx<tableLength;idx++){
+		currentRadius = Table.get("Radius", idx,table);
+		currentL = Table.get("Ripley's L", idx,table);
+		if(currentL <= 0){
+			if(!alreadyUnder){
+				alreadyUnder = true;
+				firstRadiusUnder = currentRadius;
+			}
+		}
+		if(currentL > 0){
+			alreadyUnder = false;
+		}
+		print(currentRadius+" : "+currentL+" >>> "+alreadyUnder);
+	}
+	print(firstRadiusUnder);
+	return firstRadiusUnder;
+}
+
+macro "TMP"{
+	print("Total Image Volume	: "+calculateImageVolume());
+	print("Nuclei Volume		: "+calculateNucleiVolume());
+	print("Cytoplasm Volume		: "+calculateCytoplasmVolume());
+}
+
+macro "TMP-2"{
+	neighborsTableA = "Nearest Neighbors "+_TABLE_SPOTS_1+">"+_TABLE_SPOTS_2;
+	neighborsTableB = "Nearest Neighbors "+_TABLE_SPOTS_2+">"+_TABLE_SPOTS_1;
+	radius = findColocThreshold("Ripley's Table");
+	countColocs(neighborsTableA,neighborsTableB,radius);
+}
+
+function countColocs(neighborsTableA,neighborsTableB,radius){
+	tableA = neighborsTableA;
+	tableB = neighborsTableB;
+
+	Table.sort("Distance",tableA);
+	Table.sort("Distance",tableB);
+
+	countColocA = 0;
+	countColocB = 0;
+
+	for(i=0;i<Table.size(tableA);i++){
+		if(Table.get("Distance", i,tableA)>radius){
+			countColocA = i;
+			break;
+		}
+	}
+	
+	for(i=0;i<Table.size(tableB);i++){
+		if(Table.get("Distance", i,tableB)>radius){
+			countColocB = i;
+			break;
+		}
+	}
+	
+	print("Coloc from "+_TABLE_SPOTS_1+">"+_TABLE_SPOTS_2+" : "+countColocA+" / "+Table.size(tableA));
+	print("Coloc from "+_TABLE_SPOTS_2+">"+_TABLE_SPOTS_1+" : "+countColocB+" / "+Table.size(tableB));	
+}
+
+function calculateNucleiVolume(){
+	if(isOpen("Results")){
+		selectWindow("Results");
+		close();
+	}
+	segmentNucleus(_NUCLEUS_CHANNEL);
+	run("Measure Stack...");
+	run("Summarize");
+	volumeN = getResult("Mean", nSlices);
+	run("Close");
+	run("Close");
+	return volumeN/255 * calculateImageVolume();
+}
+
+function calculateCytoplasmVolume(){
+	if(isOpen("Results")){
+		selectWindow("Results");
+		close();
+	}
+	segmentCytoplasm(_SPOTS1_CHANNEL);
+	run("Measure Stack...");
+	run("Summarize");
+	volumeS1 = getResult("Mean", nSlices);
+	run("Close");
+	run("Close");
+	segmentCytoplasm(_SPOTS2_CHANNEL);
+	run("Measure Stack...");
+	run("Summarize");
+	volumeS2 = getResult("Mean", nSlices);
+	run("Close");
+	run("Close");
+	volumeS = 255-((volumeS1+volumeS2)/2); 
+	return volumeS/255 * calculateImageVolume();
+}
+
+function calculateImageVolume(){
+	getVoxelSize(width, height, depth, unit);
+	getDimensions(widthP, heightP, a, depthP, b);
+	return width * widthP * height * heightP * depth * depthP;
+}
+
+
 function runJython(action,table1,table2,matrixTable){
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/3D_spot_nearest_neighbor.py");
@@ -555,13 +706,16 @@ function prepareTableForNapariExport(transformToPixel,xHeader,yHeader,zHeader,vH
 }
 
 
-function prepareTableForPairExport(transformToPixel){
-	inTable = Table.title();
-	headings = Table.headings
+function prepareTableForPairExport(transformToPixel,tableName){
+	inTable = tableName;
+	if(tableName == ""){
+		inTable = Table.title();
+	}
+	headings = Table.headings(inTable);
 	tableHeader = split(headings,"\t");
 	
-	outTable = "Results";
-	if(inTable ==outTable){
+	outTable = "tmpRes";
+	if(inTable == outTable){
 		Table.rename(inTable, inTable+"-1");
 		inTable = Table.title();
 	}
@@ -591,10 +745,57 @@ function prepareTableForPairExport(transformToPixel){
 			}
 			Table.set(tableHeader[h], row, currentVal, outTable);
 		}
+		Table.set("_", row, row, outTable);
+	}
+	close(inTable);
+	Table.rename(outTable,inTable);
+	Table.update();
+	
+}
+
+macro "AddMicrons"{
+	xhead = "X";
+	yhead = "Y";
+	zhead = "Z";
+	inTable = "SC1"
+	addMicronsToPointsTable(inTable,xhead,yhead,zhead)
+}
+
+macro "RemoveMicrons"{
+	xhead = "X";
+	yhead = "Y";
+	zhead = "Z";
+	inTable = "SC1"
+	removeMicronsFromPointsTable(inTable,xhead,yhead,zhead)
+}
+
+function addMicronsToPointsTable(inTable,xHeader,yHeader,zHeader){
+	getVoxelSize(width, height, depth, unit);
+	
+	count = Table.size(inTable);
+	for (i = 0; i < count; i++) {
+		x = Table.get(xHeader, i,inTable) * width;
+		y = Table.get(yHeader, i,inTable) * height;
+		z = Table.get(zHeader, i,inTable) * depth;
+		print(x+"-"+y+"-"+z);
+		Table.set(xHeader+" (microns)", i, x, inTable);
+		Table.set(yHeader+" (microns)", i, y, inTable);
+		Table.set(zHeader+" (microns)", i, z, inTable);
 	}
 }
 
-function showConfigDialog(){
+function removeMicronsFromPointsTable(inTable,xHeader,yHeader,zHeader){
+	strHeads = Table.headings(inTable);
+	heads = split(strHeads,"\t");
+	for(i=0;i<heads.length;i++){
+		if(heads[i]==xHeader+" (microns)"){	Table.deleteColumn(xHeader+" (microns)",inTable);}
+		if(heads[i]==yHeader+" (microns)"){	Table.deleteColumn(yHeader+" (microns)",inTable);}
+		if(heads[i]==zHeader+" (microns)"){	Table.deleteColumn(zHeader+" (microns)",inTable);}
+	}
+}
+
+
+function showSpotsConfigDialog(){
 	Dialog.create("Get Spots Options");
 	
 	addChannelsDialog();
@@ -604,6 +805,16 @@ function showConfigDialog(){
 
 	getChannelsDialog();
 	getDetectSpotDialog();
+}
+
+function showNeighborsConfigDialog(){
+	Dialog.create("Get Neighbors Options");
+
+	addNeighborsDialog();
+
+	Dialog.show();
+
+	getNeighborsDialog();
 }
 
 function showJythonConfigDialog(){
@@ -688,9 +899,19 @@ function getPointsTablesDialog(){
 	_J_TABLE_B = Dialog.getChoice();
 }
 
+function addNeighborsDialog(){
+	//Dialog.addSlider("Maximum distance for spot pairs", 0, 5, _J_MORE_ARGS[4]);
+	Dialog.addNumber("Maximum distance for spot pairs", _J_MORE_ARGS[4], 2, 8, "microns");
+}
+
+function getNeighborsDialog(){
+	_J_MORE_ARGS[4]=Dialog.getNumber();
+}
+
 macro "Export To NaparIO"{
 	exportToNaparIOAction();
 }
+
 function exportToNaparIOAction(){
 	Dialog.create("Enter the Export Folder");
 	Dialog.addDirectory("Export folder","");
@@ -710,8 +931,6 @@ function exportToNaparIO(baseFolder){
 	print(file,configString);
 }
 
-var _COLORS = newArray("magenta","cyan","yellow","red","green","blue","orange","brown","white");
-var _POINTS_COLORS = newArray("inferno","viridis");
 function exportImagesToNaparIO(baseFolder,configString){
 	print("Images to NaparIO");
 	sliceLabels = Property.getSliceLabel
@@ -773,11 +992,10 @@ function exportLinesToNaparIO(baseFolder,configString){
 	return configString;
 }
 
-
 function makeLinesCSV(baseFolder,fileName,tableName){
 	selectWindow(tableName);
 	
-	prepareTableForPairExport(true);
+	prepareTableForPairExport(true,tableName);
 	Table.create("Line-Results");
 	for (i = 0; i < nResults(); i++) {
 		for(lineStep = 0 ;lineStep <2 ;lineStep++){
@@ -802,7 +1020,6 @@ function makeLinesCSV(baseFolder,fileName,tableName){
 	}
 	Table.save(baseFolder+fileName,"Line-Results");
 }
-
 
 function initConfigFile(){
 	layer = "layers:\n"
