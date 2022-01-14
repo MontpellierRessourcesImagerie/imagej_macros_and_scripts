@@ -110,6 +110,8 @@ macro "launch export [f8]" {
 function launchExport() {
 	print("3, 2, 1, go...");
 	_OPERA_INDEX_FILE = getIndexFile();
+
+	loadWellNames();
 	
 	options = "--wells=";
 	if (_EXPORT_ALL) options = options + "all";
@@ -349,37 +351,47 @@ function getMinMax(channel){
 	return newArray(min,max);
 }
 
-function renameWells() {
+function loadWellNames(){
 	_OPERA_INDEX_FILE = getIndexFile();
+	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+
 	_WELLS = getWells();
 	wells = _WELLS;
-
-	wellsNameUndefined = false;
-	if (_WELLS_NAMES.length != _WELLS.length){
-		wellsNameUndefined =true;
-		_WELLS_NAMES = newArray(_WELLS.length);
-	}
 	
-	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+	if (_WELLS_NAMES.length != wells.length){
+		_WELLS_NAMES = newArray(wells.length);
+	}
 	
 	if(File.exists(baseDir + _WELLS_NAMES_FILE)){
 		str = File.openAsString(baseDir + _WELLS_NAMES_FILE);
 		lines=split(str,"\n");
-		for(i=0;i<_WELLS.length;i++){
+		for(i=0;i<wells.length;i++){
 			line = split(lines[i],":");
 			_WELLS_NAMES[i]=line[1];
 		}
-		wellsNameUndefined = false;
+	}else{
+		path = baseDir + _WELLS_NAMES_FILE;
+		for(i=0;i<wells.length;i++){
+			well = wells[i];
+			_WELLS_NAMES[i] = "r"+substring(well, 0, 2)+"c"+substring(well, 2, 4);
+			File.append(""+well+":"+_WELLS_NAMES[i]+"", path);
+		}
 	}
+}
+
+function renameWells() {
+	_OPERA_INDEX_FILE = getIndexFile();
+	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
 	
+	_WELLS = getWells();
+	wells = _WELLS;
+
+	loadWellNames();
+
 	Dialog.create("Rename Wells");
 	lastRow = "00";
-	for(i=0;i<_WELLS.length;i++){
+	for(i=0;i<wells.length;i++){
 		well = wells[i];
-		if(wellsNameUndefined){
-			_WELLS_NAMES[i]="r"+substring(well, 0, 2)+"c"+substring(well, 2, 4);
-		}
-		
 		row = substring(well, 0, 2);  
 		if (row==lastRow) {
 			Dialog.addToSameRow();
@@ -392,7 +404,7 @@ function renameWells() {
 
 	path = baseDir + _WELLS_NAMES_FILE;
 	File.delete(baseDir + _WELLS_NAMES_FILE);
-	for(i=0;i<_WELLS.length;i++){
+	for(i=0;i<wells.length;i++){
 		well = wells[i];
 		_WELLS_NAMES[i] = Dialog.getString();
 		File.append(""+well+":"+_WELLS_NAMES[i]+"", path);

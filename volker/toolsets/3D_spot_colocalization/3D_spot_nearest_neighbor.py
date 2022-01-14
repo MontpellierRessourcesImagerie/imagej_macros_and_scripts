@@ -8,6 +8,8 @@ from itertools import groupby
 from operator import itemgetter
 
 def main(action,tableName1,tableName2,moreArgs):
+	IJ.log(action+">("+tableName1+","+tableName2+","+moreArgs+")")
+	
 	if action == "DistanceMatrix":
 		calculateDistanceMatrix(tableName1,tableName2)
 
@@ -28,6 +30,10 @@ def main(action,tableName1,tableName2,moreArgs):
 
 	if action == "GetMeanDistances":
 		getMeanDistances(tableName1,tableName2)
+
+	if action == "CalculateRipley":
+		calculateRipley(tableName1,tableName2,moreArgs)
+	IJ.log("Execution Finished")
 
 def calculateDistanceMatrix(tableName1,tableName2):
 	pointsA = pointList3DFromRT(tableName1)
@@ -414,6 +420,84 @@ def pointList3DFromRT(tableName,modifierX = 0,modifierY = 0,modifierZ = 0, XColu
 		dp = DoublePoint(jArray)
 		dplist.append(dp)
 	return dplist
+
+
+def calculateRipley(tableName1,tableName2,volume,radiusMax=2,nbSteps=20):
+	pointsA = pointList3DFromRT(tableName1)
+	pointsB = pointList3DFromRT(tableName2)
+	table = ResultsTable()
+	step = float(radiusMax) / nbSteps
+	idx = 0
+	IJ.log("Radius Max = "+str(radiusMax))
+	IJ.log("Step = "+str(step))
+	nbPoints = len(pointsA+pointsB)
+	density = float(nbPoints)/float(volume)
+	print(str(density))
+	#density = getDensity(pointsA,pointsB)
+	#nbPoints = len(pointsA+pointsB)
+	
+	for i in range(1,nbSteps+1):
+		radius = i*step
+		table.setValue("Radius",idx,radius)
+		
+		count = countPointsCloser(pointsA,pointsB,radius)
+		table.setValue("Count",idx,count)
+
+		K = count/(density*nbPoints)
+		table.setValue("Ripley's K",idx,K)
+
+		expected = (4/3) * math.pi * radius * radius * radius
+		table.setValue("Expected Ripley's K",idx,expected)
+		
+		table.setValue("Ripley's L",idx,pow(K/math.pi,1./3)-radius)
+		idx = idx+1
+	table.show("Ripley's Table")
+
+def getDensity(pointsA,pointsB):
+	minX = None
+	minY = None
+	minZ = None
+	maxX = None
+	maxY = None
+	maxZ = None
+	initialised = False
+	nbPoints = len(pointsA+pointsB)
+	for p in pointsA+pointsB:
+		point = p.getPoint()
+		if(not initialised):
+			minX = point[0]
+			maxX = point[0]
+			minY = point[1]
+			maxY = point[1]
+			minZ = point[2]
+			maxZ = point[2]
+			initialised = True
+			continue
+		if(point[0]>maxX):
+			maxX = point[0]
+		elif (point[0]<minX):
+			minX = point[0]
+		if(point[1]>maxY):
+			maxY = point[1]
+		elif (point[1]<minY):
+			minY = point[1]
+		if(point[2]>maxZ):
+			maxZ = point[2]
+		elif (point[2]<minZ):
+			minZ = point[2]
+	IJ.log("Bounding Box: ("+str(minX)+","+str(minY)+","+str(minZ)+"),("+str(maxX)+","+str(maxY)+","+str(maxZ)+")")
+	area = (maxX-minX)*(maxY-minY)*(maxZ-minZ)
+	density = area/nbPoints
+	return density
+
+def countPointsCloser(pointsA,pointsB,radius):
+	count = 0
+	for indexA in range(len(pointsA)):
+		for indexB in range(len(pointsB)):
+			dist = getDistance(pointsA[indexA],pointsB[indexB])
+			if(dist < radius):
+				count = count + 1;
+	return count
 
 
 
