@@ -3,16 +3,18 @@ var THRESHOLDING_METHOD = "Intermodes";
 var CHANNELS = newArray("405", "640");
 var BATCH_MODE = false;
 
-// set global variables
-CLASSIFIER = "neurite_segmentation_3.ilp"
-OUTPUT_TYPE = "Segmentation"; //  or "Probabilities"
-inputDataset = "data";
-outputDataset = "exported_data";
-axisOrder = "tzyxc";
-compressionLevel = 0;
+var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
+var CLASSIFIER = "neurite_segmentation_3.ilp"
+var OUTPUT_TYPE = "Segmentation"; //  or "Probabilities"
+var INPUT_DATASET = "/exported_data";
+var OUTPUT_DATASET = "/exported_data";
+var AXIS_ORDER = "tzyxc";
+var COMPRESSION_LEVEL = 0;
 
+var NR_OF_CLOSE_OPERATIONS = 4;
+var MIN_NEURITE_AREA = 20000;
  
-batchConvertToH5();
+batchMaskToSelection();
 
 function batchSegmentNuclei() {
 	dir = getDir("Select the input folder!");
@@ -105,6 +107,17 @@ function getFilesForChannel(files, channel) {
 	return res;
 }
 
+function getH5FilesForChannel(files, channel) {
+	res = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (indexOf(file, channel)>-1 && endsWith(file, ".h5")) {
+			res = Array.concat(res, file);			
+		}
+	}
+	return res;
+}	
+
 function equalize() {
 	run("Enhance Contrast...", "saturated=0.3 equalize");
 	run("Gaussian Blur...", "sigma=1");
@@ -166,7 +179,7 @@ function batchConvertToH5() {
 	print("batch convert to h5 took: " + (t2-t1)/1000 + "s");
 }
 
-
+// Use ilastik from command line instead
 function batchSegmentNeurites() {
 	dir = getDir("Select the input folder!");
 	subfolders = getFileList(dir);
@@ -176,35 +189,74 @@ function batchSegmentNeurites() {
 		showProgress(i+1, subfolders.length);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[1]);
+		files = getH5FilesForChannel(files, CHANNELS[1]);
 		for (f = 0; f < files.length; f++) {
-			file = files[f];
-			open(folder + file);
-			importArgs = "select=" + fileName + " datasetname=" + inputDataset + " axisorder=" + axisOrder;
-
-			save(folder + file);
-			close();
+			print("Processing file " + files[f]);
+			file = folder + files[f];
+			inputImage = file + INPUT_DATASET;
+			importArgs = "select=" + file + " datasetname=" + INPUT_DATASET + " axisorder=" + AXIS_ORDER; 	
+			run("Import HDF5", importArgs);
+			pixelClassificationArgs = "projectfilename=" + CLASSIFIER_FOLDER + CLASSIFIER + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + OUTPUT_TYPE;
+			run("Run Pixel Classification Prediction", pixelClassificationArgs);
+			parts = split(file, '.');
+			outputFile = parts[0] + "-" + OUTPUT_TYPE + ".h5";
+			exportArgs = "select=" + outputFile + " datasetname=" + OUTPUT_DATASET + " compressionlevel=" + COMPRESSION_LEVEL;	
+			run("Export HDF5", exportArgs);
+			close("*");
 		}
 	}
 	setBatchMode("exit and display");
-	
-	// process all H5 files in a given directory
-	dataDir = "<DATASET_DIR>";
-	fileList = getFileList(dataDir);
-	for (i = 0; i < fileList.length; i++) {
-		// import image from the H5
-		fileName = dataDir + fileList[i];	
-		pixelClassificationArgs = "projectfilename=" + CLASSIFIER + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + outputType;
-		run("Import HDF5", importArgs);
-	
-		// run pixel classification
-		inputImage = fileName + "/" + inputDataset;
-		pixelClassificationArgs = "projectfilename=" + pixelClassificationProject + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + outputType;
-		run("Run Pixel Classification Prediction", pixelClassificationArgs);
-	
-		// export probability maps to H5
-		outputFile = dataDir + "output" + i + ".h5";
-		exportArgs = "select=" + outputFile + " datasetname=" + outputDataset + " compressionlevel=" + compressionLevel;
-		run("Export HDF5", exportArgs);
+}
+
+function batchMaskToSelection() {
+	dir = getDir("Select the input folder!");
+	subfolders = getFileList(dir);
+	setBatchMode(true);
+	for (i = 0; i < subfolders.length; i++) {
+		print("Entering folder " + subfolders[i]);
+		showProgress(i+1, subfolders.length);
+		folder = dir + subfolders[i];
+		files = getFileList(folder);
+		files = getFilesForChannel(files, CHANNELS[0]);
+		for (f = 0; f < files.length; f++) {
+			print("Processing file " + files[f]);
+			file = folder + files[f];
+			open(file);
+			nucleiImageID = getImageID();
+			nucleiImageID = getTitle();
+			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
+			open(file2);
+			neuriteImageID = getImageID();
+			neuriteImageTitle = getTitle();
+			file3 = replace(file2, ".tif", "_segmentation.tiff");
+			open(file3);
+			neuriteMaskToSelection();
+			close();
+			selectImage(nucleiImageID);
+			Overlay.copy
+			run("Merge Channels...", "c2="+neuriteImageTitle+" c3="+nucleiImageID+" create");
+			run("Enhance Contrast", "saturated=0.35");
+			Overlay.paste
+			Stack.setChannel(2);
+			run("From ROI Manager");
+			outFile = replace(file3, "_segmentation.tiff", "_composite.tif");
+			saveAs("tiff", outFile);
+			close("*");
+		}
 	}
+	setBatchMode("exit and display");
+}
+
+function neuriteMaskToSelection() {
+	roiManager("reset");
+	imageID = getImageID();
+	run("Invert");
+	run("Invert LUT");
+	run("Options...", "iterations="+NR_OF_CLOSE_OPERATIONS+" count=1 do=Close");
+	run("Analyze Particles...", "size="+MIN_NEURITE_AREA+"-Infinity show=Masks");
+	run("Create Selection");
+	roiManager("Add");
+	run("Select None");
+	selectImage(imageID);
+	close();
 }
