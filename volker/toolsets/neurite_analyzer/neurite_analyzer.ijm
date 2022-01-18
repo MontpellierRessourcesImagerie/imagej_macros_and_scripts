@@ -13,8 +13,20 @@ var COMPRESSION_LEVEL = 0;
 
 var NR_OF_CLOSE_OPERATIONS = 4;
 var MIN_NEURITE_AREA = 20000;
+
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Neurite_Analyzer_Tool";
  
-batchMaskToSelection();
+segmentNeurites();
+
+
+macro "Neurite Analyzer Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
+	run('URL...', 'url='+helpURL);	
+}
+
+
+macro "segment nuclei (f5) Action Tool - C000T4b12n" {
+	segmentNuclei();
+}
 
 function batchSegmentNuclei() {
 	dir = getDir("Select the input folder!");
@@ -59,19 +71,6 @@ function filterChannel3Segmentation() {
 }
 
 
-function segmentNucleiSimple() {
-	run("Duplicate...", " ");
-	setAutoThreshold("Li dark");
-	run("Analyze Particles...", "size=200-Infinity circularity=0-1.00 show=Masks");
-	run("Fill Holes");
-	run("Watershed");
-	setThreshold(1, 255);
-	run("Analyze Particles...", "size=200-Infinity circularity=0.45-1.00 show=Nothing add");
-	close();
-	close();
-	run("From ROI Manager");
-}
-
 function segmentNeurites() {
 	roiManager("reset");
 	setAutoThreshold("Huang dark");
@@ -83,6 +82,10 @@ function segmentNeurites() {
 	run("Options...", "iterations=4 count=1 do=Erode");
 }
 
+/**
+ * Segment nuclei and add the resulting roi to the overlay
+ * of the channel.
+ */
 function segmentNuclei() {
 	Overlay.remove;
 	if (!BATCH_MODE) setBatchMode("hide");
@@ -221,14 +224,16 @@ function batchMaskToSelection() {
 		for (f = 0; f < files.length; f++) {
 			print("Processing file " + files[f]);
 			file = folder + files[f];
+			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
+			file3 = replace(file2, ".tif", "_segmentation.tiff");
+			outFile = replace(file3, "_segmentation.tiff", "_composite.tif");
+			if (File.exists(outFile)) continue;
 			open(file);
 			nucleiImageID = getImageID();
 			nucleiImageID = getTitle();
-			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
 			open(file2);
 			neuriteImageID = getImageID();
 			neuriteImageTitle = getTitle();
-			file3 = replace(file2, ".tif", "_segmentation.tiff");
 			open(file3);
 			neuriteMaskToSelection();
 			close();
@@ -239,7 +244,6 @@ function batchMaskToSelection() {
 			Overlay.paste
 			Stack.setChannel(2);
 			run("From ROI Manager");
-			outFile = replace(file3, "_segmentation.tiff", "_composite.tif");
 			saveAs("tiff", outFile);
 			close("*");
 		}
