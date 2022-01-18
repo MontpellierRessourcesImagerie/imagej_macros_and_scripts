@@ -13,6 +13,7 @@
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Intensity-Per-Nucleus-Tool";
 var _NUCLEI_CHANNELS = newArray("hoechst", "dapi");
+var _NUCLEI_CHANNEL_NR = 0;
 var	_SCALE_FACTOR = 5.0;
 var	_MIN_SIZE = 50;
 var _THRESHOLDING_METHOD = "Huang";
@@ -20,6 +21,7 @@ var _THRESHOLDING_METHODS = getList("threshold.methods");
 var _FILE_EXT = "nd";
 var _TABLES = newArray(0);
 
+measureIntensityPerNucleus();
 exit();
 
 macro "intensity per nucleus tool help [f4]" {
@@ -50,12 +52,15 @@ macro "measure intensity per nucleus (f5) Action Tool Options" {
 	Dialog.create("measure intensity options");
 	nucleiChannels = arrayToString(_NUCLEI_CHANNELS);
 	Dialog.addString("nuclei channels: ", nucleiChannels);
+	Dialog.addToSameRow();
+	Dialog.addNumber("or nr. of nuclei channel (if 0, name will be used): ", _NUCLEI_CHANNEL_NR);
 	Dialog.addNumber("scale factor: ", _SCALE_FACTOR);
 	Dialog.addNumber("min. size: ", _MIN_SIZE);
 	Dialog.addChoice("thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	Dialog.show();
 	nucleiChannels = Dialog.getString();
 	_NUCLEI_CHANNELS = stringToArray(nucleiChannels);
+	_NUCLEI_CHANNEL_NR = Dialog.getNumber();
 	_SCALE_FACTOR = Dialog.getNumber();
 	_MIN_SIZE = Dialog.getNumber();
 	_THRESHOLDING_METHOD = Dialog.getChoice();
@@ -106,9 +111,22 @@ function measureIntensityPerNucleus() {
 	run("Clear Results");
 	path = File.directory;
 	filename = File.name;
-	channelNames = getChannelNames();	
-	indexOfNucleiChannel = getIndexOfNucleiChannel(channelNames);
-	indicesOfChannelsToBeMeasured = getIndicesOfChannelsToBeMeasured(indexOfNucleiChannel, channelNames.length);
+		getDimensions(width, height, channels, slices, frames);
+	if (_NUCLEI_CHANNEL_NR>0 && _NUCLEI_CHANNEL_NR<=channels) {
+		indexOfNucleiChannel = _NUCLEI_CHANNEL_NR;
+		channelNames = Array.getSequence(channels);²
+	} else {
+		channelNames = getChannelNames();	
+		indexOfNucleiChannel = getIndexOfNucleiChannel(channelNames);
+	}
+	if (_NUCLEI_CHANNEL_NR>0 && _NUCLEI_CHANNEL_NR<=channels) {
+		indicesOfChannelsToBeMeasured = newArray(0);
+		for (i = 1; i <= channels; i++) {
+			if (i!=_NUCLEI_CHANNEL_NR) indicesOfChannelsToBeMeasured = Array.concat(indicesOfChannelsToBeMeasured, i);
+		}	
+	} else {
+		indicesOfChannelsToBeMeasured = getIndicesOfChannelsToBeMeasured(indexOfNucleiChannel, channelNames.length);
+	}
 	Stack.setChannel(indexOfNucleiChannel);
 	run("Duplicate...", " ");
 	selectNuclei();
@@ -119,12 +137,13 @@ function measureIntensityPerNucleus() {
 		Stack.setChannel(indicesOfChannelsToBeMeasured[i]);
 		roiManager("Measure");
 		selectWindow("Results");
-		headings = split(Table.headings, "\t");
+		headings = split(Table.headings("Results"), "\t");
 		for(c=1; c<headings.length; c++) {
-			data = Table.getColumn(headings[c]);
+			data = Table.getColumn(headings[c], "Results");
 			newRows = false;
 			if (c==1) newRows = true;
-			addResultsColumnToTable(headings[c], data, channelNames[indicesOfChannelsToBeMeasured[i]-1], path, filename, newRows);
+			channelString =  channelNames[indicesOfChannelsToBeMeasured[i]-1];
+			addResultsColumnToTable(headings[c], data, "channel " + channelString, path, filename, newRows);
 		}
 	}
 	run("Close");
@@ -137,23 +156,23 @@ function addResultsColumnToTable(columnName, data, tableName, path, filename, ne
 		Table.create(tableName);
 		_TABLES = Array.concat(_TABLES,tableName);
 		getLocationAndSize(x, y, width, height);
-		Table.setLocationAndSize(x, y, 1100, 600);
+		Table.setLocationAndSize(x, y, 1100, 600, tableName);
 	}
 	Table.update;
 	if (newRows) {
-		rowIndex = Table.size;
+		rowIndex = Table.size(tableName);
 	} else {
-		rowIndex = Table.size - data.length;
+		rowIndex = Table.size(tableName) - data.length;
 	}
 	for (i = 0; i < data.length; i++) {
 		if (newRows) {
 			selectWindow(tableName);
-			Table.set("path", rowIndex, path);
-			Table.set("filename", rowIndex, filename);
-			Table.set("nucleus nr.", rowIndex, i+1);
+			Table.set("path", rowIndex, path, tableName);
+			Table.set("filename", rowIndex, filename, tableName);
+			Table.set("nucleus nr.", rowIndex, i+1, tableName);
 		}
-		Table.set(columnName, rowIndex, data[i]);
-		Table.update;
+		Table.set(columnName, rowIndex, data[i], tableName);
+		Table.update(tableName);
 		rowIndex++;
 	}
 	selectWindow("Results");
