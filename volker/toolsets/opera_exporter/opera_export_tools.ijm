@@ -182,13 +182,14 @@ function setOptions() {
 	Dialog.create("Options");
 	items = newArray("Z-Slice","Max Intensity Projection");
 	Dialog.addMessage("Base for stitching",14);
-	if(_STITCH_ON_PROJECTION){
-		Dialog.addRadioButtonGroup("", items, 1, 2, items[1]);
-	}else{
-		Dialog.addRadioButtonGroup("", items, 1, 2, items[0]);	
-	}
+	
+	sopState = items[0];
+	if(_STITCH_ON_PROJECTION){	sopState = items[1];}
+	Dialog.addRadioButtonGroup("", items, 1, 2, sopState);	
+	
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
-	Dialog.addNumber("channel for stitching", _CHANNEL);
+
+	Dialog.addChoice("Channel for Stitching",channelName,channelName[_CHANNEL]);
 
 	Dialog.addMessage("Export Options",14);
 
@@ -267,9 +268,14 @@ function setOptions() {
 	}
 	
 	_ZSLICE = Dialog.getNumber();
-	//_STITCH_ON_PROJECTION = Dialog.getCheckbox();
-	_CHANNEL = Dialog.getNumber();
-
+	
+	chan = Dialog.getChoice();
+	for(i = 0; i < _NB_CHANNELS; i++){
+		if(channelName[i]==chan){
+			_CHANNEL = i;
+			break;
+		}
+	}
 
 	_EXPORT_Z_STACK_FIELDS = Dialog.getCheckbox();
 	_EXPORT_Z_STACK_FIELDS_COMPOSITE = Dialog.getCheckbox();
@@ -367,14 +373,18 @@ function loadWellNames(){
 		lines=split(str,"\n");
 		for(i=0;i<wells.length;i++){
 			line = split(lines[i],":");
-			_WELLS_NAMES[i]=line[1];
+			if(line.length>1){
+				_WELLS_NAMES[i]=line[1];
+			}else{
+				_WELLS_NAMES[i]="";
+			}
 		}
 	}else{
 		path = baseDir + _WELLS_NAMES_FILE;
 		for(i=0;i<wells.length;i++){
 			well = wells[i];
-			_WELLS_NAMES[i] = "r"+substring(well, 0, 2)+"c"+substring(well, 2, 4);
-			File.append(""+well+":"+_WELLS_NAMES[i]+"", path);
+			File.append(""+well+":", path);
+			_WELLS_NAMES[i]="";
 		}
 	}
 }
@@ -599,6 +609,9 @@ function correctFlatfield(){
 	directory = File.getDirectory(_OPERA_INDEX_FILE);
 	outDirectory = directory + "/noBG/";
 	print(outDirectory);
+	if(!File.exists(outDirectory)){
+		File.makeDirectory(outDirectory);
+	}
 	filelist = getFileList(directory);
 	imageSize = newArray(2);
 	for (i = 0; i < lengthOf(filelist); i++) {
@@ -632,15 +645,18 @@ function correctFlatfield(){
  				backgroundID = getImageID();
  				
  				tableItt=0;
+
 				for (y=0; y<imageSize[1]; y++) {
 					for (x=0; x<imageSize[0]; x++){
 						pixel = Table.get("pixelIntensity",tableItt);
+						pixelNorm = (pixel-minB)/(maxB-minB);
+						
 						a = 0;
 						b= currentMean; 
 						
 						//a = meanI - meanB;
 						//b= stdDevI / stdDevB; 
-						pixelOut = a + (pixel * b);
+						pixelOut = a + (pixelNorm * b);
 						setPixel(x, y, pixelOut);
 						tableItt=tableItt+1;
 					}
@@ -652,6 +668,23 @@ function correctFlatfield(){
 			}
 	    }
 	}
+}
+macro "Evaluate BG Removal"{
+	dir = getDir("Folder to Measure");
+	setBatchMode(true);
+	evaluateBGRemoval(dir);
+	setBatchMode(false);
+}
+function evaluateBGRemoval(directory){
+	filelist = getFileList(directory);
+	for (i = 0; i < lengthOf(filelist); i++) {
+		if (endsWith(filelist[i], ".tiff")){
+			open(directory+filelist[i]);
+			run("Measure");
+			close();
+		}
+	}
+
 }
 
 function createBackgroundImage(coeffs,size){
