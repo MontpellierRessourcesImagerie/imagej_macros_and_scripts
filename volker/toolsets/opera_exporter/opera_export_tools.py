@@ -919,11 +919,12 @@ class Well(object):
 		
 		checkString = str(row).zfill(2) + str(column).zfill(2) + ":"
 		
-		resultName ="r=" +  str(row).zfill(2) + ", c=" + str(column).zfill(2)
+		resultName ="r" +  str(row).zfill(2) + "c" + str(column).zfill(2)
+		
 		if os.path.isfile(os.path.join(path+namesFile)):
 			file = open(os.path.join(path+namesFile))
 			wellLine =  [line for line in file if line.startswith(checkString)]
-			resultName = wellLine[0].split(":")[-1]
+			resultName = resultName+""+wellLine[0].split(":")[-1]
 		return resultName[:-1]
 	
 			
