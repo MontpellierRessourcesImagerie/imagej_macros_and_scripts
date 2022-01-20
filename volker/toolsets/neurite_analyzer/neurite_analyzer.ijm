@@ -1,6 +1,6 @@
 var SIGMA = 7;
 var THRESHOLDING_METHOD = "Intermodes";		
-var CHANNELS = newArray("405", "640");
+var CHANNELS = newArray("405", "640", "488");
 var BATCH_MODE = false;
 
 var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
@@ -10,9 +10,14 @@ var INPUT_DATASET = "/exported_data";
 var OUTPUT_DATASET = "/exported_data";
 var AXIS_ORDER = "tzyxc";
 var COMPRESSION_LEVEL = 0;
+var DO_HISTO_EQ = true;
 
 var NR_OF_CLOSE_OPERATIONS = 4;
 var MIN_NEURITE_AREA = 20000;
+
+var NAME_FILTER = "Coleno";
+var NR_OF_FILES_PER_FOLDER = 10;
+var SUBFOLDER = "/Mosaic_16bits/";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Neurite_Analyzer_Tool";
  
@@ -23,9 +28,20 @@ macro "Neurite Analyzer Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C
 	run('URL...', 'url='+helpURL);	
 }
 
+macro "copy random data (f3) Action Tool - C037T1d13cT9d13rC555" {
+	copyRandomData();
+}
+
+macro "export as h5 (f4) Action Tool - C037T1d13hT9d135C555" {
+	batchConvertToH5();
+}
 
 macro "segment nuclei (f5) Action Tool - C000T4b12n" {
 	segmentNuclei();
+}
+
+macro "segment neurites (f6) Action Tool - C000T4b12s" {
+	segmentNeurites();	
 }
 
 function batchSegmentNuclei() {
@@ -52,34 +68,36 @@ function batchSegmentNuclei() {
 	BATCH_MODE = false;
 }
 
-function filterChannel3Segmentation() {
-	toBeDeleted = newArray(0);
-	circThreshold = 0.4;
-	areaThreshold = 0.001;
-	count = roiManager("count");
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		r = getValue("Circ.");
-		a = getValue("Area");
-		print(r);
-		if (r>=circThreshold || a<areaThreshold) {
-			toBeDeleted = Array.concat(toBeDeleted, i);
-		}
-	}
-	roiManager("select", toBeDeleted);
-	roiManager("delete");
-}
 
-
+/**
+ * Run the ilastik-classifier on the active image and transform the resulting segmentation mask
+ * to a roi on the input image.
+ */
 function segmentNeurites() {
-	roiManager("reset");
-	setAutoThreshold("Huang dark");
-	run("Analyze Particles...", "size=1000-Infinity show=Masks exclude");
-	run("Create Selection");
-	run("Create Mask");
-	run("Select None");
-	run("Options...", "iterations=4 count=1 do=Dilate");
-	run("Options...", "iterations=4 count=1 do=Erode");
+	outputDataset = "exported_data";
+	compressionLevel = 0;
+	imageID = getImageID();
+	dir = getInfo("image.directory");
+	file = getInfo("image.filename");
+	parts = split(file, ".");
+	file = replace(file, "\."+parts[1], ".h5");
+	outputPath = dir + file;
+	run("Duplicate...", " ");
+	if (DO_HISTO_EQ) equalize();
+	exportArgs = "select=" + outputPath + " datasetname=" + outputDataset + " compressionlevel=" + compressionLevel;
+	run("Export HDF5", exportArgs);
+	close();
+	inputImage = outputPath + INPUT_DATASET;
+	importArgs = "select=" + outputPath + " datasetname=" + INPUT_DATASET + " axisorder=" + AXIS_ORDER; 	
+	run("Import HDF5", importArgs);
+	pixelClassificationArgs = "projectfilename=" + CLASSIFIER_FOLDER + CLASSIFIER + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + OUTPUT_TYPE;
+	run("Run Pixel Classification Prediction", pixelClassificationArgs);
+	neuriteMaskToSelection();
+	selectImage(imageID);
+	close("\\Others");
+	count = roiManager("count");
+	if (count>0) run("From ROI Manager");
+ 	roiManager("reset");
 }
 
 /**
@@ -170,6 +188,7 @@ function batchConvertToH5() {
 			if (indexOf(filesString, out)>-1) continue;
 			print("Processing file " + file);
 			open(folder + file);
+			if (DO_HISTO_EQ) equalize();
 			outputPath = folder + File.nameWithoutExtension + ".h5";			
 			exportArgs = "select=" + outputPath + " datasetname=" + outputDataset + " compressionlevel=" + compressionLevel;
 			run("Export HDF5", exportArgs);
@@ -263,4 +282,72 @@ function neuriteMaskToSelection() {
 	run("Select None");
 	selectImage(imageID);
 	close();
+}
+
+function copyRandomData() {
+	dir = getDir("Select the input folder!");
+	destDir = getDir("Select the target folder!");
+	files = getFileList(dir);
+	folders = filterFolders(files);
+	Array.print(folders);
+	for (i = 0; i < folders.length; i++) {
+		showProgress(i+1, folders.length);
+		folder = dir + folders[i] + SUBFOLDER;
+		File.makeDirectory(destDir + "/" + folders[i]);
+		files = getFileList(folder);
+		partFiles = getPartFiles(files, CHANNELS[0]);
+		Array.sort(partFiles);
+		indices = Array.getSequence(partFiles.length);
+		shuffle(indices);
+		for (p = 0; p < CHANNELS.length; p++) {
+			part = CHANNELS[p];
+			if (p>0) replaceFile(partFiles, CHANNELS[p-1], CHANNELS[p]);
+			for (f = 0; f < NR_OF_FILES_PER_FOLDER; f++) {
+				File.copy(folder + "/" + partFiles[indices[f]], destDir + "/" + folders[i] + partFiles[indices[f]]);
+			}
+		}
+	}
+}
+
+
+function replaceFile(files, part1, part2) {
+	for (i = 0; i < files.length; i++) {
+		files[i] = replace(files[i], part1, part2);
+	}
+}
+
+function shuffle(array) {
+	for (i = 0; i < array.length; i++) {
+		randomIndexToSwap = randomInt(array.length);
+		temp = array[randomIndexToSwap];
+		array[randomIndexToSwap] = array[i];
+		array[i] = temp;
+	}
+}
+
+function randomInt(n) {
+	rand = random;
+	res = floor(n * rand);
+	return res;
+}
+
+function getPartFiles(files, part) {
+	res = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		file = files[i];
+		if (indexOf(file, part)>-1) {
+			res = Array.concat(res, file);			
+		}
+	}
+	return res;
+}
+
+function filterFolders(files) {
+	res = newArray(0);
+	for (i = 0; i < files.length; i++) {
+		if (indexOf(files[i], NAME_FILTER)>-1) {
+			res = Array.concat(res, files[i]);
+		}
+	}
+	return res;
 }
