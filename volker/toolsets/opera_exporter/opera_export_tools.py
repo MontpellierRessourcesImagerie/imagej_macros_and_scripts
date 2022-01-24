@@ -127,6 +127,8 @@ def getArgumentParser():
 	parser.add_argument("--regression-threshold", "-r", default=0.3, type=float, help='if the regression threshold between two images after the individual stitching are below that number they are assumed to be non-overlapping')
 	parser.add_argument("--displacement-threshold", "-d", default=2.5, type=float, help='max/avg displacement threshold')
 	parser.add_argument("--abs-displacement-threshold", "-a", default=3.5, type=float, help='removes links between images if the absolute displacement is higher than this value')
+	
+	parser.add_argument("--index-flatfield", default=False, action='store_true', help='background removal using the flatfield profile found in the index file')
 	parser.add_argument("--pseudoflatfield", "-p", default=0, type=float, help='blurring radius for the pseudo flatfield correction (no correction if 0)')
 	parser.add_argument("--rollingball", "-b", default=0, type=float, help='rolling ball radius for the background correction (no correction if 0)')
 	parser.add_argument("--subtract-background-radius", "-g", default=3, type=int, help='radius for the find and subtract background operation')
@@ -331,13 +333,16 @@ class Well(object):
 			os.rename(srcPath+"/work/TileConfiguration.registered.txt", srcPath+"/work/TileConfiguration.txt")
 		os.remove(srcPath+"/out/img_t1_z1_c1")
 		
-	def executeStitching(self, params, path, newNames=None, outputFolder='out'):
+	def executeStitching(self, params, path, channel=1, newNames=None, outputFolder='out'):
 		if newNames==None:
 			srcPath = self.experiment.getPath()
 			path = srcPath + "/work/"
 			nbFiles = len(os.listdir(path))
 			newNames = [str(i).zfill(2)+".tif" for i in range(nbFiles-1)]
 			
+		if params.index_flatfield:
+			self.doIndexFlatFieldCorrection(path,newNames,channel)
+
 		if params.pseudoflatfield>0:
 			self.doPseudoFlatFieldCorrection(params.pseudoflatfield, path, newNames)
 		if params.normalize:
@@ -370,7 +375,7 @@ class Well(object):
 					images = self.getImagesForZPosTimeAndChannel(z, t, c)
 					names, newNames = self.copyImagesToWorkFolder(images)
 
-					self.executeStitching(params, path, newNames, outputFolder=outputFolder)
+					self.executeStitching(params, path, c, newNames, outputFolder=outputFolder)
 					
 					imps.append(IJ.getImage())
 					
@@ -412,7 +417,7 @@ class Well(object):
 			channelImps = []
 			for c in range(1, channels+1):	
 				title = self.createMIPFromInputImages(dims, params, c)
-				self.executeStitching(params, path, outputFolder=outputFolder)
+				self.executeStitching(params, path, channel=c, outputFolder=outputFolder)
 				imp = IJ.getImage()
 
 				name = title[:6] +"-"+ title[13:]
@@ -534,7 +539,19 @@ class Well(object):
 			IJ.save(imp, path+"/work/"+name)
 			imp.close()
 			i = i + 1
-			
+
+	def doIndexFlatFieldCorrection(self, path, names, chan):
+		for name in names:
+			IJ.open(path+"/work/"+name)
+			imp1 = IJ.getImage()
+			IJ.open(path+"/flatfield/"+str(chan)+".tiff")
+			imp2 = IJ.getImage()
+			imp3 = ImageCalculator.run(imp1, imp2, "Subtract create");                                                                                                        
+			IJ.save(imp3, path+"/work/"+name)
+			imp1.close()
+			imp2.close()
+			imp3.close()
+
 	def doPseudoFlatFieldCorrection(self, radius, path, names):
 		for name in names:
 			IJ.open(path+"/work/"+name)
