@@ -27,11 +27,14 @@ var _DO_MIP = false;
 var _ZSLICE = 0;
 var _CHANNEL = 1;
 var _COMPUTE_OVERLAP = true;
+
 var _FUSION_METHODS = newArray("Linear_Blending", "Average", "Median", "Max_Intensity", "Min_Intensity", "random");
 var _FUSION_METHOD = "Linear_Blending";
 var _REGRESSION_THRESHOLD = 0.30;
 var _DISPLACEMENT_THRESHOLD = 2.5;
 var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
+
+var _INDEX_FLAT_FIELD = false;
 var _PSEUDO_FLAT_FIELD_RADIUS = 0;
 var _ROLLING_BALL_RADIUS = 0;
 var _NORMALIZE = false;
@@ -39,6 +42,7 @@ var _FIND_AND_SUB_BACK_RADIUS = 0;
 var _FIND_AND_SUB_BACK_OFFSET = 3;
 var _FIND_AND_SUB_BACK_ITERATIONS = 1;
 var _FIND_AND_SUB_BACK_SKIP = 0.3;
+
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
 
@@ -158,6 +162,8 @@ function launchExport() {
 	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
 	options = options + " --displacement-threshold=" + _DISPLACEMENT_THRESHOLD;
 	options = options + " --abs-displacement-threshold=" + _ABS_DISPLACEMENT_THRESHOLD;
+	
+	if (_INDEX_FLAT_FIELD) options = options + " --index-flatfield";
 	options = options + " --pseudoflatfield=" + _PSEUDO_FLAT_FIELD_RADIUS;
 	options = options + " --rollingball=" + _ROLLING_BALL_RADIUS;
 	options = options + " --subtract-background-radius=" + _FIND_AND_SUB_BACK_RADIUS;
@@ -170,7 +176,9 @@ function launchExport() {
 	options = options + " " + _OPERA_INDEX_FILE;
 	macrosDir = getDirectory("macros");
 	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
+	
 	setBatchMode(true);
+	prepareFlatfieldFolder();
 	call("ij.plugin.Macro_Runner.runPython", script, options); 
 	setBatchMode(false);
 	print("The eagle has landed!!!");
@@ -220,6 +228,8 @@ function setOptions() {
 	}
 	
 	Dialog.addMessage("Image correction/normalization:",14);
+
+	Dialog.addCheckbox("! Experimental ! Index based background removal", _INDEX_FLAT_FIELD);	
 	Dialog.addNumber("pseudo flat field radius (0 = off): ", _PSEUDO_FLAT_FIELD_RADIUS);
 	Dialog.addToSameRow();
 	Dialog.addNumber("rolling ball radius (0 = off): ", _ROLLING_BALL_RADIUS);
@@ -257,7 +267,6 @@ function setOptions() {
 		Dialog.addNumber("Max",minMax[1]);
 	}
 	
-	
 	Dialog.show();
 
 	stitchingBase = Dialog.getRadioButton();
@@ -290,7 +299,8 @@ function setOptions() {
 	for(i=0;i<_NB_CHANNELS;i++){
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
-	
+
+	_INDEX_FLAT_FIELD = Dialog.getCheckbox();
 	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
 	_ROLLING_BALL_RADIUS = Dialog.getNumber();
 	_NORMALIZE = Dialog.getCheckbox();
@@ -620,14 +630,15 @@ function correctFlatfield(){
 			imageSize[0]=getWidth();
 			imageSize[1]=getHeight();
 			close();
+			break;
 		}
 	}
 
 	channelMeans = getDataFromIndex("<FlatfieldProfile>",", Mean: ",", ");
 	for(chan=1;chan<=nbChannels;chan++){
 		coeffs = getFlatfieldCoefficients(chan);
-		originalBackgroundID = createBackgroundImage(coeffs,imageSize);
-		currentMean = channelMeans[chan-1];
+		originalBackgroundID = createBackgroundImage(coeffs,imageSize,1);
+		chanMean = channelMeans[chan-1];
 	    close();
 		for (i = 0; i < lengthOf(filelist); i++) {
 			showProgress(i, lengthOf(filelist));
@@ -652,10 +663,8 @@ function correctFlatfield(){
 						pixelNorm = (pixel-minB)/(maxB-minB);
 						
 						a = 0;
-						b= currentMean; 
-						
-						//a = meanI - meanB;
-						//b= stdDevI / stdDevB; 
+						b= chanMean; 
+					
 						pixelOut = a + (pixelNorm * b);
 						setPixel(x, y, pixelOut);
 						tableItt=tableItt+1;
@@ -675,6 +684,7 @@ macro "Evaluate BG Removal"{
 	evaluateBGRemoval(dir);
 	setBatchMode(false);
 }
+
 function evaluateBGRemoval(directory){
 	filelist = getFileList(directory);
 	for (i = 0; i < lengthOf(filelist); i++) {
@@ -687,7 +697,7 @@ function evaluateBGRemoval(directory){
 
 }
 
-function createBackgroundImage(coeffs,size){
+function createBackgroundImage(coeffs,size,factor){
 	newImage("background", "32-bit", size[0], size[1], 1);
 	imageID = getImageID();
  	w = getWidth(); 
@@ -697,13 +707,68 @@ function createBackgroundImage(coeffs,size){
 	for (y=0; y<h; y++) {
 		for (x=0; x<w; x++){
 			pixelOut = getValueOfPixelAfterPolynom(coeffs,x,y,size[0], size[1]);
-			setPixel(x, y, pixelOut);
+			//setPixel(x, y, pixelOut);
 			Table.set("pixelIntensity",i,pixelOut);
 			i=i+1;
 		}
 	}
- 	//run("Enhance Contrast...", "saturated=0 normalize");
+	
+	bgPixels = Table.getColumn("pixelIntensity");
+	Array.getStatistics(bgPixels, minB, maxB, meanB, stdDevB);
+	
+	tableItt=0;
+	for (y=0; y<h; y++) {
+		for (x=0; x<w; x++){
+			pixel = Table.get("pixelIntensity",tableItt);
+			pixelNorm = (pixel-minB)/(maxB-minB);
+			
+			a = 0;
+			b= factor; 
+		
+			pixelOut = a + (pixelNorm * b);
+			
+			setPixel(x, y, pixelOut);
+			Table.set("pixelIntensity",tableItt,pixelOut);
+			tableItt=tableItt+1;
+		}
+	}
 	return imageID;
+}
+
+function prepareFlatfieldFolder(){
+	_OPERA_INDEX_FILE = getIndexFile();
+	
+	channels = getChannelsFromIndex();
+	nbChannels = channels.length;
+	
+	directory = File.getDirectory(_OPERA_INDEX_FILE);
+	outDirectory = directory + "/flatfield/";
+	
+	if(!File.exists(outDirectory)){
+		File.makeDirectory(outDirectory);
+	}
+
+	filelist = getFileList(directory);
+	imageSize = newArray(2);
+	for (i = 0; i < lengthOf(filelist); i++) {
+		if (endsWith(filelist[i], ".tiff")){
+			open(directory+filelist[i]);
+			imageSize[0]=getWidth();
+			imageSize[1]=getHeight();
+			close();
+			break;
+		}
+	}
+	channelMeans = getDataFromIndex("<FlatfieldProfile>",", Mean: ",", ");
+	for(chan=1;chan<=nbChannels;chan++){
+		coeffs = getFlatfieldCoefficients(chan);
+		chanMean = channelMeans[chan-1];
+		originalBackgroundID = createBackgroundImage(coeffs,imageSize,chanMean);
+		saveAs(outDirectory+chan+".tiff");
+		close();
+	}
+
+	
 }
 
 function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
