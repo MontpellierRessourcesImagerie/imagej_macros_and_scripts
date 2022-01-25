@@ -21,8 +21,8 @@ var SUBFOLDER = "/Mosaic_16bits/";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Neurite_Analyzer_Tool";
  
-segmentNeurites();
-
+mergeAndFilter();
+exit
 
 macro "Neurite Analyzer Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
 	run('URL...', 'url='+helpURL);	
@@ -32,7 +32,7 @@ macro "copy random data (f3) Action Tool - C037T1d13cT9d13rC555" {
 	copyRandomData();
 }
 
-macro "export as h5 (f4) Action Tool - C037T1d13hT9d135C555" {
+macro "batch export as h5 (f4) Action Tool - C037T1d13hT9d135C555" {
 	batchConvertToH5();
 }
 
@@ -42,6 +42,115 @@ macro "segment nuclei (f5) Action Tool - C000T4b12n" {
 
 macro "segment neurites (f6) Action Tool - C000T4b12s" {
 	segmentNeurites();	
+}
+
+macro "merge and filter (f7) Action Tool - C000T4b12m" {
+	mergeAndFilter();
+}
+
+function removeRoisWithoutSupport(image, otherImage) {
+	selectImage(otherImage);
+	run("To ROI Manager");
+	run("Select None");
+	roiManager("combine");
+	run("Create Mask");
+	rename("neurite-mask");
+	otherImageMaskID = getImageID();
+	selectImage(otherImage);
+	run("From ROI Manager");
+	roiManager("reset");
+	selectImage(image);
+	Overlay.copy
+	selectImage(otherImageMaskID);	
+	Overlay.paste
+	setBatchMode("hide");
+	toBeRemoved = newArray(0);
+	for (i = 0; i < Overlay.size; i++) {
+		showProgress(i+1, Overlay.size);
+		Overlay.activateSelection(i);
+		v = getValue("Mean");
+		if (v==0) {
+			toBeRemoved = Array.concat(toBeRemoved, i);
+		}
+	}
+	setBatchMode("show");
+	selectImage(image);	
+	run("To ROI Manager");
+	if (toBeRemoved.length>0) {
+		roiManager("select", toBeRemoved);
+		roiManager("delete");
+		run("Select None");
+	}
+	print("Removed :"+toBeRemoved.length+" rois");
+	run("From ROI Manager");
+	roiManager("reset");
+	selectImage(otherImageMaskID);
+	close();
+}
+
+function mergeAndFilter() {
+	imageInfo = getImageInfo();
+	nucleiImageTitle = imageInfo[0];
+	nucleiImageID = imageInfo[1];
+	neuriteImageTitle = imageInfo[2];
+	neuriteImageID = imageInfo[3];
+	showStatus("Merge and filter: STARTED...");
+	removeRoisWithoutSupport(nucleiImageID, neuriteImageID);
+	showStatus("Merge and filter: STAND BY...");
+	removeRoisWithoutSupport(neuriteImageID, nucleiImageID);
+	showStatus("Merging and filter: Merging.");
+
+	options = "c3="+nucleiImageTitle+" c4="+neuriteImageTitle+" create keep";
+	print(options);
+	run("Merge Channels...", options);
+	mergedImageID = getImageID();
+	selectImage(nucleiImageID);
+	run("To ROI Manager");
+	count = roiManager("count");
+	selectImage(mergedImageID);
+	c=1;
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		Overlay.addSelection;
+		Overlay.setPosition(c, 1, 1);
+	}
+	selectImage(nucleiImageID);
+	close();
+	roiManager("reset");
+	selectImage(neuriteImageID);
+	run("To ROI Manager");
+	count = roiManager("count");
+	selectImage(mergedImageID);
+	c=2;
+	for (i = 0; i < count; i++) {
+		roiManager("select", i);
+		Overlay.addSelection;
+		Overlay.setPosition(c, 1, 1);
+	}
+	selectImage(neuriteImageID);
+	close();
+	roiManager("reset");
+	showStatus("Merging and filter: DONE.");
+}
+
+function getImageInfo() {
+	title = getTitle();    
+	imageID = getImageID();
+	if (indexOf(title, CHANNELS[0])>-1) {
+		nucleiImageTitle = title;
+		nucleiImageID = imageID;
+		neuriteImageTitle = replace(nucleiImageTitle, CHANNELS[0], CHANNELS[1]);
+		selectImage(neuriteImageTitle);
+		neuriteImageID = getImageID();
+	} 
+	if (indexOf(title, CHANNELS[1])>-1) {
+		neuriteImageTitle = title;
+		neuriteImageID = imageID;
+		nucleiImageTitle = replace(neuriteImageTitle, CHANNELS[1], CHANNELS[0]);
+		selectImage(nucleiImageTitle);
+		nucleiImageID = getImageID();
+	}
+	return newArray(nucleiImageTitle, nucleiImageID, neuriteImageTitle, neuriteImageID);
 }
 
 function batchSegmentNuclei() {
@@ -74,6 +183,7 @@ function batchSegmentNuclei() {
  * to a roi on the input image.
  */
 function segmentNeurites() {
+	Overlay.remove;
 	outputDataset = "exported_data";
 	compressionLevel = 0;
 	imageID = getImageID();
@@ -90,11 +200,14 @@ function segmentNeurites() {
 	inputImage = outputPath + INPUT_DATASET;
 	importArgs = "select=" + outputPath + " datasetname=" + INPUT_DATASET + " axisorder=" + AXIS_ORDER; 	
 	run("Import HDF5", importArgs);
+	h5Image = getImageID();
 	pixelClassificationArgs = "projectfilename=" + CLASSIFIER_FOLDER + CLASSIFIER + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + OUTPUT_TYPE;
 	run("Run Pixel Classification Prediction", pixelClassificationArgs);
 	neuriteMaskToSelection();
+	segmentationImage = getImageID();
+	selectImage(h5Image);
+	close();
 	selectImage(imageID);
-	close("\\Others");
 	count = roiManager("count");
 	if (count>0) run("From ROI Manager");
  	roiManager("reset");
@@ -276,9 +389,7 @@ function neuriteMaskToSelection() {
 	run("Invert");
 	run("Invert LUT");
 	run("Options...", "iterations="+NR_OF_CLOSE_OPERATIONS+" count=1 do=Close");
-	run("Analyze Particles...", "size="+MIN_NEURITE_AREA+"-Infinity show=Masks");
-	run("Create Selection");
-	roiManager("Add");
+	run("Analyze Particles...", "size="+MIN_NEURITE_AREA+"-Infinity composite add");
 	run("Select None");
 	selectImage(imageID);
 	close();
