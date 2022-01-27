@@ -4,7 +4,7 @@ import os
 from ij import Prefs
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
-from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge
+from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator
 from ij.process import ImageConverter
 from datetime import datetime
 import shutil
@@ -546,7 +546,7 @@ class Well(object):
 			imp1 = IJ.getImage()
 			IJ.open(path+"/flatfield/"+str(chan)+".tiff")
 			imp2 = IJ.getImage()
-			imp3 = ImageCalculator.run(imp1, imp2, "Subtract create");                                                                                                        
+			imp3 = ImageCalculator.run(imp1, imp2, "Subtract create");                                                                                                   
 			IJ.save(imp3, path+"/work/"+name)
 			imp1.close()
 			imp2.close()
