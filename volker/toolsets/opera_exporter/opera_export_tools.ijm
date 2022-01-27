@@ -16,39 +16,20 @@
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
 var _OPERA_INDEX_FILE = "";
 var _BYTES_TO_READ = 10000000;
+var _MAX_NB_CHANNELS = 7;
+var _CHANNEL_PER_ROW_IN_DIALOG = 2;
+
+var _NB_CHANNELS = -1;
+
 var _WELLS = newArray(0);
 var _SELECTED_WELLS = newArray(0);
 var _WELLS_NAMES = newArray(0);
 var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
-var _CREATE_Z_STACK = true;
-var _MERGE_CHANNELS = true;
-var _DO_MIP = false;
-var _ZSLICE = 0;
-var _CHANNEL = 1;
-var _COMPUTE_OVERLAP = true;
-
-var _FUSION_METHODS = newArray("Linear_Blending", "Average", "Median", "Max_Intensity", "Min_Intensity", "random");
-var _FUSION_METHOD = "Linear_Blending";
-var _REGRESSION_THRESHOLD = 0.30;
-var _DISPLACEMENT_THRESHOLD = 2.5;
-var _ABS_DISPLACEMENT_THRESHOLD = 3.5;
-
-var _INDEX_FLAT_FIELD = false;
-var _PSEUDO_FLAT_FIELD_RADIUS = 0;
-var _ROLLING_BALL_RADIUS = 0;
-var _NORMALIZE = false;
-var _FIND_AND_SUB_BACK_RADIUS = 0;
-var _FIND_AND_SUB_BACK_OFFSET = 3;
-var _FIND_AND_SUB_BACK_ITERATIONS = 1;
-var _FIND_AND_SUB_BACK_SKIP = 0.3;
-
-var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
-var _SELECTED_COLORS = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
-
-var _CHANNEL_PER_ROW_IN_DIALOG = 2;
 
 var _STITCH_ON_PROJECTION = false;
+var _ZSLICE = 0;
+var _CHANNEL = 1;
 
 var _EXPORT_Z_STACK_FIELDS = true;
 var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
@@ -59,10 +40,29 @@ var _EXPORT_Z_STACK_MOSAIC_COMPOSITE = false;
 var _EXPORT_PROJECTION_MOSAIC = true;
 var _EXPORT_PROJECTION_MOSAIC_COMPOSITE = false;
 var _EXPORT_PROJECTION_MOSAIC_RGB = true;
-
-var _NB_CHANNELS = -1;
-var _MAX_NB_CHANNELS = 7;
 var _EXPORT_RGB_CHANNEL = newArray(_MAX_NB_CHANNELS);
+
+var _FUSION_COMPUTE_OVERLAP = true;
+var _FUSION_METHODS = newArray("Linear_Blending", "Average", "Median", "Max_Intensity", "Min_Intensity", "random");
+var _FUSION_METHOD = "Linear_Blending";
+var _FUSION_REGRESSION_THRESHOLD = 0.30;
+var _FUSION_DISPLACEMENT_THRESHOLD = 2.5;
+var _FUSION_ABS_DISPLACEMENT_THRESHOLD = 3.5;
+
+var _CORRECT_INDEX_FLAT_FIELD = false;
+var _CORRECT_NORMALIZE = false;
+var _CORRECT_PSEUDO_FLAT_FIELD_RADIUS = 0;
+var _CORRECT_ROLLING_BALL_RADIUS = 0;
+var _CORRECT_FIND_AND_SUB_BACK_RADIUS = 0;
+var _CORRECT_FIND_AND_SUB_BACK_OFFSET = 3;
+var _CORRECT_FIND_AND_SUB_BACK_ITERATIONS = 1;
+var _CORRECT_FIND_AND_SUB_BACK_SKIP = 0.3;
+
+var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
+var _COLORS_SELECTED = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
+
+
+
 	
 launchExport();
 exit();
@@ -113,6 +113,20 @@ macro "launch export [f8]" {
 
 function launchExport() {
 	print("3, 2, 1, go...");
+	
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
+	options = getOptions();
+	
+	setBatchMode(true);
+	if(_CORRECT_INDEX_FLAT_FIELD)	prepareFlatfieldFolder();
+	call("ij.plugin.Macro_Runner.runPython", script, options); 
+	setBatchMode(false);
+	
+	print("The eagle has landed!!!");
+}
+
+function getOptions(){
 	_OPERA_INDEX_FILE = getIndexFile();
 
 	loadWellNames();
@@ -125,10 +139,12 @@ function launchExport() {
 			options = options + _WELLS[i];			
 		}
 	}
+	//Base for Stitching
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
 	
+	//Export Options
 	if(_EXPORT_Z_STACK_FIELDS) options = options+ " --zStackFields";
 	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ " --zStackFieldsComposite";
 	if(_EXPORT_PROJECTION_FIELDS) options = options+ " --projectionFields";
@@ -156,32 +172,31 @@ function launchExport() {
 	}
 	if(channelSelected)	options = options+ " --channelRGB="+tmp;
 	
-	if (_NORMALIZE) options = options + " --normalize";
-	if (_COMPUTE_OVERLAP) options = options + " --computeOverlap";
+	//Fusion Parameters
+	if (_FUSION_COMPUTE_OVERLAP) options = options + " --computeOverlap";
 	options = options + " --fusion-method=" + _FUSION_METHOD; 
-	options = options + " --regression-threshold=" + _REGRESSION_THRESHOLD;
-	options = options + " --displacement-threshold=" + _DISPLACEMENT_THRESHOLD;
-	options = options + " --abs-displacement-threshold=" + _ABS_DISPLACEMENT_THRESHOLD;
+	options = options + " --regression-threshold=" + _FUSION_REGRESSION_THRESHOLD;
+	options = options + " --displacement-threshold=" + _FUSION_DISPLACEMENT_THRESHOLD;
+	options = options + " --abs-displacement-threshold=" + _FUSION_ABS_DISPLACEMENT_THRESHOLD;
+
+	//Image Correction
+	if (_CORRECT_INDEX_FLAT_FIELD) options = options + " --index-flatfield";
+	if (_CORRECT_NORMALIZE) options = options + " --normalize";
 	
-	if (_INDEX_FLAT_FIELD) options = options + " --index-flatfield";
-	options = options + " --pseudoflatfield=" + _PSEUDO_FLAT_FIELD_RADIUS;
-	options = options + " --rollingball=" + _ROLLING_BALL_RADIUS;
-	options = options + " --subtract-background-radius=" + _FIND_AND_SUB_BACK_RADIUS;
-	options = options + " --subtract-background-offset=" + _FIND_AND_SUB_BACK_OFFSET;
-	options = options + " --subtract-background-iterations=" + _FIND_AND_SUB_BACK_ITERATIONS;
-	options = options + " --subtract-background-skip=" + _FIND_AND_SUB_BACK_SKIP;
-	colors = String.join(_SELECTED_COLORS);
+	options = options + " --pseudoflatfield=" + _CORRECT_PSEUDO_FLAT_FIELD_RADIUS;
+	options = options + " --rollingball=" + _CORRECT_ROLLING_BALL_RADIUS;
+	
+	options = options + " --subtract-background-radius=" + _CORRECT_FIND_AND_SUB_BACK_RADIUS;
+	options = options + " --subtract-background-offset=" + _CORRECT_FIND_AND_SUB_BACK_OFFSET;
+	options = options + " --subtract-background-iterations=" + _CORRECT_FIND_AND_SUB_BACK_ITERATIONS;
+	options = options + " --subtract-background-skip=" + _CORRECT_FIND_AND_SUB_BACK_SKIP;
+
+	//Export Colors
+	colors = String.join(_COLORS_SELECTED);
 	colors = replace(colors, " ", "");
 	options = options + " --colours=" + colors;
 	options = options + " " + _OPERA_INDEX_FILE;
-	macrosDir = getDirectory("macros");
-	script = File.openAsString(macrosDir + "/toolsets/opera_export_tools.py");
 	
-	setBatchMode(true);
-	prepareFlatfieldFolder();
-	call("ij.plugin.Macro_Runner.runPython", script, options); 
-	setBatchMode(false);
-	print("The eagle has landed!!!");
 }
 
 function setOptions() {
@@ -226,36 +241,39 @@ function setOptions() {
 		}
 		Dialog.addCheckbox(channelName[i],_EXPORT_RGB_CHANNEL[i]);
 	}
-	
-	Dialog.addMessage("Image correction/normalization:",14);
 
-	Dialog.addCheckbox("! Experimental ! Index based background removal", _INDEX_FLAT_FIELD);	
-	Dialog.addNumber("pseudo flat field radius (0 = off): ", _PSEUDO_FLAT_FIELD_RADIUS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("rolling ball radius (0 = off): ", _ROLLING_BALL_RADIUS);
-	Dialog.addCheckbox("normalize", _NORMALIZE);
-	Dialog.addNumber("find background radius (0 = off): ", _FIND_AND_SUB_BACK_RADIUS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("find background offset: ", _FIND_AND_SUB_BACK_OFFSET);
-	Dialog.addNumber("find background iterations: ", _FIND_AND_SUB_BACK_ITERATIONS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("find background skip limit: ", _FIND_AND_SUB_BACK_SKIP);
-	
 	Dialog.addMessage("Fusion parameters:",14);
-	Dialog.addCheckbox("Compute Overlap", _COMPUTE_OVERLAP);
+	
+	Dialog.addCheckbox("Compute Overlap", _FUSION_COMPUTE_OVERLAP);
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
 	Dialog.addToSameRow();
-	Dialog.addNumber("regression threshold: ", _REGRESSION_THRESHOLD);
-	Dialog.addNumber("max/avg displacement threshold: ", _DISPLACEMENT_THRESHOLD);
+	Dialog.addNumber("regression threshold: ", _FUSION_REGRESSION_THRESHOLD);
+	Dialog.addNumber("max/avg displacement threshold: ", _FUSION_DISPLACEMENT_THRESHOLD);
 	Dialog.addToSameRow();
-	Dialog.addNumber("absolute displacement threshold: ", _ABS_DISPLACEMENT_THRESHOLD);
+	Dialog.addNumber("absolute displacement threshold: ", _FUSION_ABS_DISPLACEMENT_THRESHOLD);
+
+	Dialog.addMessage("Image correction/normalization:",14);
+
+	Dialog.addCheckbox("! Experimental ! Flatfield correction from index-file ", _CORRECT_INDEX_FLAT_FIELD);	
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("normalize", _CORRECT_NORMALIZE);
+	Dialog.addNumber("pseudo flat field radius (0 = off): ", _CORRECT_PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("rolling ball radius (0 = off): ", _CORRECT_ROLLING_BALL_RADIUS);
+	Dialog.addNumber("find background radius (0 = off): ", _CORRECT_FIND_AND_SUB_BACK_RADIUS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background offset: ", _CORRECT_FIND_AND_SUB_BACK_OFFSET);
+	Dialog.addNumber("find background iterations: ", _CORRECT_FIND_AND_SUB_BACK_ITERATIONS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background skip limit: ", _CORRECT_FIND_AND_SUB_BACK_SKIP);
+	
 	Dialog.addMessage("Export Colours:",14);
 
 	for(i=0;i<_NB_CHANNELS;i++){
 		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
 			Dialog.addToSameRow();
 		}
-		Dialog.addChoice(channelName[i], _COLORS, _SELECTED_COLORS[i]);
+		Dialog.addChoice(channelName[i], _COLORS, _COLORS_SELECTED[i]);
 	}
 
 	Dialog.addMessage("Export Bounds:",14);
@@ -300,23 +318,23 @@ function setOptions() {
 		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
 	}
 
-	_INDEX_FLAT_FIELD = Dialog.getCheckbox();
-	_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
-	_ROLLING_BALL_RADIUS = Dialog.getNumber();
-	_NORMALIZE = Dialog.getCheckbox();
-	_FIND_AND_SUB_BACK_RADIUS = Dialog.getNumber();
-	_FIND_AND_SUB_BACK_OFFSET = Dialog.getNumber();
-	_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
-	_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
-
-	_COMPUTE_OVERLAP = Dialog.getCheckbox();
+	_FUSION_COMPUTE_OVERLAP = Dialog.getCheckbox();
 	_FUSION_METHOD = Dialog.getChoice();
-	_REGRESSION_THRESHOLD = Dialog.getNumber();
-	_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
-	_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	_FUSION_REGRESSION_THRESHOLD = Dialog.getNumber();
+	_FUSION_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	_FUSION_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+
+	_CORRECT_INDEX_FLAT_FIELD = Dialog.getCheckbox();
+	_CORRECT_NORMALIZE = Dialog.getCheckbox();
+	_CORRECT_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
+	_CORRECT_ROLLING_BALL_RADIUS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_RADIUS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_OFFSET = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
 
 	for(i=0;i<_NB_CHANNELS;i++){
-		_SELECTED_COLORS[i]=Dialog.getChoice();
+		_COLORS_SELECTED[i]=Dialog.getChoice();
 	}
 	for(i=1;i<=_NB_CHANNELS;i++){
 		min=Dialog.getNumber();
@@ -324,17 +342,6 @@ function setOptions() {
 		saveMinMax(i,min,max);
 	}
 	
-}
-
-macro "channelBounds"{
-	setChannelBounds();
-	channelName = getChannelsFromIndex();
-	_NB_CHANNELS = channelName.length;
-	for(i=1;i<=_NB_CHANNELS;i++){
-		minMax=getMinMax(i);
-		print("min="+minMax[0]);
-		print("max="+minMax[1]);
-	}
 }
 
 function setChannelBounds(){
@@ -471,6 +478,12 @@ function setIndexFile() {
 function getIndexFile() {
 	res = _OPERA_INDEX_FILE;
 	if (!File.exists(res)) res = getParameterDefault("indexFile","");
+	wsIndex = indexOf(res, " "); 
+	if (wsIndex>-1){
+		print("Path to index file contains a whitespace !");
+		print("\""+substring(res, 0, wsIndex+1)+"[  ]"+substring(res, wsIndex)+"\"");
+		print("Please remove the whitespace !");
+	}
 	return res;
 }
 
@@ -525,33 +538,14 @@ function getNrOfRowsAndColumns() {
 	res = newArray(nrRows, nrCols);
 	return res;
 }
-macro "getChannelsNames"{
-	getChannelsFromIndex();
-}
 
 function getChannelsFromIndex(){
-	indexFile = getIndexFile();
-	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
-	lines = split(content, "\n");
-	channels = newArray();
-	
+	lineStart = "<FlatfieldProfile>"
 	startMarker = "ChannelName: ";
 	endMarker = ",";
-	for (i = 0; i < lines.length; i++) {
-		line = String.trim(lines[i]);
-		if (startsWith(line, "<FlatfieldProfile>")) {
-			startIndex = indexOf(line,startMarker)+startMarker.length;
-			channelName = substring(line, startIndex);
-			endIndex = indexOf(channelName,endMarker);
-			channelName = substring(channelName, 0, endIndex);
-			channels = Array.concat(channels,channelName);
-		}
-	}
+	channels = newArray();
+	channels = getDataFromIndex(lineStart,startMarker,endMarker);
 	return channels;
-}
-
-macro "getFlatfieldCoefficients"{
-	getFlatfieldCoefficients(1);
 }
 
 function getDataFromIndex(lineStart,startMarker,endMarker){
@@ -581,37 +575,21 @@ function getFlatfieldCoefficients(channelNumber){
 	nrRows = 0;
 	channels = newArray();
 	
-	//print("Reading indexFile");
+	lineStart ="<FlatfieldProfile>";
 	startMarker = "Coefficients: ";
 	endMarker = ", Dims: ";
-	count = 0;
-	for (i = 0; i < lines.length; i++) {
-		line = String.trim(lines[i]);
-		if (startsWith(line, "<FlatfieldProfile>")) {
-			count = count+1;
-			if(count==channelNumber){
-				startIndex = indexOf(line,startMarker)+startMarker.length;
-				endIndex = indexOf(line,endMarker);
-				coeffLine = substring(line, startIndex, endIndex);
-				coeffDirty = split(coeffLine,",");
-				coeffClean = newArray(coeffDirty.length);
-				for(tmp=0;tmp<coeffDirty.length;tmp++){
-					coeffClean[tmp] = String.trim( replace(replace(coeffDirty[tmp], "[", ""),"]","") );
-				}
-				Array.print(coeffClean);
-				
-			}
-		}
+
+	test = newArray();
+	test = getDataFromIndex(lineStart,startMarker,endMarker);
+	Array.print(test);
+	coeffDirty = split(test[channelNumber-1]);
+	coeffClean = newArray(coeffDirty.length);
+	for(i=0;i<coeffDirty.length;i++){
+		coeffClean[i] = String.trim( replace(replace(replace(coeffDirty[i], "[", "") ,"]","") ,",","") );
 	}
 	return coeffClean;
 }
-
-macro "correctFlatfield"{
-	setBatchMode(true);
-	correctFlatfield();
-	setBatchMode(false);
-}
-
+/*
 function correctFlatfield(){
 	_OPERA_INDEX_FILE = getIndexFile();
 	channels = getChannelsFromIndex();
@@ -678,25 +656,7 @@ function correctFlatfield(){
 	    }
 	}
 }
-macro "Evaluate BG Removal"{
-	dir = getDir("Folder to Measure");
-	setBatchMode(true);
-	evaluateBGRemoval(dir);
-	setBatchMode(false);
-}
-
-function evaluateBGRemoval(directory){
-	filelist = getFileList(directory);
-	for (i = 0; i < lengthOf(filelist); i++) {
-		if (endsWith(filelist[i], ".tiff")){
-			open(directory+filelist[i]);
-			run("Measure");
-			close();
-		}
-	}
-
-}
-
+*/
 function createBackgroundImage(coeffs,size,factor){
 	newImage("background", "32-bit", size[0], size[1], 1);
 	imageID = getImageID();
@@ -766,9 +726,7 @@ function prepareFlatfieldFolder(){
 		originalBackgroundID = createBackgroundImage(coeffs,imageSize,chanMean);
 		saveAs(outDirectory+chan+".tiff");
 		close();
-	}
-
-	
+	}	
 }
 
 function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
