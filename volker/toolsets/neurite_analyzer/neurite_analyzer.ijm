@@ -53,6 +53,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 	run("To ROI Manager");
 	run("Select None");
 	roiManager("combine");
+	setBatchMode(true);
 	run("Create Mask");
 	rename("neurite-mask");
 	otherImageMaskID = getImageID();
@@ -63,7 +64,6 @@ function removeRoisWithoutSupport(image, otherImage) {
 	Overlay.copy
 	selectImage(otherImageMaskID);	
 	Overlay.paste
-	setBatchMode("hide");
 	toBeRemoved = newArray(0);
 	for (i = 0; i < Overlay.size; i++) {
 		showProgress(i+1, Overlay.size);
@@ -73,7 +73,6 @@ function removeRoisWithoutSupport(image, otherImage) {
 			toBeRemoved = Array.concat(toBeRemoved, i);
 		}
 	}
-	setBatchMode("show");
 	selectImage(image);	
 	run("To ROI Manager");
 	if (toBeRemoved.length>0) {
@@ -86,6 +85,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 	roiManager("reset");
 	selectImage(otherImageMaskID);
 	close();
+	setBatchMode("exit and display");
 }
 
 function mergeAndFilter() {
@@ -98,8 +98,33 @@ function mergeAndFilter() {
 	removeRoisWithoutSupport(nucleiImageID, neuriteImageID);
 	showStatus("Merge and filter: STAND BY...");
 	removeRoisWithoutSupport(neuriteImageID, nucleiImageID);
-	showStatus("Merging and filter: Merging.");
+	selectImage(nucleiImageID);
+	run("To ROI Manager");
+	roiManager("Combine");
+	run("Create Mask");
+	rename("nuclei-mask");
+	nucleiMaskID = getImageID();
+	run("Options...", "iterations=50 count=1 do=Dilate");
+	selectImage(nucleiImageID);
+	run("From ROI Manager");
+	roiManager("reset");
+	selectImage(neuriteImageID);
+	run("To ROI Manager");
+	roiManager("Combine");
+	run("Create Mask");
+	rename("neurite-mask");
+	neuriteMaskID = getImageID();
+	run("Geodesic Distance Map", "marker=nuclei-mask mask=neurite-mask distances=[Chessknight (5,7,11)] output=[16 bits] normalize");
+	max = getValue("Max");
+	run("Macro...", "code=v=(v!="+max+")*v");
+	selectImage(neuriteImageID);
+	run("From ROI Manager");
+	roiManager("reset");
+	showStatus("Merging and filter: DONE.");
+}
 
+function merge(nucleiImageTitle, neuriteImageTitle) {
+	showStatus("Merging and filter: Merging.");
 	options = "c3="+nucleiImageTitle+" c4="+neuriteImageTitle+" create keep";
 	print(options);
 	run("Merge Channels...", options);
@@ -127,10 +152,10 @@ function mergeAndFilter() {
 		Overlay.addSelection;
 		Overlay.setPosition(c, 1, 1);
 	}
+	run("Select None");
 	selectImage(neuriteImageID);
 	close();
 	roiManager("reset");
-	showStatus("Merging and filter: DONE.");
 }
 
 function getImageInfo() {
