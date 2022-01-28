@@ -196,7 +196,7 @@ function getOptions(){
 	colors = replace(colors, " ", "");
 	options = options + " --colours=" + colors;
 	options = options + " " + _OPERA_INDEX_FILE;
-	
+	return options;
 }
 
 function setOptions() {
@@ -540,7 +540,7 @@ function getNrOfRowsAndColumns() {
 }
 
 function getChannelsFromIndex(){
-	lineStart = "<FlatfieldProfile>"
+	lineStart = "<FlatfieldProfile>";
 	startMarker = "ChannelName: ";
 	endMarker = ",";
 	channels = newArray();
