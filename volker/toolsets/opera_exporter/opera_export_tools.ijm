@@ -29,7 +29,7 @@ var _EXPORT_ALL = true;
 
 var _STITCH_ON_PROJECTION = false;
 var _ZSLICE = 0;
-var _CHANNEL = 1;
+var _CHANNEL = 1; //Starts at 1
 
 var _EXPORT_Z_STACK_FIELDS = true;
 var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
@@ -212,7 +212,7 @@ function setOptions() {
 	
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 
-	Dialog.addChoice("Channel for Stitching",channelName,channelName[_CHANNEL]);
+	Dialog.addChoice("Channel for Stitching",channelName,channelName[_CHANNEL-1]);
 
 	Dialog.addMessage("Export Options",14);
 
@@ -299,7 +299,7 @@ function setOptions() {
 	chan = Dialog.getChoice();
 	for(i = 0; i < _NB_CHANNELS; i++){
 		if(channelName[i]==chan){
-			_CHANNEL = i;
+			_CHANNEL = i+1;
 			break;
 		}
 	}
