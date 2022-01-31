@@ -220,7 +220,7 @@ class Well(object):
 		fieldSet = set()
 		for image in images:
 			fieldSet.add(image.getField())
-		fields = sorted(fieldSet)
+		fields = sorted(fieldSet, key = int)
 		return fields
 
 	def getPixelWidth(self):
@@ -270,7 +270,7 @@ class Well(object):
 		yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
 		print(len(yCoords))
 		names = [image.getURL() for image in images]
-		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
+		newNames = [str(names.index(name)+1).zfill(2)+".tif" for name in names]
 		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
 		with open(tileConfPath, 'w') as f:
 			f.write("# Define the number of dimensions we are working on\n")
@@ -575,7 +575,7 @@ class Well(object):
 		
 		fields = self.getFields()
 		for t in range(0, timePoints):
-			for f in range(len(fields)):
+			for f in fields:
 				channelImps = []
 				for c in range(1, channels+1):
 					imps = []
@@ -672,7 +672,7 @@ class Well(object):
 					imp = ImagesToStack.run(imps)
 					name = title[:9] + title[12:]
 					projImp = ZProjector.run(imp,"max")
-					url = outputPath + str(index).zfill(2)+".tif"
+					url = outputPath + str(f).zfill(2)+".tif"
 					IJ.save(projImp, url)
 					imp.close()
 					projImp.close()
@@ -826,7 +826,7 @@ class Well(object):
 		srcPath = self.experiment.getPath()
 		path = srcPath + _WORK_FOLDER
 		names = [image.getURL() for image in images]
-		newNames = [str(names.index(name)).zfill(2)+".tif" for name in names]
+		newNames = [str(names.index(name)+1).zfill(2)+".tif" for name in names]
 		for name, newName in zip(names, newNames):
 			shutil.copy(srcPath+"/"+name, path+"/"+newName)
 		return names, newNames
