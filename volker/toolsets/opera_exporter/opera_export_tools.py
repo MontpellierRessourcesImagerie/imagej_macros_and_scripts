@@ -309,8 +309,22 @@ class Well(object):
 			fusionMethod = fusionMethod.replace("_", " ");	
 		if "random" in fusionMethod:
 			fusionMethod = "Intensity of random input tile"
-		parameters = "type=[Positions from file] " + \
-					 "order=[Defined by TileConfiguration] " + \
+		#parameters = "type=[Positions from file] " + \
+		#			 "order=[Defined by TileConfiguration] " + \
+		#			 "directory=["+srcPath+"/work/] " + \
+		#			 "layout_file=TileConfiguration.txt " + \
+		#			 "fusion_method=["+fusionMethod+"] " + \
+		#			 "regression_threshold=" + str(params.regression_threshold) + " " +\
+		#			 "max/avg_displacement_threshold=" + str(params.displacement_threshold) + " "+\
+		#			 "absolute_displacement_threshold=" + str(params.abs_displacement_threshold) + " "+\
+		#			 computeString + \
+		#			 "subpixel_accuracy " + \
+		#			 "computation_parameters=[Save computation time (but use more RAM)] " + \
+		#			 "image_output=[Write to disk] " \
+		#			 "output_directory=["+srcPath+"/out/] "
+
+		parameters = "type=[Unknown position] " + \
+					 "order=[All files in directory] " + \
 					 "directory=["+srcPath+"/work/] " + \
 					 "layout_file=TileConfiguration.txt " + \
 					 "fusion_method=["+fusionMethod+"] " + \
@@ -322,6 +336,9 @@ class Well(object):
 					 "computation_parameters=[Save computation time (but use more RAM)] " + \
 					 "image_output=[Write to disk] " \
 					 "output_directory=["+srcPath+"/out/] "
+		#" output_textfile_name=TileConfiguration.txt");
+
+
 		now = datetime.now().time()
 		print(now)
 		IJ.run("Grid/Collection stitching", parameters)
