@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from ij import IJ
 import os
+import sys
 from ij import Prefs
 from ij.gui import WaitForUserDialog
 from ij.macro import Interpreter
@@ -10,6 +11,7 @@ from datetime import datetime
 import shutil
 import argparse
 import re
+import unittest
 
 _Z_STACK_FOLDER = "/stack/"
 _PROJECT_FOLDER = "/projection/"
@@ -139,52 +141,87 @@ def getArgumentParser():
 	parser.add_argument("index_file", help='path to the Index.idx.xml file')
 	return parser
 
-def splitIntoChunksOfSize(some_string, x):
-	res=[some_string[y-x:y] for y in range(x, len(some_string)+x,x)]
+
+def splitIntoChunksOfSize(aString, chunkLength):
+	'''
+        Split a string into chunks of a given length.
+         
+        Parameters
+        ----------
+        aString : str
+            The string that will be splitted into chunks
+		chunkLength : int
+        	The length of the chunks 
+        Returns
+        -------
+        title : list
+            A list of the chunks
+    '''
+	res=[aString[y-chunkLength:y] for y in range(chunkLength, len(aString)+chunkLength, chunkLength)]
 	return res
 	
-def zero_center_coordinates(x_pos, y_pos):
-    leftmost = min(x_pos)
-    top = max(y_pos)
+def transformCoordinates(xPos, yPos):
+    '''
+       Change the origin from (0, 0) to (min(xPos), max(yPos)) and inverse the y axis.
+       Answer the coordinates in the new system.
 
+        Parameters
+        ----------
+        xPos : list
+            A list of the x-values of the coordinates
+        yPos : list
+            A list of the y-values of the coordinates
+        Returns
+        -------
+        title : (list, list)
+            a tupel of two lists, the first list contains the transformed x-values 
+            and the second list the transformed y-values
+    '''
+    leftmost = min(xPos)
+    top = max(yPos)
     if leftmost < 0:
-        leftmost = abs(leftmost)
-        if top < 0:
-            top = abs(top)
-            x_pos = [i + leftmost for i in x_pos]
-            y_pos = [abs(i) - top for i in y_pos]
-        else:
-            x_pos = [i + leftmost for i in x_pos]
-            y_pos = [top - i for i in y_pos]
+        xPos = [i + abs(leftmost) for i in xPos]
     else:
-        if top < 0:
-            top = abs(top)
-            x_pos = [i - leftmost for i in x_pos]
-            y_pos = [abs(i) - top for i in y_pos]
-        else:
-            x_pos = [i - leftmost for i in x_pos]
-            y_pos = [top - i for i in y_pos]
-    return x_pos, y_pos
-
+        xPos = [i - leftmost for i in xPos]       
+    if top < 0:
+  	    yPos = [abs(i) - abs(top) for i in yPos]
+    else:
+        yPos = [top - i for i in yPos]
+  	return xPos, yPos
+  	
 class Plate(object):
-	def __init__(self, plateData, experiment):
-		self.data = plateData
-		self.experiment = experiment
+    '''
+    A plate is part of an experiment and contains a number of wells.
+    '''
+    def __init__(self, plateData, experiment):
+        '''
+        Create a plate.
 
-	def __str__(self):
-		plateType = self.data[4].text
-		rows = self.data[5].text
-		columns = self.data[6].text
-		return "Plate (" + name + ", "+ plateType + ", " + rows + "x" + columns + ")"
+        Parameters
+        ----------
+        plateData : string
+            The string of the plate xml-element.
+        experiment : PhenixHCSExperiment
+            The experiment of which the plate is a part.
+        '''
+        self.data = plateData
+        self.experiment = experiment
 
-	def getWells(self):
-		wells = []
-		for wellID in self.data[7:]:
-			wells.append(self.experiment.getWell(wellID.attrib['id'], self))
-		return wells
+    def __str__(self):
+        plateType = self.data[4].text
+        rows = self.data[5].text
+        columns = self.data[6].text
+        name = self.getName()
+        return "Plate (" + name + ", "+ plateType + ", " + rows + "x" + columns + ")"
 
-	def getName(self):
-		return self.data[3].text
+    def getWells(self):
+        wells = []
+        for wellID in self.data[7:]:
+            wells.append(self.experiment.getWell(wellID.attrib['id'], self))
+        return wells
+
+    def getName(self):
+        return self.data[3].text
 		
 class Well(object):
 	def __init__(self, anID, row, col, imageData, experiment, plate):
@@ -238,7 +275,7 @@ class Well(object):
 		pixelWidth = self.getPixelWidth()
 		xCoords = [int(round(image.getX()/pixelWidth)) for image in images]
 		yCoords = [int(round(image.getY()/pixelWidth)) for image in images]
-		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
+		xCoords, yCoords = transformCoordinates(xCoords, yCoords)
 		for image in images:
 			slices.add(image.getPlane())
 			frames.add(image.getTime())
@@ -271,7 +308,7 @@ class Well(object):
 		print(len(yCoords))
 		names = [image.getURL() for image in images]
 		newNames = [str(names.index(name)+1).zfill(2)+".tif" for name in names]
-		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)
+		xCoords, yCoords = transformCoordinates(xCoords, yCoords)
 		with open(tileConfPath, 'w') as f:
 			f.write("# Define the number of dimensions we are working on\n")
 			f.write("dim = 2\n")
@@ -873,7 +910,7 @@ class Well(object):
 		images = self.getImages()
 		xCoords = [int(round(image.getX()/float(pixelWidth))) for image in images]
 		yCoords = [int(round(image.getY()/float(pixelWidth))) for image in images]
-		xCoords, yCoords = zero_center_coordinates(xCoords, yCoords)		
+		xCoords, yCoords = transformCoordinates(xCoords, yCoords)		
 		for image, x, y in zip(images, xCoords, yCoords):
 			IJ.open(image.getFolder() + os.path.sep + image.getURL())
 			imp = IJ.getImage()
@@ -1070,115 +1107,184 @@ class Image(object):
 		res = "Image ("+self.getID()+", state="+self.getState()+", " + self.getURL() + ", r" + self.getRow() + ", c="+self.getColumn()+ ", f="+self.getField()+")"
 		return res
 	
-class PhenixHCSExperiment(object):		
-	@classmethod
-	def fromIndexFile(cls, path):
-		root = ET.parse(path).getroot()
-		children = root.getchildren()
-		experiment = PhenixHCSExperiment()
-		experiment.setUser(children[0].text)
-		experiment.setInstrumentType(children[1].text)
-		experiment.setPlates(children[2])
-		experiment.setWells(children[3])
-		experiment.setMaps(children[4])
-		experiment.setImages(children[5])
-		experiment.setPath(os.path.dirname(path))
-		return experiment
+class PhenixHCSExperiment(object):
+    '''
+       PhenixHCSExperiment represents a high-content streaming experiment done with 
+       the Opera Phenix HCS. An experiment contains usually one plate with a number
+       of wells. Each well contains a number of fields. The fields of one well form
+       a mosaic of images. Each image can have multiple frames, z-slices and channels.
+    '''		
+    @classmethod
+    def fromIndexFile(cls, path):
+        '''
+            Create the experiment from the index-xml-file (Index.idx.xml).
+            The xml-file is parsed and different xml-elements are stored
+            in the attributes of the experiment. 
 
-	def setPath(self, path):
-		self.path = path
+            Parameters
+            ----------
+            path : str
+                The path to the file Index.idx.xml
+	    '''
+    	root = ET.parse(path).getroot()
+    	children = root.getchildren()
+        experiment = PhenixHCSExperiment()
+        experiment.setUser(children[0].text)
+        experiment.setInstrumentType(children[1].text)
+        experiment.setPlates(children[2])
+        experiment.setWells(children[3])
+        experiment.setMaps(children[4])
+        experiment.setImages(children[5])
+        experiment.setPath(os.path.dirname(path))
+        return experiment
 
-	def getPath(self):
-		return self.path
+    def setPath(self, path):
+        self.path = path
+
+    def getPath(self):
+        return self.path
 	
-	def setUser(self, user):
-		self.user = user
+    def setUser(self, user):
+        self.user = user
 
-	def getUser(self):
-		return self.user
+    def getUser(self):
+        return self.user
 
-	def setInstrumentType(self, instrumentType):
-		self.instrumentTYpe = instrumentType
+    def setInstrumentType(self, instrumentType):
+        self.instrumentTYpe = instrumentType
 
-	def getInstrumentType(self):
-		return self.instrumentTYpe
+    def getInstrumentType(self):
+        return self.instrumentTYpe
 
-	def getNrOfPlates(self):
-		return len(self.getPlates());
+    def getNrOfPlates(self):
+        return len(self.getPlates());
 
-	def getNrOfColumns(self):
-		return 0;
+    def getNrOfColumns(self):
+        return 0;
 
-	def getNrOfRows(self):
-		return 0;
+    def getNrOfRows(self):
+        return 0;
 
-	def getNrOfWells(self):
-		return len(self.getWells());
+    def getNrOfWells(self):
+        return len(self.getWells());
 
-	def getPlates(self):
-		return self.plates
+    def getPlates(self):
+        '''
+        Answers the plates of the experiment.
 
-	def setPlates(self, plates):
-		self.plates = []
-		plates = plates.getchildren()
-		for plate in plates:
-			self.plates.append(Plate(plate, self))
+        Returns
+        -------
+            plates : list
+                A list of plate objects.
+        '''
+        return self.plates
 
-	def getWells(self):
-		return self.wells
+    def setPlates(self, plates):
+        '''
+	       Takes a plates xml-string and sets the plates
+	       of the experiment as a list of plate-objects.
 
-	def setWells(self, wells):
-		self.wells = wells
+	       Parameters
+           ----------
+           plates : str
+            The string of the plates xml-element.
+        '''
+        self.plates = []
+        plates = plates.getchildren()
+        for plate in plates:
+            self.plates.append(Plate(plate, self))
 
-	def getMaps(self):
-		return self.maps
+    def getWells(self):
+        return self.wells
 
-	def setMaps(self, maps):
-		self.maps = maps
+    def setWells(self, wells):
+        self.wells = wells
 
-	def getImages(self):
-		return self.images
+    def getMaps(self):
+        return self.maps
 
-	def setImages(self, images):
-		self.images = images
+    def setMaps(self, maps):
+        self.maps = maps
 
-	def getNrOfImages(self):
-		return len(self.getImages())
+    def getImages(self):
+        return self.images
 
-	def getWell(self, anID, aPlate):
-		for well in self.wells:
-			if well[0].text==anID:
-				imageData = []
-				for i in range(3, len(well)):
-					imageData.append(well[i])
-				wellObject = Well(anID, well[1].text, well[2].text, imageData, self, aPlate)
-				return wellObject
-		return None 
+    def setImages(self, images):
+        self.images = images
 
-	def getImage(self, anID):
-		for image in self.images:
-			if image[0].text==anID:
-				result = Image(anID)
-				result.setFolder(self.getPath())
-				result.setState(image[1].text)
-				result.setURL(image[2].text)
-				result.setRow(image[3].text)
-				result.setColumn(image[4].text)
-				result.setField(image[5].text)
-				result.setPlane(int(image[6].text))
-				result.setTime(int(image[7].text))
-				result.setChannel(int(image[8].text))
-				result.setPixelWidth(float(image[15].text))
-				result.setPixelHeight(float(image[16].text))
-				result.setWidth(int(image[17].text))
-				result.setHeight(int(image[18].text))
-				result.setX(float(image[23].text))
-				result.setY(float(image[24].text))
-				result.setZ(float(image[25].text))
-				return result
-		return None
+    def getNrOfImages(self):
+        '''
+	       Answers the number of images in the well. 
+	       Each frame, channel and z-slice counts as one image.
+
+	       Returns
+           -------
+           nrOfImages : int
+        '''
+        return len(self.getImages())
+
+    def getWell(self, anID, aPlate):
+        '''
+	       Answers the well with the id anID as a well-object. 
+
+	       Parameters
+           ----------
+           anID : str
+              The id of the well
+		   aPlate : Plate
+        	  The plate on which the well is situated will be set in the well-object
+           
+           Returns
+           -------
+           wellObject : Well
+              The well-object for the well with the id anID
+        '''
+        for well in self.wells:
+            if well[0].text==anID:
+                imageData = []
+                for i in range(3, len(well)):
+                    imageData.append(well[i])
+                wellObject = Well(anID, well[1].text, well[2].text, imageData, self, aPlate)
+                return wellObject
+        return None 
+
+    def getImage(self, anID):
+        '''
+	       Answers the image with the id anID as an image-object. 
+
+	       Parameters
+           ----------
+           anID : str
+              The id of the image
+           
+           Returns
+           -------
+           result : Image
+              The image-object for the image with the id anID
+        '''
+        for image in self.images:
+            if image[0].text==anID:
+                result = Image(anID)
+                result.setFolder(self.getPath())
+                result.setState(image[1].text)
+                result.setURL(image[2].text)
+                result.setRow(image[3].text)
+                result.setColumn(image[4].text)
+                result.setField(image[5].text)
+                result.setPlane(int(image[6].text))
+                result.setTime(int(image[7].text))
+                result.setChannel(int(image[8].text))
+                result.setPixelWidth(float(image[15].text))
+                result.setPixelHeight(float(image[16].text))
+                result.setWidth(int(image[17].text))
+                result.setHeight(int(image[18].text))
+                result.setX(float(image[23].text))
+                result.setY(float(image[24].text))
+                result.setZ(float(image[25].text))
+                return result
+        return None
 	
-	def __str__(self):
+    def __str__(self):
 		nrOfPlates = self.getNrOfPlates();
 		nrOfWells = self.getNrOfWells();
 		nrOfImages = self.getNrOfImages();
@@ -1201,3 +1307,155 @@ if 'getArgument' in globals():
 	args = " ".join(args.split())
 	print(args.split())
 	main(args.split())
+	sys.exit(0)
+
+class SplitIntoChunksOfSizeTest(unittest.TestCase):
+    def testSplitIntoChunksOfSize(self):
+    	chunks = splitIntoChunksOfSize("1234567890", 2)
+    	self.assertEqual(len(chunks[0]),2)
+    	self.assertEqual(chunks[0], '12')
+    	self.assertEqual(chunks[-1], '90')
+    	self.assertEqual(len(chunks), 5)
+
+    	chunks = splitIntoChunksOfSize("123456789", 2)
+    	self.assertEqual(len(chunks[0]),2)
+    	self.assertEqual(len(chunks), 5)
+    	self.assertEqual(chunks[-1], '9')
+
+class TransformCoordinatesTest(unittest.TestCase):
+	def testTransformCoordinates(self):
+		xCoords, yCoords = transformCoordinates([-10, -5, -1, 0, 1, 5, 10], [-10, -5, -1, 0, 1, 5, 10])
+		expectedXCoords = [0, 5, 9, 10, 11, 15, 20]
+		expectedYCoords = [20, 15, 11, 10, 9, 5, 0]
+		for actual, expected in zip(xCoords, expectedXCoords):
+			self.assertEqual(actual, expected)
+		for actual, expected in zip(yCoords, expectedYCoords):
+			self.assertEqual(actual, expected)
+		xCoords, yCoords = transformCoordinates([10, 11, 15, 19, 20], [10, 11, 15, 19, 20])
+		expectedXCoords = [0, 1, 5, 9, 10]
+		expectedYCoords = [10, 9, 5, 1, 0]
+		for actual, expected in zip(xCoords, expectedXCoords):
+			self.assertEqual(actual, expected)
+		for actual, expected in zip(yCoords, expectedYCoords):
+			self.assertEqual(actual, expected)
+
+class PhenixHCSExperimentTest(unittest.TestCase):
+    folder=None
+    path=None
+    exp=None
+    
+    def setUp(self):
+        unittest.TestCase.setUp(self)
+        self.folder = IJ.getDir("macros") + "toolsets"
+        self.path = self.folder + "/Index.idx.xml"
+        self.exp = PhenixHCSExperiment.fromIndexFile(self.path)
+		
+    def testFromIndexFile(self):
+        exp = PhenixHCSExperiment.fromIndexFile(self.path)
+        self.assertEquals(exp.getPath(), self.folder)
+        self.assertEquals(exp.getUser(), 'PKI')
+        self.assertEquals(exp.getInstrumentType(), 'Phenix')
+        self.assertEquals(exp.getNrOfPlates(), 1)
+        self.assertEquals(exp.getNrOfColumns(), 0)
+        self.assertEquals(exp.getNrOfRows(), 0)
+        self.assertEquals(exp.getNrOfWells(), 2)
+        self.assertEquals(exp.getPlates()[0].getName(), 'Duc_plaque1_20210922')
+        self.assertEquals(len(exp.getPlates()), 1)
+        self.assertEquals(len(exp.getWells()), 2)
+        self.assertEquals(exp.getWells()[0][0].text, "0202")
+        self.assertEquals(exp.getWells()[1][0].text, "0203")
+        self.assertEquals(('Map' in str(exp.getMaps()[0])), True)
+        self.assertEquals(len(exp.getImages()), 24)
+        self.assertEquals(exp.getNrOfImages(), 24)
+
+    def testGetWell(self):
+        exp = self.exp
+        well = exp.getWell("0202", exp.getPlates()[0])
+        self.assertEquals(isinstance(well, Well), True)
+        self.assertEquals(len(well.getImageData()), 12)
+        self.assertEquals(well.getRow(), '2')
+        self.assertEquals(well.getColumn(), '2')
+        self.assertEquals(well.getID(), '0202')
+        well = exp.getWell("0203", exp.getPlates()[0])
+        self.assertEquals(isinstance(well, Well), True)
+        self.assertEquals(len(well.getImageData()), 12)
+        self.assertEquals(well.getRow(), '2')
+        self.assertEquals(well.getColumn(), '3')
+        self.assertEquals(well.getID(), '0203')
+
+    def testGetImage(self):
+        exp = self.exp
+        image = exp.getImage('0203K1F2P1R1')
+        self.assertEquals(isinstance(image, Image), True)
+        self.assertEquals(image.getID(), '0203K1F2P1R1')
+        self.assertEquals(image.getState(), 'Ok')
+        self.assertEquals(image.getURL(), 'r02c03f02p01-ch1sk1fk1fl1.tiff')	    
+        self.assertEquals(image.getRow(), '2')
+        self.assertEquals(image.getColumn(), '3')
+        self.assertEquals(image.getField(), '2')
+        self.assertEquals(image.getPlane(), 1)
+        self.assertEquals(image.getTime(), 0)
+        self.assertEquals(image.getChannel(), 1)
+        self.assertEquals(image.getWidth(), 1080)
+        self.assertEquals(image.getHeight(), 1080)
+        self.assertEquals(image.getX(), 0.001025102)
+        self.assertEquals(image.getY(), -0.000615061)
+        self.assertEquals(image.getZ(), -2E-06)
+        self.assertEquals(image.getPixelWidth(), 1.8983367649421008E-07)
+        self.assertEquals(image.getPixelHeight(), 1.8983367649421008E-07)
+        self.assertEquals(image.getFolder(), self.folder)
+        self.assertEquals(image.getURLWithoutField(), 'r02c03p01-ch1sk1fk1fl1.tiff')
+
+class PlateTest(unittest.TestCase):
+    plateXML = None
+    experiment = None
+    def setUp(self):
+        unittest.TestCase.setUp(self)
+        folder = IJ.getDir("macros") + "toolsets"
+        path = folder + "/Index.idx.xml"
+        root = ET.parse(path).getroot()
+        children = root.getchildren()
+        self.plateXML = children[2][0]
+        self.experiment = PhenixHCSExperiment.fromIndexFile(path)
+
+    def testConstructor(self):
+    	plate = Plate(self.plateXML, self.experiment)    
+    	self.assertEquals(plate.getName(), 'Duc_plaque1_20210922')
+    	wells = plate.getWells()
+    	self.assertEquals(len(wells), 2)
+    	self.assertEquals(wells[0].plate, plate)
+
+    def testStr(self):
+        plate = Plate(self.plateXML, self.experiment)    
+        self.assertEquals(str(plate), 'Plate (Duc_plaque1_20210922, 96 PerkinElmer CellCarrier Ultra, 8x12)')
+
+    def testGetWells(self):
+    	plate = Plate(self.plateXML, self.experiment)
+    	wells = plate.getWells()
+    	self.assertEquals(len(wells), 2)
+    	self.assertEquals(wells[0].getID(), '0202') 
+    	self.assertEquals(wells[1].getID(), '0203')
+
+    def testGetName(self):
+        plate = Plate(self.plateXML, self.experiment)
+        self.assertEquals(plate.getName(), 'Duc_plaque1_20210922')
+    
+def suite():
+    suite = unittest.TestSuite()
+
+    suite.addTest(SplitIntoChunksOfSizeTest('testSplitIntoChunksOfSize'))
+    suite.addTest(TransformCoordinatesTest('testTransformCoordinates'))
+    suite.addTest(PhenixHCSExperimentTest('testFromIndexFile'))
+    
+    suite.addTest(PhenixHCSExperimentTest('testGetWell'))
+    suite.addTest(PhenixHCSExperimentTest('testGetImage'))
+    
+    suite.addTest(PlateTest('testConstructor'))
+    suite.addTest(PlateTest('testStr'))
+    suite.addTest(PlateTest('testGetWells'))
+    suite.addTest(PlateTest('testGetName'))
+       
+    return suite
+
+runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
+runner.run(suite())
