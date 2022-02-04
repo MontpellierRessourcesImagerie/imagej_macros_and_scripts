@@ -63,11 +63,11 @@ def main(args):
             #Fields
             if params.zStackFields:
                 IJ.log("Create zStacks Fields")
-                well.createStack(dims, params, outputFolder=_Z_STACK_FOLDER, exportComposite=params.zStackFieldsComposite) # + rename later
+                well.createStack(dims, params, outputFolder=_Z_STACK_FOLDER, exportComposite=params.zStackFieldsComposite)
 
             if params.projectionFields:
                 IJ.log("Create projection Fields")
-                well.createMIP(dims, params, outputFolder=_PROJECT_FOLDER, exportComposite=params.projectionFieldsComposite) # + rename later
+                well.createMIP(dims, params, outputFolder=_PROJECT_FOLDER, exportComposite=params.projectionFieldsComposite)
         
             if params.zStackMosaic:
                 IJ.log("Applying Stitching on each Z")
@@ -298,17 +298,10 @@ class Well(object):
         tileConfPath = path + "/TileConfiguration.txt"
         allImages = self.getImages()
 
-        print(len(allImages))
-        print(str(zPosition)+"/"+str(channel)+"/"+str(timePoint));
-        for image in allImages:
-            print(str(image.getPlane())+"/"+str(image.getChannel())+"/"+str(image.getTime()));
         
         images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
-        print(len(images))
         xCoords = [int(round(image.getX()/float(image.getPixelWidth()))) for image in images]
-        print(len(xCoords))
         yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
-        print(len(yCoords))
         names = [image.getURL() for image in images]
         newNames = [str(names.index(name)+1).zfill(2)+".tif" for name in names]
         xCoords, yCoords = transformCoordinates(xCoords, yCoords)
@@ -419,7 +412,7 @@ class Well(object):
             os.mkdir(outputPath)
             
         rgbStackMerge = RGBStackMerge()
-        
+       
         for t in range(0, timePoints):
             channelImps = []
             for c in range(1, channels+1):
@@ -429,8 +422,9 @@ class Well(object):
                     names, newNames = self.copyImagesToWorkFolder(images)
 
                     self.executeStitching(params, path, c, newNames, outputFolder=outputFolder)
-                    
-                    imps.append(IJ.getImage())
+                    imp = IJ.getImage()
+                    calibration = imp.getCalibration()
+                    imps.append(imp)
                     
                     title = images[0].getURLWithoutField()
                     #print(os.path.normpath(outputPath+"img_t1_z1_c1"))
@@ -439,6 +433,8 @@ class Well(object):
                     for name in newNames:
                         os.remove(path+"/work/"+name)
                 imp = ImagesToStack.run(imps)
+                imp.setCalibration(calibration)
+                IJ.run(imp, params.colours[c-1], "");
                 name = title[:6] + title[9:]
                 IJ.log("Creating Z-Stack of mosaic : "+name)
                 channelImps.append(imp)
@@ -478,7 +474,7 @@ class Well(object):
                 title = self.createMIPFromInputImages(dims, params, c)
                 self.executeStitching(params, path, channel=c, outputFolder=outputFolder)
                 imp = IJ.getImage()
-
+                IJ.run(imp, params.colours[c-1], "");
                 name = title[:6] +"-"+ title[13:]
                 channelImps.append(imp)
                 IJ.save(imp, outputPath + name)
@@ -647,19 +643,17 @@ class Well(object):
                         images = self.getImagesForZPosTimeAndChannel(z, t, c)
                         image = images[f].getURL()
                         IJ.open(path + "/" + image)
-                        IJ.run(params.colours[c-1])
-                        #toBeDeleted.append(path + "/" + image)
                         imp = IJ.getImage()
                         imps.append(imp)
+                        calibration = imp.getCalibration()
                     imp = ImagesToStack.run(imps)
+                    imp.setCalibration(calibration)
+                    IJ.run(imp, params.colours[c-1], "");
                     name = image[:9] + image[12:]
                     IJ.log("Creating Z-Stack of image : "+name)
                     channelImps.append(imp)
+                    
                     IJ.save(imp, outputPath + name)
-                    #if exportComposite:
-                    #imp.close()
-                    #for aPath in toBeDeleted:
-                    #os.remove(aPath)
                 if exportComposite:
                     composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
                     name = name[:10] + name[13:]
@@ -689,12 +683,14 @@ class Well(object):
                     title = ""
                     for image in images:
                         IJ.open(path + "/" + image.getURL())
-                        IJ.run(params.colours[c-1])
                         title = image.getURL()
                         imp = IJ.getImage()
+                        calibration = imp.getCalibration()
+                        IJ.run(imp, params.colours[c-1], "");
                         imps.append(imp)
                     if title:    
                         imp = ImagesToStack.run(imps)
+                        imp.setCalibration(calibration)
                         name = title[:9] + title[12:]
                         IJ.log("Creating Projection of image : "+name)
                         projImp = ZProjector.run(imp,"max")
@@ -734,12 +730,13 @@ class Well(object):
                 title = ""
                 for image in images:
                     IJ.open(path + "/" + image.getURL())
-                    IJ.run(params.colours[channel-1])
                     title = image.getURL()
                     imp = IJ.getImage()
+                    calibration = imp.getCalibration()
                     imps.append(imp)
                 if title:    
                     imp = ImagesToStack.run(imps)
+                    imp.setCalibration(calibration)
                     name = title[:9] + title[12:]
                     projImp = ZProjector.run(imp,"max")
                     url = outputPath + str(f).zfill(2)+".tif"
@@ -965,29 +962,30 @@ class Well(object):
     def renameAllOutputs(self,params):
         wellName = self.getName()
         if params.zStackFields:
-            self.renameImagesInFolder(_Z_STACK_FOLDER,_Z_STACK_FOLDER + "/" + wellName + "/")
+            self.addWellNameToImages(_Z_STACK_FOLDER,_Z_STACK_FOLDER + "/" + wellName + "/")
         if params.projectionFields:
-            self.renameImagesInFolder(_PROJECT_FOLDER,_PROJECT_FOLDER + "/" + wellName + "/")
+            self.addWellNameToImages(_PROJECT_FOLDER,_PROJECT_FOLDER + "/" + wellName + "/")
         if params.zStackMosaic:
-            self.renameImagesInFolder(_Z_STACK_MOSAIC_FOLDER,_Z_STACK_MOSAIC_FOLDER)
+            self.addWellNameToImages(_Z_STACK_MOSAIC_FOLDER)
             
         if params.projectionMosaic:
-            self.renameImagesInFolder(_PROJECT_MOSAIC_FOLDER,_PROJECT_MOSAIC_FOLDER)
+            self.addWellNameToImages(_PROJECT_MOSAIC_FOLDER)
             
         if params.projectionMosaicRGB:
-            self.renameImagesInFolder(_PROJECT_MOSAIC_RGB_FOLDER,_PROJECT_MOSAIC_RGB_FOLDER)
+            self.addWellNameToImages(_PROJECT_MOSAIC_RGB_FOLDER)
 
         channelList = list(params.channelRGB)
 
         for i in range(len(channelList)):
             if channelList[i] == "1":
-                self.renameImagesInFolder(_PROJECT_MOSAIC_CHAN_FOLDER,_PROJECT_MOSAIC_CHAN_FOLDER)
+                self.addWellNameToImages(_PROJECT_MOSAIC_CHAN_FOLDER)
                 break
         
-
-    def renameImagesInFolder(self,inputFolder,outputFolder):
+    def addWellNameToImages(self,inputFolder,outputFolder=None):
         path = self.experiment.getPath()
         inputPath  = path + inputFolder
+        if outputFolder == None :
+            outputFolder = inputFolder
         outputPath = path + outputFolder
         
         imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains="")
@@ -1002,6 +1000,10 @@ class Well(object):
             os.rename(inputPath+image,outputPath+wellName+image[6:])
             
     def getName(self):
+        '''
+            Get the name of the well from the file wellNames.txt
+            Returns the coordinates of the well in the plate followed by the name if specified
+        '''
         path = self.experiment.getPath()
         namesFile = "/wellNames.txt"
         
@@ -1011,14 +1013,13 @@ class Well(object):
         checkString = str(row).zfill(2) + str(column).zfill(2) + ":"
         
         resultName ="r" +  str(row).zfill(2) + "c" + str(column).zfill(2)
-        
-        if os.path.isfile(os.path.join(path+namesFile)):
-            file = open(os.path.join(path+namesFile))
-            wellLine =  [line for line in file if line.startswith(checkString)]
-            resultName = resultName+""+wellLine[0].split(":")[-1]
-        return resultName[:-1]
+
+        with open(os.path.join(path+namesFile),"r") as file:
+            wellLine = [line for line in file if line.startswith(checkString)]
+            if(len(wellLine)>0):
+	            resultName = resultName+""+wellLine[0].split(":")[-1][:-1]
+        return resultName
     
-            
     def __str__(self):
         anID = self.getID();
         row = self.getRow();

@@ -27,6 +27,7 @@ var _WELLS_NAMES = newArray(0);
 var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
 
+var _STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
 var _STITCH_ON_PROJECTION = false;
 var _ZSLICE = 0;
 var _CHANNEL = 1; //Starts at 1
@@ -91,23 +92,35 @@ macro "select wells [f6]" {
 	selectWells();
 }
 
-macro "Rename Wells Action Tool - C000T6b12T"{
+macro "Rename wells (f7) Action Tool - C000T6b12T"{
 	renameWells();
 }
 
-macro "Set options (f7) Action Tool - CaaaD61C555L7181CaaaD91C222L6292C888D33CcccD43C333D53C111D63CeeeL7383C111D93C333Da3CcccDb3C888Dc3C666D24C000L3444C444D54CcccD64D94C444Da4C000Lb4c4C666Dd4CeeeD15C000D25CbbbD35Dc5C000Dd5CeeeDe5CcccD16C111D26C666D36CbbbD66C333D76C222D86CbbbD96C666Dc6C111Dd6CcccDe6C888D27C111D37C222D67C666D77C444D87C333D97C111Dc7C888Dd7D28C111D38C222D68C555D78C444D88C222D98C111Dc8C888Dd8CcccD19C111D29C666D39CbbbD69C222L7989CbbbD99C666Dc9C111Dd9CcccDe9D1aC000D2aCbbbD3aDcaC000DdaCeeeDeaC444D2bC000L3b4bC444D5bCcccD6bD9bC444DabC000LbbcbC666DdbC888D3cCbbbD4cC222D5cC111D6cCeeeL7c8cC111D9cC222DacCbbbDbcC888DccC222L6d9dCaaaD6eC444L7e8eCaaaD9e" {
+macro "rename wells [f7]"{
+	renameWells();
+}
+
+macro "Set options (f8) Action Tool - CaaaD61C555L7181CaaaD91C222L6292C888D33CcccD43C333D53C111D63CeeeL7383C111D93C333Da3CcccDb3C888Dc3C666D24C000L3444C444D54CcccD64D94C444Da4C000Lb4c4C666Dd4CeeeD15C000D25CbbbD35Dc5C000Dd5CeeeDe5CcccD16C111D26C666D36CbbbD66C333D76C222D86CbbbD96C666Dc6C111Dd6CcccDe6C888D27C111D37C222D67C666D77C444D87C333D97C111Dc7C888Dd7D28C111D38C222D68C555D78C444D88C222D98C111Dc8C888Dd8CcccD19C111D29C666D39CbbbD69C222L7989CbbbD99C666Dc9C111Dd9CcccDe9D1aC000D2aCbbbD3aDcaC000DdaCeeeDeaC444D2bC000L3b4bC444D5bCcccD6bD9bC444DabC000LbbcbC666DdbC888D3cCbbbD4cC222D5cC111D6cCeeeL7c8cC111D9cC222DacCbbbDbcC888DccC222L6d9dCaaaD6eC444L7e8eCaaaD9e" {
 	setOptions();	
 }
 
-macro "set options [f7]" {
+macro "set options [f8]" {
 	setOptions();
 }
 
-macro "Launch export (f8) Action Tool - CbbbD61C444L7181CcccD91CaaaD52C000D62C555L7282C000D92CaaaDa2CcccD43C000D53CaaaD63D93C000Da3CcccDb3C555D44C444D54CdddL7484C444Da4C555Db4C111D45C999D55CdddD65C000L7585CeeeD95C999Da5C111Db5C000D46CcccD56CdddD66C000L7686CeeeD96CcccDa6C000Db6D47CcccD57CeeeL7787CcccDa7C000Db7D48CcccD58Da8C000Db8D49CcccD59Da9C000Db9C666D3aC000D4aCeeeD5aDaaC000DbaC666DcaCdddD2bC000D3bC111D4bC444L5babC111DbbC000DcbCdddDdbD2cC444L3cccCdddDdcCeeeD5dC444D6dCaaaL7d8dC444D9dCeeeDadC777D6eC000L7e8eC777D9eCbbbL7f8f" {
+macro "Set correction options (f9) Action Tool - CaaaD61C555L7181CaaaD91C222L6292C888D33CcccD43C333D53C111D63CeeeL7383C111D93C333Da3CcccDb3C888Dc3C666D24C000L3444C444D54CcccD64D94C444Da4C000Lb4c4C666Dd4CeeeD15C000D25CbbbD35Dc5C000Dd5CeeeDe5CcccD16C111D26C666D36CbbbD66C333D76C222D86CbbbD96C666Dc6C111Dd6CcccDe6C888D27C111D37C222D67C666D77C444D87C333D97C111Dc7C888Dd7D28C111D38C222D68C555D78C444D88C222D98C111Dc8C888Dd8CcccD19C111D29C666D39CbbbD69C222L7989CbbbD99C666Dc9C111Dd9CcccDe9D1aC000D2aCbbbD3aDcaC000DdaCeeeDeaC444D2bC000L3b4bC444D5bCcccD6bD9bC444DabC000LbbcbC666DdbC888D3cCbbbD4cC222D5cC111D6cCeeeL7c8cC111D9cC222DacCbbbDbcC888DccC222L6d9dCaaaD6eC444L7e8eCaaaD9e" {
+	setCorrectionOptions();
+}
+
+macro "set correction options [f9]" {
+	setCorrectionOptions();
+}
+
+macro "Launch export (f10) Action Tool - CbbbD61C444L7181CcccD91CaaaD52C000D62C555L7282C000D92CaaaDa2CcccD43C000D53CaaaD63D93C000Da3CcccDb3C555D44C444D54CdddL7484C444Da4C555Db4C111D45C999D55CdddD65C000L7585CeeeD95C999Da5C111Db5C000D46CcccD56CdddD66C000L7686CeeeD96CcccDa6C000Db6D47CcccD57CeeeL7787CcccDa7C000Db7D48CcccD58Da8C000Db8D49CcccD59Da9C000Db9C666D3aC000D4aCeeeD5aDaaC000DbaC666DcaCdddD2bC000D3bC111D4bC444L5babC111DbbC000DcbCdddDdbD2cC444L3cccCdddDdcCeeeD5dC444D6dCaaaL7d8dC444D9dCeeeDadC777D6eC000L7e8eC777D9eCbbbL7f8f" {
 	launchExport();
 }
 
-macro "launch export [f8]" {
+macro "launch export [f10]" {
 	launchExport();
 }
 
@@ -199,16 +212,15 @@ function getOptions(){
 	return options;
 }
 
-function setOptions() {
+function old_setOptions() {
 	channelName = getChannelsFromIndex();
 	_NB_CHANNELS = channelName.length;
 	Dialog.create("Options");
-	items = newArray("Z-Slice","Max Intensity Projection");
 	Dialog.addMessage("Base for stitching",14);
 	
-	sopState = items[0];
-	if(_STITCH_ON_PROJECTION){	sopState = items[1];}
-	Dialog.addRadioButtonGroup("", items, 1, 2, sopState);	
+	sopState = _STITCHING_BASE[0];
+	if(_STITCH_ON_PROJECTION){	sopState = _STITCHING_BASE[1];}
+	Dialog.addRadioButtonGroup("", _STITCHING_BASE, 1, 2, sopState);	
 	
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 
@@ -284,11 +296,13 @@ function setOptions() {
 		Dialog.addToSameRow();
 		Dialog.addNumber("Max",minMax[1]);
 	}
+
 	
 	Dialog.show();
 
+
 	stitchingBase = Dialog.getRadioButton();
-	if(stitchingBase == items[1]){
+	if(stitchingBase == _STITCHING_BASE[1]){
 		_STITCH_ON_PROJECTION = true;
 	}else{
 		_STITCH_ON_PROJECTION = false;
@@ -343,6 +357,204 @@ function setOptions() {
 	}
 	
 }
+
+function setOptions(){
+	channelNames = getChannelsFromIndex();
+	_NB_CHANNELS = channelNames.length;
+	Dialog.create("Options");
+	addStitchingBaseDialog(channelNames);
+	addFusionDialog();
+	addExportOptionsDialog(channelNames);
+	addExportColoursDialog(channelNames);
+	addExportBoundsDialog(channelNames);
+
+	Dialog.show();
+
+	getStitchingBaseDialog(channelNames);
+	getFusionDialog();
+	getExportOptionsDialog();
+	getExportColoursDialog();
+	getExportBoundsDialog();
+}
+
+macro "Open Correction Options" {
+	setCorrectionOptions();
+}
+
+function setCorrectionOptions(){
+	Dialog.create("Image Correction Options");
+	
+	addCorrectionDialog();
+	Dialog.show();
+	getCorrectionDialog();
+}
+
+function addStitchingBaseDialog(channelNames){
+	//Requires channelNames Array
+	_STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
+	Dialog.addMessage("Base for stitching",14);
+	
+	sopState = _STITCHING_BASE[0];
+	if(_STITCH_ON_PROJECTION){	sopState = _STITCHING_BASE[1];}
+	Dialog.addRadioButtonGroup("", _STITCHING_BASE, 1, 2, sopState);	
+	
+	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
+
+	Dialog.addChoice("Channel for Stitching",channelNames,channelNames[_CHANNEL-1]);
+}
+
+function getStitchingBaseDialog(channelNames){
+	stitchingBase = Dialog.getRadioButton();
+	if(stitchingBase == _STITCHING_BASE[1]){
+		_STITCH_ON_PROJECTION = true;
+	}else{
+		_STITCH_ON_PROJECTION = false;
+	}
+	
+	_ZSLICE = Dialog.getNumber();
+	
+	chan = Dialog.getChoice();
+	for(i = 0; i < _NB_CHANNELS; i++){
+		if(channelNames[i]==chan){
+			_CHANNEL = i+1;
+			break;
+		}
+	}
+}
+
+function addExportOptionsDialog(channelNames){
+	Dialog.addMessage("Export Options",14);
+
+	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_FIELDS_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Projections of Fields", _EXPORT_PROJECTION_FIELDS);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_FIELDS_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Z-Stack of Mosaics", _EXPORT_Z_STACK_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_MOSAIC_COMPOSITE);
+	
+	Dialog.addCheckbox("Export Projection of Mosaics", _EXPORT_PROJECTION_MOSAIC);
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_MOSAIC_COMPOSITE);
+
+	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
+
+	Dialog.addMessage("invert and export individual channel:");
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addCheckbox(channelNames[i],_EXPORT_RGB_CHANNEL[i]);
+	}
+}
+
+function getExportOptionsDialog(){
+	_EXPORT_Z_STACK_FIELDS = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_FIELDS_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_Z_STACK_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
+	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
+	}
+}
+
+
+function addFusionDialog(){
+	Dialog.addMessage("Fusion parameters:",14);
+	
+	Dialog.addCheckbox("Compute Overlap", _FUSION_COMPUTE_OVERLAP);
+	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
+	//Dialog.addMessage("Threshold:");
+	Dialog.addNumber("regression threshold: ", _FUSION_REGRESSION_THRESHOLD);
+	Dialog.addNumber("max/avg displacement threshold: ", _FUSION_DISPLACEMENT_THRESHOLD);
+	Dialog.addNumber("absolute displacement threshold: ", _FUSION_ABS_DISPLACEMENT_THRESHOLD);
+}
+
+function getFusionDialog(){
+	_FUSION_COMPUTE_OVERLAP = Dialog.getCheckbox();
+	_FUSION_METHOD = Dialog.getChoice();
+	_FUSION_REGRESSION_THRESHOLD = Dialog.getNumber();
+	_FUSION_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+	_FUSION_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
+}
+
+
+function addCorrectionDialog(){
+	Dialog.addMessage("Image correction/normalization:",14);
+
+	Dialog.addCheckbox("! Experimental ! Flatfield correction from index-file ", _CORRECT_INDEX_FLAT_FIELD);	
+	Dialog.addToSameRow();
+	Dialog.addCheckbox("normalize", _CORRECT_NORMALIZE);
+	Dialog.addNumber("pseudo flat field radius (0 = off): ", _CORRECT_PSEUDO_FLAT_FIELD_RADIUS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("rolling ball radius (0 = off): ", _CORRECT_ROLLING_BALL_RADIUS);
+	Dialog.addNumber("find background radius (0 = off): ", _CORRECT_FIND_AND_SUB_BACK_RADIUS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background offset: ", _CORRECT_FIND_AND_SUB_BACK_OFFSET);
+	Dialog.addNumber("find background iterations: ", _CORRECT_FIND_AND_SUB_BACK_ITERATIONS);
+	Dialog.addToSameRow();
+	Dialog.addNumber("find background skip limit: ", _CORRECT_FIND_AND_SUB_BACK_SKIP);
+}
+
+function getCorrectionDialog(){
+	_CORRECT_INDEX_FLAT_FIELD = Dialog.getCheckbox();
+	_CORRECT_NORMALIZE = Dialog.getCheckbox();
+	_CORRECT_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
+	_CORRECT_ROLLING_BALL_RADIUS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_RADIUS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_OFFSET = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
+	_CORRECT_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
+}
+
+
+function addExportColoursDialog(channelNames){
+	Dialog.addMessage("Export Colours:",14);
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
+			Dialog.addToSameRow();
+		}
+		Dialog.addChoice(channelNames[i], _COLORS, _COLORS_SELECTED[i]);
+	}
+}
+
+function getExportColoursDialog(){
+	for(i=0;i<_NB_CHANNELS;i++){
+		_COLORS_SELECTED[i]=Dialog.getChoice();
+	}
+}
+
+
+function addExportBoundsDialog(channelNames){
+	Dialog.addMessage("Export Bounds:",14);
+
+	for(i=0;i<_NB_CHANNELS;i++){
+		minMax=getMinMax(i+1);
+		Dialog.addNumber(channelNames[i]+":  Min",minMax[0]);
+		Dialog.addToSameRow();
+		Dialog.addNumber("Max",minMax[1]);
+	}
+}
+
+function getExportBoundsDialog(){
+	for(i=1;i<=_NB_CHANNELS;i++){
+		min=Dialog.getNumber();
+		max=Dialog.getNumber();
+		saveMinMax(i,min,max);
+	}
+}
+
 
 function setChannelBounds(){
 	channelName = getChannelsFromIndex();
@@ -566,6 +778,37 @@ function getDataFromIndex(lineStart,startMarker,endMarker){
 	return outData;
 }
 
+function EXP_getDataFromIndex(lineStart,startMarker,endMarker,skipFirst){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	outData = newArray();
+	
+	for (i = 0; i < lines.length; i++) {
+		line = String.trim(lines[i]);
+		if (startsWith(line, lineStart)) {
+			startIndex = indexOf(line,startMarker)+startMarker.length;
+			subString = substring(line, startIndex);
+			if(skipFirst){
+				secondStartIndex = indexOf(subString,startMarker)+startMarker.length;
+				subString = substring(subString, secondStartIndex);
+			}
+			subString = substring(subString, 0, indexOf(subString,endMarker));
+			outData = Array.concat(outData,subString);
+		}
+	}
+	return outData;
+}
+
+macro "Get Flatfield Coefficients"{
+	channelNumber = getNumber("Channel", 1);
+	coeffsBG = getFlatfieldBGCoefficients(channelNumber);
+	Array.print(coeffsBG);
+	coeffsFG = getFlatfieldFGCoefficients(channelNumber);
+	Array.print(coeffsFG);
+	
+}
+
 function getFlatfieldCoefficients(channelNumber){
 	indexFile = getIndexFile();
 	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
@@ -581,7 +824,6 @@ function getFlatfieldCoefficients(channelNumber){
 
 	test = newArray();
 	test = getDataFromIndex(lineStart,startMarker,endMarker);
-	Array.print(test);
 	coeffDirty = split(test[channelNumber-1]);
 	coeffClean = newArray(coeffDirty.length);
 	for(i=0;i<coeffDirty.length;i++){
@@ -589,76 +831,70 @@ function getFlatfieldCoefficients(channelNumber){
 	}
 	return coeffClean;
 }
-/*
-function correctFlatfield(){
-	_OPERA_INDEX_FILE = getIndexFile();
-	channels = getChannelsFromIndex();
-	nbChannels = channels.length;
-	directory = File.getDirectory(_OPERA_INDEX_FILE);
-	outDirectory = directory + "/noBG/";
-	print(outDirectory);
-	if(!File.exists(outDirectory)){
-		File.makeDirectory(outDirectory);
-	}
-	filelist = getFileList(directory);
-	imageSize = newArray(2);
-	for (i = 0; i < lengthOf(filelist); i++) {
-		if (endsWith(filelist[i], ".tiff")){
-			open(directory+filelist[i]);
-			imageSize[0]=getWidth();
-			imageSize[1]=getHeight();
-			close();
-			break;
-		}
-	}
 
+function getFlatfieldBGCoefficients(channelNumber){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	lineStart ="<FlatfieldProfile>";
+	startMarker = "Coefficients: ";
+	endMarker = ", Dims: ";
+
+	test = newArray();
+	test = getDataFromIndex(lineStart,startMarker,endMarker);
+	coeffDirty = split(test[channelNumber-1]);
+	coeffClean = newArray(coeffDirty.length);
+	for(i=0;i<coeffDirty.length;i++){
+		coeffClean[i] = String.trim( replace(replace(replace(coeffDirty[i], "[", "") ,"]","") ,",","") );
+	}
+	return coeffClean;
+}
+
+function getFlatfieldFGCoefficients(channelNumber){
+	indexFile = getIndexFile();
+	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
+	lines = split(content, "\n");
+	found=false;
+	nrCols = 0;
+	nrRows = 0;
+	channels = newArray();
+	
+	lineStart ="<FlatfieldProfile>";
+	startMarker = "Coefficients: ";
+	endMarker = ", Dims: ";
+
+	test = newArray();
+	test = EXP_getDataFromIndex(lineStart,startMarker,endMarker,true);
+	coeffDirty = split(test[channelNumber-1]);
+	coeffClean = newArray(coeffDirty.length);
+	for(i=0;i<coeffDirty.length;i++){
+		coeffClean[i] = String.trim( replace(replace(replace(coeffDirty[i], "[", "") ,"]","") ,",","") );
+	}
+	return coeffClean;
+}
+
+macro "Create BG/FG Images"{
+	imageSize = newArray(1080,1080);
+	nbChannels = 3;
 	channelMeans = getDataFromIndex("<FlatfieldProfile>",", Mean: ",", ");
 	for(chan=1;chan<=nbChannels;chan++){
-		coeffs = getFlatfieldCoefficients(chan);
-		originalBackgroundID = createBackgroundImage(coeffs,imageSize,1);
+		coeffsBG = getFlatfieldBGCoefficients(chan);
+		coeffsFG = getFlatfieldFGCoefficients(chan);
+		//Array.print(coeffsBG);
+		//Array.print(coeffsFG);
 		chanMean = channelMeans[chan-1];
-	    close();
-		for (i = 0; i < lengthOf(filelist); i++) {
-			showProgress(i, lengthOf(filelist));
-			
-			if (endsWith(filelist[i], ".tiff")&& (indexOf(filelist[i], "ch"+chan)> -1)) { 
-			
-				open(directory + File.separator + filelist[i]);
-				imageID = getImageID();
-				getStatistics(areaI, meanI, minI, maxI, stdDevI);
-				
-				bgPixels = Table.getColumn("pixelIntensity");
-				Array.getStatistics(bgPixels, minB, maxB, meanB, stdDevB);
-				
-				newImage("background_rescaled", "16-bit",imageSize[0], imageSize[1], 1);
- 				backgroundID = getImageID();
- 				
- 				tableItt=0;
-
-				for (y=0; y<imageSize[1]; y++) {
-					for (x=0; x<imageSize[0]; x++){
-						pixel = Table.get("pixelIntensity",tableItt);
-						pixelNorm = (pixel-minB)/(maxB-minB);
-						
-						a = 0;
-						b= chanMean; 
-					
-						pixelOut = a + (pixelNorm * b);
-						setPixel(x, y, pixelOut);
-						tableItt=tableItt+1;
-					}
-				}
-				imageCalculator("substract create", imageID, backgroundID);
-				saveAs(outDirectory+filelist[i]);
-				close();
-				close();	
-			}
-	    }
+		originalBackgroundID = createBackgroundImage("background-"+chan,coeffsBG,imageSize,chanMean);
+		originalForegroundID = createBackgroundImage("foreground-"+chan,coeffsFG,imageSize,chanMean);
 	}
 }
-*/
-function createBackgroundImage(coeffs,size,factor){
-	newImage("background", "32-bit", size[0], size[1], 1);
+
+function createBackgroundImage(title,coeffs,size,factor){
+	newImage(title, "32-bit", size[0], size[1], 1);
 	imageID = getImageID();
  	w = getWidth(); 
  	h = getHeight();
@@ -680,6 +916,7 @@ function createBackgroundImage(coeffs,size,factor){
 	for (y=0; y<h; y++) {
 		for (x=0; x<w; x++){
 			pixel = Table.get("pixelIntensity",tableItt);
+			pixel = parseFloat(pixel);
 			pixelNorm = (pixel-minB)/(maxB-minB);
 			
 			a = 0;
@@ -723,7 +960,9 @@ function prepareFlatfieldFolder(){
 	for(chan=1;chan<=nbChannels;chan++){
 		coeffs = getFlatfieldCoefficients(chan);
 		chanMean = channelMeans[chan-1];
-		originalBackgroundID = createBackgroundImage(coeffs,imageSize,chanMean);
+		//print("Creating flatfield image for channel "+chan+", using mean = "+chanMean);
+		//Array.print(Array.concat("Coefficients:",coeffs));
+		originalBackgroundID = createBackgroundImage("background",coeffs,imageSize,chanMean);
 		saveAs(outDirectory+chan+".tiff");
 		close();
 	}	
