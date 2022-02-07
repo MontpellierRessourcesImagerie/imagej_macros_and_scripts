@@ -98,7 +98,7 @@ def main(args):
                         well.convertToRGB(params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
                     else:
                         if not params.zStackMosaic:
-                            well.applyStitchingProjection(params, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite) # ???
+                            well.applyStitchingProjection(params, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite)
                         else:
                             well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
                         well.convertToRGB(params, inputFolder=_WORK_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
@@ -381,7 +381,6 @@ class Well(object):
             path = srcPath + "/work/"
             nbFiles = len(os.listdir(path))
             newNames = [str(i+1).zfill(2)+".tif" for i in range(nbFiles-1)]
-            
         if params.index_flatfield:
             self.doIndexFlatFieldCorrection(path,newNames,channel)
 
@@ -419,19 +418,22 @@ class Well(object):
                 imps = []
                 for z in range(1, slices+1):
                     images = self.getImagesForZPosTimeAndChannel(z, t, c)
+                    
                     names, newNames = self.copyImagesToWorkFolder(images)
-
-                    self.executeStitching(params, path, c, newNames, outputFolder=outputFolder)
+                    IJ.open(path+"/work/"+newNames[0])
                     imp = IJ.getImage()
                     calibration = imp.getCalibration()
+                    imp.close()
+                    self.executeStitching(params, path, c, newNames, outputFolder=outputFolder)
+                    
+                    imp = IJ.getImage()
                     imps.append(imp)
                     
                     title = images[0].getURLWithoutField()
-                    #print(os.path.normpath(outputPath+"img_t1_z1_c1"))
-                    #os.rename(os.path.normpath(outputPath+"img_t1_z1_c1"), os.path.normpath(outputPath+title))
-                    #
+                    
                     for name in newNames:
                         os.remove(path+"/work/"+name)
+                        
                 imp = ImagesToStack.run(imps)
                 imp.setCalibration(calibration)
                 IJ.run(imp, params.colours[c-1], "");
@@ -441,6 +443,7 @@ class Well(object):
                 IJ.save(imp, outputPath + name)
             if exportComposite:
                 composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
+                composite.setCalibration(calibration)
                 name = title[:6] +"-"+title[13:]
                 IJ.log("+ Composite: "+name);
                 IJ.save(composite, outputPath + name)
@@ -448,8 +451,7 @@ class Well(object):
             print("LEAVING applyStitching")
 
     def applyStitchingProjection(self, params, outputFolder ='/out/',exportComposite=False):
-        #if outputFolder == _WORK_FOLDER:
-        #    self.emptyWorkFolder()
+        
         if DEBUG:
             print("Entering applyStitchingProjection")
         dims = self.getDimensions()
@@ -472,8 +474,13 @@ class Well(object):
             channelImps = []
             for c in range(1, channels+1):    
                 title = self.createMIPFromInputImages(dims, params, c)
+                IJ.open(path+"/work/"+"01.tif")
+                imp = IJ.getImage()
+                calibration = imp.getCalibration()
+                imp.close()
                 self.executeStitching(params, path, channel=c, outputFolder=outputFolder)
                 imp = IJ.getImage()
+                imp.setCalibration(calibration)
                 IJ.run(imp, params.colours[c-1], "");
                 name = title[:6] +"-"+ title[13:]
                 channelImps.append(imp)
@@ -481,6 +488,7 @@ class Well(object):
 
             if exportComposite:
                 composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
+                composite.setCalibration(calibration)
                 name = title[:6] +"-"+title[16:]
                 IJ.log("+ Composite: "+name);
                 IJ.save(composite, outputPath + name)
@@ -656,9 +664,11 @@ class Well(object):
                     IJ.save(imp, outputPath + name)
                 if exportComposite:
                     composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
+                    composite.setCalibration(calibration)
                     name = name[:10] + name[13:]
                     IJ.log("+ Composite: "+name)
                     IJ.save(composite, outputPath + name)
+        self.setImageBounds(channels, outputPath)
     
     def createMIP(self, dims, params, outputFolder='/work/', exportComposite=False):
         slices = dims[2]
@@ -702,10 +712,12 @@ class Well(object):
 
                 if exportComposite:
                     composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
+                    composite.setCalibration(calibration)
                     name = title[:9] + title[12:13] + title[16:]
                     IJ.log("+ Composite: "+name)
                     IJ.save(composite, outputPath + name)
                 index = index + 1
+        self.setImageBounds(channels, outputPath)
 
     def createMIPFromInputImages(self, dims, params, channel, outputFolder='/work/'):
         if DEBUG:
@@ -769,7 +781,7 @@ class Well(object):
             channelNumber = str(int(channelExport) + 1)
             containsString = containsString + channelNumber
         imagesURL = self.getImagesInFolder(stackPath,getFullPath=True,contains="ch")
-        self.mipImages(imagesURL, outputFolder=outputFolder)
+        self.mipImages(imagesURL, outputFolder=outputFolder,exportComposite=exportComposite)
             
     def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All",invert=False):
         path = self.experiment.getPath()
@@ -848,12 +860,12 @@ class Well(object):
         for aPath in toBeDeleted:
             os.remove(aPath)
 
-    def mipImages(self, images, outputFolder="/out/"):
+    def mipImages(self, images, outputFolder="/out/",exportComposite=False):
         path = self.experiment.getPath()
         outputPath = path + outputFolder
         if not os.path.isdir(outputPath):
             os.mkdir(outputPath)
-            
+        imps = []
         for url in images:
             print("mipImages : Opening "+url)
             IJ.open(url)
@@ -861,8 +873,16 @@ class Well(object):
             imp = IJ.getImage()
             projImp = ZProjector.run(imp,"max")
             IJ.save(projImp, outputPath + title[-1])
+            imps.append(projImp)    
             imp.close()
             projImp.close()
+        if exportComposite:
+            rgbStackMerge = RGBStackMerge()
+            composite = rgbStackMerge.mergeHyperstacks(imps,False)
+            title = title[-1]
+            name = title[:6] +"-"+title[11:]
+            IJ.log("+ Composite: "+name);
+            IJ.save(composite, outputPath + name)
     
     def getImagesPerChannel(self, channels):
         allImages = self.getImages()
@@ -979,7 +999,22 @@ class Well(object):
         for i in range(len(channelList)):
             if channelList[i] == "1":
                 self.addWellNameToImages(_PROJECT_MOSAIC_CHAN_FOLDER)
-                break
+    
+    def setImageBounds(self, channels, path):
+    	for i in range(1,channels+1):
+            imagesURL = self.getImagesInFolder(path,getFullPath=False,contains="ch"+str(i))
+            for url in imagesURL:
+	            channelMin = Prefs.get("operaExportTools.channel"+str(i)+"Min",0)
+	            channelMax = Prefs.get("operaExportTools.channel"+str(i)+"Max",255)	
+            IJ.log("Min="+str(channelMin)+"Max="+str(channelMax))
+            IJ.open(path+url)
+            imp = IJ.getImage()
+            IJ.setMinAndMax(channelMin,channelMax)
+            #imp.setDisplayRange(channelMin, channelMax);
+            IJ.run(imp, "Apply LUT", "stack")
+            #IJ.save(imp,path+url)
+            IJ.run(imp, "Save", "")
+        
         
     def addWellNameToImages(self,inputFolder,outputFolder=None):
         path = self.experiment.getPath()
