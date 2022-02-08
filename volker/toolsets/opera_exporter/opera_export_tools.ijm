@@ -132,6 +132,11 @@ function launchExport() {
 	options = getOptions();
 	
 	setBatchMode(true);
+	baseDir = File.getDirectory(_OPERA_INDEX_FILE);
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	file = File.open(baseDir + "/" + year + "-" + IJ.pad(month,2) + "-" + IJ.pad(dayOfMonth, 2) + "_"+hour+":"+minute+":"+second+"_options.txt");
+	print(file, options);
+	File.close(file);
 	if(_CORRECT_INDEX_FLAT_FIELD)	prepareFlatfieldFolder();
 	call("ij.plugin.Macro_Runner.runPython", script, options); 
 	setBatchMode(false);
@@ -588,7 +593,7 @@ function getMinMax(channel){
 
 function loadWellNames(){
 	_OPERA_INDEX_FILE = getIndexFile();
-	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
+	baseDir = File.getDirectory(_OPERA_INDEX_FILE);
 
 	_WELLS = getWells();
 	wells = _WELLS;
