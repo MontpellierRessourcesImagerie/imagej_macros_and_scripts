@@ -28,21 +28,15 @@ def main(args):
         print("Entering main");
     parser = getArgumentParser()
     params = parser.parse_args(args)
-    experiment = PhenixHCSExperiment.fromIndexFile(params.index_file);
-    
-    srcPath = experiment.getPath();
-    print(experiment)
-    print(srcPath)
-    wells = experiment.getPlates()[0].getWells()
-    if not params.wells == 'all':
-        listOfWellIDS = splitIntoChunksOfSize(params.wells, 4)    
+    exporter = OperaExporter(params)
+    exporter.launch()
     for well in wells:
         if params.wells=='all' or well.getID() in listOfWellIDS:
             dims = well.getDimensions()
             zSize = dims[2]
             zPos = params.slice
             if zPos==0:
-                zPos = max(zSize / 2,1)
+                zPos = max(zSize / 2, 1)
             IJ.log("Create Tile Config")
             if params.stitchOnMIP:
                 names, newNames = well.createTileConfig(1, 0, params.channel)
@@ -103,7 +97,7 @@ def main(args):
                             well.projectMosaic(params, stackFolder=_Z_STACK_MOSAIC_FOLDER, outputFolder=_WORK_FOLDER, exportComposite=params.projectionMosaicComposite,channelExport=str(i))
                         well.convertToRGB(params, inputFolder=_WORK_FOLDER, outputFolder=_PROJECT_MOSAIC_CHAN_FOLDER,channelExport=str(i))
             well.renameAllOutputs(params)
-            
+
             
 def getArgumentParser():
     parser = argparse.ArgumentParser(description='Create a mosaic from the opera images using the index file and fiji-stitching.')
@@ -189,7 +183,77 @@ def transformCoordinates(xPos, yPos):
     else:
         yPos = [top - i for i in yPos]
     return xPos, yPos
-      
+
+class OperaExporter(object):
+    '''
+        Export the images from the Phenix Opera as a mosaic, by using the information 
+        from the index file and refining the mosaic by stitching.
+    '''
+    def __init__(self, args=None):
+        if args:
+            parser = getArgumentParser()
+            self.options = parser.parse_args(args)
+            self.configureFromOptions()
+
+    def configureFromOptions(self):
+        if not self.options:
+            return
+        self.experiment = PhenixHCSExperiment.fromIndexFile(self.options.index_file)
+        self.sourcePath = self.experiment.getPath()
+        self.wellsOnPlate = self.experiment.getPlates()[0].getWells()
+        self.wellsToExport = self.wellsOnPlate
+        if not self.options.wells == 'all':
+             wellIDs = splitIntoChunksOfSize(self.options.wells, 4)
+             self.wellsToExport = [well for well in self.wellsOnPlate if well.getID() in wellIDs]
+        self.dims = self.wellsToExport[0].getDimensions()
+        self.zSize = self.dims[2]
+        self.sliceForStitching = self.options.slice
+        if self.sliceForStitching==0:
+            self.sliceForStitching = max(self.zSize / 2, 1)
+        self.stitchOnMIP = self.options.stitchOnMIP
+        if self.stitchOnMIP:
+            self.sliceForStitching = 1
+        self.zStackFields = self.options.zStackFields
+        self.projectionFields = self.options.projectionFields
+        self.zStackMosaic = self.options.zStackMosaic
+        self.projectionMosaic = self.options.projectionMosaic
+        self.projectionMosaicRGB = self.options.projectionMosaicRGB
+        self.channel = self.options.channel        
+
+    def getWells(self):
+        return self.wellsToExport
+
+    def prepareCalculationOfStitching(self, well):
+        self.names, self.newNames = well.createTileConfig(self.sliceForStitching, 0, self.channel)
+        if self.stitchOnMIP:
+            IJ.log("Create MIP to calculate Stitching")
+            well.createMIPFromInputImages(self.dims, self.options, self.channel)
+        else:
+            IJ.log("Copy fields to calculate Stitching");
+            well.copyImages(self.sourcePath, self.sourcePath+"/work/", names, newNames)
+
+    def calculateStitching(self, well):
+        IJ.log("Calculate Stitching")
+        well.calculateStitching(self.options)
+        for newName in self.newNames:
+            os.remove(srcPath+"/work/"+newName)
+                
+    def launch(self):
+        for well in self.wellsToExport:
+            self.prepareCalculationOfStitching(well);
+            self.calculateStitching(well);
+            if self.zStackFields:
+                self.createStack(well)
+            if self.projectionFields:
+                self.createMIP(well)
+            if self.zStackMosaic:
+                self.applyStitching(well)
+            if self.projectionMosaicRGB:
+                self.createRGBOverlaySnapshot(well)
+            self.createRGBChannelSnapshots(well)
+            self.renameOutputs(well)
+
+                
 class Plate(object):
     '''
     A plate is part of an experiment and contains a number of wells.
@@ -297,8 +361,6 @@ class Well(object):
             os.mkdir(path)
         tileConfPath = path + "/TileConfiguration.txt"
         allImages = self.getImages()
-
-        
         images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
         xCoords = [int(round(image.getX()/float(image.getPixelWidth()))) for image in images]
         yCoords = [int(round(image.getY()/float(image.getPixelHeight()))) for image in images]
@@ -331,7 +393,6 @@ class Well(object):
         if not os.path.exists(srcPath+"/out"):
             os.mkdir(srcPath+"/out")
         computeOverlap = params.computeOverlap
-        #computeOverlap = False
         computeString = ""
         if computeOverlap:
             computeString = "compute_overlap "
@@ -358,7 +419,6 @@ class Well(object):
                      "computation_parameters=[Save computation time (but use more RAM)] " + \
                      "image_output=[Write to disk] " \
                      "output_directory=["+srcPath+"/out/] "
-
         now = datetime.now().time()
         print(now)
         IJ.run("Grid/Collection stitching", parameters)
@@ -1001,19 +1061,16 @@ class Well(object):
                 self.addWellNameToImages(_PROJECT_MOSAIC_CHAN_FOLDER)
     
     def setImageBounds(self, channels, path):
-    	for i in range(1,channels+1):
+        for i in range(1,channels+1):
             imagesURL = self.getImagesInFolder(path,getFullPath=False,contains="ch"+str(i))
             for url in imagesURL:
-	            channelMin = Prefs.get("operaExportTools.channel"+str(i)+"Min",0)
-	            channelMax = Prefs.get("operaExportTools.channel"+str(i)+"Max",255)	
+                channelMin = Prefs.get("operaExportTools.channel"+str(i)+"Min",0)
+                channelMax = Prefs.get("operaExportTools.channel"+str(i)+"Max",255)    
             IJ.log("Min="+str(channelMin)+"Max="+str(channelMax))
             IJ.open(path+url)
             imp = IJ.getImage()
             IJ.setMinAndMax(channelMin,channelMax)
-            #imp.setDisplayRange(channelMin, channelMax);
-            IJ.run(imp, "Apply LUT", "stack")
-            #IJ.save(imp,path+url)
-            IJ.run(imp, "Save", "")
+            IJ.save(imp, path+url)
         
         
     def addWellNameToImages(self,inputFolder,outputFolder=None):
@@ -1052,7 +1109,7 @@ class Well(object):
         with open(os.path.join(path+namesFile),"r") as file:
             wellLine = [line for line in file if line.startswith(checkString)]
             if(len(wellLine)>0):
-	            resultName = resultName+""+wellLine[0].split(":")[-1][:-1]
+                resultName = resultName+""+wellLine[0].split(":")[-1][:-1]
         return resultName
     
     def __str__(self):
@@ -1511,7 +1568,25 @@ class PlateTest(unittest.TestCase):
     def testGetName(self):
         plate = Plate(self.plateXML, self.experiment)
         self.assertEquals(plate.getName(), 'Duc_plaque1_20210922')
-    
+
+class OperaExporterTest(unittest.TestCase):
+    def setUp(self):
+        unittest.TestCase.setUp(self)
+        folder = IJ.getDir("macros") + "toolsets"
+        path = folder + "/Index.idx.xml"
+        self.params = ['--wells=0202', '--slice=0', '--channel=1', '--stitchOnMIP', '--projectionMosaic', 
+                       '--projectionMosaicComposite', '--projectionMosaicRGB', '--channelRGB=100', 
+                       '--fusion-method=Linear_Blending', '--regression-threshold=0.3', '--displacement-threshold=2.5', 
+                       '--abs-displacement-threshold=3.5', '--pseudoflatfield=0', '--rollingball=0', 
+                       '--subtract-background-radius=0', '--subtract-background-offset=3', 
+                       '--subtract-background-iterations=1', '--subtract-background-skip=0.3', 
+                       '--colours=Green,Blue,Red,Cyan,Magenta,Yellow,Grays', 
+                       path]
+
+    def testConstructor(self):
+        exporter = OperaExporter(self.params)
+        self.assertEquals(len(exporter.getWells()), 1)
+        
 def suite():
     suite = unittest.TestSuite()
 
@@ -1526,7 +1601,8 @@ def suite():
     suite.addTest(PlateTest('testStr'))
     suite.addTest(PlateTest('testGetWells'))
     suite.addTest(PlateTest('testGetName'))
-       
+
+    suite.addTest(OperaExporterTest('testConstructor'))
     return suite
 
 runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
