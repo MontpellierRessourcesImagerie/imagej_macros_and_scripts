@@ -134,7 +134,8 @@ function launchExport() {
 	setBatchMode(true);
 	baseDir = File.getDirectory(_OPERA_INDEX_FILE);
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
-	file = File.open(baseDir + "/" + year + "-" + IJ.pad(month,2) + "-" + IJ.pad(dayOfMonth, 2) + "_"+hour+":"+minute+":"+second+"_options.txt");
+	dir = File.getParent(baseDir);
+	file = File.open(dir + "/" + year + "-" + IJ.pad(month,2) + "-" + IJ.pad(dayOfMonth, 2) + "_"+hour+"_"+minute+"_"+second+"_options.txt");
 	print(file, options);
 	File.close(file);
 	if(_CORRECT_INDEX_FLAT_FIELD)	prepareFlatfieldFolder();
@@ -685,8 +686,9 @@ function selectWells() {
 }
 
 function setIndexFile() {
-	newFile  = File.openDialog("Please select the index file (Index.idx.xml)!");
+	newFile  = getDir("Please select the folder containing the index file (Index.idx.xml)!");
 	newFile = replace(newFile, "\\", "/");
+	newFile = newFile + "Index.idx.xml";
 	if (File.exists(newFile)) {
 		setParameterDefault("indexFile",newFile);
 	}
