@@ -956,7 +956,6 @@ class Well(object):
             os.mkdir(outputPath)
         imps = []
         for url in images:
-            print("mipImages : Opening "+url)
             IJ.open(url)
             title = url.split("/")[-1]
             imp = IJ.getImage()
@@ -1637,7 +1636,7 @@ folder = IJ.getDir("macros") + "toolsets/opera_export_tools_test"
 if not os.path.isdir(folder):
     os.mkdir(folder)
 if not os.path.isfile(folder + "/Index.idx.xml"):
-    URLS = ['https://dev.mri.cnrs.fr/attachments/download/2543/Index.idx.xml', 
+    URLS = ['https://dev.mri.cnrs.fr/attachments/download/2544/Index.idx.xml', 
             'https://dev.mri.cnrs.fr/attachments/download/2529/r02c02f01p01-ch1sk1fk1fl1.tiff', 
             'https://dev.mri.cnrs.fr/attachments/download/2531/r02c02f01p01-ch2sk1fk1fl1.tiff',
             'https://dev.mri.cnrs.fr/attachments/download/2524/r02c02f01p01-ch3sk1fk1fl1.tiff', 
