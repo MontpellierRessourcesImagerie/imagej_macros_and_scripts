@@ -573,7 +573,7 @@ class Well(object):
                 composite.setCalibration(calibration)
                 name = title[:6] +"-"+title[16:]
                 IJ.log("+ Composite: "+name);
-                IJ.save(composite, outputPath + name)
+                IJ.save(composite, outputPath + name)               
             else:
                 for im in channelImps:
                     im.close();        
@@ -862,8 +862,8 @@ class Well(object):
         if channelExport != "All":
             channelNumber = str(int(channelExport) + 1)
             containsString = containsString + channelNumber
-        imagesURL = self.getImagesInFolder(stackPath,getFullPath=True,contains="ch")
-        self.mipImages(imagesURL, outputFolder=outputFolder,exportComposite=exportComposite)
+        imagesURL = self.getImagesInFolder(stackPath, getFullPath=True, contains="ch")
+        self.mipImages(imagesURL, outputFolder=outputFolder, exportComposite=exportComposite)
             
     def convertToRGB(self, params, inputFolder=_PROJECT_MOSAIC_FOLDER, outputFolder=_PROJECT_MOSAIC_RGB_FOLDER, channelExport="All", invert=False):
         if DEBUG:
@@ -877,38 +877,44 @@ class Well(object):
         if channelExport != "All":
             channelNumber = str(int(channelExport) + 1)
             containsString = containsString + channelNumber
-        imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains=containsString)
+        imagesURL = self.getImagesInFolder(inputPath, getFullPath=False, contains=containsString)
+        imagesURL.sort()
         options = ""
         itt = 1
         for url in imagesURL:
             if channelExport != "All":
-                channelMin = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Min",0)
-                channelMax = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Max",255)
+                channelMin = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Min", 0)
+                channelMax = Prefs.get("operaExportTools.channel"+str(channelNumber)+"Max", 255)
             else:
-                channelMin = Prefs.get("operaExportTools.channel"+str(itt)+"Min",0)
-                channelMax = Prefs.get("operaExportTools.channel"+str(itt)+"Max",255)
-            IJ.log("Min="+str(channelMin)+"Max="+str(channelMax))
+                channelMin = Prefs.get("operaExportTools.channel"+str(itt)+"Min", 0)
+                channelMax = Prefs.get("operaExportTools.channel"+str(itt)+"Max", 255)
+            IJ.log(url + " - Min="+str(channelMin)+", Max="+str(channelMax))
             IJ.open(inputPath+url)
-            IJ.setMinAndMax(channelMin, channelMax)
+            imp = IJ.getImage()
+            imp.getProcessor().setMinAndMax(channelMin, channelMax)
             options = options + "c" + str(itt) + "=" + url + " "
             itt = itt + 1
-            
         if channelExport == "All":
-            IJ.run("Merge Channels...", options)
+            IJ.run("Merge Channels...", options + " create")
+            composite = IJ.getImage()
+            IJ.run("RGB Color", "");
             imp = IJ.getImage()
             aFile = outputPath + imagesURL[0][:7] + imagesURL[0][10:]
+            composite.close()
         else:
             imp = IJ.getImage()
-            IJ.run(imp, "8-bit", "stack");
+            imp.getProcessor().resetMinAndMax()                
+            IJ.run("Grays")
+            IJ.run(imp, "Invert", "stack")
+            if imp.isStack():
+                IJ.run(imp, "8-bit", "stack")
+            else:
+                IJ.run("RGB Color", "")
             aFile = outputPath + imagesURL[0]
-        
-        if invert:
-            IJ.run(imp, "Invert", "stack");
         if DEBUG:
             print("convertToRGB: saving file: " + aFile)
         IJ.save(imp, aFile)
         imp.close()
-
             
     def mergeChannels(self, dims, params):            
         channels = dims[4]
@@ -953,17 +959,16 @@ class Well(object):
         for url in images:
             print("mipImages : Opening "+url)
             IJ.open(url)
-            title = url.split("/")
+            title = url.split("/")[-1]
             imp = IJ.getImage()
             projImp = ZProjector.run(imp,"max")
-            IJ.save(projImp, outputPath + title[-1])
+            IJ.save(projImp, outputPath + title)
             imps.append(projImp)    
             imp.close()
             projImp.close()
         if exportComposite:
             rgbStackMerge = RGBStackMerge()
             composite = rgbStackMerge.mergeHyperstacks(imps,False)
-            title = title[-1]
             name = title[:6] +"-"+title[11:]
             IJ.log("+ Composite: "+name);
             IJ.save(composite, outputPath + name)
