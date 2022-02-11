@@ -12,7 +12,7 @@ import shutil
 import argparse
 import re
 import unittest
-DEBUG = True
+DEBUG = False
 
 _Z_STACK_FOLDER = "/stack/"
 _PROJECT_FOLDER = "/projection/"
