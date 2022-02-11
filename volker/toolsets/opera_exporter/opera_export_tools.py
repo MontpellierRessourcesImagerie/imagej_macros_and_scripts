@@ -12,7 +12,7 @@ import shutil
 import argparse
 import re
 import unittest
-DEBUG = True
+DEBUG = False
 
 _Z_STACK_FOLDER = "/stack/"
 _PROJECT_FOLDER = "/projection/"
@@ -903,9 +903,8 @@ class Well(object):
             composite.close()
         else:
             imp = IJ.getImage()
-            imp.getProcessor().resetMinAndMax()                
             IJ.run("Grays")
-            IJ.run(imp, "Invert", "stack")
+            IJ.run(imp, "Invert LUT", "");
             if imp.isStack():
                 IJ.run(imp, "8-bit", "stack")
             else:
