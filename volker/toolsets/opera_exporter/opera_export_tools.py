@@ -993,7 +993,6 @@ class Well(object):
         strippedURL = strippedURL[:7] + strippedURL[10:]
         return strippedURL
         
-        
     def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
         allImages = self.getImages()
         images = [image for image in allImages if image.getPlane()==zPosition and image.getChannel()==channel and image.getTime()==timePoint]
@@ -1013,7 +1012,6 @@ class Well(object):
         path = srcPath + _WORK_FOLDER
         shutil.rmtree(path)
         
-
     def runGridCollectionStitching(self, computeOverlap=False , outputFolder = "/out/"):
         path = self.experiment.getPath();
         outputPath = path+outputFolder;
@@ -1065,27 +1063,26 @@ class Well(object):
             IJ.run("Enhance Contrast", "saturated=0.35")
         mosaic.repaintWindow()
 
-    
     def renameAllOutputs(self,params):
         wellName = self.getName()
         if params.zStackFields:
-            self.addWellNameToImages(_Z_STACK_FOLDER,_Z_STACK_FOLDER + "/" + wellName + "/")
+            self.addWellAndChannelNameToImages(_Z_STACK_FOLDER,_Z_STACK_FOLDER + "/" + wellName + "/")
         if params.projectionFields:
-            self.addWellNameToImages(_PROJECT_FOLDER,_PROJECT_FOLDER + "/" + wellName + "/")
+            self.addWellAndChannelNameToImages(_PROJECT_FOLDER,_PROJECT_FOLDER + "/" + wellName + "/")
         if params.zStackMosaic:
-            self.addWellNameToImages(_Z_STACK_MOSAIC_FOLDER)
+            self.addWellAndChannelNameToImages(_Z_STACK_MOSAIC_FOLDER)
             
         if params.projectionMosaic:
-            self.addWellNameToImages(_PROJECT_MOSAIC_FOLDER)
+            self.addWellAndChannelNameToImages(_PROJECT_MOSAIC_FOLDER)
             
         if params.projectionMosaicRGB:
-            self.addWellNameToImages(_PROJECT_MOSAIC_RGB_FOLDER)
+            self.addWellAndChannelNameToImages(_PROJECT_MOSAIC_RGB_FOLDER)
 
         channelList = list(params.channelRGB)
 
         for i in range(len(channelList)):
             if channelList[i] == "1":
-                self.addWellNameToImages(_PROJECT_MOSAIC_CHAN_FOLDER)
+                self.addWellAndChannelNameToImages(_PROJECT_MOSAIC_CHAN_FOLDER)
     
     def setImageBounds(self, channels, path):
         for i in range(1,channels+1):
@@ -1099,15 +1096,23 @@ class Well(object):
             IJ.setMinAndMax(channelMin, channelMax)
             IJ.save(imp, path+url)
         
-        
-    def addWellNameToImages(self,inputFolder,outputFolder=None):
+    def getChannelNames(self):
+        dims = self.getDimensions()
+        channels = dims[4]
+        channelNames = []
+        for c in range(1, channels+1):
+            images = self.getImagesForZPosTimeAndChannel(1, 0, c)
+            channelNames.append(images[0].getChannelName())
+        return channelNames
+            
+    def addWellAndChannelNameToImages(self,inputFolder,outputFolder=None):
         path = self.experiment.getPath()
         inputPath  = path + inputFolder
         if outputFolder == None :
             outputFolder = inputFolder
         outputPath = path + outputFolder
         
-        imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains="")
+        imagesURL = self.getImagesInFolder(inputPath,getFullPath=False,contains="")     
 
         wellName = self.getName()
         
@@ -1116,7 +1121,10 @@ class Well(object):
             os.mkdir(outputPath)
 
         for image in imagesURL:
-            os.rename(inputPath+image,outputPath+wellName+image[6:])
+            newImage = image
+            for channelNumber, channelName in enumerate(self.getChannelNames(), start=1):
+                newImage = newImage.replace("ch"+str(channelNumber), channelName+"-")
+            os.rename(inputPath+image,outputPath+wellName+newImage[6:])
             
     def getName(self):
         '''
@@ -1136,7 +1144,7 @@ class Well(object):
         with open(os.path.join(path+namesFile),"r") as file:
             wellLine = [line for line in file if line.startswith(checkString)]
             if(len(wellLine)>0):
-                resultName = resultName+""+wellLine[0].split(":")[-1][:-1]
+                resultName = resultName+"-"+wellLine[0].split(":")[-1][:-1]
         return resultName
     
     def __str__(self):
@@ -1206,6 +1214,12 @@ class Image(object):
     def setChannel(self, channel):
         self.channel = channel
 
+    def getChannelName(self):
+        return self.channelName
+
+    def setChannelName(self, name):
+        self.channelName = name
+        
     def getWidth(self):
         return self.width
 
@@ -1430,6 +1444,7 @@ class PhenixHCSExperiment(object):
                 result.setPlane(int(image[6].text))
                 result.setTime(int(image[7].text))
                 result.setChannel(int(image[8].text))
+                result.setChannelName(image[10].text)
                 result.setPixelWidth(float(image[15].text))
                 result.setPixelHeight(float(image[16].text))
                 result.setWidth(int(image[17].text))
