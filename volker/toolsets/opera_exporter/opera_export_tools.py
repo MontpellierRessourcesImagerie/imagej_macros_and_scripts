@@ -505,11 +505,13 @@ class Well(object):
                 channelImps.append(imp)
                 IJ.save(imp, outputPath + name)
             if exportComposite:
-                composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
-                composite.setCalibration(calibration)
-                name = title[:6] +"-"+title[13:]
-                IJ.log("+ Composite: "+name);
-                IJ.save(composite, outputPath + name)
+                self.createComposite(channelImps, 
+                     title[:6] +"-"+title[13:],
+                     calibration,
+                     outputPath)
+            else:
+                for im in channelImps:
+                    im.close();    
         if DEBUG:
             print("LEAVING applyStitching")
 
@@ -540,17 +542,23 @@ class Well(object):
                 channelImps.append(imp)
                 IJ.save(imp, outputPath + name)
             if self.getOptions().projectionMosaicComposite:
-                composite = rgbStackMerge.mergeHyperstacks(channelImps, False)
-                composite.setCalibration(calibration)
-                name = title[:6] + "-" + title[16:]
-                IJ.log("+ Composite: "+name)
-                IJ.save(composite, outputPath + name)               
+                self.createComposite(channelImps, 
+                                     title[:6] + "-" + title[16:],
+                                     calibration,
+                                     outputPath)
             else:
                 for im in channelImps:
                     im.close();        
         if DEBUG:
             print("LEAVING applyStitchingProjection")
-            
+
+    def createComposite(self, channels, name, calibration, targetPath):
+        composite = RGBStackMerge().mergeHyperstacks(channels, False)
+        composite.setCalibration(calibration)
+        IJ.log("+ Composite: "+name)
+        IJ.save(composite, targetPath + name)
+        composite.close()               
+        
     def doSubtractBackground(self, names):
         path = self.experiment.getWorkFolder()
         for name in names:
@@ -723,11 +731,13 @@ class Well(object):
                     channelImps.append(imp)
                     IJ.save(imp, outputPath + name)
                 if self.getOptions().zStackFieldsComposite:
-                    composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
-                    composite.setCalibration(calibration)
-                    name = name[:10] + name[13:]
-                    IJ.log("+ Composite: "+name)
-                    IJ.save(composite, outputPath + name)
+                    self.createComposite(channelImps, 
+                                         name[:10] + name[13:],
+                                         calibration,
+                                         outputPath)
+                else:
+                    for im in channelImps:
+                        im.close()           
     
     def createMIP(self, dims, outputPath):
         if DEBUG:
@@ -768,11 +778,13 @@ class Well(object):
                         imp.close()
                         projImp.close()
                 if self.getOptions().projectionFieldsComposite:
-                    composite = rgbStackMerge.mergeHyperstacks(channelImps,False)
-                    composite.setCalibration(calibration)
-                    name = title[:9] + title[12:13] + title[16:]
-                    IJ.log("+ Composite: "+name)
-                    IJ.save(composite, outputPath + name)
+                     self.createComposite(channelImps, 
+                                            title[:9] + title[12:13] + title[16:],
+                                            calibration,
+                                            outputPath)
+                else:
+                    for im in channelImps:
+                        im.close()
                 index = index + 1
 
     def createMIPFromInputImages(self, dims, channel, outputPath):
@@ -911,28 +923,25 @@ class Well(object):
         imps = []
         for url in images:
             IJ.open(url)
+            channel = int(url.split('ch')[1].split('sk')[0])
             title = url.split("/")[-1]
             imp = IJ.getImage()
+            calibration = imp.getCalibration()
             projImp = ZProjector.run(imp,"max")
+            minDisplay, maxDisplay = self.getOptions().min_max_display[channel - 1][0], self.getOptions().min_max_display[channel - 1][1] 
+            projImp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
             IJ.save(projImp, outputPath + title)
             imps.append(projImp)    
             imp.close()
             projImp.close()
         if  self.getOptions().projectionMosaicComposite:
-            rgbStackMerge = RGBStackMerge()
-            composite = rgbStackMerge.mergeHyperstacks(imps,False)
-            name = title[:6] +"-"+title[11:]
-            IJ.log("+ Composite: "+name);
-            IJ.save(composite, outputPath + name)
-
-    # Currently unused
-    def getImagesPerChannel(self, channels):
-        allImages = self.getImages()
-        res = []
-        for c in range (1, channels + 1):
-            filtered = [image for image in allImages if image.getChannel()==c]
-            res.append(filtered);
-        return res
+            self.createComposite(imps, 
+                                title[:6] +"-"+title[11:],
+                                calibration,
+                                outputPath)
+        else:
+            for im in imps:
+                im.close()
 
     def getImagesForTimeFieldAndChannel(self, timePoint, field, channel):
         allImages = self.getImages()
