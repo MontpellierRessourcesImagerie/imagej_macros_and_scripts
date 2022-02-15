@@ -8,7 +8,7 @@
    Images are stitched by plane and channel. Z-stacks and multi-channel images can
    optionally be created. Projections can also be created.
     
-   (c) 2021, INSERM
+   (c) 2021-2022, INSERM
    
    written by Volker Baecker and Léo Tellez-Arenas at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
 */
@@ -214,6 +214,15 @@ function getOptions(){
 	colors = String.join(_COLORS_SELECTED);
 	colors = replace(colors, " ", "");
 	options = options + " --colours=" + colors;
+	minMaxList = "";
+	for(i=0; i<_NB_CHANNELS; i++){
+		minMax = getMinMax(i + 1);
+		minMaxList = minMaxList + minMax[0] + "," + minMax[1];
+		if (i < _NB_CHANNELS - 1) {
+			minMaxList = minMaxList + ",";
+		}
+	}
+	options = options + " --min-max-display=" + minMaxList;
 	options = options + " " + _OPERA_INDEX_FILE;
 	return options;
 }
@@ -525,10 +534,10 @@ function getCorrectionDialog(){
 
 
 function addExportColoursDialog(channelNames){
-	Dialog.addMessage("Export Colours:",14);
+	Dialog.addMessage("Export Colours:", 14);
 
 	for(i=0;i<_NB_CHANNELS;i++){
-		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
+		if(i%_CHANNEL_PER_ROW_IN_DIALOG != 0){
 			Dialog.addToSameRow();
 		}
 		Dialog.addChoice(channelNames[i], _COLORS, _COLORS_SELECTED[i]);
@@ -536,7 +545,7 @@ function addExportColoursDialog(channelNames){
 }
 
 function getExportColoursDialog(){
-	for(i=0;i<_NB_CHANNELS;i++){
+	for(i=0; i<_NB_CHANNELS; i++){
 		_COLORS_SELECTED[i]=Dialog.getChoice();
 	}
 }
@@ -557,7 +566,7 @@ function getExportBoundsDialog(){
 	for(i=1;i<=_NB_CHANNELS;i++){
 		min=Dialog.getNumber();
 		max=Dialog.getNumber();
-		saveMinMax(i,min,max);
+		saveMinMax(i, min, max);
 	}
 }
 
@@ -568,16 +577,16 @@ function setChannelBounds(){
 	Dialog.create("Channel Bounds");
 	for(i=1;i<=_NB_CHANNELS;i++){
 		minMax=getMinMax(i);
-		Dialog.addNumber("Min",minMax[0]);
+		Dialog.addNumber("Min", minMax[0]);
 		Dialog.addToSameRow();
-		Dialog.addNumber("Max",minMax[1]);
+		Dialog.addNumber("Max", minMax[1]);
 	}
 
 	Dialog.show();
 	for(i=1;i<=_NB_CHANNELS;i++){
 		min=Dialog.getNumber();
 		max=Dialog.getNumber();
-		saveMinMax(i,min,max);
+		saveMinMax(i, min, max);
 	}
 }
 
@@ -589,7 +598,7 @@ function saveMinMax(channel,min,max){
 function getMinMax(channel){
 	min = getParameterDefault("channel"+channel+"Min",0);
 	max = getParameterDefault("channel"+channel+"Max",65534);
-	return newArray(min,max);
+	return newArray(min, max);
 }
 
 function loadWellNames(){
