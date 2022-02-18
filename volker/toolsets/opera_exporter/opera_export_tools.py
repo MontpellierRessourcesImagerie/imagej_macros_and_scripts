@@ -273,6 +273,8 @@ class OperaExporter(object):
                 self.createRGBOverlaySnapshot(well)
             self.createRGBChannelSnapshots(well)
             self.renameOutputs(well)
+            IJ.run("Close All", "")
+            IJ.run("Collect Garbage", "")
              
 class Plate(object):
     '''
