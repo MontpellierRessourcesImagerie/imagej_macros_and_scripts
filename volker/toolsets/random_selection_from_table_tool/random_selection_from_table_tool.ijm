@@ -49,7 +49,7 @@ function copyRandomLines(portion) {
 		index = floor(random*length);
 		line = pool[index];
 		lines = Array.concat(lines, line+1);
-		Array.deleteIndex(pool, index);
+		pool = Array.deleteIndex(pool, index);
 	}
 	newTitle = "" + portion + "% random lines from " + title;
 	Table.create(newTitle);
