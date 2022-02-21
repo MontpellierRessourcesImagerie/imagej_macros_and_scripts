@@ -6,7 +6,7 @@ written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpell
 
 The points must be in the X, Y, Z and NR columns
 of the ImageJ system results-table. By default the columns
-'X', 'Y', 'Z' and 'NR' are used. However other column names
+"X", "Y", "Z" and "NR" are used. However other column names
 can be provided. 
 
 	X, Y, Z: The column names of the columns containing the 3D coordinates of the points
