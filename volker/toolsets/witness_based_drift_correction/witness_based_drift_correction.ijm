@@ -1,3 +1,16 @@
+/***
+ * 
+ * Witness Based Drift Correction
+ * 
+ * Correct the constant drift in one channel by using the first and last frame 
+ * of another channel (the witness) to calculate the overall translation T. 
+ * Divide T the number of timepoints-1 and apply it to each frame.
+ * 
+ * (c) 2022, INSERM
+ * 
+ * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+ * 
+**/
 var _CONTENT_CHANNEL = 2;
 var _WITNESS_CHANNEL = 1;
 var _IMAGE_FILE_EXTENSION = "nd";
