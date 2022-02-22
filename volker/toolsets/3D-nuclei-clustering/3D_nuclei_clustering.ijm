@@ -4,7 +4,7 @@
  * 
  * Detect nuclei in 3D images and run a cluster analysis on them
  * 
- * (c) 2019-2020, INSERM
+ * (c) 2019-2022, INSERM
  * 
  * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
  * 
@@ -16,7 +16,7 @@ var _RADIUS_XY = 1.50;
 var _RADIUS_Z = 1.50;
 var _NOISE = 500;
 var _EXCLUDE_ON_EDGES = true;
-var _RADIUS_SPHERE = 3 	// in scaled units (for exampel µm)
+var _RADIUS_SPHERE = 3 	// in scaled units (for exampel  m)
 var _LOOKUP_TABLE = "glasbey on dark";
 var _CREATE_RESULTS_CHANNEL = true;
 var _DECIMALS = 3;
@@ -36,11 +36,12 @@ var _NR_COLUMN = "NR";
 
 // parameters for batch processing
 var _FILE_EXTENSION = "ims";
-var _SERIES = "series_2"
+var _SERIES = "series_2";
+var _DEBUG = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/3D_Nuclei_Clustering_Tool";
 
-detectNucleiInTimeSeries();
+addNuclei();
 exit();
 
 macro "3D nuclei clustering tool help [f4]" {
@@ -114,7 +115,6 @@ macro "add nuclei (f6) Action Tool - C000T4b12a" {
 macro "add nuclei [f6]" {
 	addNuclei();
 }
-
 
 macro "remove nuclei (f7) Action Tool - C000T4b12r" {
 	removeNuclei();
@@ -304,11 +304,11 @@ function addNuclei() {
 		inputStackID = getImageID();
 		inputTitle = getTitle();
 
-		setBatchMode(true);
+		if (!_DEBUG) setBatchMode(true);
 		if (channels>1) {
 			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
 		}
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xScaled+","+yScaled+","+zScaled+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+        drawShape(width, height, slices, voxelWidth, voxelDepth, unit, xScaled, yScaled, zScaled, c);
 		run(_LOOKUP_TABLE);
 		updatedChannelID = getImageID();
 		updatedChannelTitle = getTitle();
@@ -333,7 +333,7 @@ function addNuclei() {
 		}
 		run("Merge Channels...", mergeString);
 		rename(inputTitle);
-		setBatchMode(false);
+		if (!_DEBUG) setBatchMode(false);
 		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
 	}
 	
@@ -411,11 +411,11 @@ function removeNuclei() {
 		inputStackID = getImageID();
 		inputTitle = getTitle();
 
-		setBatchMode(true);
+		if (!_DEBUG) setBatchMode(true);
 		if (channels>1) {
 			run("Duplicate...", "duplicate channels="+channel+"-"+channel);		
 		}
-		run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+xCN+","+yCN+","+zCN+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
+        drawShape(width, height, slices, voxelWidth, voxelDepth, unit, xCN, yCN, zCN, c);
 		run(_LOOKUP_TABLE);
 		updatedChannelID = getImageID();
 		updatedChannelTitle = getTitle();
@@ -440,7 +440,7 @@ function removeNuclei() {
 		}
 		
 		run("Merge Channels...", mergeString);
-		setBatchMode(false);
+		if (!_DEBUG) setBatchMode(false);
 		run("Set... ", "zoom="+zoom*100+" x="+x+" y="+y);
 	}
 	Stack.setSlice(round(zC));
@@ -718,6 +718,7 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 	getVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
 	newImage(nameOfTable + "-indexed-mask", "16-bit black", width, height, slices);
 	setVoxelSize(voxelWidth, voxelHeight, voxelDepth, unit);
+    if (Table.size(nameOfTable) < 1) return; 
 	X = Table.getColumn(_X_COLUMN, nameOfTable);
 	Y = Table.getColumn(_Y_COLUMN, nameOfTable);
 	Z = Table.getColumn(_Z_COLUMN, nameOfTable);
@@ -725,24 +726,23 @@ function drawNucleifromTable(nameOfTable, nameOfColorColumn) {
 		C = Table.getColumn(nameOfColorColumn, nameOfTable);
 		Table.sort(nameOfColorColumn, nameOfTable);
 	}
-	if (nameOfColorColumn != "none") {
-		for (i = 0; i < X.length; i++) {
-			x = X[i];
-			y = Y[i];
-			z = Z[i];
-			c = C[i];
-			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
-		}
-	} else {
-		for (i = 0; i < X.length; i++) {
-			x = X[i];
-			y = Y[i];
-			z = Z[i];
-			c = 1;
-			run("3D Draw Shape", "size="+width+","+height+","+slices+" center="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" value="+c+" display=Overwrite");
-		}
+    c = 1;
+	for (i = 0; i < X.length; i++) {
+        if (nameOfColorColumn != "none") {
+          c = C[i];
+        } 
+		x = parseFloat(X[i]);
+		y = parseFloat(Y[i]);
+		z = parseFloat(Z[i]);		
+        drawShape(width, height, slices, voxelWidth, voxelDepth, unit, x, y, z, c);
 	}
 	run(_LOOKUP_TABLE);
+}
+
+function drawShape(width, height, slices, voxelWidth, voxelDepth, unit, x, y, z, c) {
+    displayString = "Overwrite";
+    options = "size="+width+","+height+","+slices+" res_xy="+voxelWidth+" res_z="+voxelDepth+" unit="+unit+" centre="+x+","+y+","+z+" radius="+_RADIUS_SPHERE+","+_RADIUS_SPHERE+","+_RADIUS_SPHERE+" vector1=1.0,0.0,0.0 vector2=0.0,1.0,0.0 value="+c+" display="+displayString;
+    run("3D Draw Shape", options);
 }
 
 function filterAboveThreshold() {
@@ -865,7 +865,7 @@ function drawNearestNeighborConnections(tableName) {
 		x1 = Table.get(_X_COLUMN, row, tableName);
 		y1 = Table.get(_Y_COLUMN, row, tableName);
 		z1 = Table.get(_Z_COLUMN, row, tableName);
-		neighbor = Table.get("neighbor", row, tableName)-1;
+		neighbor = parseInt(Table.get("neighbor", row, tableName))-1;
 		x2 = Table.get(_X_COLUMN, neighbor, tableName);
 		y2 = Table.get(_Y_COLUMN, neighbor, tableName);
 		z2 = Table.get(_Z_COLUMN, neighbor, tableName);
@@ -880,9 +880,11 @@ function findCenterAndSetOrigin() {
 	Overlay.remove;
 	imageID = getImageID();
 	title = getTitle();
-	setBatchMode(true);
+	if (!_DEBUG) setBatchMode(true);
 	run("Duplicate...", "duplicate");
 	titleOfCopy = getTitle();
+	run("Split Channels");
+	run("Merge Channels...", "c1=C1-"+titleOfCopy+" c2=C2-"+titleOfCopy+" c3=C3-"+titleOfCopy);
 	run("8-bit");
 	setAutoThreshold("Default dark stack");
 	run("Convert to Mask", "method=Default background=Dark");
@@ -891,7 +893,7 @@ function findCenterAndSetOrigin() {
 	run("Analyze Particles...", "size=5000-Infinity show=Masks stack");
 	run("3D Centroid");
 	x = getResult("CX(pix)", nResults-1);
-	y = getResult("CY(unit)", nResults-1);
+	y = getResult("CY(pix)", nResults-1);
 	z = getResult("CZ(pix)", nResults-1);
 	close();
 	close();
@@ -902,13 +904,14 @@ function findCenterAndSetOrigin() {
 	Overlay.addSelection;
 	Overlay.setPosition(0, round(z), 0);
 	run("Select None");
-	setBatchMode(false);
+	if (!_DEBUG) setBatchMode(false);
 	Property.set("originx", x);
 	Property.set("originy", y);
 	Property.set("originz", z);
 }
 
 function copyDistToTable(aTable) {
+    if (Table.size(aTable)<1) return;
 	XC = Table.getColumn("X", aTable);
 	YC = Table.getColumn("Y", aTable);
 	ZC = Table.getColumn("Z", aTable);
