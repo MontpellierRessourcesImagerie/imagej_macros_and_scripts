@@ -27,7 +27,8 @@ function exportWellNamesAction(){
 	inputCSV = Dialog.getString();
 	outputFolder = Dialog.getString();
 
-	exportWellNames(inputCSV,outputFolder+_WELLNAMES_FILE);
+	//exportWellNames(inputCSV,outputFolder+_WELLNAMES_FILE);
+	new_exportWellNames(inputCSV,outputFolder+_WELLNAMES_FILE);
 }
 
 function exportWellNamesOption(){
@@ -42,6 +43,7 @@ function exportWellNamesOption(){
 }
 
 function exportWellNames(inputCSV,outputFile){
+	print(inputCSV);
 	Table.open(inputCSV);
 
 	tableHeadings = split(Table.headings,"\t");
@@ -55,6 +57,33 @@ function exportWellNames(inputCSV,outputFile){
 	for (row = rowOffset; row < nbTableRow-rowOffset; row++) {
 		for(column = columnOffset;column < nbTableColumn-columnOffset;column++){
 			currentValue = Table.getString(tableHeadings[column], row);
+			if(isNotNull(currentValue)){
+				stringToAdd = IJ.pad(row-rowOffset+1,2)+IJ.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
+				//stringToAdd = String.pad(row-rowOffset+1,2)+String.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
+				wellNamesContent = wellNamesContent + stringToAdd;
+			}
+		}
+	}
+	File.saveString(wellNamesContent, outputFile);
+}
+
+function new_exportWellNames(inputCSV,outputFile){
+	print(inputCSV);
+	stringCSV = File.openAsString(inputCSV);
+	stringCSV = replace(stringCSV, ";", ",")
+	lines = split(stringCSV,"\n");
+	
+	nbRow = lines.length;
+	
+	wellNamesContent = "";
+	rowOffset = _ROW_OFFSET -1;
+	columnOffset = _COLUMN_OFFSET -1;
+	fileEnded = false;
+	for (row = rowOffset; row < nbRow; row++){
+		values = split(lines[row],",");
+		nbColumn = values.length;
+		for(column = columnOffset; column < nbColumn; column++){
+			currentValue = values[column];
 			if(isNotNull(currentValue)){
 				stringToAdd = IJ.pad(row-rowOffset+1,2)+IJ.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
 				//stringToAdd = String.pad(row-rowOffset+1,2)+String.pad(column-columnOffset+1,2)+":"+currentValue+"\n";
