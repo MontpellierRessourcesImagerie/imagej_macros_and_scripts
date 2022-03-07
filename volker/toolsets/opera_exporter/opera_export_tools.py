@@ -267,7 +267,7 @@ class OperaExporter(object):
             if self.zStackFields:
                 self.createStack(well)
             if self.projectionFields:
-                self.createMIP(well)
+                self.createMIP(well)   
             self.applyStitching(well)
             if self.projectionMosaicRGB:
                 self.createRGBOverlaySnapshot(well)
@@ -985,8 +985,8 @@ class Well(object):
                      "regression_threshold=0.30 " + \
                      "max/avg_displacement_threshold=2.50 " + \
                      "absolute_displacement_threshold=3.50 "
-        if self.getOptions().computeOverlap: 
-            parameters = parameters + "compute_overlap "
+        #if self.getOptions().computeOverlap: 
+        #    parameters = parameters + "compute_overlap "
         parameters = parameters + \
                      "subpixel_accuracy " + \
                      "computation_parameters=[Save computation time (but use more RAM)] " + \
