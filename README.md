@@ -118,6 +118,10 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 <img align='right' src="https://camo.githubusercontent.com/3d2bc865f27ab24e3f5e84bf384b0dfb9a39e48d/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f3332342f776f756e642d6865616c696e672d72657330312e706e67" height='100'/> The MRI Wound Healing Tool can be used to analyze scratch assays. It measures the area of a wound in a cellular tissue on a stack of images representing a time-series. 
 
+####   [Witness based drift correction Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Witness_based_drift_correction_Tool) 
+
+<img align='right' src="https://camo.githubusercontent.com/7e19fb4e9f924ab287acc36e559f11ab9b94e354c5c3230b7640436a75fd61cb/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323535302f436f6d62696e6564537461636b732e676966" height='100'/> The tool corrects a constant drift in a time-series. When the objects in the images move, drift-correction can be difficult. Here a second channel is provided, in which there are no moving objects, however in order to be able to acquire images fast enough, for the second channel only the images of the first and the last frame are taken. 
+
 ### Workflow and Conversion Toolsets
 
 ####   [MRI_Convert_Nikon_Andor_To_Hyperstack](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Convert_Nikon_Andor_To_Hyperstack) 
