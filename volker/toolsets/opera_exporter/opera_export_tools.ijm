@@ -615,12 +615,18 @@ function loadWellNames(){
 	if(File.exists(baseDir + _WELLS_NAMES_FILE)){
 		str = File.openAsString(baseDir + _WELLS_NAMES_FILE);
 		lines=split(str,"\n");
-		for(i=0;i<wells.length;i++){
-			line = split(lines[i],":");
-			if(line.length>1){
-				_WELLS_NAMES[i]=line[1];
-			}else{
-				_WELLS_NAMES[i]="";
+		nbLinesInWellNames = lines.length;
+		
+		for(currentWellID=0; currentWellID<wells.length; currentWellID++){
+			_WELLS_NAMES[currentWellID]="";
+			
+			for(lineID=0; lineID<nbLinesInWellNames; lineID++){
+				line = split(lines[lineID],":");
+				if(line.length>1){
+					if(line[0] == wells[currentWellID]){
+						_WELLS_NAMES[currentWellID]=line[1];
+					}
+				}
 			}
 		}
 	}else{
