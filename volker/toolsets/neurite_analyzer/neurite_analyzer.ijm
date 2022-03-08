@@ -19,6 +19,9 @@ var NAME_FILTER = "Coleno";
 var NR_OF_FILES_PER_FOLDER = 10;
 var SUBFOLDER = "/Mosaic_16bits/";
 
+var LUT = "Random";
+var CONNECTIVITY = 4;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Neurite_Analyzer_Tool";
  
 mergeAndFilter();
@@ -47,6 +50,11 @@ macro "segment neurites (f6) Action Tool - C000T4b12s" {
 macro "merge and filter (f7) Action Tool - C000T4b12m" {
 	mergeAndFilter();
 }
+
+macro "label neurites (f8) Action Tool - C000T4b12l" {
+   labelNeurites();  
+}
+
 
 function removeRoisWithoutSupport(image, otherImage) {
 	selectImage(otherImage);
@@ -121,6 +129,24 @@ function mergeAndFilter() {
 	run("From ROI Manager");
 	roiManager("reset");
 	showStatus("Merging and filter: DONE.");
+}
+
+function labelNeurites() {
+    selectImage("nuclei-mask");
+    run("16-bit");
+    run("Connected Components Labeling",  "connectivity="+CONNECTIVITY+" type=[16 bits]");
+    getHistogram(values, counts, 255);
+    max = Math.ceil(values[values.length -1]);
+    nucleiLabels = getImageID();
+    run("Copy");
+    selectImage("neurite-mask");
+    run("16-bit");
+    run("Macro...", "code=[v = (v==255) * 65535]");
+    setPasteMode("Transparent-zero");
+    run("Paste");
+    run("Neurite Labelling PlugIn");
+    run(LUT);
+    setMinAndMax(0, max);
 }
 
 function merge(nucleiImageTitle, neuriteImageTitle) {
