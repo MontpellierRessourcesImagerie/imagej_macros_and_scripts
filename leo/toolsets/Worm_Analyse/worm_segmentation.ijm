@@ -1,7 +1,8 @@
-var _BLUR_SIGMA = 4;
-var _MAXIMA_PROMINENCE = 35;
 var _VARIANCE_RADIUS = 4;
 var _THRESHOLD_METHOD = "Otsu";
+
+var _CONVOLUTION_KERNEL = "4 4 4\n4 8 4\n4 4 4\n";
+var _INTERSECTION_PROMINENCE = 5;
 
 //README Start of the Macro Section
 
@@ -21,13 +22,14 @@ macro "Unused Tool 0 - " {}  // leave empty slot
 
 var segmentationTools = newArray("Get Worm Segmentation",
 								 "Visualise Worm Segmentation",
-								 "Get Old Worm Segementation",
-								 "Visualise Old Worm Segmentation",
 								 "Worm Segmentation Options",
+								 "Get Graph Nodes",
 								 "--",
 								 "Get Mask Image",
 								 "Get Skeleton From Mask",
 								 "Get Intersections of Skeleton",
+								 "Export Nodes to Table",
+								 "Get Worm Graph <NO",
 								 "--",
 								 "Apply Variance Filter and Threshold",
 								 "Clean Mask"
@@ -39,16 +41,15 @@ macro "Worm Segmentation Menu Tool - C000T4b12W"{
 	
 	if(label == segmentationTools[count++])	getWormSegmentationImage();
 	if(label == segmentationTools[count++])	getWormSegmentationVisualisation();
-	
-	if(label == segmentationTools[count++])	getOldWormSegmentationImage();
-	if(label == segmentationTools[count++])	getOldWormSegmentationVisualisation();
-	
 	if(label == segmentationTools[count++]) wormSegmentationOptionDialog();
+	if(label == segmentationTools[count++]) getGraphNodes();
+	
 	count++;
 	if(label == segmentationTools[count++])	createMaskImage(getImageID());
 	if(label == segmentationTools[count++])	getSkeletonFromMask(getImageID());
 	if(label == segmentationTools[count++])	getIntersectionsOfSkeleton(getImageID());
-	
+	if(label == segmentationTools[count++])	exportNodesFromIntersection(getImageID());
+	if(label == segmentationTools[count++])	countContactsInNodes();
 	count++;
 	if(label == segmentationTools[count++])	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
 	if(label == segmentationTools[count++])	cleanMask();	
@@ -56,53 +57,6 @@ macro "Worm Segmentation Menu Tool - C000T4b12W"{
 }
 
 //README Start of the Function Section
-
-function getSeparationLine(inputImageID){
-	selectImage(inputImageID);
-	title = getTitle(); 
-	title = title.replace(".tif","-separation.tif");
-	
-	run("Duplicate...", "title="+title+"-tmp.tif");
-	tmpImage = getImageID();
-	blurSigma = 4;
-	run("Gaussian Blur...", "sigma="+blurSigma);
-	
-	prominenceValue = _MAXIMA_PROMINENCE;
-	run("Find Maxima...", "prominence="+prominenceValue+" light output=[Segmented Particles]");
-	run("Invert");
-	rename(title);
-	selectImage(tmpImage);
-	close();
-}
-
-function getMaxima(inputImageID){
-	selectImage(inputImageID);
-	title = getTitle(); 
-	title = title.replace(".tif","-maxima.tif");
-	
-	run("Duplicate...", "title="+title+"-tmp.tif");
-	tmpImage = getImageID();
-	blurSigma = 4;
-	run("Gaussian Blur...", "sigma="+blurSigma);
-	
-	prominenceValue = _MAXIMA_PROMINENCE;
-	run("Find Maxima...", "prominence="+prominenceValue+" light output=[Single Points]");
-	run("Dilate");
-	run("Dilate");
-	run("Dilate");
-	rename(title);
-	selectImage(tmpImage);
-	close();
-}
-
-function createOldMaskImage(inputImageID){
-	selectImage(inputImageID);
-	title = getTitle(); 
-	title = title.replace(".tif","");
-	run("Duplicate...", "title="+title+"-mask.tif");
-	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
-	oldCleanMask();
-}
 
 function createMaskImage(inputImageID){
 	selectImage(inputImageID);
@@ -127,20 +81,16 @@ function cleanMask(){
 	run("Analyze Particles...", "size=100-Infinity show=Masks");
 	run("Invert");
 	dirtyWormImageID = getImageID();
-	rename("DirtyWorm");
 	dirtyWormImageTitle = getTitle();
 	
 	run("Analyze Particles...", "size=0-1000 show=Masks");
 	dirtyRestImageID = getImageID();
-	rename("DirtyOutside");
 	dirtyRestImageTitle = getTitle();
 	
 	imageCalculator("Subtract create", dirtyWormImageTitle,dirtyRestImageTitle);
 	run("Invert");
 	cleanRestImageID = getImageID();
-	rename("CleanOutside");
 	cleanRestImageTitle = getTitle();
-	
 	selectImage(dirtyWormImageID);
 	close();
 	selectImage(dirtyRestImageID);
@@ -148,35 +98,16 @@ function cleanMask(){
 	
 	run("Analyze Particles...", "size=0-1000 show=Masks");
 	dirtyInImageID = getImageID();
-	rename("DirtyInside");
 	dirtyInImageTitle = getTitle();
 	
 	imageCalculator("Substract create", cleanRestImageTitle,dirtyInImageTitle);
 	cleanImageID = getImageID();
-	rename("CleanOutside");
 	cleanImageTitle = getTitle();
-	
 	selectImage(cleanRestImageID);
 	close();
 	selectImage(dirtyInImageID);
 	close();
 	
-	maskImageID = getImageID();
-	selectImage(originalImageID);
-	close();
-	selectImage(maskImageID);
-	rename(originalImageTitle);
-}
-
-function oldCleanMask(){
-	originalImageID = getImageID();
-	originalImageTitle = getTitle();
-	
-	run("Options...", "iterations=1 count=1 black do=Nothing");
-	run("Erode");
-	run("Fill Holes");
-	//run("Analyze Particles...", "size=1000-Infinity display clear add");
-	run("Analyze Particles...", "size=1000-Infinity show=Masks");
 	maskImageID = getImageID();
 	selectImage(originalImageID);
 	close();
@@ -202,60 +133,83 @@ function getIntersectionsOfSkeleton(inputImageID){
 	tmpImageID = getImageID();
 	//run("Top Hat...", "radius=3");
 		
-	run("Convolve...", "text1=[4 4 4\n4 8 4\n4 4 4\n] normalize");
-	run("Find Maxima...", "prominence=5 light output=[Single Points]");
+	kernel = _CONVOLUTION_KERNEL;
+	prominence = _INTERSECTION_PROMINENCE;
+	run("Convolve...", "text1=["+kernel+"] normalize");
+	run("Find Maxima...", "prominence="+prominence+" light output=[Single Points]");
 	rename(title+"-intersection.tif");
-	run("Dilate");
 	selectImage(tmpImageID);
 	close();
 }
 
-function getOldWormSegmentationImage(){
-	setBatchMode(true);
-	originalImageID = getImageID();
+function exportNodesFromIntersection(inputImageID){
+	selectImage(inputImageID);
+	title = getTitle(); 
+	title = title.replace(".tif","");
 	
-	getSeparationLine(originalImageID);
-	separationLinesID = getImageID();
-	separationLinesTitle = getTitle();
-	
-	createOldMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
-	
-	imageCalculator("Subtract create", maskImageTitle,separationLinesTitle);
-	segmentationID = getImageID();
-	selectImage(separationLinesID);
-	close();
-	selectImage(maskImageID);
-	close();
-	setBatchMode("exit and display");
+	roiManagerEmpty();
+	run("Analyze Particles...", "size=0-100 show=Nothing add");
+	roiManager("deselect");
+    roiManager("measure");	
+    tableTitle = "nodesTable";
+    Table.create(tableTitle);
+    for (i = 0; i < nResults(); i++) {
+	    x = getResult("X", i);
+	    y = getResult("Y", i);
+	    Table.set("Node ID", i, i);
+	    Table.set("X", i, x);
+	    Table.set("Y", i, y);
+	}
+	roiManagerEmpty();
 }
 
-function getOldWormSegmentationVisualisation(){
-	setBatchMode(true);
-	originalImageID = getImageID();
-	originalImageTitle = getTitle();
+function countContactsInNodes(){
 	
-	getSeparationLine(originalImageID);
-	separationLinesID = getImageID();
-	separationLinesTitle = getTitle();
+	nodesTableTitle = "nodesTable";
+	roiManagerEmpty();
+	run("Analyze Particles...", "size=5-Infinity show=Nothing clear add");
+	segmentsCount = roiManager("count")-1;
 	
-	getMaxima(originalImageID);
-	maximaID = getImageID();
-	maximaTitle = getTitle();
-	
-	createOldMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
-	
-	selectImage(originalImageID);
-	run("Duplicate...", "title="+originalImageTitle+"-duplicate.tif");
-	
-	run("Merge Channels...", "c1="+separationLinesTitle+" c2="+maskImageTitle+" c7="+maximaTitle+" c4="+originalImageTitle+"-duplicate.tif create");
-	segmentationID = getImageID();
-
-	setBatchMode("exit and display");
+	nodesCount =Table.size(nodesTableTitle);
+	for(nodeID = 0; nodeID < nodesCount; nodeID++){
+		nodeX = Table.get("X", nodeID,nodesTableTitle);
+		nodeY = Table.get("Y", nodeID,nodesTableTitle);
+		nbContact = 0;
+		
+		makeRectangle(nodeX-3, nodeY-3, 7, 7);
+		roiManager("add")
+		nodeRoiID = roiManager("count")-1;
+		roiManager("select",nodeRoiID);
+		roiManager("rename", "N-"+nodeID);
+		for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
+			roiManager("select",segmentID);
+			roiManager("rename", "S-"+segmentID);
+			if(segmentID==nodeRoiID){
+				continue;
+			}
+			roiManager("select", newArray(segmentID,nodeRoiID));
+			roiManager("and");
+			
+			if(getValue("selection.size")==0){
+				print("No contact between node n-"+nodeID+" and segment s-"+segmentID);
+			}else{
+				print("Contact between node n-"+nodeID+" and segment s-"+segmentID+" !");
+				nbContact++;
+			}
+		}
+		roiManager("select", nodeRoiID);
+		roiManager("delete");
+		Table.set("Contact", nodeID, nbContact);
+	}
 }
+
+function roiManagerEmpty(){
+	if(roiManager("count") != 0){
+		roiManager("deselect");
+		roiManager("delete");
+	}
+}
+
 
 function getWormSegmentationImage(){
 	setBatchMode(true);
@@ -273,6 +227,7 @@ function getWormSegmentationImage(){
 	getIntersectionsOfSkeleton(skeletonID);
 	intersectionID = getImageID();
 	intersectionTitle = getTitle();
+	run("Dilate");
 	
 	imageCalculator("Subtract create", skeletonID,intersectionID);
 	segmentationID = getImageID();
@@ -303,6 +258,7 @@ function getWormSegmentationVisualisation(){
 	getIntersectionsOfSkeleton(skeletonID);
 	intersectionID = getImageID();
 	intersectionTitle = getTitle();
+	run("Dilate");
 	
 	
 	selectImage(originalImageID);
@@ -317,32 +273,57 @@ function getWormSegmentationVisualisation(){
 }
 
 
-function makeWormsROI(){
-	run("Analyze Particles...", "size=10000-Infinity display add");
+function getGraphNodes(){
+	setBatchMode(true);
+	originalImageID = getImageID();
+	originalImageTitle = getTitle();
+	
+	createMaskImage(originalImageID);
+	maskImageID = getImageID();
+	maskImageTitle = getTitle();
+	
+	getSkeletonFromMask(maskImageID);
+	skeletonID = getImageID();
+	skeletonTitle = getTitle();
+	
+	getIntersectionsOfSkeleton(skeletonID);
+	intersectionID = getImageID();
+	intersectionTitle = getTitle();
+	exportNodesFromIntersection(getImageID());
+	
+	selectImage(maskImageID);
+	close();
+	selectImage(skeletonID);
+	close();
+	selectImage(intersectionID);
+	close();
+	
+	setBatchMode("exit and display");
 }
+
 
 
 //README Dialog Functions
 
 function wormSegmentationOptionDialog(){
 	Dialog.create("Worm Segmentation Options");
-	addDialogGetSeparationLine();
+	addDialogGetIntersectionsOfSkeleton();
 	addDialogCreateMask();
 	Dialog.show();
-	getDialogGetSeparationLine();
+	getDialogGetIntersectionsOfSkeleton();
 	getDialogCreateMask();
 }
 
-function addDialogGetSeparationLine(){
-	Dialog.addMessage("Separation Lines", 14);
-	Dialog.addSlider("Gaussian Blur Sigma", 0, 20, _BLUR_SIGMA);
-	
-	Dialog.addSlider("Find Maxima Prominence", 0, 255, _MAXIMA_PROMINENCE);
+
+function addDialogGetIntersectionsOfSkeleton(){
+	Dialog.addMessage("Worm Intersections", 14);
+	//Dialog.addString("Convolution Kernel",_CONVOLUTION_KERNEL);
+	Dialog.addSlider("Find Intersection Prominence", 0, 255, _INTERSECTION_PROMINENCE);
 }
 
-function getDialogGetSeparationLine(){
-	_BLUR_SIGMA = Dialog.getNumber();
-	_MAXIMA_PROMINENCE = Dialog.getNumber();
+function getDialogGetIntersectionsOfSkeleton(){
+	//_CONVOLUTION_KERNEL = Dialog.getString();
+	_INTERSECTION_PROMINENCE = Dialog.getNumber();
 }
 
 function addDialogCreateMask(){
