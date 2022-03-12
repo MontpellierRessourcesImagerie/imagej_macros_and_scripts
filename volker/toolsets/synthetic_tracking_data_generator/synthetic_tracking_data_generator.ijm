@@ -151,9 +151,10 @@ function report(t, X_COORDS, Y_COORDS) {
         Table.create("Tracks");
     }
     for (i = 0; i < X_COORDS.length; i++) {
+        spotID = Table.size("Tracks");
         rowIndex = t * X_COORDS.length + i;
-        Table.set("LABEL", rowIndex, "ID"+IJ.pad(i, 3));
-        Table.set("ID", rowIndex, i);
+        Table.set("LABEL", rowIndex, "ID"+IJ.pad(spotID, 6));
+        Table.set("ID", rowIndex, spotID);
         Table.set("TRACK_ID", rowIndex, i);
         Table.set("QUALILTY", rowIndex, 1);
         Table.set("X", rowIndex, CENTER_X + X_COORDS[i]);
