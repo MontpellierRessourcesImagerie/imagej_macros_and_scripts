@@ -16,6 +16,7 @@ from ij.util import Tools
 from ij import IJ
 from ij.gui import Roi
 from ij.gui import NewImage
+import jarray
 import math 
 
 def main(tableName, showPlot):
@@ -45,7 +46,7 @@ def main(tableName, showPlot):
     rt.show("Divergence")
     if showPlot:
         plot(divergence, center)
-
+    
 def plot(data, center):
     T = list(range(0, len(data)))
     plot = Plot("divergence in (" + str(center[0]) + ", "+ str(center[1])+")", "time[1]", "divergence", T, data)
@@ -64,12 +65,12 @@ def divergenceMapAt(vectors, aTime, width, height):
     vectorsAtTime = vectors[aTime:aTime+1]
     dMap = []
     for x in range(0, width):
-        dMap = []
         print("divergence map processing row " + str(x+1) + " of " + str(width))
         for y in range(0, height):
-            dMap.append(calculateDivergencePerTime(vectors, (x,y)))
-    image = NewImage.createFloatImage ("divergence map from t=" + str(aTime) + " to t=" + str(aTime), width, height, 2, NewImage.FILL_BLACK)
-    image.getStack().setPixels(dMap, 1)
+            dMap.append(calculateDivergencePerTime(vectors, (x,y))[0])
+    image = NewImage.createFloatImage ("divergence map from t=" + str(aTime) + " to t=" + str(aTime), width, height, 1, NewImage.FILL_BLACK)
+    image.getProcessor().setPixels(jarray.array(dMap, 'f'))
+    image.updateAndDraw()
     return image
 
 def proj(a, b):
@@ -103,7 +104,7 @@ def getVectorsFromTable(table, center):
     T = {}
     for t, pID, x, y in zip(tColumn, pIDColumn, xColumn, yColumn):
         T[t] = {pID : (x, y)}
-    for t in range(0, len(T.keys())-2):
+    for t in range(0, len(T.keys())-1):
         row = []
         for pid in T[t].keys():
             x1 = T[t][pid][0] 
