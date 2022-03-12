@@ -136,7 +136,7 @@ function drawTracks() {
     yColumn = Table.getColumn("Y");
     Array.getStatistics(tColumn, tmin, tmax);
     frames = tmax + 1;
-    newImage("TRACKS", "8-bit grayscale-mode", 1600, 1600, 1, 1, frames);
+    newImage("TRACKS", "8-bit grayscale-mode", IMAGE_WIDTH, IMAGE_HEIGHT, 1, 1, frames);
     for (i = 0; i < xColumn.length; i++) {
         Stack.setFrame(tColumn[i]+1);    
         setColor("white");
