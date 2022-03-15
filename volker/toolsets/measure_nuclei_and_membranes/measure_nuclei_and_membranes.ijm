@@ -166,7 +166,7 @@ function deleteUnmatchedROIs() {
 		showProgress(i+1, size);
 		if (group==2) break;
 		run("Create Mask");	
-		run("Analyze Particles...", "include overlay");
+		run("Analyze Particles...", "show=Overlay include");
 		Overlay.activateSelection(Overlay.size-1)
 		for (p = 0; p < xNuclei.length; p++) {
 			if (Roi.contains(xNuclei[p], yNuclei[p])) {
