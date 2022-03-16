@@ -732,9 +732,7 @@ function setParameterDefault(parameter,value) {
 }
 
 function getWells() {
-	print("Entering Get Wells");
 	if(_WELLS_DEFINED){
-		print("Get Wells Shortcuted");
 		return _WELLS;
 	}
 	content = File.openAsRawString(_OPERA_INDEX_FILE, _BYTES_TO_READ);
@@ -760,7 +758,6 @@ function getWells() {
 
 function getChannelsFromIndex(){
 	if(_CHANNELS_DEFINED){
-		print("Get Channels Shortcuted");
 		return _CHANNELS_NAMES;
 	}
 	lineStart = "<FlatfieldProfile>";
