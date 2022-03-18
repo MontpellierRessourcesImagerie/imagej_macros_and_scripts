@@ -24,12 +24,15 @@ var segmentationTools = newArray("Get Worm Segmentation",
 								 "Visualise Worm Segmentation",
 								 "Worm Segmentation Options",
 								 "Get Graph Nodes",
+								 "Get Graph Tables",
 								 "--",
 								 "Get Mask Image",
 								 "Get Skeleton From Mask",
 								 "Get Intersections of Skeleton",
 								 "Export Nodes to Table",
-								 "Get Worm Graph <NO",
+								 "Create ROI of Segments",
+								 "Add Nodes neighbors",
+								 "Create Segments Table",
 								 "--",
 								 "Apply Variance Filter and Threshold",
 								 "Clean Mask"
@@ -43,13 +46,16 @@ macro "Worm Segmentation Menu Tool - C000T4b12W"{
 	if(label == segmentationTools[count++])	getWormSegmentationVisualisation();
 	if(label == segmentationTools[count++]) wormSegmentationOptionDialog();
 	if(label == segmentationTools[count++]) getGraphNodes();
+	if(label == segmentationTools[count++]) getGraphTables();
 	
 	count++;
 	if(label == segmentationTools[count++])	createMaskImage(getImageID());
 	if(label == segmentationTools[count++])	getSkeletonFromMask(getImageID());
 	if(label == segmentationTools[count++])	getIntersectionsOfSkeleton(getImageID());
 	if(label == segmentationTools[count++])	exportNodesFromIntersection(getImageID());
-	if(label == segmentationTools[count++])	countContactsInNodes();
+	if(label == segmentationTools[count++])	createSegmentsROI();
+	if(label == segmentationTools[count++])	addNeighborsToNodesTable();
+	if(label == segmentationTools[count++])	createSegmentsTable();
 	count++;
 	if(label == segmentationTools[count++])	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
 	if(label == segmentationTools[count++])	cleanMask();	
@@ -150,25 +156,35 @@ function exportNodesFromIntersection(inputImageID){
 	roiManagerEmpty();
 	run("Analyze Particles...", "size=0-100 show=Nothing add");
 	roiManager("deselect");
+	run("Set Measurements...", "area mean modal min centroid perimeter shape display redirect=None decimal=3");
     roiManager("measure");	
     tableTitle = "nodesTable";
     Table.create(tableTitle);
     for (i = 0; i < nResults(); i++) {
 	    x = getResult("X", i);
 	    y = getResult("Y", i);
-	    Table.set("Node ID", i, i);
+	    Table.set("Node ID", i, "N-"+i);
 	    Table.set("X", i, x);
 	    Table.set("Y", i, y);
 	}
+	Table.update(tableTitle);
 	roiManagerEmpty();
 }
 
-function countContactsInNodes(){
-	
-	nodesTableTitle = "nodesTable";
+function createSegmentsROI(){
 	roiManagerEmpty();
+	run("Select None");
 	run("Analyze Particles...", "size=5-Infinity show=Nothing clear add");
-	segmentsCount = roiManager("count")-1;
+	segmentsCount = roiManager("count");
+	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
+		roiManager("select",segmentID);
+		roiManager("rename", "S-"+segmentID);
+	}
+}
+
+function addNeighborsToNodesTable(){
+	nodesTableTitle = "nodesTable";
+	segmentsCount = roiManager("count");
 	
 	nodesCount =Table.size(nodesTableTitle);
 	for(nodeID = 0; nodeID < nodesCount; nodeID++){
@@ -183,24 +199,56 @@ function countContactsInNodes(){
 		roiManager("rename", "N-"+nodeID);
 		for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
 			roiManager("select",segmentID);
-			roiManager("rename", "S-"+segmentID);
 			if(segmentID==nodeRoiID){
 				continue;
 			}
 			roiManager("select", newArray(segmentID,nodeRoiID));
 			roiManager("and");
 			
-			if(getValue("selection.size")==0){
-				print("No contact between node n-"+nodeID+" and segment s-"+segmentID);
-			}else{
+			if(getValue("selection.size")!=0){
 				print("Contact between node n-"+nodeID+" and segment s-"+segmentID+" !");
 				nbContact++;
+				segmentIDString = "S-"+segmentID;
+				Table.set("C"+nbContact, nodeID, segmentIDString,nodesTableTitle);
 			}
 		}
-		roiManager("select", nodeRoiID);
+		roiManager("deselect");
+		roiManager("select", roiManager("count")-1);
 		roiManager("delete");
-		Table.set("Contact", nodeID, nbContact);
+		run("Select None");
+		Table.set("Nb Contact", nodeID, nbContact,nodesTableTitle);
+		Table.update(nodesTableTitle);
 	}
+}
+
+function createSegmentsTable(){
+	nodesTableTitle = "nodesTable";
+	segmentTableTitle = "segmentsTable";
+	segmentsCount = roiManager("count");
+	
+	nodesCount =Table.size(nodesTableTitle);
+	
+	Table.create(segmentTableTitle);
+	
+	for(segmentID = 0; segmentID < segmentsCount; segmentID++){
+		Table.set("Segment ID", segmentID, "S-"+segmentID,segmentTableTitle);
+		nbContact = 0;
+		for(nodeID = 0; nodeID < nodesCount; nodeID++){
+			nodeContactCount = Table.get("Nb Contact", nodeID,nodesTableTitle);
+			for(i=1;i<=nodeContactCount;i++){
+				ithContact = Table.getString("C"+i, nodeID,nodesTableTitle);
+				if(ithContact == "S-"+segmentID){
+					nbContact++;
+					Table.set("C"+nbContact, segmentID, "N-"+nodeID,segmentTableTitle);
+				}
+				if(nbContact>=2){
+					continue;
+				}
+			}
+		}
+		Table.set("Nb Contact",segmentID,nbContact,segmentTableTitle);
+	}
+	Table.update(segmentTableTitle);
 }
 
 function roiManagerEmpty(){
@@ -209,7 +257,6 @@ function roiManagerEmpty(){
 		roiManager("delete");
 	}
 }
-
 
 function getWormSegmentationImage(){
 	setBatchMode(true);
@@ -272,7 +319,6 @@ function getWormSegmentationVisualisation(){
 	setBatchMode("exit and display");
 }
 
-
 function getGraphNodes(){
 	setBatchMode(true);
 	originalImageID = getImageID();
@@ -301,6 +347,44 @@ function getGraphNodes(){
 	setBatchMode("exit and display");
 }
 
+function getGraphTables(){
+	setBatchMode(true);
+	originalImageID = getImageID();
+	originalImageTitle = getTitle();
+	
+	createMaskImage(originalImageID);
+	maskImageID = getImageID();
+	maskImageTitle = getTitle();
+	
+	getSkeletonFromMask(maskImageID);
+	skeletonID = getImageID();
+	skeletonTitle = getTitle();
+	
+	getIntersectionsOfSkeleton(skeletonID);
+	intersectionID = getImageID();
+	intersectionTitle = getTitle();
+	run("Dilate");
+	
+	imageCalculator("Subtract create", skeletonID,intersectionID);
+	segmentationID = getImageID();
+	rename(replace(originalImageTitle,".tif","-segmented.tif"));
+	setBatchMode("show");
+	exportNodesFromIntersection(intersectionID);
+	selectImage(segmentationID);
+	
+	createSegmentsROI();
+	addNeighborsToNodesTable();
+	createSegmentsTable();
+	
+	selectImage(maskImageID);
+	close();
+	selectImage(skeletonID);
+	close();
+	selectImage(intersectionID);
+	close();
+	
+	setBatchMode("exit and display");
+}
 
 
 //README Dialog Functions
