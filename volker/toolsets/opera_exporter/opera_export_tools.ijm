@@ -15,12 +15,15 @@
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools";
 var _OPERA_INDEX_FILE = "";
-var _BYTES_TO_READ = 10000000;
+var _BYTES_TO_READ = 100000000;
 var _MAX_NB_CHANNELS = 7;
 var _CHANNEL_PER_ROW_IN_DIALOG = 2;
 
+var _CHANNELS_DEFINED = false;
 var _NB_CHANNELS = -1;
+var _CHANNELS_NAMES = newArray(0);
 
+var _WELLS_DEFINED = false;
 var _WELLS = newArray(0);
 var _SELECTED_WELLS = newArray(0);
 var _WELLS_NAMES = newArray(0);
@@ -85,7 +88,7 @@ macro "set index-file [f5]" {
 }
 
 macro "Select wells (f6) Action Tool - C111D22C000L3242CcccL5262C000L7282CcccL92a2C000Lb2c2C111Dd2C000L2343CcccL5363C000L7383CcccL93a3C000Lb3d3L2444CcccL5464C000L7484CcccL94a4C000Lb4d4CcccL2545L7585Lb5d5L2646L7686Lb6d6C000L2747CcccL5767C000L7787CcccL97a7C000Lb7d7L2848CcccL5868C000L7888CcccL98a8C000Lb8d8CcccL2949L7989Lb9d9L2a4aL7a8aLbadaC000L2b4bCcccL5b6bC000L7b8bCcccL9babC000LbbdbL2c4cCcccL5c6cC000L7c8cCcccL9cacC000LbcdcC111D2dC000L3d4dCcccL5d6dC000L7d8dCcccL9dadC000LbdcdC111Ddd" {
-	selectWells();	
+	selectWells();
 }
 
 macro "select wells [f6]" {
@@ -605,8 +608,7 @@ function loadWellNames(){
 	_OPERA_INDEX_FILE = getIndexFile();
 	baseDir = File.getDirectory(_OPERA_INDEX_FILE);
 
-	_WELLS = getWells();
-	wells = _WELLS;
+	wells = getWells();
 	
 	if (_WELLS_NAMES.length != wells.length){
 		_WELLS_NAMES = newArray(wells.length);
@@ -643,8 +645,7 @@ function renameWells() {
 	_OPERA_INDEX_FILE = getIndexFile();
 	baseDir =File.getDirectory(_OPERA_INDEX_FILE);
 	
-	_WELLS = getWells();
-	wells = _WELLS;
+	wells = getWells();
 
 	loadWellNames();
 
@@ -673,8 +674,7 @@ function renameWells() {
 
 function selectWells() {
 	_OPERA_INDEX_FILE = getIndexFile();
-	_WELLS = getWells();
-	wells = _WELLS;
+	wells = getWells();
 	if (_SELECTED_WELLS.length != _WELLS.length) _SELECTED_WELLS = newArray(_WELLS.length);
 	
 	Dialog.create("Select Wells");
@@ -701,6 +701,8 @@ function selectWells() {
 }
 
 function setIndexFile() {
+	_WELLS_DEFINED = false;
+	_CHANNELS_DEFINED = false;
 	newFile  = getDir("Please select the folder containing the index file (Index.idx.xml)!");
 	newFile = replace(newFile, "\\", "/");
 	newFile = newFile + "Index.idx.xml";
@@ -730,6 +732,9 @@ function setParameterDefault(parameter,value) {
 }
 
 function getWells() {
+	if(_WELLS_DEFINED){
+		return _WELLS;
+	}
 	content = File.openAsRawString(_OPERA_INDEX_FILE, _BYTES_TO_READ);
 	lines = split(content, "\n");
 	wells = newArray(0);
@@ -746,39 +751,22 @@ function getWells() {
 			if (started) finished = true;
 		}
 	}
+	_WELLS_DEFINED = true;
+	_WELLS = wells;
 	return wells;
 }
 
-function getNrOfRowsAndColumns() {
-	indexFile = getIndexFile();
-	content = File.openAsRawString(indexFile, _BYTES_TO_READ);
-	lines = split(content, "\n");
-	found=false;
-	nrCols = 0;
-	nrRows = 0;
-	for (i = 0; i < lines.length && !found; i++) {
-		line = String.trim(lines[i]);
-		if (startsWith(line, "<PlateRows>")) {
-			line = replace(line, "<PlateRows>", "");
-			line = replace(line, "</PlateRows>", "");
-			nrRows = parseInt(line);
-			line = String.trim(lines[i+1]);
-			line = replace(line, "<PlateColumns>", "");
-			line = replace(line, "</PlateColumns>", "");
-			nrCols = parseInt(line);
-			found = true;
-		}
-	}
-	res = newArray(nrRows, nrCols);
-	return res;
-}
-
 function getChannelsFromIndex(){
+	if(_CHANNELS_DEFINED){
+		return _CHANNELS_NAMES;
+	}
 	lineStart = "<FlatfieldProfile>";
 	startMarker = "ChannelName: ";
 	endMarker = ",";
 	channels = newArray();
 	channels = getDataFromIndex(lineStart,startMarker,endMarker);
+	_CHANNELS_DEFINED = true;
+	_CHANNELS_NAMES = channels;
 	return channels;
 }
 
