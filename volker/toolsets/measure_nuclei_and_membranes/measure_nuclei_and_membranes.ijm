@@ -253,7 +253,7 @@ function cytoToMembrane() {
 		group = Roi.getGroup();
 		showProgress(i+1, size);
 		if (group!=1) continue;
-		Stack.setChannel(2);
+		Stack.setChannel(MEMBRANE_CHANNEL);
 		run("Interpolate", "interval=1 smooth adjust");
 		run("Enlarge...", "enlarge=-"+(MEMBRANE_DIAMETER/2));
 		run("Make Band...", "band="+MEMBRANE_DIAMETER);
