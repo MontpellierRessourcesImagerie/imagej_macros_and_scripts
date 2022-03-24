@@ -32,13 +32,13 @@ def main(tableName, showPlot):
     table = ResultsTable.getResultsTable(tableName)
     vectors = getVectorsFromTable(table, center)
     radialVelocity = calculateRadialVelocityPerTime(vectors, center)
+    radialVelocityAndDistanceByTrack(table, center)
     stats = Tools.getStatistics(radialVelocity)
     median = calculateMedian(radialVelocity)
     rt = ResultsTable.getResultsTable(TABLE_NAME)
     if not rt:
         rt = ResultsTable()
     row = rt.getCounter()
-    print("row", row)
     rt.setValue("label", row, tableName)
     rt.setValue("x", row, center[0])
     rt.setValue("y", row, center[1])
@@ -65,6 +65,34 @@ def calculateRadialVelocityPerTime(vectors, aPoint):
             newRow.append(proj(vector[1], (vector[0][0]-aPoint[0], vector[0][1]-aPoint[1]))/magnitude)
         velocities.append(sum(newRow)/len(newRow))
     return velocities
+
+def radialVelocityAndDistanceByTrack(table, center):
+    vectors = []
+    headings = list(table.getHeadings())
+    tColumn, pIDColumn, xColumn, yColumn = table.getColumn(headings.index('T')),  \
+                                           table.getColumn(headings.index('TRACK_ID')), \
+                                           table.getColumn(headings.index('X')), \
+                                           table.getColumn(headings.index('Y'))    
+    trackData = []
+    T = {}
+    for t, pID, x, y in zip(tColumn, pIDColumn, xColumn, yColumn):
+        T[(t, pID)] = (x, y)
+    for t, pid in T.keys():
+        if t == tColumn[len(tColumn)-1]: 
+            continue
+        row = []
+            
+        x1 = T[(t, pid)][0] 
+        y1 = T[(t, pid)][1] 
+#          print(pid, t, x1, y1)
+        x2 = T[(t+1, pid)][0] 
+        y2 = T[(t+1, pid)][1] 
+        dx = x2 - x1
+        dy = y2 - y1
+        row.append((pid, (x1, y1), (dx, dy)))
+        vectors.append(row)
+    print(vectors)
+                                               
 
 def radialVelocityMapAt(vectors, aTime, width, height):
     vectorsAtTime = vectors[aTime:aTime+1]
@@ -108,19 +136,23 @@ def getVectorsFromTable(table, center):
                                            table.getColumn(headings.index('Y'))
     T = {}
     for t, pID, x, y in zip(tColumn, pIDColumn, xColumn, yColumn):
-        T[t] = {pID : (x, y)}
-    for t in range(0, len(T.keys())-1):
+        if not pID in T:
+            t[pID] = []
+        T[pID].append(x, y)
+    for t, pid in T.keys():
+        if t == tColumn[len(tColumn)-1]: 
+            continue
         row = []
-        for pid in T[t].keys():
-            x1 = T[t][pid][0] 
-            y1 = T[t][pid][1] 
-            x2 = T[t+1][pid][0] 
-            y2 = T[t+1][pid][1] 
-            dx = x2 - x1
-            dy = y2 - y1
-            row.append(((x1, y1), (dx, dy)))
-        vectors.append(row)      
-    print(vectors) 
+            
+        x1 = T[(t, pid)][0] 
+        y1 = T[(t, pid)][1] 
+#          print(pid, t, x1, y1)
+        x2 = T[(t+1, pid)][0] 
+        y2 = T[(t+1, pid)][1] 
+        dx = x2 - x1
+        dy = y2 - y1
+        row.append(((x1, y1), (dx, dy)))
+        vectors.append(row)   
     return vectors
     
 if 'getArgument' in globals():
