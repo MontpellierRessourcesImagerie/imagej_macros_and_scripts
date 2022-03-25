@@ -1,5 +1,6 @@
 from __future__ import division
 DEPLOYED = False;
+from operator import sub
 from ij.measure import ResultsTable
 from ij.gui import Plot
 from ij.util import Tools
@@ -12,6 +13,55 @@ import math
 if not DEPLOYED:
     import unittest, sys
 
+def main(tableName, showPlot):
+    image = IJ.getImage();
+    roi = image.getRoi()
+    if not roi:
+        center = image.getWidth() / 2, image.getHeight() / 2
+    else:
+        center = roi.getXBase(), roi.getYBase();
+    table = ResultsTable.getResultsTable(tableName)
+    rma = RadialMovementAnalyzer(table, center)
+    distances = rma.getDeltaDistancePerTrack()
+    rt = ResultsTable.getResultsTable(TABLE_NAME)
+    if not rt:
+        rt = ResultsTable()
+    row = rt.getCounter()
+    rt.setValue("label", row, tableName)
+    rt.setValue("x", row, center[0])
+    rt.setValue("y", row, center[1])
+    rt.setValue("mean", row, stats.mean)
+    rt.setValue("stdDev", row, stats.stdDev)
+    rt.setValue("min", row, stats.min)
+    rt.setValue("median", row, median)
+    rt.setValue("max", row, stats.max)
+    rt.show(TABLE_NAME)
+    if showPlot:
+        plot(radialVelocity, center)
+
+class Vectors:
+    @classmethod
+    def proj(cls, a, b):
+        f = Vectors.dot(a, b) / Vectors.dot(b, b) 
+        projAonB = [bi*f for bi in b]
+        sign = -1
+        if math.copysign(1, b[0]) == math.copysign(1, projAonB[0]):
+            sign = 1
+        scalarProj = sign * math.sqrt(projAonB[0]**2 + projAonB[1]**2)
+        return scalarProj
+
+    @classmethod
+    def dot(cls, a, b):
+        return sum(x*y for x, y in zip(a, b))
+
+    @classmethod
+    def sub(cls, a, b):
+        return tuple(map(sub, a, b))
+
+    @classmethod
+    def dist(cls, a, b):
+        return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+        
 class RadialMovementAnalyzer:
 
     timeColumnHeader = 'T'
@@ -22,6 +72,7 @@ class RadialMovementAnalyzer:
     def __init__(self, table, center):
         self.table = table
         self.center = center
+        self.tracks = self.getTrackData()
         
     def getTableData(self):
         vectors = []
@@ -49,12 +100,36 @@ class RadialMovementAnalyzer:
     def getMeanRadialVelocityPerTrack(self):
         pass
     
-    def getTotalRadialDistancePerTrack(self)
-        pass
+    def getDeltaDistancePerTrack(self):
+        distances = []
+        for track in self.tracks:
+            activeTrack = [xoords for xoords in track if not xoords == 0]
+            x1, y1 = activeTrack[0]
+            x2, y2 = activeTrack[1]
+            distStart = Vectors.dist((x1, y1), self.center)
+            distEnd = Vectors.dist((x2, y2), self.center)
+            dist = distEnd - distStart
+            distances.append(dist)
+        return distances
+            
+if DEPLOYED:
+    main(tableName, showPlot)            
         
 ###################################################
 # UNIT TESTS
 ###################################################
+class VectorsTest(unittest.TestCase):
+    
+    def testDot(self):
+        res = Vectors.dot((1, 2, 3), (2, 3, 4))
+        self.assertEquals(20, res)
+
+    def testProj(self):
+        res = Vectors.proj((1, 0), (1, 0))
+        self.assertEquals(1, res)
+        res = Vectors.proj((1, 1), (1, 1))
+        self.assertEquals(math.sqrt(2), res)
+        
 class RadialMovementAnalyzerTest(unittest.TestCase):
     table = None
 
@@ -129,7 +204,7 @@ class RadialMovementAnalyzerTest(unittest.TestCase):
         self.assertEquals(2, pIDColumn[0])
         self.assertEquals(1, pIDColumn[5])
 
-    def getTrackData(self):
+    def testGetTrackData(self):
         rma = RadialMovementAnalyzer(self.table, (800,800))
         data = rma.getTrackData()
         print(data)
@@ -140,12 +215,20 @@ class RadialMovementAnalyzerTest(unittest.TestCase):
         self.assertEquals(0, data[0][0]) 
         self.assertEquals(0, data[1][2])
         self.assertEquals(0, data[2][2])
+
+    def testGetDeltaDistancePerTrack(self):
+        rma = RadialMovementAnalyzer(self.table, (800,800))
+        distances = rma.getDeltaDistancePerTrack()
+        self.assertEquals(3, len(distances))
         
 def suite():
     suite = unittest.TestSuite()
+    suite.addTest(VectorsTest('testDot'))
+    suite.addTest(VectorsTest('testProj'))
     suite.addTest(RadialMovementAnalyzerTest('testConstructor'))
     suite.addTest(RadialMovementAnalyzerTest('testGetTableData'))
-    suite.addTest(RadialMovementAnalyzerTest('getTrackData'))
+    suite.addTest(RadialMovementAnalyzerTest('testGetTrackData'))
+    suite.addTest(RadialMovementAnalyzerTest('testGetDeltaDistancePerTrack'))
     return suite
     
 runner = unittest.TextTestRunner(sys.stdout, verbosity=1)
