@@ -14,9 +14,11 @@ macro "Get Worm Segmentation Image Action Tool Options"{
 	wormSegmentationOptionDialog();
 }
 
-macro "Find Worms ROI from Segmentation Action Tool - C000T4b12F"{
-	makeWormsROI();
+macro "Get Graph Tables Action Tool - C000T4b12G"{
+	getGraphTables();
 }
+
+
 
 macro "Unused Tool 0 - " {}  // leave empty slot
 
@@ -37,32 +39,53 @@ var segmentationTools = newArray("Get Worm Segmentation",
 								 "Apply Variance Filter and Threshold",
 								 "Clean Mask"
 								 );
-var menuSpots = newMenu("Worm Segmentation Menu Tool", segmentationTools);
-macro "Worm Segmentation Menu Tool - C000T4b12W"{
+var menuSegmentation = newMenu("Worm Segmentation Menu Tool", segmentationTools);
+macro "Worm Segmentation Menu Tool - C000T4b12S"{
 	count = 0;
 	label = getArgument();
 	
-	if(label == segmentationTools[count++])	getWormSegmentationImage();
-	if(label == segmentationTools[count++])	getWormSegmentationVisualisation();
+	if(label == segmentationTools[count++]) getWormSegmentationImage();
+	if(label == segmentationTools[count++]) getWormSegmentationVisualisation();
 	if(label == segmentationTools[count++]) wormSegmentationOptionDialog();
 	if(label == segmentationTools[count++]) getGraphNodes();
 	if(label == segmentationTools[count++]) getGraphTables();
 	
 	count++;
-	if(label == segmentationTools[count++])	createMaskImage(getImageID());
-	if(label == segmentationTools[count++])	getSkeletonFromMask(getImageID());
-	if(label == segmentationTools[count++])	getIntersectionsOfSkeleton(getImageID());
-	if(label == segmentationTools[count++])	exportNodesFromIntersection(getImageID());
-	if(label == segmentationTools[count++])	createSegmentsROI();
-	if(label == segmentationTools[count++])	addNeighborsToNodesTable();
-	if(label == segmentationTools[count++])	createSegmentsTable();
+	if(label == segmentationTools[count++]) createMaskImage(getImageID());
+	if(label == segmentationTools[count++]) getSkeletonFromMask(getImageID());
+	if(label == segmentationTools[count++]) getIntersectionsOfSkeleton(getImageID());
+	if(label == segmentationTools[count++]) exportNodesFromIntersection(getImageID());
+	if(label == segmentationTools[count++]) createSegmentsROI();
+	if(label == segmentationTools[count++]) addNeighborsToNodesTable();
+	if(label == segmentationTools[count++]) createSegmentsTable();
 	count++;
-	if(label == segmentationTools[count++])	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
-	if(label == segmentationTools[count++])	cleanMask();	
+	if(label == segmentationTools[count++]) applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
+	if(label == segmentationTools[count++]) cleanMask();
 	
 }
 
-//README Start of the Function Section
+var untanglingTools = newArray("Untangle Worms",
+                               "--",
+                               "Populate Worm Untangler",
+                               "Enumerate Possible Paths",
+                               "Remove Pathless Segments",
+                               "Evaluate Path Locally",
+                               "Define Best Path Configuration"
+                               );
+var menuUntangling = newMenu("Worms Untangling Menu Tool",untanglingTools);
+macro "Worms Untangling Menu Tool - C000T4b12U"{
+    count = 0;
+    label = getArgument();
+    
+    if(label == untanglingTools[count++]) untangleWorms(); //TODO
+    count++;
+    if(label == untanglingTools[count++]) populateWormUntangler(); //TODO
+    if(label == untanglingTools[count++]) enumeratePossiblePaths(); //TODO
+    if(label == untanglingTools[count++]) prunePathlessSegments(); //TODO
+    if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
+    if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
+
+//README Functions concerning the Initial Segmentation
 
 function createMaskImage(inputImageID){
 	selectImage(inputImageID);
@@ -172,12 +195,16 @@ function exportNodesFromIntersection(inputImageID){
 }
 
 function createSegmentsROI(){
-	roiManagerEmpty();
 	run("Select None");
+	setBatchMode(false);
+	run("ROI Manager...");
 	run("Analyze Particles...", "size=5-Infinity show=Nothing clear add");
+	setBatchMode(true);
 	segmentsCount = roiManager("count");
 	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
 		roiManager("select",segmentID);
+		run("MRI Roi Converter");
+		roiManager("update");
 		roiManager("rename", "S-"+segmentID);
 	}
 }
@@ -192,7 +219,7 @@ function addNeighborsToNodesTable(){
 		nodeY = Table.get("Y", nodeID,nodesTableTitle);
 		nbContact = 0;
 		
-		makeRectangle(nodeX-3, nodeY-3, 7, 7);
+		makeRectangle(nodeX-4, nodeY-4, 9, 9);
 		roiManager("add")
 		nodeRoiID = roiManager("count")-1;
 		roiManager("select",nodeRoiID);
@@ -249,13 +276,6 @@ function createSegmentsTable(){
 		Table.set("Nb Contact",segmentID,nbContact,segmentTableTitle);
 	}
 	Table.update(segmentTableTitle);
-}
-
-function roiManagerEmpty(){
-	if(roiManager("count") != 0){
-		roiManager("deselect");
-		roiManager("delete");
-	}
 }
 
 function getWormSegmentationImage(){
@@ -375,17 +395,63 @@ function getGraphTables(){
 	createSegmentsROI();
 	addNeighborsToNodesTable();
 	createSegmentsTable();
-	
+	/*
 	selectImage(maskImageID);
 	close();
 	selectImage(skeletonID);
 	close();
 	selectImage(intersectionID);
 	close();
-	
+	*/
 	setBatchMode("exit and display");
 }
 
+//README Worm Untanglement Functions
+
+
+
+function untangleWorms(){ //TODO
+    print("Not Yet Implemented !");
+    runUntangler("Untangle");
+}
+
+function populateWormUntangler(){ //TODO
+    runUntangler("Populate");
+}
+
+function enumeratePossiblePaths(){ //TODO
+    runUntangler("Enumerate");
+}
+
+function prunePathlessSegments(){ //TODO
+    runUntangler("Prune");
+}
+
+function evaluatePathLocally(){ //TODO
+    print("Not Yet Implemented !");
+    runUntangler("Evaluate");
+}
+
+function defineBestPathConfiguration(){ //TODO
+    print("Not Yet Implemented !");
+    runUntangler("Define?"); //TODO Change this option Code
+}
+
+
+function runUntangler(options){
+    macrosDir = getDirectory("macros");
+    script = File.openAsString(macrosDir + "/toolsets/worm_untangling.py");
+    call("ij.plugin.Macro_Runner.runPython", script, options); 
+}
+
+//README Misc Functions
+
+function roiManagerEmpty(){
+    if(roiManager("count") != 0){
+        roiManager("deselect");
+        roiManager("delete");
+    }
+}
 
 //README Dialog Functions
 
