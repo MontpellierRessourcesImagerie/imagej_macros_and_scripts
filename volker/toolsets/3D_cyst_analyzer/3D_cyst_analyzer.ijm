@@ -13,7 +13,7 @@
  * - the b button calculates the boundaries of the cells
  * - the l button shrinks the labels 
  * 
- *  (c) 2021, INSERM
+ *  (c) 2021-2022, INSERM
  *  
   * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
  */
@@ -114,6 +114,11 @@ function exportFrames() {
 }
 
 function removeSelectedLabelsCurrentFrame() {
+	getDimensions(width, height, channels, slices, frames);
+	if (frames == 1) {
+		removeLabelsInSelection();
+		return 1
+	}
 	title = getTitle();
 	inputImageID = getImageID();
 	Stack.getDimensions(width, height, channels, slices, frames);
@@ -146,6 +151,7 @@ function removeSelectedLabelsCurrentFrame() {
 	selectImage("tmp");
 	rename(title);
 	Stack.setPosition(channel, slice, frame);
+	return frames
 }
 
 function removeLabelsInTheCenter() {
