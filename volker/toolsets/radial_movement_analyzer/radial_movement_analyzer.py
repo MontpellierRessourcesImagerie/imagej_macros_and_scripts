@@ -10,8 +10,6 @@ from ij.gui import NewImage
 import jarray
 import math 
 
-TABLE_NAME = "Distance from center"
-
 if not DEPLOYED:
     import unittest, sys
 
@@ -24,15 +22,22 @@ def main(tableName, showPlot):
         center = roi.getXBase(), roi.getYBase();
     table = ResultsTable.getResultsTable(tableName)
     rma = RadialMovementAnalyzer(table, center)
-    distances = rma.getDeltaDistancePerTrack()
+    radialDistances = rma.getDeltaRadialDistancePerTrack()
+    distances = rma.getDistances()
+    frames = rma.getFrames()
+    travelledDistances = rma.getTravelledDistances()
+    TABLE_NAME = "Distance from " + str(center)
     rt = ResultsTable.getResultsTable(TABLE_NAME)
     if not rt:
         rt = ResultsTable()
-    for index, dist in enumerate(distances):
+    for index, dist in enumerate(radialDistances):
         row = rt.getCounter()
         rt.setValue("label", row, tableName)
         rt.setValue("track ID", row, rma.trackIDs[index])
         rt.setValue("total augmentation of distance from center", row, dist)
+        rt.setValue("distance start - end", row, distances[index])
+        rt.setValue("travelled distance", row, travelledDistances[index])
+        rt.setValue("nr. of frames", row, frames[index])
     rt.show(TABLE_NAME)
     if showPlot:
         plot(distances, center)
@@ -71,11 +76,17 @@ class RadialMovementAnalyzer:
     trackColumnHeader = 'TRACK_ID'
     xColumnHeader = 'X'
     yColumnHeader = 'Y'
-
+    radialDistances = []
+    distances = []
+    travelledDistances = []
+    frames = []
+    
+    
     def __init__(self, table, center):
         self.table = table
         self.center = center
         self.tracks, self.timepoints, self.trackIDs = self.getTrackData()
+        self.calculateTrackFeatures()
         
     def getTableData(self):
         vectors = []
@@ -86,6 +97,18 @@ class RadialMovementAnalyzer:
         yColumn = self.table.getColumn(self.yColumnHeader)    
         return tColumn, pIDColumn, xColumn, yColumn
 
+    def getDeltaRadialDistancePerTrack(self):
+        return self.radialDistances
+
+    def getFrames(self):
+        return self.frames
+
+    def getDistances(self):
+        return self.distances
+
+    def getTravelledDistances(self):
+        return self.travelledDistances
+    
     def getTrackData(self):
         tColumn, pIDColumn, xColumn, yColumn = self.getTableData()
         timepoints = list(set(tColumn))
@@ -101,19 +124,25 @@ class RadialMovementAnalyzer:
 
     def getMeanRadialVelocityPerTrack(self):
         pass
+
     
-    def getDeltaDistancePerTrack(self):
-        distances = []
+    def calculateTrackFeatures(self):
+        self.radialDistances = []
+        self.distances = []
+        self.travelledDistances = []
+        self.frames = []
         for track in self.tracks:
             activeTrack = [xoords for xoords in track if not xoords == 0]
-            print(activeTrack)
             x1, y1 = activeTrack[0]
             x2, y2 = activeTrack[-1]
-            distStart = Vectors.dist((x1, y1), self.center)
-            distEnd = Vectors.dist((x2, y2), self.center)
-            dist = distEnd - distStart
-            distances.append(dist)
-        return distances
+            dist1 = Vectors.dist((x1, y1), self.center)
+            dist2 = Vectors.dist((x2, y2), self.center)
+            radialDist = dist2 - dist1
+            dist = Vectors.dist((x1, y1), (x2, y2))
+            self.radialDistances.append(radialDist)
+            self.frames.append(len(activeTrack))
+            self.distances.append(dist)
+            self.travelledDistances.append(sum([Vectors.dist(x, activeTrack[i+1]) for i,x in enumerate(activeTrack[:-1:])]))
             
 if DEPLOYED:
     if 'getArgument' in globals():
@@ -232,9 +261,9 @@ else:
             self.assertEquals(0, data[1][2])
             self.assertEquals(0, data[2][2])
     
-        def testGetDeltaDistancePerTrack(self):
+        def testGetDeltaRadialDistancePerTrack(self):
             rma = RadialMovementAnalyzer(self.table, (800,800))
-            distances = rma.getDeltaDistancePerTrack()
+            distances = rma.getDeltaRadialDistancePerTrack()
             print(distances)
             self.assertEquals(3, len(distances))
             
@@ -245,7 +274,7 @@ else:
         suite.addTest(RadialMovementAnalyzerTest('testConstructor'))
         suite.addTest(RadialMovementAnalyzerTest('testGetTableData'))
         suite.addTest(RadialMovementAnalyzerTest('testGetTrackData'))
-        suite.addTest(RadialMovementAnalyzerTest('testGetDeltaDistancePerTrack'))
+        suite.addTest(RadialMovementAnalyzerTest('testGetDeltaRadialDistancePerTrack'))
         return suite
         
     runner = unittest.TextTestRunner(sys.stdout, verbosity=1)
