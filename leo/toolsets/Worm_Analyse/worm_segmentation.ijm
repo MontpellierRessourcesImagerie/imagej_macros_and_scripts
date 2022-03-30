@@ -65,25 +65,25 @@ macro "Worm Segmentation Menu Tool - C000T4b12S"{
 }
 
 var untanglingTools = newArray("Untangle Worms",
-                               "--",
-                               "Populate Worm Untangler",
-                               "Enumerate Possible Paths",
-                               "Remove Pathless Segments",
-                               "Evaluate Path Locally",
-                               "Define Best Path Configuration"
-                               );
+							   "--",
+							   "Populate Worm Untangler",
+							   "Enumerate Possible Paths",
+							   "Remove Pathless Segments",
+							   "Evaluate Path Locally",
+							   "Define Best Path Configuration"
+							   );
 var menuUntangling = newMenu("Worms Untangling Menu Tool",untanglingTools);
 macro "Worms Untangling Menu Tool - C000T4b12U"{
-    count = 0;
-    label = getArgument();
-    
-    if(label == untanglingTools[count++]) untangleWorms(); //TODO
-    count++;
-    if(label == untanglingTools[count++]) populateWormUntangler(); //TODO
-    if(label == untanglingTools[count++]) enumeratePossiblePaths(); //TODO
-    if(label == untanglingTools[count++]) prunePathlessSegments(); //TODO
-    if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
-    if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
+	count = 0;
+	label = getArgument();
+	
+	if(label == untanglingTools[count++]) untangleWorms(); //TODO
+	count++;
+	if(label == untanglingTools[count++]) populateWormUntangler(); //TODO
+	if(label == untanglingTools[count++]) enumeratePossiblePaths(); //TODO
+	if(label == untanglingTools[count++]) prunePathlessSegments(); //TODO
+	if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
+	if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
 
 //README Functions concerning the Initial Segmentation
 
@@ -180,15 +180,15 @@ function exportNodesFromIntersection(inputImageID){
 	run("Analyze Particles...", "size=0-100 show=Nothing add");
 	roiManager("deselect");
 	run("Set Measurements...", "area mean modal min centroid perimeter shape display redirect=None decimal=3");
-    roiManager("measure");	
-    tableTitle = "nodesTable";
-    Table.create(tableTitle);
-    for (i = 0; i < nResults(); i++) {
-	    x = getResult("X", i);
-	    y = getResult("Y", i);
-	    Table.set("Node ID", i, "N-"+i);
-	    Table.set("X", i, x);
-	    Table.set("Y", i, y);
+	roiManager("measure");	
+	tableTitle = "nodesTable";
+	Table.create(tableTitle);
+	for (i = 0; i < nResults(); i++) {
+		x = getResult("X", i);
+		y = getResult("Y", i);
+		Table.set("Node ID", i, "N-"+i);
+		Table.set("X", i, x);
+		Table.set("Y", i, y);
 	}
 	Table.update(tableTitle);
 	roiManagerEmpty();
@@ -203,7 +203,7 @@ function createSegmentsROI(){
 	segmentsCount = roiManager("count");
 	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
 		roiManager("select",segmentID);
-		run("MRI Roi Converter");
+		run("Roi Straightener");
 		roiManager("update");
 		roiManager("rename", "S-"+segmentID);
 	}
@@ -411,46 +411,46 @@ function getGraphTables(){
 
 
 function untangleWorms(){ //TODO
-    print("Not Yet Implemented !");
-    runUntangler("Untangle");
+	print("Not Yet Implemented !");
+	runUntangler("Untangle");
 }
 
 function populateWormUntangler(){ //TODO
-    runUntangler("Populate");
+	runUntangler("Populate");
 }
 
 function enumeratePossiblePaths(){ //TODO
-    runUntangler("Enumerate");
+	runUntangler("Enumerate");
 }
 
 function prunePathlessSegments(){ //TODO
-    runUntangler("Prune");
+	runUntangler("Prune");
 }
 
 function evaluatePathLocally(){ //TODO
-    print("Not Yet Implemented !");
-    runUntangler("Evaluate");
+	print("Not Yet Implemented !");
+	runUntangler("Evaluate");
 }
 
 function defineBestPathConfiguration(){ //TODO
-    print("Not Yet Implemented !");
-    runUntangler("Define?"); //TODO Change this option Code
+	print("Not Yet Implemented !");
+	runUntangler("Define?"); //TODO Change this option Code
 }
 
 
 function runUntangler(options){
-    macrosDir = getDirectory("macros");
-    script = File.openAsString(macrosDir + "/toolsets/worm_untangling.py");
-    call("ij.plugin.Macro_Runner.runPython", script, options); 
+	macrosDir = getDirectory("macros");
+	script = File.openAsString(macrosDir + "/toolsets/worm_untangling.py");
+	call("ij.plugin.Macro_Runner.runPython", script, options); 
 }
 
 //README Misc Functions
 
 function roiManagerEmpty(){
-    if(roiManager("count") != 0){
-        roiManager("deselect");
-        roiManager("delete");
-    }
+	if(roiManager("count") != 0){
+		roiManager("deselect");
+		roiManager("delete");
+	}
 }
 
 //README Dialog Functions
