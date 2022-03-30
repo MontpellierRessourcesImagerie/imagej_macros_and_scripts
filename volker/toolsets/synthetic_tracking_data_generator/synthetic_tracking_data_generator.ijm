@@ -12,6 +12,15 @@
  * written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
  * 
 **/
+var LABEL_COLUMN = "LABEL";
+var SPOT_ID_COLUMN = "ID";
+var TRACK_ID_COLUMN = "TRACK_ID";
+var QUALITY_COLUMN = "QUALILTY";
+var X_COLUMN = "POSITION_X";
+var Y_COLUMN = "POSITION_Y";
+var Z_COLUMN = "POSITION_Z";
+var T_COLUMN = "POSITION_T";
+
 var TIMEPOINTS = 500;
 var IMAGE_WIDTH = 1600;
 var IMAGE_HEIGHT = 1600;
@@ -29,7 +38,6 @@ var SPOT_RADIUS = 3;
 var X_COORDS = newArray(NR_OF_PARTICLES);
 var Y_COORDS = newArray(NR_OF_PARTICLES);
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Synthetic_Tracking_Data_Generator";
-
 
 macro "Synthetic_Tracking_Data_Generator help [f4]" {
     run('URL...', 'url='+helpURL);
@@ -131,9 +139,9 @@ function createTracks() {
 }
 
 function drawTracks() {
-    tColumn = Table.getColumn("T");
-    xColumn = Table.getColumn("X");
-    yColumn = Table.getColumn("Y");
+    tColumn = Table.getColumn("POSITION_T");
+    xColumn = Table.getColumn("POSITION_X");
+    yColumn = Table.getColumn("POSITION_Y");
     Array.getStatistics(tColumn, tmin, tmax);
     frames = tmax + 1;
     newImage("TRACKS", "8-bit grayscale-mode", IMAGE_WIDTH, IMAGE_HEIGHT, 1, 1, frames);
@@ -153,16 +161,16 @@ function report(t, X_COORDS, Y_COORDS) {
     for (i = 0; i < X_COORDS.length; i++) {
         spotID = Table.size("Tracks");
         rowIndex = t * X_COORDS.length + i;
-        Table.set("LABEL", rowIndex, "ID"+IJ.pad(spotID, 6));
-        Table.set("ID", rowIndex, spotID);
-        Table.set("TRACK_ID", rowIndex, i);
-        Table.set("QUALILTY", rowIndex, 1);
-        Table.set("X", rowIndex, CENTER_X + X_COORDS[i]);
-        Table.set("Y", rowIndex, CENTER_Y + Y_COORDS[i]);
-        Table.set("Z", rowIndex, 0.0);
+        Table.set(LABEL_COLUMN, rowIndex, "ID"+IJ.pad(spotID, 6));
+        Table.set(SPOT_ID_COLUMN, rowIndex, spotID);
+        Table.set(TRACK_ID_COLUMN, rowIndex, i);
+        Table.set(QUALITY_COLUMN, rowIndex, 1);
+        Table.set(X_COLUMN, rowIndex, CENTER_X + X_COORDS[i]);
+        Table.set(Y_COLUMN, rowIndex, CENTER_Y + Y_COORDS[i]);
+        Table.set(Z_COLUMN, rowIndex, 0.0);
         realTime = t;
         if (INVERTED) realTime = (TIMEPOINTS-1)-t;
-        Table.set("T", rowIndex, realTime);
+        Table.set(T_COLUMN, rowIndex, realTime);
     }
 
 }

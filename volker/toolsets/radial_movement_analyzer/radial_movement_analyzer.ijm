@@ -4,10 +4,10 @@
 (c) 2022, INSERM
 written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
 
-The tool takes a results table of tracking data (as created by Trackmate) and calculates the mean of the scalar projections of the vector of the 
-displacement of each particle from one timepoint t to the next t+1, onto the vector from a given point to the coordinates of the particle at timepoint t 
+The tool takes a results table of tracking data (as created by Trackmate) and calculates the difference of the distances between the start point and a given point c
+and the end point and the given point c, i.e. how much the particle has moved away from c (negative it moved towards c).
 
-If the particles are moving away from the given point the result will be positive, if they are moving towards the given point the result will be negative.
+If a particle moves away from the given point the result will be positive, if it moves towards the given point the result will be negative.
 If neither of the above is the case, the result will be near zero.
 */
 

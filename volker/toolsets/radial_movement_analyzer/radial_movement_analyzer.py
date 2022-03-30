@@ -1,3 +1,15 @@
+'''
+ Radial movement analyzer. 
+
+(c) 2022, INSERM
+written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
+
+The tool takes a results table of tracking data (as created by Trackmate) and calculates the difference of the distances between the start point and a given point c
+and the end point and the given point c, i.e. how much the particle has moved away from c (negative it moved towards c).
+
+If a particle moves away from the given point the result will be positive, if it moves towards the given point the result will be negative.
+If neither of the above is the case, the result will be near zero.
+'''
 from __future__ import division
 DEPLOYED = True;
 from operator import sub
@@ -35,16 +47,27 @@ def main(tableName, showPlot):
         rt.setValue("label", row, tableName)
         rt.setValue("track ID", row, rma.trackIDs[index])
         rt.setValue("total augmentation of distance from center", row, dist)
-        rt.setValue("distance start - end", row, distances[index])
+        rt.setValue("distance start to end", row, distances[index])
         rt.setValue("travelled distance", row, travelledDistances[index])
         rt.setValue("nr. of frames", row, frames[index])
+        if not distances[index] == 0:
+            rt.setValue("total augmentation / distance start to end", row, dist / distances[index])
+        else:
+            rt.setValue("total augmentation / distance start to end", row, float("nan"))
+        if not travelledDistances[index] ==0:
+            rt.setValue("total augmentation / travelled distance", row, dist / travelledDistances[index])
+        else:
+             rt.setValue("total augmentation / travelled distance", row, float("nan"))
+        rt.setValue("mean speed", row, travelledDistances[index] / frames[index])
+        rt.setValue("mean outward speed", row, dist / frames[index])
+        
     rt.show(TABLE_NAME)
     if showPlot:
-        plot(distances, center)
+        plot(distances, radialDistances, center)
 
-def plot(data, center):
-    T = list(range(0, len(data)))
-    plot = Plot("augmentation of distance from (" + str(center[0]) + ", "+ str(center[1])+")", "track nr", "distance", T, data)
+def plot(dataX, dataY, center):
+    plot = Plot("augmentation of distance from c=(" + str(center[0]) + ", "+ str(center[1])+")", "distance start to end", "augmentation of distance from c", dataX, dataY)
+    plot.setStyle(0, "blue,none,1.2,X");
     plot.show()
     
 class Vectors:
@@ -72,10 +95,10 @@ class Vectors:
         
 class RadialMovementAnalyzer:
 
-    timeColumnHeader = 'T'
+    timeColumnHeader = 'POSITION_T'
     trackColumnHeader = 'TRACK_ID'
-    xColumnHeader = 'X'
-    yColumnHeader = 'Y'
+    xColumnHeader = 'POSITION_X'
+    yColumnHeader = 'POSITION_Y'
     radialDistances = []
     distances = []
     travelledDistances = []
@@ -95,6 +118,12 @@ class RadialMovementAnalyzer:
         pIDColumn = self.table.getColumn(self.trackColumnHeader)
         xColumn = self.table.getColumn(self.xColumnHeader)
         yColumn = self.table.getColumn(self.yColumnHeader)    
+        indices = [i for i, x in enumerate(pIDColumn) if math.isnan(x)]
+        for j in sorted(indices, reverse=True):
+            del tColumn[j]
+            del pIDColumn[j]
+            del xColumn[j]
+            del yColumn[j]
         return tColumn, pIDColumn, xColumn, yColumn
 
     def getDeltaRadialDistancePerTrack(self):
@@ -186,55 +215,55 @@ else:
             rt.addValue('ID', 2)
             rt.addValue('TRACK_ID', 2)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 738.9)
-            rt.addValue('Y', 670.0)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 0)
+            rt.addValue('POSITION_X', 738.9)
+            rt.addValue('POSITION_Y', 670.0)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 0)
             rt.incrementCounter()
             rt.addLabel('LABEL', 'ID00003')
             rt.addValue('ID', 3)
             rt.addValue('TRACK_ID', 3)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 672.1)
-            rt.addValue('Y', 729.3)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 0)
+            rt.addValue('POSITION_X', 672.1)
+            rt.addValue('POSITION_Y', 729.3)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 0)
             rt.incrementCounter()
             rt.addLabel('LABEL', 'ID00001')
             rt.addValue('ID', 31)
             rt.addValue('TRACK_ID', 1)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 953.2)
-            rt.addValue('Y', 803.5)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 1)
+            rt.addValue('POSITION_X', 953.2)
+            rt.addValue('POSITION_Y', 803.5)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 1)
             rt.incrementCounter()
             rt.addLabel('LABEL', 'ID000032')
             rt.addValue('ID', 32)
             rt.addValue('TRACK_ID', 2)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 739.5)
-            rt.addValue('Y', 665.0)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 1)
+            rt.addValue('POSITION_X', 739.5)
+            rt.addValue('POSITION_Y', 665.0)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 1)
             rt.incrementCounter()
             rt.addLabel('LABEL', 'ID000033')
             rt.addValue('ID', 33)
             rt.addValue('TRACK_ID', 3)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 667.0)
-            rt.addValue('Y', 729.8)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 1)
+            rt.addValue('POSITION_X', 667.0)
+            rt.addValue('POSITION_Y', 729.8)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 1)
             rt.incrementCounter()
             rt.addLabel('LABEL', 'ID000061')
             rt.addValue('ID', 61)
             rt.addValue('TRACK_ID', 1)
             rt.addValue('QUALITY', 1)
-            rt.addValue('X', 959.0)
-            rt.addValue('Y', 805.5)
-            rt.addValue('Z', 0)
-            rt.addValue('T', 2)
+            rt.addValue('POSITION_X', 959.0)
+            rt.addValue('POSITION_Y', 805.5)
+            rt.addValue('POSITION_Z', 0)
+            rt.addValue('POSITION_T', 2)
             self.table = rt
             
         def testConstructor(self):
@@ -252,7 +281,6 @@ else:
         def testGetTrackData(self):
             rma = RadialMovementAnalyzer(self.table, (800,800))
             data, _, _ = rma.getTrackData()
-            print(data)
             self.assertEquals(3, len(data))
             self.assertEquals(3, len(data[0]))
             self.assertEquals(3, len(data[1]))
@@ -264,7 +292,6 @@ else:
         def testGetDeltaRadialDistancePerTrack(self):
             rma = RadialMovementAnalyzer(self.table, (800,800))
             distances = rma.getDeltaRadialDistancePerTrack()
-            print(distances)
             self.assertEquals(3, len(distances))
             
     def suite():
