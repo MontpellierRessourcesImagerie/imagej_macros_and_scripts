@@ -7,7 +7,7 @@ from ij.measure import ResultsTable
 def main(args):
     untangler = WormUntangler()
     if args[0] == "Untangle":
-        untangler.launch()
+        untangler.untangle()
     if args[0] == "Populate":
         untangler.populate()
     if args[0] == "Enumerate":
@@ -18,28 +18,69 @@ def main(args):
         untangler.evaluate()
     if args[0] == "Define?": #TODO Change this option code
         untangler.define()
-        
-    print("Python Call Ended !!");
+    print("Python Call Ended !!")
 
 class WormUntangler(object):
     def __init__(self, args=None):
         self.segments = []
         self.nodes = []
+        self.paths = []
         if args:
             pass
             #parser = getArgumentParser()
             #self.options = parser.parse_args(args)
             #self.configureFromOptions()
 
-    def launch(self):
+    def untangle(self):
+        self.initialize()
+        self.doPathEnumeration()
+        self.buildPathTable("pathsTable")
+        orphans = self.getOrphanSegments()
+        self.removeOrphans(orphans)
+        print("Untangle Worms : Not Yet Implemented !")
+        
+    def populate(self):
+        self.initialize()
+        self.displayTextualGraph()
+        
+    def enumerate(self):
+        self.initialize()
+        self.doPathEnumeration(verbose=True)
+        self.buildPathTable("pathsTable")
+        
+        
+    def prune(self):
+        self.initialize()
+        self.doPathEnumeration()
+        self.buildPathTable("pathsTable")
+        orphans = self.getOrphanSegments()
+        self.removeOrphans(orphans)
+        
+    def evaluate(self):
+        self.initialize()
+        self.doPathEnumeration()
+        self.buildPathTable("pathsTable")
+        orphans = self.getOrphanSegments()
+        self.removeOrphans(orphans)
+        self.evaluatePaths()
+        
+        print("Evaluate Path Locally : Not Yet Implemented !")
+        pass
+        
+    def define(self):
+        self.initialize()
+        self.doPathEnumeration()
+        self.buildPathTable("pathsTable")
+        orphans = self.getOrphanSegments()
+        self.removeOrphans(orphans)
+        print("Evaluate Path Locally : Not Yet Implemented !")
+        print("Define Best Path Configuration : Not Yet Implemented !")
+        pass
+
+    def initialize(self):
         self.initLists()
         self.populateSegments()
         self.populateNodes()
-        #self.convertSegmentsROIToPolyline()
-        possiblePaths = self.doPathEvaluation()
-        orphans = self.getOrphanSegments(possiblePaths)
-        self.removeOrphans(orphans)
-        #possiblePaths[0].getContainedPoints()
 
     def initLists(self):
         self.segments = []
@@ -58,7 +99,7 @@ class WormUntangler(object):
             node = Node()
             node.setID(nodesTable.getStringValue("Node ID", i))
             node.setX(nodesTable.getValue("X", i))
-            node.setY(nodesTable.getValue("X", i))
+            node.setY(nodesTable.getValue("Y", i))
             nbContact = nodesTable.getValue("Nb Contact", i)
             for column in range(1,int(nbContact)+1):
                 currentContact = nodesTable.getStringValue("C"+str(column), i)
@@ -67,32 +108,71 @@ class WormUntangler(object):
                         node.addSegment(segment)
                         segment.addNode(node)
             self.nodes.append(node)
-    
-    def convertSegmentsROIToPolyline(self):
-        for s in self.segments:
-            s.makeRoiIntoLine()
-            
             
     def displayTextualGraph(self):
         for seg in self.segments:
             print(str(seg)+"=>"+seg.stringNodes())
     
-    def doPathEvaluation(self,debug=False,verbose=False):
+    def doPathEnumeration(self,debug=False,verbose=False):
         validPaths = []
         for s in self.segments:
             #print("Starting path Evaluation of segment"+ str(s))
-            currentPaths = self.evaluatePathRecursively(Path(s),debug,verbose)
+            currentPaths = self.getPossiblePaths(Path(s),debug,verbose)
             if currentPaths is not None:
                 if type(currentPaths) is not type(validPaths):
                     validPaths.append(currentPaths)
                 else:
                     for path in currentPaths:
                         validPaths.append(path)
+        #print("-----")
+        #print(str(len(validPaths)) + " paths found !")
+        
+        validPaths = self.removeDuplicatePaths(validPaths)
+        validPaths = self.reorderSegmentsInPaths(validPaths)
+        
         print("-----")
         print(str(len(validPaths)) + " paths found !")
-        return validPaths
         
-    def getOrphanSegments(self, paths):
+        self.paths = validPaths
+        return validPaths
+    
+    def removeDuplicatePaths(self, pathList, verbose=False):
+        for p in pathList:
+            firstIDString = p.getIDSortedString()
+            if verbose:
+                print(firstIDString)
+            firstOne = True
+            for p2 in pathList:
+                if verbose:
+                    print(p2.getIDSortedString()+"?=="+firstIDString)
+                if p2.getIDSortedString() == firstIDString:
+                    if firstOne:
+                        firstOne = False
+                        if verbose:
+                            print("Is First")
+                    else:
+                        if verbose:
+                            print("Duplicate Removed")
+                        pathList.remove(p2)
+        return pathList
+        
+    def reorderSegmentsInPaths(self, pathList, verbose=False):
+        for p in pathList:
+            if verbose:
+                print("in : "+ str([str(s) for s in p.segments]))
+            p.reorderSegments()
+            if verbose:
+                print("out : "+ str([str(s) for s in p.segments]))
+        return pathList
+        
+    def buildPathTable(self,tableName):
+        table = ResultsTable()
+        for index, p in enumerate(self.paths):
+            p.addToResultTable(table,index)
+        table.show(tableName)
+        
+    def getOrphanSegments(self):
+        paths = self.paths
         orphans = []
         for s in self.segments:
             orphan = True
@@ -130,7 +210,7 @@ class WormUntangler(object):
                     if n in s.getNodes():
                         s.removeNode(n)
             
-    def evaluatePathRecursively(self,path,debug=False,verbose=False):
+    def getPossiblePaths(self,path,debug=False,verbose=False):
         validPath = []
         if debug:
             print("Evaluating path "+ str(path) + "!")
@@ -149,7 +229,7 @@ class WormUntangler(object):
             validPath.append(path)
             
         for segment in path.filteredGetNeighbors():
-            recursivePath = self.evaluatePathRecursively(path.createCombinedPath(segment),debug,verbose)
+            recursivePath = self.getPossiblePaths(path.createCombinedPath(segment),debug,verbose)
             if recursivePath is None:
                 continue
             elif type(recursivePath) is not type(validPath):
@@ -161,39 +241,16 @@ class WormUntangler(object):
         if len(validPath) == 0:
             return None
         return validPath
-    
-    def populate(self):
-        self.initLists()
-        self.populateSegments()
-        self.populateNodes()
-        #self.convertSegmentsROIToPolyline()
-        self.displayTextualGraph()
         
-    def enumerate(self):
-        self.initLists()
-        self.populateSegments()
-        self.populateNodes()
-        #self.convertSegmentsROIToPolyline()
-        possiblePaths = self.doPathEvaluation(verbose=True)
-        
-    def prune(self):
-        self.initLists()
-        self.populateSegments()
-        self.populateNodes()
-        #self.convertSegmentsROIToPolyline()
-        possiblePaths = self.doPathEvaluation()
-        orphans = self.getOrphanSegments(possiblePaths)
-        self.removeOrphans(orphans,verbose=True)
-        
-    def evaluate(self):
-        pass
-        
-    def define(self):
-        pass
+    def evaluatePaths(self):
+        for p in self.paths[:2]:
+            cost = p.evaluateShapeCost()
+           
+        print("Path evaluation was only done on the first two paths for testing purpose")
 
 class Path():
     minWormLength = 450
-    maxWormLength = 800
+    maxWormLength = 750
     
     def __init__(self,args=None):
         self.segments = None
@@ -222,25 +279,6 @@ class Path():
             #print(self.getLength())
             return True
         return False
-        
-    def obsoleteGetNeighbors(self):
-        neighborsSegments = []
-        neighborsNodes = []
-        for s in self.segments:
-            currentNodes = s.getNodes()
-            for node in currentNodes:
-                if node not in neighborsNodes:
-                    neighborsNodes.append(node)
-                else:
-                    neighborsNodes.remove(node)
-        
-        for n in neighborsNodes:
-            currentSegments = n.getSegments()
-            for segment in currentSegments:
-                if segment not in neighborsSegments and segment not in self.segments:
-                    neighborsSegments.append(segment)
-        
-        return neighborsSegments
         
     def filteredGetNeighbors(self):
         neighborsSegments = []
@@ -272,14 +310,61 @@ class Path():
             newPath.addSegment(s)
         newPath.addSegment(segment)
         return newPath
+    
         
-    def getContainedPoints(self):
-        containedPoints = []
+    def reorderSegments(self):
+        newSegments = [self.segments[0]]
         for s in self.segments:
-            print(s.roi.size())
-            containedPoints.append(s.roi.getContainedPoints())
-        print(containedPoints)
+            if s in newSegments:
+                continue
+            if newSegments is None:
+                newSegments = [self.segments[0]]
+            else:
+                if s.getContactNode(newSegments[-1]) is not None:
+                    newSegments.append(s)
+        newSegments.reverse()
+        for s in self.segments:
+            if s in newSegments:
+                continue
+            if s.getContactNode(newSegments[-1]) is not None:
+                newSegments.append(s)
+        self.segments = newSegments
         
+    def evaluateShapeCost(self):
+        xPoints,yPoints = self.getLine()
+        newRoi = PolygonRoi(xPoints, yPoints, Roi.POLYLINE)
+        newRoi.fitSpline(100)
+        rm = RoiManager.getRoiManager()
+        rm.addRoi(newRoi)
+    
+    def getLine(self):
+        xPoints = []
+        yPoints = []
+        for i in range(len(self.segments) - 1):
+            startSegment=self.segments[i]
+            endSegment=self.segments[i + 1]
+            sPointsX,sPointsY = startSegment.getPointsUntil(endSegment)
+            xPoints = xPoints + sPointsX
+            yPoints = yPoints + sPointsY
+        sPointsX,sPointsY = endSegment.getPointsFrom(startSegment)
+        xPoints = xPoints + sPointsX
+        yPoints = yPoints + sPointsY
+        return (xPoints,yPoints)
+        
+    def addToResultTable(self,table,index):
+        table.setValue("Path ID", index, "P-"+str(index))
+        table.setValue("Number of Segments", index, len(self.segments))
+        table.setValue("Length", index, self.getLength())
+        for i,segment in enumerate(self.segments):
+            table.setValue("S_"+str(i), index, str(segment))
+        
+    def getIDSortedString(self):
+        ID = []
+        for s in self.segments:
+            ID.append(s.getIDNumber())
+        ID.sort()
+        return str(ID)
+    
     def __str__(self):
         string = ""
         for s in self.segments:
@@ -309,61 +394,79 @@ class Segment():
         if self.roi is None:
             print("Undefined ROI in Segment")
             return
-        #print("roi Name:"+str(self.ID))
-        #print("roi Size:"+str(self.roi.size()))
-        #print("roi getLength/2:"+str(self.roi.getLength()/2))
-        #print("roi nCoordinates:"+str(self.roi.getNCoordinates()))
         return self.roi.getLength()
     
     def getNodes(self):
         if self.nodesInContact is None:
             print("Undefined Nodes in Segment")
         return self.nodesInContact
+        
+    def getPointsUntil(self,otherSegment):
+        contactNode = self.getContactNode(otherSegment)
+        if contactNode is None:
+            print("No Contact Nodes")
+            return
+        
+        xPoints, yPoints = self.getPointsCloserToNode(contactNode)
+        return (xPoints, yPoints)
+        
+    def getPointsFrom(self,otherSegment):
+        xPoints,yPoints = self.getPointsUntil(otherSegment)
+        xPoints.reverse()
+        yPoints.reverse()
+        return (xPoints,yPoints)
     
+    def getContactNode(self,otherSegment):
+        otherNodes = otherSegment.getNodes()
+        selfNodes = self.getNodes()
+        node = None
+        for n in selfNodes:
+            if n in otherNodes:
+                node = n
+                break
+        
+        if node is not None:
+            print(str(node)+ " is the contact point between "+str(self)+" and "+str(otherSegment))
+        return node
+    
+    def getPoints(self):
+        inPolygon = self.roi.getPolygon()
+        xPoints = inPolygon.xpoints.tolist()
+        yPoints = inPolygon.ypoints.tolist()
+        return (xPoints,yPoints)
+    
+    def getPointsReverse(self):
+        xPoints,yPoints = self.getPoints()
+        xPoints.reverse()
+        yPoints.reverse()
+        return (xPoints,yPoints)
+        
+    def getPointsCloserToNode(self, node):
+    
+        if node not in self.getNodes():
+            print("Node "+str(node)+" isn't at one end of the segment "+str(self)+" !")
+            return None
+        
+        polygon = self.roi.getPolygon()
+        
+        firstPointX = polygon.xpoints[0]
+        firstPointY = polygon.ypoints[0]
+        lastPointX = polygon.xpoints[-1]
+        lastPointY = polygon.ypoints[-1]
+        
+        distanceToFirstPoint = abs(node.xCoord - firstPointX) + abs(node.yCoord - firstPointY)
+        distanceToLastPoint = abs(node.xCoord - lastPointX) + abs(node.yCoord - lastPointY)
+        if distanceToFirstPoint <= distanceToLastPoint:
+            
+            return self.getPointsReverse()
+        else:
+            return self.getPoints()
+        
     def stringNodes(self):
         output = ""
         for node in self.getNodes():
             output = output + str(node) + " "
         return output
-        
-    def makeRoiIntoLine(self):
-        rm = RoiManager.getRoiManager()
-        polygon = self.roi.getPolygon()
-        print(str(self.roi.getType()) + " ?= " + str(Roi.POLYLINE))
-        if self.roi.getType() == Roi.POLYLINE:
-            print("Roi Polyline !!")
-            newRoi = PolygonRoi(polygon.xpoints.tolist(),polygon.ypoints.tolist(),Roi.POLYLINE)
-        else:
-            print("Roi Not Polyline")
-            nodes = self.getNodes()
-            idx = self.getIndexOfPointCloserToNode(nodes[0])
-            newRoi = PolygonRoi(polygon.xpoints[idx:idx+polygon.npoints/2].tolist(),polygon.ypoints[idx:idx+polygon.npoints/2].tolist(),Roi.POLYLINE)
-            
-        rm.setRoi(newRoi,self.getIDNumber())
-        #self.roi.update(False,False)
-        #rm.add(newRoi,self.getIDNumber())
-        #index = rm.getRoiIndex(newRoi)
-        
-        #rm.rename(rm.getCount()-1,self.ID)
-        
-        #rm.select(0)
-        #rm.runCommand("Delete")
-        self.roi = newRoi
-        
-    def getIndexOfPointCloserToNode(self,node):
-        return 0
-        nodeX = node.getX()
-        nodeY = node.getY()
-        polygon = self.roi.getPolygon()
-        closestDistance = 100
-        closestIndex = -1
-        for index,x,y in enumerate(zip(polygon.xpoints,polygon.ypoints)):
-            distance = abs(x-nodeX) + abs(y-nodeY)
-            if distance < closestDistance:
-                closestDistance = distance
-            print(str(x)+";"+str(y))
-        
-        return 0
 
     def getIDNumber(self):
         return int(self.ID[2:])
@@ -377,7 +480,7 @@ class Node():
         self.ID = None
         self.xCoord = -1
         self.yCoord = -1
-        self.segmentsInContact = None
+        self.segmentsInContact = []
         
     def setID(self,inputID):
         self.ID = inputID

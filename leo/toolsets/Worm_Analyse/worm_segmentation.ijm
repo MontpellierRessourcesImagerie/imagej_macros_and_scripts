@@ -18,7 +18,9 @@ macro "Get Graph Tables Action Tool - C000T4b12G"{
 	getGraphTables();
 }
 
-
+macro "Untangle Worms Action Tool - C000T4b12U"{
+	untangleWorms();
+}
 
 macro "Unused Tool 0 - " {}  // leave empty slot
 
@@ -79,12 +81,12 @@ macro "Worms Untangling Menu Tool - C000T4b12U"{
 	
 	if(label == untanglingTools[count++]) untangleWorms(); //TODO
 	count++;
-	if(label == untanglingTools[count++]) populateWormUntangler(); //TODO
-	if(label == untanglingTools[count++]) enumeratePossiblePaths(); //TODO
-	if(label == untanglingTools[count++]) prunePathlessSegments(); //TODO
+	if(label == untanglingTools[count++]) populateWormUntangler();
+	if(label == untanglingTools[count++]) enumeratePossiblePaths();
+	if(label == untanglingTools[count++]) prunePathlessSegments();
 	if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
 	if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
-
+}
 //README Functions concerning the Initial Segmentation
 
 function createMaskImage(inputImageID){
@@ -233,7 +235,7 @@ function addNeighborsToNodesTable(){
 			roiManager("and");
 			
 			if(getValue("selection.size")!=0){
-				print("Contact between node n-"+nodeID+" and segment s-"+segmentID+" !");
+				//print("Contact between node n-"+nodeID+" and segment s-"+segmentID+" !");
 				nbContact++;
 				segmentIDString = "S-"+segmentID;
 				Table.set("C"+nbContact, nodeID, segmentIDString,nodesTableTitle);
@@ -408,32 +410,27 @@ function getGraphTables(){
 
 //README Worm Untanglement Functions
 
-
-
-function untangleWorms(){ //TODO
-	print("Not Yet Implemented !");
+function untangleWorms(){
 	runUntangler("Untangle");
 }
 
-function populateWormUntangler(){ //TODO
+function populateWormUntangler(){
 	runUntangler("Populate");
 }
 
-function enumeratePossiblePaths(){ //TODO
+function enumeratePossiblePaths(){
 	runUntangler("Enumerate");
 }
 
-function prunePathlessSegments(){ //TODO
+function prunePathlessSegments(){
 	runUntangler("Prune");
 }
 
-function evaluatePathLocally(){ //TODO
-	print("Not Yet Implemented !");
+function evaluatePathLocally(){
 	runUntangler("Evaluate");
 }
 
-function defineBestPathConfiguration(){ //TODO
-	print("Not Yet Implemented !");
+function defineBestPathConfiguration(){
 	runUntangler("Define?"); //TODO Change this option Code
 }
 
