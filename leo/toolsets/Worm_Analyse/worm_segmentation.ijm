@@ -6,6 +6,13 @@ var _INTERSECTION_PROMINENCE = 5;
 
 //README Start of the Macro Section
 
+macro "Temp Find Touching Worms?"{
+    createMaskImage(getImageID());
+    run("Options...", "iterations=25 count=1 do=Nothing");
+    run("Erode");
+    run("Options...", "iterations=1 count=1 do=Nothing"); 
+}
+
 macro "Get Worm Segmentation Image Action Tool - C000T4b12W"{
 	getWormSegmentationImage();
 }
@@ -51,7 +58,6 @@ macro "Worm Segmentation Menu Tool - C000T4b12S"{
 	if(label == segmentationTools[count++]) wormSegmentationOptionDialog();
 	if(label == segmentationTools[count++]) getGraphNodes();
 	if(label == segmentationTools[count++]) getGraphTables();
-	
 	count++;
 	if(label == segmentationTools[count++]) createMaskImage(getImageID());
 	if(label == segmentationTools[count++]) getSkeletonFromMask(getImageID());
