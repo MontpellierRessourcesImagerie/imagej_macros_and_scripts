@@ -16,8 +16,8 @@
  * 
 **/
 CHANNEL_COLORS = newArray("Blue", "Green"); 
-MIN_DISPLAY = 100;
-MAX_DISPLAY = 800;
+MIN_DISPLAY = newArray(90, 88);
+MAX_DISPLAY = newArray(177, 306);
 CONVERT_TO_8BIT = false;
 
 inDir = getDirectory("Please select the source directory");
@@ -31,14 +31,14 @@ for (i=0; i<fishDirs.length; i++) {
     Array.sort(channelDirs);
     channelTitles = newArray(0);
     for (c=0; c<channelDirs.length; c++) {
-	    channelDir = channelDirs[c];
+        channelDir = channelDirs[c];
         IJ.log("processing channel "  + (c+1) + " of " + channelDirs.length + " (" + channelDir + ")");
         files = getFileList(channelDir);
         Array.sort(files); 
         file = channelDir + "/" + files[0];
-	    run("Bio-Formats", "open=["+file+"] autoscale color_mode=Composite group_files rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT dimensions axis_1_number_of_images="+files.length+" axis_1_axis_first_image=0 axis_1_axis_increment=1 contains=[] name="+file);
+        run("Bio-Formats", "open=["+file+"] autoscale color_mode=Composite group_files rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT dimensions axis_1_number_of_images="+files.length+" axis_1_axis_first_image=0 axis_1_axis_increment=1 contains=[] name="+file);
         title = getTitle();
-        processChannel();       
+        processChannel(c);       
         channelTitles = Array.concat(channelTitles, title);
     }
     mergeOptions = "";
@@ -66,8 +66,8 @@ function getFoldersIn(baseDir) {
     return folders;
 }
 
-function processChannel() {
-    setMinAndMax(MIN_DISPLAY, MAX_DISPLAY);
+function processChannel(c) {
+    setMinAndMax(MIN_DISPLAY[c], MAX_DISPLAY[c]);
     run(CHANNEL_COLORS[c]);
     if (CONVERT_TO_8BIT) run("8-bit");    
 }
