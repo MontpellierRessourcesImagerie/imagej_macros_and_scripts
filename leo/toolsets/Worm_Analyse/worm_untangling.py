@@ -116,7 +116,6 @@ class WormUntangler(object):
     def doPathEnumeration(self,debug=False,verbose=False):
         validPaths = []
         for s in self.segments:
-            #print("Starting path Evaluation of segment"+ str(s))
             currentPaths = self.getPossiblePaths(Path(s),debug,verbose)
             if currentPaths is not None:
                 if type(currentPaths) is not type(validPaths):
@@ -124,8 +123,6 @@ class WormUntangler(object):
                 else:
                     for path in currentPaths:
                         validPaths.append(path)
-        #print("-----")
-        #print(str(len(validPaths)) + " paths found !")
         
         validPaths = self.removeDuplicatePaths(validPaths)
         validPaths = self.reorderSegmentsInPaths(validPaths)
@@ -243,16 +240,20 @@ class WormUntangler(object):
         return validPath
         
     def evaluatePaths(self):
-        for p in self.paths[:2]:
-            cost = p.evaluateShapeCost()
-           
-        print("Path evaluation was only done on the first two paths for testing purpose")
-
+    
+        table = ResultsTable()
+        for p in self.paths:
+            cost = p.evaluateShapeCost(table)
+        
+        table.show("PathEvaluationTest")
+        
+        
 class Path():
     minWormLength = 450
     maxWormLength = 750
     
     def __init__(self,args=None):
+        self.angle = None
         self.segments = None
         if args is not None:
             self.addSegment(args)
@@ -310,7 +311,6 @@ class Path():
             newPath.addSegment(s)
         newPath.addSegment(segment)
         return newPath
-    
         
     def reorderSegments(self):
         newSegments = [self.segments[0]]
@@ -330,16 +330,84 @@ class Path():
                 newSegments.append(s)
         self.segments = newSegments
         
-    def evaluateShapeCost(self):
+    def evaluateShapeCost(self,table):
         xPoints,yPoints = self.getLine()
         newRoi = PolygonRoi(xPoints, yPoints, Roi.POLYLINE)
-        newRoi.fitSpline(100)
-        rm = RoiManager.getRoiManager()
-        rm.addRoi(newRoi)
+        #newRoi.fitSpline(100)
+        interpolatedPolygon = newRoi.getPolygon()
+        
+        steepestAngle = self.calculateAngle(interpolatedPolygon,table)
+        print(str(steepestAngle))
+        #TODO Remove this part, it's only to display the path
+        if steepestAngle > -1:
+            #print("Keep that Path")
+            rm = RoiManager.getRoiManager()
+            rm.addRoi(newRoi)
+            rm.rename(rm.getCount()-1,"P-"+str(table.size()-1))
+        
+    def calculateAngle(self,polygon,table):
+        xpoints = polygon.xpoints
+        ypoints = polygon.ypoints
+        npoints = polygon.npoints
+        
+        absMin = 3.15
+        sumOfPositive = 0
+        sumOfNegative = 0
+        countOfPositive = 0
+        countOfNegative = 0
+        sumAngle = 0
+        
+        
+        for i in range(1,npoints-1):
+            angle = self.calculateAngleBetween3Points(xpoints[i-1],ypoints[i-1],
+                                                 xpoints[i],ypoints[i],
+                                                 xpoints[i+1],ypoints[i+1])
+            
+            if angle < -Math.PI:
+                angle = angle + 2* Math.PI
+            if angle >= 0:
+                countOfPositive = countOfPositive + 1
+                sumOfPositive = sumOfPositive + angle
+            else:
+                countOfNegative = countOfNegative + 1
+                sumOfNegative = sumOfNegative + angle
+                
+            if Math.abs(angle) < absMin:
+                absMin = Math.abs(angle)
+        
+        sumAngle = sumOfPositive + sumOfNegative
+        sumAbsAngle = sumOfPositive - sumOfNegative
+        
+        index = table.size()
+        table.setValue("Path",index,"P-"+str(index))
+        table.setValue("Absolut Steepest Angle",index,absMin)
+        table.setValue("Sum Angle > 0",index,sumOfPositive)
+        table.setValue("Count Angle > 0",index,countOfPositive)
+        table.setValue("Sum Angle < 0",index,sumOfNegative)
+        table.setValue("Count Angle < 0",index,countOfNegative)
+        table.setValue("Sum Angle",index,sumAngle)
+        table.setValue("Sum Absolute Angle",index,sumAbsAngle)
+        
+        #print("Minimum of the absolute value of the angles : "+str(absMin))
+        #print("Sum of positive angles : "+str(sumOfPositive))
+        #print("Count of positive angles : "+str(countOfPositive))
+        #print("Sum of negative angles : "+str(sumOfNegative))
+        #print("Count of negative angles : "+str(countOfNegative))
+        
+        #print("Sum of angles : "+str(sumAngle))
+        #print("Sum of absolute angles : "+str(sumAbsAngle))
+        return absMin;
     
+    def calculateAngleBetween3Points(self, xPoint1, yPoint1, xPoint2, yPoint2, xPoint3, yPoint3):
+        a = Math.atan2(yPoint3-yPoint2,xPoint3-xPoint2) - Math.atan2(yPoint1-yPoint2,xPoint1-xPoint2)
+        return a
+        
     def getLine(self):
         xPoints = []
         yPoints = []
+        if len(self.segments) == 1:
+            return self.segments[0].getPoints()
+        
         for i in range(len(self.segments) - 1):
             startSegment=self.segments[i]
             endSegment=self.segments[i + 1]
@@ -408,12 +476,16 @@ class Segment():
             return
         
         xPoints, yPoints = self.getPointsCloserToNode(contactNode)
+        xPoints.append(contactNode.getX()-0.5)
+        yPoints.append(contactNode.getY()-0.5)
         return (xPoints, yPoints)
         
     def getPointsFrom(self,otherSegment):
         xPoints,yPoints = self.getPointsUntil(otherSegment)
         xPoints.reverse()
         yPoints.reverse()
+        xPoints.pop(0)
+        yPoints.pop(0)
         return (xPoints,yPoints)
     
     def getContactNode(self,otherSegment):
@@ -424,13 +496,10 @@ class Segment():
             if n in otherNodes:
                 node = n
                 break
-        
-        if node is not None:
-            print(str(node)+ " is the contact point between "+str(self)+" and "+str(otherSegment))
         return node
     
     def getPoints(self):
-        inPolygon = self.roi.getPolygon()
+        inPolygon = self.roi.getInterpolatedPolygon(3,True)
         xPoints = inPolygon.xpoints.tolist()
         yPoints = inPolygon.ypoints.tolist()
         return (xPoints,yPoints)
@@ -442,7 +511,6 @@ class Segment():
         return (xPoints,yPoints)
         
     def getPointsCloserToNode(self, node):
-    
         if node not in self.getNodes():
             print("Node "+str(node)+" isn't at one end of the segment "+str(self)+" !")
             return None
@@ -461,6 +529,21 @@ class Segment():
             return self.getPointsReverse()
         else:
             return self.getPoints()
+            
+    def getPointClosestToNode(self, node):
+        polygon = self.roi.getPolygon()
+        
+        firstPointX = polygon.xpoints[0]
+        firstPointY = polygon.ypoints[0]
+        lastPointX = polygon.xpoints[-1]
+        lastPointY = polygon.ypoints[-1]
+        
+        distanceToFirstPoint = abs(node.xCoord - firstPointX) + abs(node.yCoord - firstPointY)
+        distanceToLastPoint = abs(node.xCoord - lastPointX) + abs(node.yCoord - lastPointY)
+        if distanceToFirstPoint <= distanceToLastPoint:
+            return (firstPointX, firstPointY)
+        else:
+            return (lastPointX, lastPointY)
         
     def stringNodes(self):
         output = ""
@@ -481,6 +564,7 @@ class Node():
         self.xCoord = -1
         self.yCoord = -1
         self.segmentsInContact = []
+        self.angleWithSegment = []
         
     def setID(self,inputID):
         self.ID = inputID
@@ -495,15 +579,23 @@ class Node():
         if self.segmentsInContact is None:
             self.segmentsInContact = []
         self.segmentsInContact.append(inputSegment)
+        angle = inputSegment.getPointClosestToNode(self)
+        self.angleWithSegment.append(angle)
     
     def removeSegment(self, inputSegment):
-        self.segmentsInContact.remove(inputSegment)
+        index = self.segmentsInContact.index(inputSegment)
+        self.segmentsInContact.pop(index)
+        self.angleWithSegment.pop(index)
     
     def getX(self):
         return self.xCoord
         
     def getY(self):
         return self.yCoord
+        
+    def getAngle(inputSegment):
+        index = self.segmentsInContact.index(inputSegment)
+        return self.angleWithSegment[index]
     
     def getCoordString(self):
         return "[" + str(self.xCoord) + ";" + str(self.yCoord) + "]"
