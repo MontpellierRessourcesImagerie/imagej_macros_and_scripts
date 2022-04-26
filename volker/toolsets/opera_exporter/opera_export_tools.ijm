@@ -708,12 +708,19 @@ function setIndexFile() {
 	newFile = newFile + "Index.idx.xml";
 	if (File.exists(newFile)) {
 		setParameterDefault("indexFile",newFile);
+	}else{
+        print("Index File not found !");
+        setIndexFile();
 	}
 }
 
 function getIndexFile() {
 	res = _OPERA_INDEX_FILE;
-	if (!File.exists(res)) res = getParameterDefault("indexFile","");
+	if (!File.exists(res)) res = getParameterDefault("indexFile","-");
+    if (!File.exists(res)){
+        setIndexFile();
+        res = getParameterDefault("indexFile","-");
+    }
 	wsIndex = indexOf(res, " "); 
 	if (wsIndex>-1){
 		print("Path to index file contains a whitespace !");
