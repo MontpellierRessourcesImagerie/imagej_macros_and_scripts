@@ -138,7 +138,7 @@ function launchExport() {
 	baseDir = File.getDirectory(_OPERA_INDEX_FILE);
 	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 	dir = File.getParent(baseDir);
-	file = File.open(dir + "/" + year + "-" + IJ.pad(month,2) + "-" + IJ.pad(dayOfMonth, 2) + "_"+hour+"_"+minute+"_"+second+"_options.txt");
+	file = File.open(dir + "/" + year + "-" + IJ.pad(month+1,2) + "-" + IJ.pad(dayOfMonth, 2) + "_"+hour+"_"+minute+"_"+second+"_options.txt");
 	print(file, options);
 	File.close(file);
 	if(_CORRECT_INDEX_FLAT_FIELD)	prepareFlatfieldFolder();
@@ -708,12 +708,19 @@ function setIndexFile() {
 	newFile = newFile + "Index.idx.xml";
 	if (File.exists(newFile)) {
 		setParameterDefault("indexFile",newFile);
+	}else{
+        print("Index File not found !");
+        setIndexFile();
 	}
 }
 
 function getIndexFile() {
 	res = _OPERA_INDEX_FILE;
-	if (!File.exists(res)) res = getParameterDefault("indexFile","");
+	if (!File.exists(res)) res = getParameterDefault("indexFile","-");
+    if (!File.exists(res)){
+        setIndexFile();
+        res = getParameterDefault("indexFile","-");
+    }
 	wsIndex = indexOf(res, " "); 
 	if (wsIndex>-1){
 		print("Path to index file contains a whitespace !");

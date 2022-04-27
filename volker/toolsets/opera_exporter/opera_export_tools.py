@@ -11,7 +11,7 @@ from ij.macro import Interpreter
 from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator
 from ij.process import ImageConverter
 import unittest
-DEBUG = False
+DEBUG = True
 
 _Z_STACK_FOLDER = "/stack/"
 _PROJECTION_FOLDER = "/projection/"
@@ -136,7 +136,9 @@ class OperaExporter(object):
     def __init__(self, args=None):
         if args:
             parser = getArgumentParser()
+            IJ.log("Argument parser Loaded")
             self.options = parser.parse_args(args)
+            IJ.log("Arguments parsed")
             self.configureFromOptions()
 
     def configureFromOptions(self):
@@ -261,6 +263,7 @@ class OperaExporter(object):
         return self.options
         
     def launch(self):
+    	IJ.log("Starting Treatment")
         for well in self.wellsToExport:
             self.prepareCalculationOfStitching(well);
             self.calculateStitching(well);
@@ -815,7 +818,10 @@ class Well(object):
                     imp = ImagesToStack.run(imps)
                     imp.setCalibration(calibration)
                     projImp = ZProjector.run(imp,"max")
-                    url = outputPath + str(f).zfill(2)+".tif"
+                    IJ.log("--")
+                    IJ.log("In  URL = "+title) 
+                    url = outputPath + str(index+1).zfill(2)+".tif"
+                    IJ.log("Out URL = "+url)
                     minDisplay, maxDisplay = self.getOptions().min_max_display[channel - 1][0], self.getOptions().min_max_display[channel - 1][1] 
                     projImp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                     IJ.save(projImp, url)
