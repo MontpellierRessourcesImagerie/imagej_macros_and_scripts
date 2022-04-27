@@ -28,7 +28,16 @@ for (i=0; i<fishDirs.length; i++) {
     fishDir = fishDirs[i];
     IJ.log("processing image "  + (i+1) + " of " +  fishDirs.length + " (" + fishDir + ")");
     channelDirs = getFoldersIn(fishDir);
-    Array.sort(channelDirs);
+    channelTitles = processChannels(channelDirs);
+    mergeChannels(channelTitles);
+    part = split(File.getNameWithoutExtension(file), "_");
+    outTitle = File.getName(fishDir) + "_" + part[0];
+    saveAs("tiff", outDir+"/"+outTitle+".tif");
+    close("*");
+}
+setBatchMode(false);
+
+function processChannels(channelDirs) {
     channelTitles = newArray(0);
     for (c=0; c<channelDirs.length; c++) {
         channelDir = channelDirs[c];
@@ -41,18 +50,17 @@ for (i=0; i<fishDirs.length; i++) {
         processChannel(c);       
         channelTitles = Array.concat(channelTitles, title);
     }
+    return channelTitles;
+}
+
+function mergeChannels(channelTitles) {
     mergeOptions = "";
     for (c = 0; c < channelTitles.length; c++) {
         mergeOptions = mergeOptions + "c"+(c+1)+"="+channelTitles[c]+" ";
     }
     mergeOptions = mergeOptions + " create";
-    run("Merge Channels...", mergeOptions);
-    part = split(File.getNameWithoutExtension(file), "_");
-    outTitle = File.getName(fishDir) + "_" + part[0];
-    saveAs("tiff", outDir+"/"+outTitle+".tif");
-    close("*");
+    run("Merge Channels...", mergeOptions);       
 }
-setBatchMode(false);
 
 function getFoldersIn(baseDir) {
     fileList = getFileList(baseDir);
@@ -63,6 +71,7 @@ function getFoldersIn(baseDir) {
             folders = Array.concat(folders, currentFile);
         }
     }
+    Array.sort(folders);
     return folders;
 }
 
