@@ -37,7 +37,7 @@ for (i=0; i<fishDirs.length; i++) {
     channelTitles = processChannels(channelDirs, outDir);
     if (channelTitles.length == 0) continue;
     mergeChannels(channelTitles);
-    part = split(File.getNameWithoutExtension(file), "_");
+    part = split(channelTitles[0], "_");
     outTitle = File.getName(fishDir) + "_" + part[0];
     saveAs("tiff", outDir+"/"+outTitle+".tif");
     close("*");
