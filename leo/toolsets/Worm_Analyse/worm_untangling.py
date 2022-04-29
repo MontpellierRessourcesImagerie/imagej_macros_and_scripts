@@ -1,6 +1,6 @@
 from ij import IJ
 from ij.plugin.frame import RoiManager
-from ij.gui import Roi , PolygonRoi
+from ij.gui import Roi , PolygonRoi, Plot
 from ij.measure import ResultsTable
 
 
@@ -18,6 +18,8 @@ def main(args):
         untangler.evaluate()
     if args[0] == "Define?": #TODO Change this option code
         untangler.define()
+    if args[0] == "Test":
+        untangler.test()
     print("Python Call Ended !!")
 
 class WormUntangler(object):
@@ -48,7 +50,6 @@ class WormUntangler(object):
         self.doPathEnumeration(verbose=True)
         self.buildPathTable("pathsTable")
         
-        
     def prune(self):
         self.initialize()
         self.doPathEnumeration()
@@ -60,9 +61,10 @@ class WormUntangler(object):
         self.initialize()
         self.doPathEnumeration()
         self.buildPathTable("pathsTable")
+        self.evaluatePaths()
+        self.filterPaths()
         orphans = self.getOrphanSegments()
         self.removeOrphans(orphans)
-        self.evaluatePaths()
         
         print("Evaluate Path Locally : Not Yet Implemented !")
         pass
@@ -73,9 +75,69 @@ class WormUntangler(object):
         self.buildPathTable("pathsTable")
         orphans = self.getOrphanSegments()
         self.removeOrphans(orphans)
-        print("Evaluate Path Locally : Not Yet Implemented !")
+        self.evaluatePaths()
         print("Define Best Path Configuration : Not Yet Implemented !")
         pass
+    
+    def test(self):
+        roiManager = RoiManager.getRoiManager()
+        count = roiManager.getCount()
+        print(str(count))
+        for i in reversed(range(count)):
+            roi = roiManager.getRoi(i)
+            #self.createAngleTable(roi)
+            if not self.createAngleTable(roi):
+                roiManager.select(i)
+                roiManager.runCommand("Delete")
+
+    #TODO Move That Somewhere else
+    def createAngleTable(self,roi):
+        polygon = roi.getPolygon()
+        xPoints = polygon.xpoints
+        yPoints = polygon.ypoints
+        nPoints = polygon.npoints
+        table = ResultsTable()
+        firstAngle =  Math.atan2(yPoints[0],xPoints[0])
+        #plot = Plot(str( roi.getName())+" Angle","--","angle")
+        
+        angles = []
+        derivative = []
+        derivativeSign = []
+        posDerivative = 0
+        negDerivative = 0
+        
+        
+        for i in range(nPoints):
+            x = xPoints[i]
+            y = yPoints[i]
+            angle = Math.atan2(y,x)
+            
+            #table.setValue("X",i,x)
+            #table.setValue("Y",i,y)
+            #table.setValue("Angle",i,angle)
+            #table.setValue("Angle - firstAngle",i,angle - firstAngle)
+            angles.append(angle)
+            if i == 0:
+                continue
+            
+            derivative.append(angle - angles[-2])
+            derivativeSign.append(Math.signum(derivative[-1]))
+            if derivativeSign[-1] > 0:
+                posDerivative = posDerivative+1
+            else:
+                negDerivative = negDerivative+1
+                
+                
+        maxSign = max(posDerivative,negDerivative)
+        minSign = min(posDerivative,negDerivative)
+        
+        if maxSign*0.1 > minSign:
+            #table.show(str( roi.getName())+" Angle")
+            #plot.add("filled",derivativeSign)
+            #plot.show()
+            return True
+        return False
+
 
     def initialize(self):
         self.initLists()
@@ -240,14 +302,35 @@ class WormUntangler(object):
         return validPath
         
     def evaluatePaths(self):
-    
         table = ResultsTable()
         for p in self.paths:
-            cost = p.evaluateShapeCost(table)
-        
+            p.evaluateShapeCost(table)
         table.show("PathEvaluationTest")
         
-        
+    def filterPaths(self):
+        rm = RoiManager.getRoiManager()
+        evaluationTableTitle = "PathEvaluationTest"
+        pathTableTitle = "pathsTable"
+        evaluationTable = ResultsTable.getResultsTable(evaluationTableTitle)
+        pathTable = ResultsTable.getResultsTable(pathTableTitle)
+        rowToDelete = []
+        for index,p in enumerate(self.paths,start=0):
+            if(not p.isWanted(evaluationTable,index)):
+                rowToDelete.append(index)
+        for index in rowToDelete[::-1]:
+            pathTable.deleteRow(index)
+            evaluationTable.deleteRow(index)
+            self.paths.pop(index)
+        evaluationTable.show(evaluationTableTitle)
+        pathTable.show(pathTableTitle)
+        initialCount = rm.getCount()
+        for index,p in enumerate(self.paths,start=0):
+            xPoints,yPoints = p.getLine()
+            newRoi = PolygonRoi(xPoints, yPoints, Roi.POLYLINE)
+            rm.add(newRoi,0)
+            rm.rename(initialCount+index,evaluationTable.getStringValue("Path",index))
+            
+            
 class Path():
     minWormLength = 450
     maxWormLength = 750
@@ -333,19 +416,28 @@ class Path():
     def evaluateShapeCost(self,table):
         xPoints,yPoints = self.getLine()
         newRoi = PolygonRoi(xPoints, yPoints, Roi.POLYLINE)
-        #newRoi.fitSpline(100)
         interpolatedPolygon = newRoi.getPolygon()
         
-        steepestAngle = self.calculateAngle(interpolatedPolygon,table)
-        print(str(steepestAngle))
-        #TODO Remove this part, it's only to display the path
-        if steepestAngle > -1:
-            #print("Keep that Path")
-            rm = RoiManager.getRoiManager()
-            rm.addRoi(newRoi)
-            rm.rename(rm.getCount()-1,"P-"+str(table.size()-1))
+        steepestAngleStep1 = self.calculateAngle(interpolatedPolygon,table)
+        steepestAngleStep2 = self.calculateAngle(interpolatedPolygon,table,2)
         
-    def calculateAngle(self,polygon,table):
+        nbSegments = len(self.segments)
+        
+        index = table.size()
+        table.setValue("Path",index,"P-"+str(index))
+        table.setValue("Absolute Steepest Angle Step 1",index,steepestAngleStep1)
+        table.setValue("Absolute Steepest Angle Step 2",index,steepestAngleStep2)
+        table.setValue("Nb of Segments",index,nbSegments)
+        
+    def isWanted(self,table,index):
+        steepestAngleStep1 = table.getValue("Absolute Steepest Angle Step 1",index)
+        steepestAngleStep2 = table.getValue("Absolute Steepest Angle Step 2",index)
+        nbSegments = table.getValue("Nb of Segments",index)
+        if max(steepestAngleStep1,steepestAngleStep2) > 1.8 and nbSegments < 15:
+            return True
+        return False
+        
+    def calculateAngle(self,polygon,table,step=1):
         xpoints = polygon.xpoints
         ypoints = polygon.ypoints
         npoints = polygon.npoints
@@ -357,11 +449,10 @@ class Path():
         countOfNegative = 0
         sumAngle = 0
         
-        
-        for i in range(1,npoints-1):
-            angle = self.calculateAngleBetween3Points(xpoints[i-1],ypoints[i-1],
+        for i in range(step,npoints-step):
+            angle = self.calculateAngleBetween3Points(xpoints[i-step],ypoints[i-step],
                                                  xpoints[i],ypoints[i],
-                                                 xpoints[i+1],ypoints[i+1])
+                                                 xpoints[i+step],ypoints[i+step])
             
             if angle < -Math.PI:
                 angle = angle + 2* Math.PI
@@ -378,24 +469,14 @@ class Path():
         sumAngle = sumOfPositive + sumOfNegative
         sumAbsAngle = sumOfPositive - sumOfNegative
         
-        index = table.size()
-        table.setValue("Path",index,"P-"+str(index))
-        table.setValue("Absolut Steepest Angle",index,absMin)
-        table.setValue("Sum Angle > 0",index,sumOfPositive)
-        table.setValue("Count Angle > 0",index,countOfPositive)
-        table.setValue("Sum Angle < 0",index,sumOfNegative)
-        table.setValue("Count Angle < 0",index,countOfNegative)
-        table.setValue("Sum Angle",index,sumAngle)
-        table.setValue("Sum Absolute Angle",index,sumAbsAngle)
-        
-        #print("Minimum of the absolute value of the angles : "+str(absMin))
-        #print("Sum of positive angles : "+str(sumOfPositive))
-        #print("Count of positive angles : "+str(countOfPositive))
-        #print("Sum of negative angles : "+str(sumOfNegative))
-        #print("Count of negative angles : "+str(countOfNegative))
-        
-        #print("Sum of angles : "+str(sumAngle))
-        #print("Sum of absolute angles : "+str(sumAbsAngle))
+        #index = table.size()-step+1
+        #table.setValue("Path",index,"P-"+str(index))
+        #table.setValue(str(step)+"-Absolute Steepest Angle",index,absMin)
+        #table.setValue(str(step)+"-Count Angle > 0",index,countOfPositive)
+        #table.setValue(str(step)+"-Sum Angle < 0",index,sumOfNegative)
+        #table.setValue(str(step)+"-Count Angle < 0",index,countOfNegative)
+        #table.setValue(str(step)+"-Sum Angle",index,sumAngle)
+        #table.setValue(str(step)+"-Sum Absolute Angle",index,sumAbsAngle)
         return absMin;
     
     def calculateAngleBetween3Points(self, xPoint1, yPoint1, xPoint2, yPoint2, xPoint3, yPoint3):
