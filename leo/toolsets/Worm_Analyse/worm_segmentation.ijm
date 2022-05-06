@@ -88,6 +88,7 @@ var untanglingTools = newArray("Untangle Worms",
 							   "Enumerate Possible Paths",
 							   "Remove Pathless Segments",
 							   "Evaluate Path Locally",
+							   "Evaluate Path Globally",
 							   "Define Best Path Configuration",
                                "--",
                                "Run Untangler Tes Function"
@@ -102,7 +103,8 @@ macro "Worms Untangling Menu Tool - C000T4b12U"{
 	if(label == untanglingTools[count++]) populateWormUntangler();
 	if(label == untanglingTools[count++]) enumeratePossiblePaths();
 	if(label == untanglingTools[count++]) prunePathlessSegments();
-	if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
+	if(label == untanglingTools[count++]) evaluatePathLocally();
+	if(label == untanglingTools[count++]) evaluatePathGlobally(); //TODO
 	if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
     count++;
     if(label == untanglingTools[count++]) runUntanglerTestFunction(); //TODO
@@ -169,10 +171,10 @@ function getSkeletonFromMask(inputImageID,duplicate){
 	selectImage(inputImageID);
 	title = getTitle(); 
 	title = title.replace(".tif","");
-	run("Options...", "iterations=1 count=1 do=Nothing");
 	if(duplicate){
 	    run("Duplicate...", "title="+title+"-skeleton.tif");
 	}
+   run("Options...", "iterations=1 count=1 do=Nothing");
 	run("Skeletonize");
     return getImageID();
 }
@@ -224,7 +226,7 @@ function createSegmentsROI(){
 	run("Select None");
 	setBatchMode(false);
 	run("ROI Manager...");
-	run("Analyze Particles...", "size=5-Infinity show=Nothing clear add");
+	run("Analyze Particles...", "size=2-Infinity show=Nothing clear add");
 	setBatchMode(true);
 	segmentsCount = roiManager("count");
 	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
@@ -244,13 +246,15 @@ function addNeighborsToNodesTable(){
 		nodeX = Table.get("X", nodeID,nodesTableTitle);
 		nodeY = Table.get("Y", nodeID,nodesTableTitle);
 		nbContact = 0;
-		
-		makeRectangle(nodeX-4, nodeY-4, 9, 9);
+		print("Treating Node N-"+nodeID);
+        detectionSize = 3;
+		makeRectangle(nodeX-detectionSize, nodeY-detectionSize, 1+2*detectionSize, 1+2*detectionSize);
 		roiManager("add")
 		nodeRoiID = roiManager("count")-1;
 		roiManager("select",nodeRoiID);
 		roiManager("rename", "N-"+nodeID);
 		for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
+        //print("Test between node n-"+nodeID+" and segment s-"+segmentID+" !");
 			roiManager("select",segmentID);
 			if(segmentID==nodeRoiID){
 				continue;
@@ -263,6 +267,7 @@ function addNeighborsToNodesTable(){
 				nbContact++;
 				segmentIDString = "S-"+segmentID;
 				Table.set("C"+nbContact, nodeID, segmentIDString,nodesTableTitle);
+                Table.update();
 			}
 		}
 		roiManager("deselect");
@@ -462,9 +467,9 @@ function getOverlapingWormsMask(imageID,duplicate){
     if(duplicate){
         run("Duplicate...", "title="+originalImageTitle+"-overMask.tif");
     }
-    run("Options...", "iterations=23 count=1 do=Nothing");
+    run("Options...", "iterations=24 count=1 do=Nothing");
     run("Erode");
-    run("Options...", "iterations=2 count=1 do=Nothing");
+    run("Options...", "iterations=3 count=1 do=Nothing");
     run("Open");
     run("Options...", "iterations=1 count=1 do=Nothing");
     return getImageID();
@@ -503,6 +508,10 @@ function prunePathlessSegments(){
 
 function evaluatePathLocally(){
 	runUntangler("Evaluate");
+}
+
+function evaluatePathGlobally(){
+	runUntangler("GlobalEvaluate");
 }
 
 function defineBestPathConfiguration(){
