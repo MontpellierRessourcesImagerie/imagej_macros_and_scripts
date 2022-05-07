@@ -6,11 +6,19 @@ var _INTERSECTION_PROMINENCE = 5;
 
 //README Start of the Macro Section
 
-macro "Temp Find Touching Worms?"{
-    createMaskImage(getImageID());
-    run("Options...", "iterations=25 count=1 do=Nothing");
-    run("Erode");
-    run("Options...", "iterations=1 count=1 do=Nothing"); 
+macro "Get Overlaping Worms Masks"{
+    createMaskImage(getImageID(),true);
+    getOverlapingWormsMask(getImageID(),false);
+}
+
+macro "Get Overlaping Worms Skeleton"{
+    createMaskImage(getImageID(),true);
+    overMaskID = getOverlapingWormsMask(getImageID(),false);
+    getOverlapingWormsSkeleton(overMaskID,false);
+}
+
+macro "Get Tables With Overlap Treated"{
+    getTablesWithOverlapTreated();
 }
 
 macro "Get Worm Segmentation Image Action Tool - C000T4b12W"{
@@ -38,7 +46,8 @@ var segmentationTools = newArray("Get Worm Segmentation",
 								 "Get Graph Tables",
 								 "--",
 								 "Get Mask Image",
-								 "Get Skeleton From Mask",
+                                 "Get Skeleton From Mask",
+                                 "Get Skeleton Image",
 								 "Get Intersections of Skeleton",
 								 "Export Nodes to Table",
 								 "Create ROI of Segments",
@@ -59,9 +68,10 @@ macro "Worm Segmentation Menu Tool - C000T4b12S"{
 	if(label == segmentationTools[count++]) getGraphNodes();
 	if(label == segmentationTools[count++]) getGraphTables();
 	count++;
-	if(label == segmentationTools[count++]) createMaskImage(getImageID());
-	if(label == segmentationTools[count++]) getSkeletonFromMask(getImageID());
-	if(label == segmentationTools[count++]) getIntersectionsOfSkeleton(getImageID());
+	if(label == segmentationTools[count++]) createMaskImage(getImageID(),true);
+    if(label == segmentationTools[count++]) getSkeletonFromMask(getImageID(),true);
+    if(label == segmentationTools[count++]) getSkeletonImage(getImageID());
+	if(label == segmentationTools[count++]) getIntersectionsOfSkeleton(getImageID(),true);
 	if(label == segmentationTools[count++]) exportNodesFromIntersection(getImageID());
 	if(label == segmentationTools[count++]) createSegmentsROI();
 	if(label == segmentationTools[count++]) addNeighborsToNodesTable();
@@ -78,7 +88,10 @@ var untanglingTools = newArray("Untangle Worms",
 							   "Enumerate Possible Paths",
 							   "Remove Pathless Segments",
 							   "Evaluate Path Locally",
-							   "Define Best Path Configuration"
+							   "Evaluate Path Globally",
+							   "Define Best Path Configuration",
+                               "--",
+                               "Run Untangler Tes Function"
 							   );
 var menuUntangling = newMenu("Worms Untangling Menu Tool",untanglingTools);
 macro "Worms Untangling Menu Tool - C000T4b12U"{
@@ -90,18 +103,24 @@ macro "Worms Untangling Menu Tool - C000T4b12U"{
 	if(label == untanglingTools[count++]) populateWormUntangler();
 	if(label == untanglingTools[count++]) enumeratePossiblePaths();
 	if(label == untanglingTools[count++]) prunePathlessSegments();
-	if(label == untanglingTools[count++]) evaluatePathLocally(); //TODO
+	if(label == untanglingTools[count++]) evaluatePathLocally();
+	if(label == untanglingTools[count++]) evaluatePathGlobally(); //TODO
 	if(label == untanglingTools[count++]) defineBestPathConfiguration(); //TODO
+    count++;
+    if(label == untanglingTools[count++]) runUntanglerTestFunction(); //TODO
 }
 //README Functions concerning the Initial Segmentation
 
-function createMaskImage(inputImageID){
+function createMaskImage(inputImageID,duplicate){
 	selectImage(inputImageID);
 	title = getTitle(); 
 	title = title.replace(".tif","");
-	run("Duplicate...", "title="+title+"-mask2.tif");
+    if(duplicate){
+	    run("Duplicate...", "title="+title+"-mask.tif");
+    }
 	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
 	cleanMask();
+    return getImageID();
 }
 
 function applyVarianceAndThreshold(radius,thresholdMethod){
@@ -128,10 +147,9 @@ function cleanMask(){
 	run("Invert");
 	cleanRestImageID = getImageID();
 	cleanRestImageTitle = getTitle();
-	selectImage(dirtyWormImageID);
-	close();
-	selectImage(dirtyRestImageID);
-	close();
+    
+    closeImage(dirtyWormImageID);
+	closeImage(dirtyRestImageID);
 	
 	run("Analyze Particles...", "size=0-1000 show=Masks");
 	dirtyInImageID = getImageID();
@@ -140,43 +158,45 @@ function cleanMask(){
 	imageCalculator("Substract create", cleanRestImageTitle,dirtyInImageTitle);
 	cleanImageID = getImageID();
 	cleanImageTitle = getTitle();
-	selectImage(cleanRestImageID);
-	close();
-	selectImage(dirtyInImageID);
-	close();
-	
-	maskImageID = getImageID();
-	selectImage(originalImageID);
-	close();
-	selectImage(maskImageID);
+   
+	closeImage(cleanRestImageID);
+	closeImage(dirtyInImageID);
+	closeImage(originalImageID);
+    
+	selectImage(cleanImageID);
 	rename(originalImageTitle);
 }
 
-function getSkeletonFromMask(inputImageID){
+function getSkeletonFromMask(inputImageID,duplicate){
 	selectImage(inputImageID);
 	title = getTitle(); 
 	title = title.replace(".tif","");
-	run("Options...", "iterations=1 count=1 do=Nothing");
-	run("Duplicate...", "title="+title+"-skeleton.tif");
+	if(duplicate){
+	    run("Duplicate...", "title="+title+"-skeleton.tif");
+	}
+   run("Options...", "iterations=1 count=1 do=Nothing");
 	run("Skeletonize");
+    return getImageID();
 }
 
-function getIntersectionsOfSkeleton(inputImageID){
+function getIntersectionsOfSkeleton(inputImageID,duplicate){
 	selectImage(inputImageID);
 	title = getTitle(); 
 	title = title.replace(".tif","");
-	
-	run("Duplicate...", "title="+title+"-tmp.tif");
+	if(duplicate){
+	    run("Duplicate...", "title="+title+"-tmp.tif");
+	}
 	tmpImageID = getImageID();
 	//run("Top Hat...", "radius=3");
-		
+    
 	kernel = _CONVOLUTION_KERNEL;
 	prominence = _INTERSECTION_PROMINENCE;
 	run("Convolve...", "text1=["+kernel+"] normalize");
 	run("Find Maxima...", "prominence="+prominence+" light output=[Single Points]");
 	rename(title+"-intersection.tif");
-	selectImage(tmpImageID);
-	close();
+  
+	closeImage(tmpImageID);
+    return getImageID();
 }
 
 function exportNodesFromIntersection(inputImageID){
@@ -206,7 +226,7 @@ function createSegmentsROI(){
 	run("Select None");
 	setBatchMode(false);
 	run("ROI Manager...");
-	run("Analyze Particles...", "size=5-Infinity show=Nothing clear add");
+	run("Analyze Particles...", "size=2-Infinity show=Nothing clear add");
 	setBatchMode(true);
 	segmentsCount = roiManager("count");
 	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
@@ -226,13 +246,15 @@ function addNeighborsToNodesTable(){
 		nodeX = Table.get("X", nodeID,nodesTableTitle);
 		nodeY = Table.get("Y", nodeID,nodesTableTitle);
 		nbContact = 0;
-		
-		makeRectangle(nodeX-4, nodeY-4, 9, 9);
+		print("Treating Node N-"+nodeID);
+        detectionSize = 3;
+		makeRectangle(nodeX-detectionSize, nodeY-detectionSize, 1+2*detectionSize, 1+2*detectionSize);
 		roiManager("add")
 		nodeRoiID = roiManager("count")-1;
 		roiManager("select",nodeRoiID);
 		roiManager("rename", "N-"+nodeID);
 		for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
+        //print("Test between node n-"+nodeID+" and segment s-"+segmentID+" !");
 			roiManager("select",segmentID);
 			if(segmentID==nodeRoiID){
 				continue;
@@ -245,6 +267,7 @@ function addNeighborsToNodesTable(){
 				nbContact++;
 				segmentIDString = "S-"+segmentID;
 				Table.set("C"+nbContact, nodeID, segmentIDString,nodesTableTitle);
+                Table.update();
 			}
 		}
 		roiManager("deselect");
@@ -291,30 +314,48 @@ function getWormSegmentationImage(){
 	originalImageID = getImageID();
 	originalImageTitle = getTitle();
 	
-	createMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
+	skeletonID = getSkeletonImage(originalImageID);
+    intersectionID = extractIntersectionsFromSkeleton(skeletonID);
+	closeImage(intersectionID);
 	
-	getSkeletonFromMask(maskImageID);
-	skeletonID = getImageID();
-	skeletonTitle = getTitle();
-	
-	getIntersectionsOfSkeleton(skeletonID);
-	intersectionID = getImageID();
-	intersectionTitle = getTitle();
-	run("Dilate");
-	
-	imageCalculator("Subtract create", skeletonID,intersectionID);
-	segmentationID = getImageID();
-	rename(replace(originalImageTitle,".tif","-segmented.tif"));
-	selectImage(maskImageID);
-	close();
-	selectImage(skeletonID);
-	close();
-	selectImage(intersectionID);
-	close();
-	
-	setBatchMode("exit and display");
+	setBatchMode(false);
+}
+
+function getSkeletonImage(originalImageID){
+    getSkeletonImageOverlap(originalImageID);
+    //getSkeletonImageNoOverlap(originalImageID);
+    return getImageID();
+}
+
+function getSkeletonImageNoOverlap(originalImageID){
+    maskImageID = createMaskImage(originalImageID,true);
+    skeletonID = getSkeletonFromMask(maskImageID,false);
+}
+
+function getSkeletonImageOverlap(originalImageID){
+    selectImage(originalImageID);
+    title = getTitle(); 
+    title = title.replace(".tif","");
+    baseMaskID = createMaskImage(originalImageID,true);
+    baseSkelID = getSkeletonFromMask(baseMaskID,true);
+    
+    overMaskID = getOverlapingWormsMask(baseMaskID,false);
+    overSkelID = getOverlapingWormsSkeleton(overMaskID,true);
+    
+    selectImage(overMaskID);
+    run("Erode");
+    
+    imageCalculator("Substract create", baseSkelID, overMaskID);
+    skelWithoutOverlapID = getImageID();
+    
+    
+    imageCalculator("Add create", skelWithoutOverlapID, overSkelID);
+    skeletonID = getImageID();
+    
+    closeImage(skelWithoutOverlapID);
+    closeImage(overSkelID);
+    closeImage(overMaskID);
+    rename(title+"-skeleton.tif");
 }
 
 function getWormSegmentationVisualisation(){
@@ -322,55 +363,35 @@ function getWormSegmentationVisualisation(){
 	originalImageID = getImageID();
 	originalImageTitle = getTitle();
 	
-	createMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
-	
-	getSkeletonFromMask(maskImageID);
-	skeletonID = getImageID();
-	skeletonTitle = getTitle();
-	
-	getIntersectionsOfSkeleton(skeletonID);
-	intersectionID = getImageID();
-	intersectionTitle = getTitle();
-	run("Dilate");
-	
+	maskImageID = createMaskImage(originalImageID,true);
+    maskImageTitle = getTitle();
+    
+    skeletonID = getSkeletonImage(originalImageID);
+    skeletonTitle = getTitle();
+    
+    intersectionID = extractIntersectionsFromSkeleton(skeletonID);
+    selectImage(intersectionID);
+    intersectionTitle = getTitle();
 	
 	selectImage(originalImageID);
 	run("Duplicate...", "title="+originalImageTitle+"-duplicate.tif");
 	
-	//run("Merge Channels...", "c1="+skeletonTitle+" c2="+maskImageTitle+" c4="+originalImageTitle+"-duplicate.tif create");
 	run("Merge Channels...", "c1="+skeletonTitle+" c2="+maskImageTitle+" c6="+intersectionTitle+" c4="+originalImageTitle+"-duplicate.tif create");
 	segmentationID = getImageID();
 	rename(replace(originalImageTitle,".tif","-segmented-visualisation.tif"));
 
-	setBatchMode("exit and display");
+	setBatchMode(false);
 }
 
 function getGraphNodes(){
 	setBatchMode(true);
 	originalImageID = getImageID();
-	originalImageTitle = getTitle();
 	
-	createMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
+	skeletonID = getSkeletonImage(originalImageID);
+    intersectionID = extractIntersectionsFromSkeleton(skeletonID);
+	exportNodesFromIntersection(intersectionID);
 	
-	getSkeletonFromMask(maskImageID);
-	skeletonID = getImageID();
-	skeletonTitle = getTitle();
-	
-	getIntersectionsOfSkeleton(skeletonID);
-	intersectionID = getImageID();
-	intersectionTitle = getTitle();
-	exportNodesFromIntersection(getImageID());
-	
-	selectImage(maskImageID);
-	close();
-	selectImage(skeletonID);
-	close();
-	selectImage(intersectionID);
-	close();
+	closeImage(intersectionID);
 	
 	setBatchMode("exit and display");
 }
@@ -380,39 +401,92 @@ function getGraphTables(){
 	originalImageID = getImageID();
 	originalImageTitle = getTitle();
 	
-	createMaskImage(originalImageID);
-	maskImageID = getImageID();
-	maskImageTitle = getTitle();
-	
-	getSkeletonFromMask(maskImageID);
-	skeletonID = getImageID();
-	skeletonTitle = getTitle();
-	
-	getIntersectionsOfSkeleton(skeletonID);
-	intersectionID = getImageID();
-	intersectionTitle = getTitle();
-	run("Dilate");
-	
-	imageCalculator("Subtract create", skeletonID,intersectionID);
-	segmentationID = getImageID();
-	rename(replace(originalImageTitle,".tif","-segmented.tif"));
-	setBatchMode("show");
+    skeletonID = getSkeletonImage(originalImageID);
+    intersectionID = extractIntersectionsFromSkeleton(skeletonID);
 	exportNodesFromIntersection(intersectionID);
-	selectImage(segmentationID);
-	
-	createSegmentsROI();
-	addNeighborsToNodesTable();
-	createSegmentsTable();
-	/*
-	selectImage(maskImageID);
-	close();
-	selectImage(skeletonID);
-	close();
-	selectImage(intersectionID);
-	close();
-	*/
+    getGraphTablesFromSegments(skeletonID);
+    
 	setBatchMode("exit and display");
 }
+/*
+function getGraphTablesOverlap(){
+    setBatchMode(true);
+    originalImageID = getImageID();
+    originalImageTitle = getTitle();
+    
+    baseMaskID = createMaskImage(originalImageID,true);
+    baseSkelID = getSkeletonFromMask(baseMaskID,true);
+    overMaskID = getOverlapingWormsMask(baseMaskID,false);
+    
+    imageCalculator("Substract create", baseSkelID, overMaskID);
+    skelWithoutOverlapID = getImageID();
+    
+    overSkelID = getOverlapingWormsSkeleton(overMaskID,false);
+    
+    imageCalculator("Add create", skelWithoutOverlapID, overSkelID);
+    skeletonID = getImageID();
+    
+    closeImage(skelWithoutOverlapID);
+    closeImage(overSkelID);
+    
+    intersectionID = extractIntersectionsFromSkeleton(skeletonID);
+    
+    exportNodesFromIntersection(intersectionID);
+    getGraphTablesFromSegments(skeletonID);
+    
+    setBatchMode("exit and display");
+}
+*/
+
+function extractIntersectionsFromSkeleton(skeletonID){
+    intersectionID = getIntersectionsOfSkeleton(skeletonID,true);
+    intersectionTitle = getTitle();
+    rename(replace(intersectionTitle,".tif","-nodes.tif"));
+    run("Dilate");
+    
+    imageCalculator("Subtract", skeletonID,intersectionID);
+    
+    return intersectionID;
+}
+
+function getGraphTablesFromSegments(segmentsID){
+    selectImage(segmentsID);
+    createSegmentsROI();
+    addNeighborsToNodesTable();
+    createSegmentsTable();
+}
+
+function closeImage(ID){
+    selectImage(ID);
+    close();
+}
+
+function getOverlapingWormsMask(imageID,duplicate){
+    selectImage(imageID);
+    originalImageTitle = getTitle();
+    if(duplicate){
+        run("Duplicate...", "title="+originalImageTitle+"-overMask.tif");
+    }
+    run("Options...", "iterations=24 count=1 do=Nothing");
+    run("Erode");
+    run("Options...", "iterations=3 count=1 do=Nothing");
+    run("Open");
+    run("Options...", "iterations=1 count=1 do=Nothing");
+    return getImageID();
+}
+
+function getOverlapingWormsSkeleton(imageID,duplicate){
+    selectImage(imageID);
+    originalImageTitle = getTitle();
+    if(duplicate){
+        run("Duplicate...", "title="+originalImageTitle+"-overSkel.tif");
+    }
+    run("Outline");
+    run("Skeletonize");
+    return getImageID();
+}
+
+
 
 //README Worm Untanglement Functions
 
@@ -436,8 +510,16 @@ function evaluatePathLocally(){
 	runUntangler("Evaluate");
 }
 
+function evaluatePathGlobally(){
+	runUntangler("GlobalEvaluate");
+}
+
 function defineBestPathConfiguration(){
 	runUntangler("Define?"); //TODO Change this option Code
+}
+
+function runUntanglerTestFunction(){
+    runUntangler("Test");
 }
 
 
