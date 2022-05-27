@@ -159,7 +159,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 	run("To ROI Manager");
 	run("Select None");
 	roiManager("combine");
-	setBatchMode(true);
+	if (!BATCH_MODE) setBatchMode(true);
 	run("Create Mask");
 	rename("neurite-mask");
 	otherImageMaskID = getImageID();
@@ -191,7 +191,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 	roiManager("reset");
 	selectImage(otherImageMaskID);
 	close();
-	setBatchMode("exit and display");
+	if (!BATCH_MODE) setBatchMode("exit and display");
 }
 
 function mergeAndFilter() {
@@ -491,6 +491,7 @@ function batchMaskToSelection() {
 	dir = getDir("Select the input folder!");
 	subfolders = getFileList(dir);
 	setBatchMode(true);
+	BATCH_MODE = true;
 	for (i = 0; i < subfolders.length; i++) {
 		print("Entering folder " + subfolders[i]);
 		showProgress(i+1, subfolders.length);
@@ -515,12 +516,14 @@ function batchMaskToSelection() {
 		}
 	}
 	setBatchMode("exit and display");
+	BATCH_MODE = false;
 }
 
 function batchMergeAndFilter() {
 	dir = getDir("Select the input folder!");
 	subfolders = getFileList(dir);
 	setBatchMode(true);
+	BATCH_MODE = true;
 	for (i = 0; i < subfolders.length; i++) {
 		print("Entering folder " + subfolders[i]);
 		showProgress(i+1, subfolders.length);
@@ -532,8 +535,7 @@ function batchMergeAndFilter() {
 			roiManager("reset");
 			outFile = replace(files[f], CHANNELS[0]+".tif", "composite.tif");
 			outFile = folder + outFile;
-			file = folder + files[f];	
-			
+			file = folder + files[f];			
 			open(file);
 			nucleiTitle = getTitle();
 			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
@@ -544,6 +546,10 @@ function batchMergeAndFilter() {
 			run("Merge Channels...", "c3="+nucleiTitle+" c4="+neuritesTitle+" c5=neurite-mask c6=neurite-mask-geoddist create");
 			save(outFile);
 			close("*");
+		}
+	}
+	setBatchMode("exit and display");
+	BATCH_MODE = false;
 }
 
 function neuriteMaskToSelection() {
