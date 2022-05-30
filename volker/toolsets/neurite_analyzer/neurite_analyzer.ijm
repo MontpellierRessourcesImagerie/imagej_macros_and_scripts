@@ -19,9 +19,13 @@ var MIN_NEURITE_AREA = 20000;
 var LUT = "Random";
 var CONNECTIVITY = 4;
 
+var SCALE = 1.7;
+var PROEMINENCE = 200;
+var NEURITE_ID_CHANNEL = 3;
+var DISTANCE_CHANNEL = 4;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer";
  
-batchMaskToSelection();
+measureFISHOnNeurites();
 exit
 
 macro "Neurite Analyzer (F1) Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
@@ -154,6 +158,36 @@ function useIlastikDialog() {
 	Dialog.show();
 }
 
+
+function selectNucleiImage() {
+	selectImageWithTextInTitle(CHANNELS[0]);
+}
+
+function selectNeuriteImage() {
+	selectImageWithTextInTitle(CHANNELS[1]);
+}
+
+
+function selectFISHImage() {
+	selectImageWithTextInTitle(CHANNELS[2]);
+}
+
+function selectCompositeImage() {
+	selectImageWithTextInTitle("composite");
+}
+
+
+function selectImageWithTextInTitle(text) {
+	titles = getList("image.titles");
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];
+		selectImage(title);
+		type = getInfo("window.type");
+		if ((type!="Image")) continue;	
+		if (indexOf(title, text)>-1) return;
+	}
+}
+
 function removeRoisWithoutSupport(image, otherImage) {
 	selectImage(otherImage);
 	run("To ROI Manager");
@@ -245,41 +279,12 @@ function labelNeurites() {
     run("Neurite Labelling PlugIn");
     run(LUT);
     setMinAndMax(0, max);
-}
-
-function merge(nucleiImageTitle, neuriteImageTitle) {
-	showStatus("Merging and filter: Merging.");
-	options = "c3="+nucleiImageTitle+" c4="+neuriteImageTitle+" create keep";
-	print(options);
-	run("Merge Channels...", options);
-	mergedImageID = getImageID();
-	selectImage(nucleiImageID);
-	run("To ROI Manager");
-	count = roiManager("count");
-	selectImage(mergedImageID);
-	c=1;
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		Overlay.addSelection;
-		Overlay.setPosition(c, 1, 1);
-	}
-	selectImage(nucleiImageID);
-	close();
-	roiManager("reset");
-	selectImage(neuriteImageID);
-	run("To ROI Manager");
-	count = roiManager("count");
-	selectImage(mergedImageID);
-	c=2;
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		Overlay.addSelection;
-		Overlay.setPosition(c, 1, 1);
-	}
-	run("Select None");
-	selectImage(neuriteImageID);
-	close();
-	roiManager("reset");
+    run("Select None");
+    selectNucleiImage();
+    nucleiTitle = getTitle();
+    selectNeuriteImage();
+    neuritesTitle = getTitle();
+    run("Merge Channels...", "c3="+nucleiTitle+" c4="+neuritesTitle+" c5=neurite-mask c6=neurite-mask-geoddist create");
 }
 
 function getImageInfo() {
@@ -543,7 +548,6 @@ function batchMergeAndFilter() {
 			neuritesTitle = getTitle();
 			mergeAndFilter();
 			labelNeurites();
-			run("Merge Channels...", "c3="+nucleiTitle+" c4="+neuritesTitle+" c5=neurite-mask c6=neurite-mask-geoddist create");
 			save(outFile);
 			close("*");
 		}
@@ -564,3 +568,54 @@ function neuriteMaskToSelection() {
 	close();
 }
 
+function measureFISHOnNeurites() {
+	selectFISHImage();
+	run("FeatureJ Laplacian", "compute smoothing="+SCALE);
+	run("Find Maxima...", "prominence="+PROEMINENCE+" light output=[Point Selection]");
+	roiManager("reset");
+	roiManager("Add");
+	close();
+	selectCompositeImage();
+	roiManager("Show None");
+	roiManager("Show All");
+	run("Set Measurements...", "mean redirect=None decimal=3");
+	roiManager("select", 0);
+	run("Clear Results");
+	Stack.setChannel(NEURITE_ID_CHANNEL);	
+	roiManager("measure");
+	X = Table.getColumn("X");
+	Y = Table.getColumn("Y");
+	neuronID = Table.getColumn("Mean");
+	run("Clear Results");
+	Stack.setChannel(DISTANCE_CHANNEL);	
+	roiManager("measure");
+	somaDistance = Table.getColumn("Mean");
+	xPoints = newArray(0);
+	yPoints = newArray(0);
+	for (i = 0; i < neuronID.length; i++) {
+		if (neuronID[i] == 0 || somaDistance[i]==0) continue;
+		xPoints = Array.concat(xPoints, X[i]);
+		yPoints = Array.concat(yPoints, Y[i]);
+	}
+	roiManager("reset");
+	run("Clear Results");
+	makeSelection("point", xPoints, yPoints);
+	roiManager("add");
+	roiManager("Remove Channel Info");
+	roiManager("Remove Slice Info");
+	roiManager("Remove Frame Info");
+	Stack.setChannel(NEURITE_ID_CHANNEL);	
+	roiManager("measure");
+	X = Table.getColumn("X");
+	Y = Table.getColumn("Y");
+	neuronID = Table.getColumn("Mean");
+	run("Clear Results");
+	Stack.setChannel(DISTANCE_CHANNEL);	
+	roiManager("measure");
+	somaDistance = Table.getColumn("Mean");
+	run("Clear Results");
+	Table.setColumn("X", X);
+	Table.setColumn("Y", Y);
+	Table.setColumn("Neuron-ID", neuronID);
+	Table.setColumn("Dist. to Soma", somaDistance);
+}
