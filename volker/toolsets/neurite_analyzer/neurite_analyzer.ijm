@@ -111,44 +111,52 @@ macro "label neurites (f5) Action Tool Options" {
 	CONNECTIVITY = Dialog.getNumber();
 }
 
-macro "batch segment nuclei (f6) Action Tool - C037T1d13bT9d13nC555" {
+macro "measure FISH Signal on neurites (f6) Action Tool - C000T4b12f" {
+	measureFISHOnNeurites();
+}
+
+macro "measure FISH Signal on neurites [f6]" {
+	measureFISHOnNeurites();
+}
+
+macro "batch segment nuclei (f7) Action Tool - C037T1d13bT9d13nC555" {
 	batchSegmentNuclei();
 }
 
-macro "batch segment nuclei [f6]" {
+macro "batch segment nuclei [f7]" {
 	batchSegmentNuclei();
 }
 
-macro "batch export as h5 (f7) Action Tool - C037T1d13hT9d135C555" {
+macro "batch export as h5 (f8) Action Tool - C037T1d13hT9d135C555" {
 	batchConvertToH5();
 }
 
-macro "batch export as h5 [f7]" {
+macro "batch export as h5 [f8]" {
 	batchConvertToH5();
 }
 
-macro "use ilastik (f8) Action Tool - C000T4b12i" {
+macro "use ilastik (f9) Action Tool - C000T4b12i" {
 	useIlastikDialog();
 }
 
-macro "use ilastik [f8]" {
+macro "use ilastik [f9]" {
 	useIlastikDialog();	
 }
 
-macro "batch mask to selection (f9) Action Tool - C037T1d13bT9d13sC555" {
+macro "batch mask to selection (f10) Action Tool - C037T1d13bT9d13sC555" {
 	batchMaskToSelection();
 }
 
 
-macro "batch mask to selection [f9]" {
+macro "batch mask to selection [f10]" {
 	batchMaskToSelection();
 }
 
-macro "batch calculate distances (f10) Action Tool - C037T1d13bT9d13dC555" {
+macro "batch calculate distances (f11) Action Tool - C037T1d13bT9d13dC555" {
 	batchMergeAndFilter();
 }
 
-macro "batch calculateDistances [f10]" {
+macro "batch calculateDistances [f11]" {
 	batchMergeAndFilter();
 }
 
@@ -285,6 +293,10 @@ function labelNeurites() {
     selectNeuriteImage();
     neuritesTitle = getTitle();
     run("Merge Channels...", "c3="+nucleiTitle+" c4="+neuritesTitle+" c5=neurite-mask c6=neurite-mask-geoddist create");
+    selectImage("nuclei-mask");
+    close();
+    selectImage("nuclei-mask-lbl");
+    close();
 }
 
 function getImageInfo() {
