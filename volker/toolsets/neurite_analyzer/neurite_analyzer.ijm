@@ -25,8 +25,8 @@ var NEURITE_ID_CHANNEL = 3;
 var DISTANCE_CHANNEL = 4;
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer";
  
-measureFISHOnNeurites();
-exit
+segmentNuclei();
+exit;
 
 macro "Neurite Analyzer (F1) Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
 	run('URL...', 'url='+helpURL);	
@@ -120,11 +120,13 @@ macro "measure FISH Signal on neurites [f6]" {
 }
 
 macro "batch segment nuclei (f7) Action Tool - C037T1d13bT9d13nC555" {
-	batchSegmentNuclei();
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
 }
 
 macro "batch segment nuclei [f7]" {
-	batchSegmentNuclei();
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
 }
 
 macro "batch export as h5 (f8) Action Tool - C037T1d13hT9d135C555" {
@@ -133,6 +135,13 @@ macro "batch export as h5 (f8) Action Tool - C037T1d13hT9d135C555" {
 
 macro "batch export as h5 [f8]" {
 	batchConvertToH5();
+}
+
+macro "batch export as h5 (f8) Action Tool Options" {
+	Dialog.create("Export as h5 Options");
+	Dialog.addCheckbox("equalize histogram: ", DO_HISTO_EQ);
+	Dialog.show();
+	DO_HISTO_EQ = Dialog.getCheckbox();
 }
 
 macro "use ilastik (f9) Action Tool - C000T4b12i" {
@@ -144,20 +153,38 @@ macro "use ilastik [f9]" {
 }
 
 macro "batch mask to selection (f10) Action Tool - C037T1d13bT9d13sC555" {
-	batchMaskToSelection();
+	dir = getDir("Select the input folder!");
+	batchMaskToSelection(dir);
 }
 
 
 macro "batch mask to selection [f10]" {
-	batchMaskToSelection();
+	dir = getDir("Select the input folder!");
+	batchMaskToSelection(dir);
 }
 
 macro "batch calculate distances (f11) Action Tool - C037T1d13bT9d13dC555" {
-	batchMergeAndFilter();
+	dir = getDir("Select the input folder!");
+	batchMergeAndFilter(dir);
 }
 
 macro "batch calculateDistances [f11]" {
-	batchMergeAndFilter();
+	dir = getDir("Select the input folder!");
+	batchMergeAndFilter(dir);
+}
+
+macro "batch measure FISH Signal on neurites (f12) Action Tool - C037T1d13bT9d13fC555" {
+	dir = getDir("Select the input folder!");
+	batchMeasureFISHOnNeurites(dir);
+}
+
+macro "batch measure FISH Signal on neurites [f12]" {
+	dir = getDir("Select the input folder!");
+	batchMeasureFISHOnNeurites(dir);
+}
+
+macro "batch process images Action Tool - C000T4b12b" {
+	batchProcessImages();
 }
 
 function useIlastikDialog() {
@@ -319,8 +346,7 @@ function getImageInfo() {
 	return newArray(nucleiImageTitle, nucleiImageID, neuriteImageTitle, neuriteImageID);
 }
 
-function batchSegmentNuclei() {
-	dir = getDir("Select the input folder!");
+function batchSegmentNuclei(dir) {
 	subfolders = getFileList(dir);
 	setBatchMode(true);
 	BATCH_MODE = true;
@@ -504,8 +530,7 @@ function batchSegmentNeurites() {
 	BATCH_MODE = false;
 }
 
-function batchMaskToSelection() {
-	dir = getDir("Select the input folder!");
+function batchMaskToSelection(dir) {
 	subfolders = getFileList(dir);
 	setBatchMode(true);
 	BATCH_MODE = true;
@@ -536,8 +561,7 @@ function batchMaskToSelection() {
 	BATCH_MODE = false;
 }
 
-function batchMergeAndFilter() {
-	dir = getDir("Select the input folder!");
+function batchMergeAndFilter(dir) {
 	subfolders = getFileList(dir);
 	setBatchMode(true);
 	BATCH_MODE = true;
@@ -580,6 +604,37 @@ function neuriteMaskToSelection() {
 	close();
 }
 
+function batchMeasureFISHOnNeurites(dir) {
+	subfolders = getFileList(dir);
+//	setBatchMode(true);
+//	BATCH_MODE = true;
+	for (i = 0; i < subfolders.length; i++) {
+		print("Entering folder " + subfolders[i]);
+		showProgress(i+1, subfolders.length);
+		folder = dir + subfolders[i];
+		files = getFileList(folder);
+		files = getFilesForChannel(files, CHANNELS[2], "tif");
+		for (f = 0; f < files.length; f++) {
+			print("Processing file " + files[f]);
+			roiManager("reset");
+			file = folder + files[f];
+			file2 = replace(file, CHANNELS[2]+".tif", "composite.tif");
+			open(file);
+			open(file2);
+			imageID = getImageID();
+			measureFISHOnNeurites();
+			selectImage(imageID);
+			run("From ROI Manager");
+			save(file);
+			parts = split(file, ".");
+			Table.save(parts[0] + ".xls", "Results");
+			close("*");
+		}
+	}
+//	setBatchMode("exit and display");
+//	BATCH_MODE = false;
+}	
+
 function measureFISHOnNeurites() {
 	selectFISHImage();
 	run("FeatureJ Laplacian", "compute smoothing="+SCALE);
@@ -598,6 +653,7 @@ function measureFISHOnNeurites() {
 	X = Table.getColumn("X");
 	Y = Table.getColumn("Y");
 	neuronID = Table.getColumn("Mean");
+	
 	run("Clear Results");
 	Stack.setChannel(DISTANCE_CHANNEL);	
 	roiManager("measure");
@@ -618,16 +674,27 @@ function measureFISHOnNeurites() {
 	roiManager("Remove Frame Info");
 	Stack.setChannel(NEURITE_ID_CHANNEL);	
 	roiManager("measure");
+	Table.update("Results");
 	X = Table.getColumn("X");
 	Y = Table.getColumn("Y");
 	neuronID = Table.getColumn("Mean");
 	run("Clear Results");
 	Stack.setChannel(DISTANCE_CHANNEL);	
 	roiManager("measure");
+	Table.update("Results");
 	somaDistance = Table.getColumn("Mean");
 	run("Clear Results");
 	Table.setColumn("X", X);
 	Table.setColumn("Y", Y);
 	Table.setColumn("Neuron-ID", neuronID);
 	Table.setColumn("Dist. to Soma", somaDistance);
+	Table.sort("Neuron-ID", "Results");
+}
+
+function batchProcessImages() {
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
+	batchMaskToSelection(dir);
+	batchMergeAndFilter(dir);
+	batchMeasureFISHOnNeurites(dir);
 }
