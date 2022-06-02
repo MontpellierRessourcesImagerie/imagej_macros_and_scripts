@@ -16,6 +16,8 @@ var DO_HISTO_EQ = true;
 var NR_OF_CLOSE_OPERATIONS = 4;
 var MIN_NEURITE_AREA = 20000;
 
+var NUMBER_OF_DILATES = 50;
+
 var LUT = "Random";
 var CONNECTIVITY = 4;
 
@@ -90,10 +92,12 @@ macro "calculate distances (f4) Action Tool Options" {
 	Dialog.addString("nuclei channel: ", CHANNELS[0]);
 	Dialog.addString("neurite channel: ", CHANNELS[1]);
 	Dialog.addString("FISH channel: ", CHANNELS[2]);
+	Dialog.addNumber("number of dilates on nuclei mask", NUMBER_OF_DILATES);
 	Dialog.show();
 	CHANNELS[0] = Dialog.getString();
 	CHANNELS[1] = Dialog.getString();
 	CHANNELS[2] = Dialog.getString();
+	NUMBER_OF_DILATES = Dialog.getNumber();
 }
 
 macro "label neurites (f5) Action Tool - C000T4b12l" {
@@ -279,7 +283,7 @@ function mergeAndFilter() {
 	run("Create Mask");
 	rename("nuclei-mask");
 	nucleiMaskID = getImageID();
-	run("Options...", "iterations=50 count=1 do=Dilate");
+	run("Options...", "iterations="+NUMBER_OF_DILATES+" count=1 do=Dilate");
 	selectImage(nucleiImageID);
 	run("From ROI Manager");
 	roiManager("reset");
