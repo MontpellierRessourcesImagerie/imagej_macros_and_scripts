@@ -5,7 +5,7 @@ var CHANNELS = newArray("405", "640", "488");
 var BATCH_MODE = false;
 
 var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
-var CLASSIFIER = "neurite_segmentation_final.ilp"
+var CLASSIFIER = "neurite_segmentation_3.ilp"
 var OUTPUT_TYPE = "Segmentation"; //  or "Probabilities"
 var INPUT_DATASET = "/exported_data";
 var OUTPUT_DATASET = "/exported_data";
