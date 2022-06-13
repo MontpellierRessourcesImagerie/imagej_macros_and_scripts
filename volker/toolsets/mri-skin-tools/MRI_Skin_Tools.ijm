@@ -14,7 +14,7 @@
   * written 2011-2012 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
   */
 
-var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/Skin_Tools"
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Skin-Tools"
 var minRadius = 15;
 var numberOfSegments = 4;
 var numberOfLines = 10;

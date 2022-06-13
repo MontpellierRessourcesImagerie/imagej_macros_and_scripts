@@ -3,6 +3,13 @@ var _THRESHOLD_METHOD = "Otsu";
 
 var _CONVOLUTION_KERNEL = "4 4 4\n4 8 4\n4 4 4\n";
 var _INTERSECTION_PROMINENCE = 5;
+var _NODE_DETECTION_SIZE = 3;
+
+var _MIN_SEGMENT_SIZE = 3;
+var _MAX_WORM_RADIUS = 23;
+
+var _USE_VARIANCE_TO_CREATE_MASK = true;
+var _SEPARATE_SKELETONS_ON_OVERLAP = true;
 
 //README Start of the Macro Section
 
@@ -21,11 +28,11 @@ macro "Get Tables With Overlap Treated"{
     getTablesWithOverlapTreated();
 }
 
-macro "Get Worm Segmentation Image Action Tool - C000T4b12W"{
-	getWormSegmentationImage();
+macro "Visualize Worm Segmentation Image Action Tool - C000T4b12V"{
+	getWormSegmentationVisualisation();
 }
 
-macro "Get Worm Segmentation Image Action Tool Options"{
+macro "Visualize Worm Segmentation Image Action Tool Options"{
 	wormSegmentationOptionDialog();
 }
 
@@ -112,6 +119,15 @@ macro "Worms Untangling Menu Tool - C000T4b12U"{
 //README Functions concerning the Initial Segmentation
 
 function createMaskImage(inputImageID,duplicate){
+    if(_USE_VARIANCE_TO_CREATE_MASK){
+        createMaskImageVariance(inputImageID,duplicate);
+    }else{
+        createMaskImageFindEdge(inputImageID,duplicate);
+    }
+    return getImageID();
+}
+
+function createMaskImageVariance(inputImageID,duplicate){
 	selectImage(inputImageID);
 	title = getTitle(); 
 	title = title.replace(".tif","");
@@ -121,6 +137,48 @@ function createMaskImage(inputImageID,duplicate){
 	applyVarianceAndThreshold(_VARIANCE_RADIUS,_THRESHOLD_METHOD);
 	cleanMask();
     return getImageID();
+}
+
+function createMaskImageFindEdge(inputImageID,duplicate){
+	selectImage(inputImageID);
+	title = getTitle(); 
+	title = title.replace(".tif","");
+    if(duplicate){
+	    run("Duplicate...", "title="+title+"-mask.tif");
+    }
+	run("Find Edges");
+    run("Auto Threshold", "method="+_THRESHOLD_METHOD+" white");
+	ALT_cleanMask();
+    return getImageID();
+}
+
+function ALT_cleanMask(){
+    DEBUG = false;
+    originalImageID = getImageID();
+    if(DEBUG){
+        rename("Original Image");
+    }
+    originalImageTitle = getTitle();
+    
+    run("Invert");
+    //run("Erode");
+    run("Analyze Particles...", "size=1000-Infinity show=Masks");
+    dirtyWormImageID = getImageID();
+    if(DEBUG){
+        rename("Dirty Worm");
+    }else{
+        closeImage(originalImageID);
+    }
+    dirtyWormImageTitle = getTitle();
+    
+    run("Fill Holes");
+    run("Options...", "iterations=4 count=1 do=Nothing");
+
+    run("Erode");
+    run("Dilate");
+    run("Options...", "iterations=1 count=1 do=Nothing");
+    
+    rename(originalImageTitle);
 }
 
 function applyVarianceAndThreshold(radius,thresholdMethod){
@@ -133,7 +191,7 @@ function cleanMask(){
 	originalImageTitle = getTitle();
 	
 	run("Invert");
-	run("Erode");
+	//run("Erode");
 	run("Analyze Particles...", "size=100-Infinity show=Masks");
 	run("Invert");
 	dirtyWormImageID = getImageID();
@@ -162,7 +220,8 @@ function cleanMask(){
 	closeImage(cleanRestImageID);
 	closeImage(dirtyInImageID);
 	closeImage(originalImageID);
-    
+    run("Erode");
+    run("Erode");
 	selectImage(cleanImageID);
 	rename(originalImageTitle);
 }
@@ -205,7 +264,7 @@ function exportNodesFromIntersection(inputImageID){
 	title = title.replace(".tif","");
 	
 	roiManagerEmpty();
-	run("Analyze Particles...", "size=0-100 show=Nothing add");
+	run("Analyze Particles...", "size=0-1000 show=Nothing add");
 	roiManager("deselect");
 	run("Set Measurements...", "area mean modal min centroid perimeter shape display redirect=None decimal=3");
 	roiManager("measure");	
@@ -223,10 +282,11 @@ function exportNodesFromIntersection(inputImageID){
 }
 
 function createSegmentsROI(){
+	minSegmentSize = _MIN_SEGMENT_SIZE;
 	run("Select None");
 	setBatchMode(false);
 	run("ROI Manager...");
-	run("Analyze Particles...", "size=2-Infinity show=Nothing clear add");
+	run("Analyze Particles...", "size="+minSegmentSize+"-Infinity show=Nothing clear add");
 	setBatchMode(true);
 	segmentsCount = roiManager("count");
 	for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
@@ -241,20 +301,20 @@ function addNeighborsToNodesTable(){
 	nodesTableTitle = "nodesTable";
 	segmentsCount = roiManager("count");
 	
-	nodesCount =Table.size(nodesTableTitle);
+	nodesCount =Table.size(nodesTableTitle); 
 	for(nodeID = 0; nodeID < nodesCount; nodeID++){
 		nodeX = Table.get("X", nodeID,nodesTableTitle);
 		nodeY = Table.get("Y", nodeID,nodesTableTitle);
 		nbContact = 0;
 		print("Treating Node N-"+nodeID);
-        detectionSize = 3;
+        detectionSize = _NODE_DETECTION_SIZE*1.4;
 		makeRectangle(nodeX-detectionSize, nodeY-detectionSize, 1+2*detectionSize, 1+2*detectionSize);
-		roiManager("add")
+		roiManager("add");
 		nodeRoiID = roiManager("count")-1;
 		roiManager("select",nodeRoiID);
 		roiManager("rename", "N-"+nodeID);
 		for(segmentID = 0 ; segmentID < segmentsCount ; segmentID++){
-        //print("Test between node n-"+nodeID+" and segment s-"+segmentID+" !");
+        print("Test between node n-"+nodeID+" and segment s-"+segmentID+" !");
 			roiManager("select",segmentID);
 			if(segmentID==nodeRoiID){
 				continue;
@@ -322,21 +382,29 @@ function getWormSegmentationImage(){
 }
 
 function getSkeletonImage(originalImageID){
-    getSkeletonImageOverlap(originalImageID);
-    //getSkeletonImageNoOverlap(originalImageID);
+    if(_SEPARATE_SKELETONS_ON_OVERLAP){
+        getSkeletonImageOverlap(originalImageID);
+    }else{
+        getSkeletonImageNoOverlap(originalImageID);
+    }
     return getImageID();
 }
 
 function getSkeletonImageNoOverlap(originalImageID){
+    selectImage(originalImageID);
+    title = getTitle(); 
     maskImageID = createMaskImage(originalImageID,true);
     skeletonID = getSkeletonFromMask(maskImageID,false);
+    rename(title+"-skeleton.tif");
 }
 
 function getSkeletonImageOverlap(originalImageID){
     selectImage(originalImageID);
     title = getTitle(); 
     title = title.replace(".tif","");
+
     baseMaskID = createMaskImage(originalImageID,true);
+    //baseMaskID = createMaskImage(originalImageID,true);
     baseSkelID = getSkeletonFromMask(baseMaskID,true);
     
     overMaskID = getOverlapingWormsMask(baseMaskID,false);
@@ -376,7 +444,8 @@ function getWormSegmentationVisualisation(){
 	selectImage(originalImageID);
 	run("Duplicate...", "title="+originalImageTitle+"-duplicate.tif");
 	
-	run("Merge Channels...", "c1="+skeletonTitle+" c2="+maskImageTitle+" c6="+intersectionTitle+" c4="+originalImageTitle+"-duplicate.tif create");
+	//run("Merge Channels...", "c1="+skeletonTitle+" c2="+maskImageTitle+" c6="+intersectionTitle+" c4="+originalImageTitle+"-duplicate.tif create");
+    run("Merge Channels...", "c2="+maskImageTitle+" c6="+skeletonTitle+" c1="+intersectionTitle+" c4="+originalImageTitle+"-duplicate.tif create");
 	segmentationID = getImageID();
 	rename(replace(originalImageTitle,".tif","-segmented-visualisation.tif"));
 
@@ -442,8 +511,15 @@ function extractIntersectionsFromSkeleton(skeletonID){
     intersectionID = getIntersectionsOfSkeleton(skeletonID,true);
     intersectionTitle = getTitle();
     rename(replace(intersectionTitle,".tif","-nodes.tif"));
-    run("Dilate");
-    
+	run("Options...", "iterations="+_NODE_DETECTION_SIZE+" count=1 do=Dilate");
+    /*
+    if(_NODE_DETECTION_SIZE>3){
+	    run("Options...", "iterations="+Math.ceil(_NODE_DETECTION_SIZE/2)+" count=1 do=Dilate");
+	}else{
+		run("Options...", "iterations=1 count=1 do=Dilate");
+	}*/
+    run("Options...", "iterations=1 count=1 do=Nothing");
+
     imageCalculator("Subtract", skeletonID,intersectionID);
     
     return intersectionID;
@@ -462,12 +538,13 @@ function closeImage(ID){
 }
 
 function getOverlapingWormsMask(imageID,duplicate){
+    erodeStrength = _MAX_WORM_RADIUS;
     selectImage(imageID);
     originalImageTitle = getTitle();
     if(duplicate){
         run("Duplicate...", "title="+originalImageTitle+"-overMask.tif");
     }
-    run("Options...", "iterations=24 count=1 do=Nothing");
+    run("Options...", "iterations="+erodeStrength+" count=1 do=Nothing");
     run("Erode");
     run("Options...", "iterations=3 count=1 do=Nothing");
     run("Open");
@@ -542,33 +619,41 @@ function roiManagerEmpty(){
 
 function wormSegmentationOptionDialog(){
 	Dialog.create("Worm Segmentation Options");
-	addDialogGetIntersectionsOfSkeleton();
-	addDialogCreateMask();
+    addDialogCreateMask();
+	addDialogSkeleton();
 	Dialog.show();
-	getDialogGetIntersectionsOfSkeleton();
-	getDialogCreateMask();
+    getDialogCreateMask();
+	getDialogSkeleton();
 }
 
 
-function addDialogGetIntersectionsOfSkeleton(){
-	Dialog.addMessage("Worm Intersections", 14);
-	//Dialog.addString("Convolution Kernel",_CONVOLUTION_KERNEL);
-	Dialog.addSlider("Find Intersection Prominence", 0, 255, _INTERSECTION_PROMINENCE);
+function addDialogSkeleton(){
+    Dialog.addMessage("Skeleton", 14);
+    Dialog.addCheckbox("Separate the skeleton when worms are touching", _SEPARATE_SKELETONS_ON_OVERLAP);
+    Dialog.addSlider("If enabled, specify the estimated max worm radius", 0, 40, _MAX_WORM_RADIUS);
+    //Dialog.addString("Convolution Kernel",_CONVOLUTION_KERNEL);
+    //Dialog.addSlider("Find Intersection Prominence", 0, 255, _INTERSECTION_PROMINENCE);
+    Dialog.addSlider("Radius of Detected Nodes",2,10,_NODE_DETECTION_SIZE);
 }
 
-function getDialogGetIntersectionsOfSkeleton(){
+function getDialogSkeleton(){
+	_SEPARATE_SKELETONS_ON_OVERLAP = Dialog.getCheckbox();
+	_MAX_WORM_RADIUS = Dialog.getNumber();
 	//_CONVOLUTION_KERNEL = Dialog.getString();
-	_INTERSECTION_PROMINENCE = Dialog.getNumber();
+    //_INTERSECTION_PROMINENCE = Dialog.getNumber();
+    _NODE_DETECTION_SIZE = Dialog.getNumber();
 }
 
 function addDialogCreateMask(){
-	Dialog.addMessage("Worm Mask", 14);
+    Dialog.addMessage("Worm Mask", 14);
+    Dialog.addCheckbox("Use Variance to create Worm Mask", _USE_VARIANCE_TO_CREATE_MASK);
 	Dialog.addSlider("Variance Filter Radius", 0, 20, _VARIANCE_RADIUS);
 	methods = getList("threshold.methods");
 	Dialog.addRadioButtonGroup("Threshold Method", methods, 5, 5,_THRESHOLD_METHOD);
 }
 
 function getDialogCreateMask(){
+    _USE_VARIANCE_TO_CREATE_MASK = Dialog.getCheckbox();
 	_VARIANCE_RADIUS = Dialog.getNumber();
 	_THRESHOLD_METHOD = Dialog.getRadioButton();
 }

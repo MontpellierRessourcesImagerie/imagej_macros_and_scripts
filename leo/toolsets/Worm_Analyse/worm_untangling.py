@@ -2,6 +2,7 @@ from ij import IJ
 from ij.plugin.frame import RoiManager
 from ij.gui import Roi, PolygonRoi, Plot
 from ij.measure import ResultsTable
+from java.lang import Math
 
 
 def main(args):
@@ -87,56 +88,127 @@ class WormUntangler(object):
         print("Path Filtration Finished!")
         orphans = self.getOrphanSegments()
         self.removeOrphans(orphans)
-        self.calculateCostsUntilLevel(7)
-
-        print("Evaluate Path Globally : Not Yet Finished !")
+        (bestScore, bestSet) = self.calculateCostsUntilLevel(9)
+        print("----")
+        print("Best Score: " + str(bestScore))
+        print("Best Set: " + self.getStringOfSetOfPath(bestSet))
 
     def define(self):
         self.initialize()
+        print("Initialization Finished!")
         self.doPathEnumeration()
+        print("Path Enumeration Finished!")
         self.buildPathTable("pathsTable")
+        print("Path Table Construction Finished!")
+        self.evaluatePaths()
+        print("Path Evaluation Finished!")
+        self.filterPaths()
+        print("Path Filtration Finished!")
         orphans = self.getOrphanSegments()
         self.removeOrphans(orphans)
-        self.evaluatePaths()
+        (bestScore, bestSet) = self.calculateCostsUntilLevel(9)
+        print("----")
+        print("Best Score: " + str(bestScore))
+        print("Best Set: " + self.getStringOfSetOfPath(bestSet))
+
+        self.removePathsNotInSet(bestSet)
         print("Define Best Path Configuration : Not Yet Implemented !")
 
     def test(self):
-        pass
+        self.initialize()
+        print("Initialization Finished!")
+        self.doPathEnumeration()
+        print("Path Enumeration Finished!")
+        self.buildPathTable("pathsTable")
+        print("Path Table Construction Finished!")
+        self.evaluatePaths()
+        print("Path Evaluation Finished!")
+        self.filterPaths()
+        print("Path Filtration Finished!")
+        self.testDerivativePlots()
+        orphans = self.getOrphanSegments()
+        self.removeOrphans(orphans)
+
+    def testDerivativePlots(self):
+        for path in self.paths:
+            path.calculateSomeDerivative()
 
     def calculateCostsUntilLevel(self, level):
         previousCandidates = []
         lastBestScore = 3.1
+        bestSet = None
         for i in range(1, level + 1):
-            (previousCandidates, lastBestScore) = self.calculateCostsOneLevel(
-                i, previousCandidates, lastBestScore
+            (previousCandidates, lastBestScore, bestSet) = self.calculateCostsOneLevel(
+                i, previousCandidates, lastBestScore, bestSet
             )
+            if len(previousCandidates) == 0:
+                print("Shortcut End")
+                break
+            print("Best Score: " + str(lastBestScore))
+            print("Best Set: " + self.getStringOfSetOfPath(bestSet))
 
-    def calculateCostsOneLevel(self, level=1, previousCandidates=None, bestScore=3.1):
+        return (lastBestScore, bestSet)
+
+    def getStringOfSetOfPath(self, pathSet):
+        return "".join(path.getName() + " " for path in pathSet)
+
+    def removePathsNotInSet(self, pathSet):
+        rm = RoiManager.getRoiManager()
+        pathNames = [p.getName() for p in pathSet]
+        print(pathNames)
+        roiID = 0
+        while roiID < rm.getCount():
+            roi = rm.getRoi(roiID)
+            # for roi in rm:
+            if roi.getName() not in pathNames:
+                roiID = rm.getRoiIndex(roi)
+                rm.select(roiID)
+                rm.runCommand("Delete")
+                rm.runCommand("Deselect")
+            else:
+                roiID = roiID + 1
+
+    def calculateCostsOneLevel(
+        self, level=1, previousCandidates=None, bestScore=3.1, bestSet=None
+    ):
         print("Calculating Costs of Path with depth " + str(level))
         # Create the PathList of Level level
         (pathLists, innateCosts, overlapCosts, leftoverCosts) = self.generatePathLists(
             level, previousCandidates, bestScore
         )
-
-        table = ResultsTable()
-        minTotalCost = 3
-        for pathListIndex, pathList in enumerate(pathLists, start=0):
-            totalCost = (
-                innateCosts[pathListIndex]
-                + overlapCosts[pathListIndex]
-                + leftoverCosts[pathListIndex]
-            )
-            minTotalCost = min(totalCost, minTotalCost)
-            for pathIndex, path in enumerate(pathList):
-                table.setValue(
-                    "Path " + str(pathIndex), pathListIndex, "P-" + str(path.getID())
+        if len(pathLists) > 0:
+            table = ResultsTable()
+            minTotalCost = 3
+            pathListIndex = -1
+            for pathListIndex, pathList in enumerate(pathLists, start=0):
+                totalCost = (
+                    innateCosts[pathListIndex]
+                    + overlapCosts[pathListIndex]
+                    + leftoverCosts[pathListIndex]
                 )
-            table.setValue("Innate Cost", pathListIndex, innateCosts[pathListIndex])
-            table.setValue("Overlap Cost", pathListIndex, overlapCosts[pathListIndex])
-            table.setValue("Leftover Cost", pathListIndex, leftoverCosts[pathListIndex])
-            table.setValue("Total Cost", pathListIndex, totalCost)
-        table.show("Costs for Level " + str(level))
-        return (pathLists, minTotalCost)
+                if minTotalCost > totalCost:
+                    minTotalCost = totalCost
+                    minCostIndex = pathListIndex
+
+                minTotalCost = min(totalCost, minTotalCost)
+                for pathIndex, path in enumerate(pathList):
+                    table.setValue(
+                        "Path " + str(pathIndex),
+                        pathListIndex,
+                        "P-" + str(path.getID()),
+                    )
+                table.setValue("Innate Cost", pathListIndex, innateCosts[pathListIndex])
+                table.setValue(
+                    "Overlap Cost", pathListIndex, overlapCosts[pathListIndex]
+                )
+                table.setValue(
+                    "Leftover Cost", pathListIndex, leftoverCosts[pathListIndex]
+                )
+                table.setValue("Total Cost", pathListIndex, totalCost)
+            table.sort("Total Cost")
+            table.show("Costs for Level " + str(level))
+            return (pathLists, minTotalCost, pathLists[minCostIndex])
+        return (pathLists, bestScore, bestSet)
 
     def generatePathListsLevel1(self):
         pathLists = []
@@ -189,18 +261,22 @@ class WormUntangler(object):
         return False
 
     def calculateCosts(self, pathList):
-        innateWeight = 1.1
-        overlapWeight = 1.0
+        innateWeight = 1.0
+        overlapWeight = 0.6
         leftoverWeight = 1.0
 
-        innateCost = self.calculateInnateCost(pathList) * innateWeight
-        overlapCost = self.calculateOverlapCost(pathList) * overlapWeight
-        leftoverCost = self.calculateLeftoverCost(pathList) * leftoverWeight
+        innateCost = self.calculateInnateCost(pathList)
+        overlapCost = self.calculateOverlapCost(pathList)
+        leftoverCost = self.calculateLeftoverCost(pathList, overlapCost)
 
-        return (innateCost, overlapCost, leftoverCost)
+        return (
+            innateCost * innateWeight,
+            overlapCost * overlapWeight,
+            leftoverCost * leftoverWeight,
+        )
 
     def calculateInnateCost(self, pathList):
-        return sum(path.getInnateCost() for path in pathList) / len(pathList)
+        return sum(path.getInnateCost() for path in pathList)
 
     def calculateOverlapCost(self, pathList):
         lengthOfAllSegments = 0
@@ -215,11 +291,13 @@ class WormUntangler(object):
                     segments.append(s)
         return duplicatedLength / (lengthOfAllSegments - duplicatedLength)
 
-    def calculateLeftoverCost(self, pathList):
+    def calculateLeftoverCost(self, pathList, overlapCost):
         totalGraphLength = sum(s.getLength() for s in self.segments)
         selectedLength = sum(p.getLength() for p in pathList)
 
-        return 1 - (selectedLength / totalGraphLength)
+        leftoverCost = 1 - ((1 - overlapCost) * selectedLength / totalGraphLength)
+
+        return leftoverCost
 
     # TODO Move That Somewhere else
     def createAngleTable(self, roi):
@@ -340,6 +418,7 @@ class WormUntangler(object):
             firstIDString = p.getIDSortedString()
             if verbose:
                 print(firstIDString)
+
             for p2 in (
                 p2
                 for i2, p2 in enumerate(pathList)
@@ -497,6 +576,9 @@ class Path:
     def getID(self):
         return self.ID
 
+    def getName(self):
+        return "P-" + str(self.getID())
+
     def addSegment(self, seg):
         if self.segments is None:
             self.segments = [seg]
@@ -578,15 +660,16 @@ class Path:
         return self.innateCost
 
     def calculateInnateCost(self):
-        calculatedCost = -1 * ((self.calculateAngle(self.getPolygon()) / Math.PI) - 1)
+        absMin, meanAngle, meanAbsAngle = self.calculateAngle(self.getPolygon(), step=3)
+        calculatedCost = -1 * ((meanAbsAngle / Math.PI) - 1)
         self.innateCost = calculatedCost
 
     def evaluateShapeCost(self, table):
         interpolatedPolygon = self.getPolygon()
 
-        steepestAngleStep1 = self.calculateAngle(interpolatedPolygon, table)
-        steepestAngleStep2 = self.calculateAngle(interpolatedPolygon, table, 2)
-        nbSegments = len(self.segments)
+        steepestAngleStep1, _, _ = self.calculateAngle(interpolatedPolygon, table)
+        steepestAngleStep2, _, _ = self.calculateAngle(interpolatedPolygon, table, 2)
+        # nbSegments = len(self.segments)
         """
         index = table.size()
         table.setValue("Path",index,"P-"+str(index))
@@ -596,13 +679,119 @@ class Path:
         """
 
     def isWanted(self, table, index):
-        steepestAngleStep1 = table.getValue("Absolute Steepest Angle Step 1", index)
-        steepestAngleStep2 = table.getValue("Absolute Steepest Angle Step 2", index)
         if self.isTouchingTheEdge():
             return False
-        if max(steepestAngleStep1, steepestAngleStep2) > 2.0:
-            return True
-        return False
+
+        steepestAngleStep1 = table.getValue("Absolute Steepest Angle Step 1", index)
+        steepestAngleStep2 = table.getValue("Absolute Steepest Angle Step 2", index)
+        # if steepestAngleStep1 + steepestAngleStep2 < 3.9:
+        if max(steepestAngleStep1, steepestAngleStep2) < 2.0:
+            return False
+        #
+        # signRatio = self.getRatioOfSignOfDerivative()
+        # if 0.2 < signRatio < 0.3 or 0.7 < signRatio < 0.8:
+        #    return False
+        return True
+
+    def calculateSomeDerivative(self):
+        print("Path-" + str(self.ID))
+        self.calculateAngleRawDerivative(drawPlot=False)
+        der = self.calculateAngleDiffDerivative(drawPlot=False)
+        derSign = self.getSignOfDerivative(der, drawPlot=True)
+        self.getRatioOfSignOfDerivative(derSign, verbose=True)
+        print("--")
+
+    def calculateAngleRawDerivative(self, drawPlot=False):
+        polygon = self.getPolygon()
+        xPoints = polygon.xpoints
+        yPoints = polygon.ypoints
+        nPoints = polygon.npoints
+
+        angles = []
+        derivative = []
+
+        for i in range(nPoints):
+            x = xPoints[i]
+            y = yPoints[i]
+            angle = Math.atan2(y, x)
+
+            angles.append(angle)
+            if i == 0:
+                continue
+            derivative.append(angle - angles[-2])
+
+        if drawPlot:
+            plot = Plot(
+                str(self.getID()) + " Angle Raw Derivative",
+                "--",
+                "Angle Raw Derivative",
+            )
+            plot.add("filled", derivative)
+            plot.show()
+        return derivative
+
+    def calculateAngleDiffDerivative(self, drawPlot=False):
+        polygon = self.getPolygon()
+        xPoints = polygon.xpoints
+        yPoints = polygon.ypoints
+        nPoints = polygon.npoints
+
+        firstAngle = Math.atan2(yPoints[0], xPoints[0])
+
+        angles = []
+        derivative = []
+
+        for i in range(nPoints):
+            x = xPoints[i]
+            y = yPoints[i]
+            angle = Math.atan2(y, x) - firstAngle
+
+            angles.append(angle)
+            if i == 0:
+                continue
+            derivative.append(angle - angles[-2])
+
+        if drawPlot:
+            plot = Plot(
+                str(self.getID()) + " Angle Diff Derivative",
+                "--",
+                "Angle Diff Derivative",
+            )
+            plot.add("filled", derivative)
+            plot.show()
+        return derivative
+
+    def getSignOfDerivative(self, derivative=None, drawPlot=False):
+        if derivative is None:
+            derivative = self.calculateAngleRawDerivative()
+        derivativeSign = [Math.signum(d) for d in derivative]
+
+        if drawPlot:
+            plot = Plot(
+                str(self.getID()) + " Derivative Sign",
+                "--",
+                "Derivative Sign",
+            )
+            plot.add("filled", derivativeSign)
+            plot.show()
+        return derivativeSign
+
+    def getRatioOfSignOfDerivative(self, derivativeSign=None, verbose=False):
+        if derivativeSign is None:
+            derivativeSign = self.getSignOfDerivative()
+
+        posDerivative = sum(sign > 0 for sign in derivativeSign)
+        negDerivative = sum(sign <= 0 for sign in derivativeSign)
+
+        maxSign = max(posDerivative, negDerivative)
+        minSign = min(posDerivative, negDerivative)
+
+        signRatio = float(minSign) / float(maxSign)
+        if verbose:
+            print("Min Sign = " + str(minSign))
+            print("Max Sign = " + str(maxSign))
+            print("Sign Ratio = " + str(signRatio))
+        return signRatio
 
     def calculateAngle(self, polygon, table=None, step=1):
         xpoints = polygon.xpoints
@@ -641,18 +830,23 @@ class Path:
 
         sumAngle = sumOfPositive + sumOfNegative
         sumAbsAngle = sumOfPositive - sumOfNegative
+        meanAngle = sumAngle / npoints
+        meanAbsAngle = sumAbsAngle / npoints
 
         if table is not None:
-            index = table.size() - step + 1
+            index = table.size() if step == 1 else table.size() - 1
             table.setValue("Path", index, "P-" + str(index))
             table.setValue("Absolute Steepest Angle Step " + str(step), index, absMin)
-            table.setValue(str(step) + "-Sum Angle > 0", index, sumOfPositive)
-            table.setValue(str(step) + "-Count Angle > 0", index, countOfPositive)
-            table.setValue(str(step) + "-Sum Angle < 0", index, sumOfNegative)
-            table.setValue(str(step) + "-Count Angle < 0", index, countOfNegative)
-            table.setValue(str(step) + "-Sum Angle", index, sumAngle)
+            # table.setValue(str(step) + "-Sum Angle > 0", index, sumOfPositive)
+            # table.setValue(str(step) + "-Count Angle > 0", index, countOfPositive)
+            # table.setValue(str(step) + "-Sum Angle < 0", index, sumOfNegative)
+            # table.setValue(str(step) + "-Count Angle < 0", index, countOfNegative)
+            # table.setValue(str(step) + "-Sum Angle", index, sumAngle)
             table.setValue(str(step) + "-Sum Absolute Angle", index, sumAbsAngle)
-        return absMin
+            # table.setValue(str(step) + "-Mean Angle", index, meanAngle)
+            table.setValue(str(step) + "-Mean Absolute Angle", index, meanAbsAngle)
+
+        return absMin, meanAngle, meanAbsAngle
 
     def calculateAngleBetween3Points(
         self, xPoint1, yPoint1, xPoint2, yPoint2, xPoint3, yPoint3
@@ -704,7 +898,7 @@ class Path:
 
 
 class Segment:
-    margin = 3
+    margin = 2
 
     def __init__(self, args=None):
         self.ID = None
@@ -753,16 +947,16 @@ class Segment:
             return
 
         xPoints, yPoints = self.getPointsCloserToNode(contactNode)
-        xPoints.append(contactNode.getX() - 0.5)
-        yPoints.append(contactNode.getY() - 0.5)
+        # xPoints.append(contactNode.getX() - 0.5)
+        # yPoints.append(contactNode.getY() - 0.5)
         return (xPoints, yPoints)
 
     def getPointsFrom(self, otherSegment):
         xPoints, yPoints = self.getPointsUntil(otherSegment)
         xPoints.reverse()
         yPoints.reverse()
-        xPoints.pop(0)
-        yPoints.pop(0)
+        # xPoints.pop(0)
+        # yPoints.pop(0)
         return (xPoints, yPoints)
 
     def getContactNode(self, otherSegment):

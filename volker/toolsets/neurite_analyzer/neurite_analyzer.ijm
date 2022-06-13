@@ -1,10 +1,11 @@
 var SIGMA = 7;
 var THRESHOLDING_METHOD = "Intermodes";		
+var THRESHOLDING_METHODS = getList("threshold.methods");
 var CHANNELS = newArray("405", "640", "488");
 var BATCH_MODE = false;
 
 var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
-var CLASSIFIER = "neurite_segmentation_3.ilp"
+var CLASSIFIER = "neurite_segmentation_final.ilp"
 var OUTPUT_TYPE = "Segmentation"; //  or "Probabilities"
 var INPUT_DATASET = "/exported_data";
 var OUTPUT_DATASET = "/exported_data";
@@ -15,53 +16,223 @@ var DO_HISTO_EQ = true;
 var NR_OF_CLOSE_OPERATIONS = 4;
 var MIN_NEURITE_AREA = 20000;
 
-var NAME_FILTER = "Coleno";
-var NR_OF_FILES_PER_FOLDER = 10;
-var SUBFOLDER = "/Mosaic_16bits/";
+var NUMBER_OF_DILATES = 50;
 
 var LUT = "Random";
 var CONNECTIVITY = 4;
 
-var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Neurite_Analyzer_Tool";
+var SCALE = 1.7;
+var PROEMINENCE = 200;
+var NEURITE_ID_CHANNEL = 3;
+var DISTANCE_CHANNEL = 4;
+var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer";
  
-mergeAndFilter();
-exit
+segmentNuclei();
+exit;
 
-macro "Neurite Analyzer Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
+macro "Neurite Analyzer (F1) Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
 	run('URL...', 'url='+helpURL);	
 }
 
-macro "copy random data (f3) Action Tool - C037T1d13cT9d13rC555" {
-	copyRandomData();
+macro "Neurite Analyzer [f1]" {
+	run('URL...', 'url='+helpURL);	
 }
 
-macro "batch export as h5 (f4) Action Tool - C037T1d13hT9d135C555" {
-	batchConvertToH5();
-}
-
-macro "segment nuclei (f5) Action Tool - C000T4b12n" {
+macro "segment nuclei (f2) Action Tool - C000T4b12n" {
 	segmentNuclei();
 }
 
-macro "segment neurites (f6) Action Tool - C000T4b12s" {
+macro "segment nuclei [f2]" {
+	segmentNuclei();
+}
+
+macro "segment nuclei (f2) Action Tool Options" {
+	Dialog.create("Segment Nuclei Options");
+	Dialog.addNumber("sigma of Gaussian blur: ", SIGMA);
+	Dialog.addChoice("thresholding method", THRESHOLDING_METHODS, THRESHOLDING_METHOD);
+	Dialog.show();
+	SIGMA = Dialog.getNumber();
+	THRESHOLDING_METHOD = Dialog.getChoice();
+}
+macro "segment neurites (f3) Action Tool - C000T4b12s" {
 	segmentNeurites();	
 }
 
-macro "merge and filter (f7) Action Tool - C000T4b12m" {
+macro "segment neurites [f3]" {
+	segmentNeurites();	
+}
+
+macro "segment neurites (f3) Action Tool Options" {
+	Dialog.create("Segment Neurites Options");
+	Dialog.addCheckbox("equalize histogram: ", DO_HISTO_EQ);
+	Dialog.addString("input dataset: ", INPUT_DATASET, 40);
+	Dialog.addString("axis order: ", AXIS_ORDER);
+	Dialog.addString("classifier folder: ", CLASSIFIER_FOLDER, 60);
+	Dialog.addString("classifier: ", CLASSIFIER, 40);
+	
+	Dialog.show();
+
+	DO_HISTO_EQ = Dialog.getCheckbox();
+	INPUT_DATASET = Dialog.getString();
+	AXIS_ORDER = Dialog.getString();
+	CLASSIFIER_FOLDER = Dialog.getString();
+	CLASSIFIER = Dialog.getString();
+}
+
+macro "calculate distances (f4) Action Tool - C000T4b12d" {
 	mergeAndFilter();
 }
 
-macro "label neurites (f8) Action Tool - C000T4b12l" {
+macro  "calculate distances [f4]" {
+	mergeAndFilter();
+}
+
+macro "calculate distances (f4) Action Tool Options" {
+	Dialog.create("calculate distances options")
+	Dialog.addString("nuclei channel: ", CHANNELS[0]);
+	Dialog.addString("neurite channel: ", CHANNELS[1]);
+	Dialog.addString("FISH channel: ", CHANNELS[2]);
+	Dialog.addNumber("number of dilates on nuclei mask", NUMBER_OF_DILATES);
+	Dialog.show();
+	CHANNELS[0] = Dialog.getString();
+	CHANNELS[1] = Dialog.getString();
+	CHANNELS[2] = Dialog.getString();
+	NUMBER_OF_DILATES = Dialog.getNumber();
+}
+
+macro "label neurites (f5) Action Tool - C000T4b12l" {
    labelNeurites();  
 }
 
+macro "label neurites [f5]" {
+    labelNeurites();
+}
+
+macro "label neurites (f5) Action Tool Options" {
+	Dialog.create("Label Neurites Options");	
+	Dialog.addNumber("connectivity: ", CONNECTIVITY);
+	Dialog.show();
+	CONNECTIVITY = Dialog.getNumber();
+}
+
+macro "measure FISH Signal on neurites (f6) Action Tool - C000T4b12f" {
+	measureFISHOnNeurites();
+}
+
+macro "measure FISH Signal on neurites [f6]" {
+	measureFISHOnNeurites();
+}
+
+macro "batch segment nuclei (f7) Action Tool - C037T1d13bT9d13nC555" {
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
+}
+
+macro "batch segment nuclei [f7]" {
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
+}
+
+macro "batch export as h5 (f8) Action Tool - C037T1d13hT9d135C555" {
+	batchConvertToH5();
+}
+
+macro "batch export as h5 [f8]" {
+	batchConvertToH5();
+}
+
+macro "batch export as h5 (f8) Action Tool Options" {
+	Dialog.create("Export as h5 Options");
+	Dialog.addCheckbox("equalize histogram: ", DO_HISTO_EQ);
+	Dialog.show();
+	DO_HISTO_EQ = Dialog.getCheckbox();
+}
+
+macro "use ilastik (f9) Action Tool - C000T4b12i" {
+	useIlastikDialog();
+}
+
+macro "use ilastik [f9]" {
+	useIlastikDialog();	
+}
+
+macro "batch mask to selection (f10) Action Tool - C037T1d13bT9d13sC555" {
+	dir = getDir("Select the input folder!");
+	batchMaskToSelection(dir);
+}
+
+
+macro "batch mask to selection [f10]" {
+	dir = getDir("Select the input folder!");
+	batchMaskToSelection(dir);
+}
+
+macro "batch calculate distances (f11) Action Tool - C037T1d13bT9d13dC555" {
+	dir = getDir("Select the input folder!");
+	batchMergeAndFilter(dir);
+}
+
+macro "batch calculateDistances [f11]" {
+	dir = getDir("Select the input folder!");
+	batchMergeAndFilter(dir);
+}
+
+macro "batch measure FISH Signal on neurites (f12) Action Tool - C037T1d13bT9d13fC555" {
+	dir = getDir("Select the input folder!");
+	batchMeasureFISHOnNeurites(dir);
+}
+
+macro "batch measure FISH Signal on neurites [f12]" {
+	dir = getDir("Select the input folder!");
+	batchMeasureFISHOnNeurites(dir);
+}
+
+macro "batch process images Action Tool - C000T4b12b" {
+	batchProcessImages();
+}
+
+function useIlastikDialog() {
+	Dialog.create("Use ilastik");
+	Dialog.addMessage("Use ilastik to create a classifier and segment the neurite channel!\nSave each segmentation-mask in the folder of its input image.");
+	Dialog.show();
+}
+
+
+function selectNucleiImage() {
+	selectImageWithTextInTitle(CHANNELS[0]);
+}
+
+function selectNeuriteImage() {
+	selectImageWithTextInTitle(CHANNELS[1]);
+}
+
+
+function selectFISHImage() {
+	selectImageWithTextInTitle(CHANNELS[2]);
+}
+
+function selectCompositeImage() {
+	selectImageWithTextInTitle("composite");
+}
+
+
+function selectImageWithTextInTitle(text) {
+	titles = getList("image.titles");
+	for (i = 0; i < titles.length; i++) {
+		title = titles[i];
+		selectImage(title);
+		type = getInfo("window.type");
+		if ((type!="Image")) continue;	
+		if (indexOf(title, text)>-1) return;
+	}
+}
 
 function removeRoisWithoutSupport(image, otherImage) {
 	selectImage(otherImage);
 	run("To ROI Manager");
 	run("Select None");
 	roiManager("combine");
-	setBatchMode(true);
+	if (!BATCH_MODE) setBatchMode(true);
 	run("Create Mask");
 	rename("neurite-mask");
 	otherImageMaskID = getImageID();
@@ -93,7 +264,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 	roiManager("reset");
 	selectImage(otherImageMaskID);
 	close();
-	setBatchMode("exit and display");
+	if (!BATCH_MODE) setBatchMode("exit and display");
 }
 
 function mergeAndFilter() {
@@ -112,7 +283,7 @@ function mergeAndFilter() {
 	run("Create Mask");
 	rename("nuclei-mask");
 	nucleiMaskID = getImageID();
-	run("Options...", "iterations=50 count=1 do=Dilate");
+	run("Options...", "iterations="+NUMBER_OF_DILATES+" count=1 do=Dilate");
 	selectImage(nucleiImageID);
 	run("From ROI Manager");
 	roiManager("reset");
@@ -147,41 +318,16 @@ function labelNeurites() {
     run("Neurite Labelling PlugIn");
     run(LUT);
     setMinAndMax(0, max);
-}
-
-function merge(nucleiImageTitle, neuriteImageTitle) {
-	showStatus("Merging and filter: Merging.");
-	options = "c3="+nucleiImageTitle+" c4="+neuriteImageTitle+" create keep";
-	print(options);
-	run("Merge Channels...", options);
-	mergedImageID = getImageID();
-	selectImage(nucleiImageID);
-	run("To ROI Manager");
-	count = roiManager("count");
-	selectImage(mergedImageID);
-	c=1;
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		Overlay.addSelection;
-		Overlay.setPosition(c, 1, 1);
-	}
-	selectImage(nucleiImageID);
-	close();
-	roiManager("reset");
-	selectImage(neuriteImageID);
-	run("To ROI Manager");
-	count = roiManager("count");
-	selectImage(mergedImageID);
-	c=2;
-	for (i = 0; i < count; i++) {
-		roiManager("select", i);
-		Overlay.addSelection;
-		Overlay.setPosition(c, 1, 1);
-	}
-	run("Select None");
-	selectImage(neuriteImageID);
-	close();
-	roiManager("reset");
+    run("Select None");
+    selectNucleiImage();
+    nucleiTitle = getTitle();
+    selectNeuriteImage();
+    neuritesTitle = getTitle();
+    run("Merge Channels...", "c3="+nucleiTitle+" c4="+neuritesTitle+" c5=neurite-mask c6=neurite-mask-geoddist create");
+    selectImage("nuclei-mask");
+    close();
+    selectImage("nuclei-mask-lbl");
+    close();
 }
 
 function getImageInfo() {
@@ -204,8 +350,7 @@ function getImageInfo() {
 	return newArray(nucleiImageTitle, nucleiImageID, neuriteImageTitle, neuriteImageID);
 }
 
-function batchSegmentNuclei() {
-	dir = getDir("Select the input folder!");
+function batchSegmentNuclei(dir) {
 	subfolders = getFileList(dir);
 	setBatchMode(true);
 	BATCH_MODE = true;
@@ -214,7 +359,7 @@ function batchSegmentNuclei() {
 		print("Entering folder " + subfolders[i]);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[0]);
+		files = getFilesForChannel(files, CHANNELS[0], "tif");
 		for (f = 0; f < files.length; f++) {
 			file = files[f];
 			print("Processing file " + file);
@@ -281,11 +426,11 @@ function segmentNuclei() {
 	if (!BATCH_MODE) setBatchMode("show");
 }
 
-function getFilesForChannel(files, channel) {
+function getFilesForChannel(files, channel, ext) {
 	res = newArray(0);
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
-		if (indexOf(file, channel)>-1) {
+		if (indexOf(file, channel)>-1 && endsWith(file, "."+ext)) {
 			res = Array.concat(res, file);			
 		}
 	}
@@ -317,7 +462,7 @@ function batchEqualize() {
 		showProgress(i+1, subfolders.length);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[1]);
+		files = getFilesForChannel(files, CHANNELS[1], "tif");
 		for (f = 0; f < files.length; f++) {
 			file = files[f];
 			open(folder + file);
@@ -343,7 +488,7 @@ function batchConvertToH5() {
 		print("Entering folder " + subfolders[i]);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[1]);
+		files = getFilesForChannel(files, CHANNELS[1], "tif");
 		for (f = 0; f < files.length; f++) {
 			file = files[f];
 			filesString = String.join(files, ",");
@@ -365,73 +510,90 @@ function batchConvertToH5() {
 	print("batch convert to h5 took: " + (t2-t1)/1000 + "s");
 }
 
-// Use ilastik from command line instead
 function batchSegmentNeurites() {
 	dir = getDir("Select the input folder!");
 	subfolders = getFileList(dir);
 	setBatchMode(true);
+	BATCH_MODE = true;
+	print("\\Clear");
 	for (i = 0; i < subfolders.length; i++) {
 		print("Entering folder " + subfolders[i]);
-		showProgress(i+1, subfolders.length);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getH5FilesForChannel(files, CHANNELS[1]);
+		files = getFilesForChannel(files, CHANNELS[1], "tif");
 		for (f = 0; f < files.length; f++) {
-			print("Processing file " + files[f]);
-			file = folder + files[f];
-			inputImage = file + INPUT_DATASET;
-			importArgs = "select=" + file + " datasetname=" + INPUT_DATASET + " axisorder=" + AXIS_ORDER; 	
-			run("Import HDF5", importArgs);
-			pixelClassificationArgs = "projectfilename=" + CLASSIFIER_FOLDER + CLASSIFIER + " saveonly=false inputimage=" + inputImage + " pixelclassificationtype=" + OUTPUT_TYPE;
-			run("Run Pixel Classification Prediction", pixelClassificationArgs);
-			parts = split(file, '.');
-			outputFile = parts[0] + "-" + OUTPUT_TYPE + ".h5";
-			exportArgs = "select=" + outputFile + " datasetname=" + OUTPUT_DATASET + " compressionlevel=" + COMPRESSION_LEVEL;	
-			run("Export HDF5", exportArgs);
-			close("*");
+			file = files[f];
+			print("Processing file " + file);
+			open(folder + file);
+			segmentNeurites();
+			save(folder + file);
+			close();
 		}
 	}
 	setBatchMode("exit and display");
+	BATCH_MODE = false;
 }
 
-function batchMaskToSelection() {
-	dir = getDir("Select the input folder!");
+function batchMaskToSelection(dir) {
 	subfolders = getFileList(dir);
 	setBatchMode(true);
+	BATCH_MODE = true;
 	for (i = 0; i < subfolders.length; i++) {
 		print("Entering folder " + subfolders[i]);
 		showProgress(i+1, subfolders.length);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[0]);
+		files = getFilesForChannel(files, CHANNELS[0], "tif");
 		for (f = 0; f < files.length; f++) {
 			print("Processing file " + files[f]);
+			roiManager("reset");
 			file = folder + files[f];
 			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
-			file3 = replace(file2, ".tif", "_segmentation.tiff");
-			outFile = replace(file3, "_segmentation.tiff", "_composite.tif");
-			if (File.exists(outFile)) continue;
-			open(file);
-			nucleiImageID = getImageID();
-			nucleiImageID = getTitle();
+			file3 = replace(file2, ".tif", "_Simple Segmentation.tif");
 			open(file2);
 			neuriteImageID = getImageID();
 			neuriteImageTitle = getTitle();
 			open(file3);
 			neuriteMaskToSelection();
-			close();
-			selectImage(nucleiImageID);
-			Overlay.copy
-			run("Merge Channels...", "c2="+neuriteImageTitle+" c3="+nucleiImageID+" create");
-			run("Enhance Contrast", "saturated=0.35");
-			Overlay.paste
-			Stack.setChannel(2);
 			run("From ROI Manager");
-			saveAs("tiff", outFile);
+			run("Enhance Contrast", "saturated=0.35");
+			save(file2);
 			close("*");
 		}
 	}
 	setBatchMode("exit and display");
+	BATCH_MODE = false;
+}
+
+function batchMergeAndFilter(dir) {
+	subfolders = getFileList(dir);
+	setBatchMode(true);
+	BATCH_MODE = true;
+	for (i = 0; i < subfolders.length; i++) {
+		print("Entering folder " + subfolders[i]);
+		showProgress(i+1, subfolders.length);
+		folder = dir + subfolders[i];
+		files = getFileList(folder);
+		files = getFilesForChannel(files, CHANNELS[0], "tif");
+		for (f = 0; f < files.length; f++) {
+			print("Processing file " + files[f]);
+			roiManager("reset");
+			outFile = replace(files[f], CHANNELS[0]+".tif", "composite.tif");
+			outFile = folder + outFile;
+			file = folder + files[f];			
+			open(file);
+			nucleiTitle = getTitle();
+			file2 = replace(file, CHANNELS[0], CHANNELS[1]);
+			open(file2);
+			neuritesTitle = getTitle();
+			mergeAndFilter();
+			labelNeurites();
+			save(outFile);
+			close("*");
+		}
+	}
+	setBatchMode("exit and display");
+	BATCH_MODE = false;
 }
 
 function neuriteMaskToSelection() {
@@ -446,70 +608,97 @@ function neuriteMaskToSelection() {
 	close();
 }
 
-function copyRandomData() {
-	dir = getDir("Select the input folder!");
-	destDir = getDir("Select the target folder!");
-	files = getFileList(dir);
-	folders = filterFolders(files);
-	Array.print(folders);
-	for (i = 0; i < folders.length; i++) {
-		showProgress(i+1, folders.length);
-		folder = dir + folders[i] + SUBFOLDER;
-		File.makeDirectory(destDir + "/" + folders[i]);
+function batchMeasureFISHOnNeurites(dir) {
+	subfolders = getFileList(dir);
+//	setBatchMode(true);
+//	BATCH_MODE = true;
+	for (i = 0; i < subfolders.length; i++) {
+		print("Entering folder " + subfolders[i]);
+		showProgress(i+1, subfolders.length);
+		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		partFiles = getPartFiles(files, CHANNELS[0]);
-		Array.sort(partFiles);
-		indices = Array.getSequence(partFiles.length);
-		shuffle(indices);
-		for (p = 0; p < CHANNELS.length; p++) {
-			part = CHANNELS[p];
-			if (p>0) replaceFile(partFiles, CHANNELS[p-1], CHANNELS[p]);
-			for (f = 0; f < NR_OF_FILES_PER_FOLDER; f++) {
-				File.copy(folder + "/" + partFiles[indices[f]], destDir + "/" + folders[i] + partFiles[indices[f]]);
-			}
+		files = getFilesForChannel(files, CHANNELS[2], "tif");
+		for (f = 0; f < files.length; f++) {
+			print("Processing file " + files[f]);
+			roiManager("reset");
+			file = folder + files[f];
+			file2 = replace(file, CHANNELS[2]+".tif", "composite.tif");
+			open(file);
+			open(file2);
+			imageID = getImageID();
+			measureFISHOnNeurites();
+			selectImage(imageID);
+			run("From ROI Manager");
+			save(file);
+			parts = split(file, ".");
+			Table.save(parts[0] + ".xls", "Results");
+			close("*");
 		}
 	}
-}
+//	setBatchMode("exit and display");
+//	BATCH_MODE = false;
+}	
 
-
-function replaceFile(files, part1, part2) {
-	for (i = 0; i < files.length; i++) {
-		files[i] = replace(files[i], part1, part2);
+function measureFISHOnNeurites() {
+	selectFISHImage();
+	run("FeatureJ Laplacian", "compute smoothing="+SCALE);
+	run("Find Maxima...", "prominence="+PROEMINENCE+" light output=[Point Selection]");
+	roiManager("reset");
+	roiManager("Add");
+	close();
+	selectCompositeImage();
+	roiManager("Show None");
+	roiManager("Show All");
+	run("Set Measurements...", "mean redirect=None decimal=3");
+	roiManager("select", 0);
+	run("Clear Results");
+	Stack.setChannel(NEURITE_ID_CHANNEL);	
+	roiManager("measure");
+	X = Table.getColumn("X");
+	Y = Table.getColumn("Y");
+	neuronID = Table.getColumn("Mean");
+	
+	run("Clear Results");
+	Stack.setChannel(DISTANCE_CHANNEL);	
+	roiManager("measure");
+	somaDistance = Table.getColumn("Mean");
+	xPoints = newArray(0);
+	yPoints = newArray(0);
+	for (i = 0; i < neuronID.length; i++) {
+		if (neuronID[i] == 0 || somaDistance[i]==0) continue;
+		xPoints = Array.concat(xPoints, X[i]);
+		yPoints = Array.concat(yPoints, Y[i]);
 	}
+	roiManager("reset");
+	run("Clear Results");
+	makeSelection("point", xPoints, yPoints);
+	roiManager("add");
+	roiManager("Remove Channel Info");
+	roiManager("Remove Slice Info");
+	roiManager("Remove Frame Info");
+	Stack.setChannel(NEURITE_ID_CHANNEL);	
+	roiManager("measure");
+	Table.update("Results");
+	X = Table.getColumn("X");
+	Y = Table.getColumn("Y");
+	neuronID = Table.getColumn("Mean");
+	run("Clear Results");
+	Stack.setChannel(DISTANCE_CHANNEL);	
+	roiManager("measure");
+	Table.update("Results");
+	somaDistance = Table.getColumn("Mean");
+	run("Clear Results");
+	Table.setColumn("X", X);
+	Table.setColumn("Y", Y);
+	Table.setColumn("Neuron-ID", neuronID);
+	Table.setColumn("Dist. to Soma", somaDistance);
+	Table.sort("Neuron-ID", "Results");
 }
 
-function shuffle(array) {
-	for (i = 0; i < array.length; i++) {
-		randomIndexToSwap = randomInt(array.length);
-		temp = array[randomIndexToSwap];
-		array[randomIndexToSwap] = array[i];
-		array[i] = temp;
-	}
-}
-
-function randomInt(n) {
-	rand = random;
-	res = floor(n * rand);
-	return res;
-}
-
-function getPartFiles(files, part) {
-	res = newArray(0);
-	for (i = 0; i < files.length; i++) {
-		file = files[i];
-		if (indexOf(file, part)>-1) {
-			res = Array.concat(res, file);			
-		}
-	}
-	return res;
-}
-
-function filterFolders(files) {
-	res = newArray(0);
-	for (i = 0; i < files.length; i++) {
-		if (indexOf(files[i], NAME_FILTER)>-1) {
-			res = Array.concat(res, files[i]);
-		}
-	}
-	return res;
+function batchProcessImages() {
+	dir = getDir("Select the input folder!");
+	batchSegmentNuclei(dir);
+	batchMaskToSelection(dir);
+	batchMergeAndFilter(dir);
+	batchMeasureFISHOnNeurites(dir);
 }
