@@ -6,7 +6,7 @@ var BATCH_MODE = false;
 
 var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
 var CLASSIFIER = "neurite_segmentation_final.ilp"
-var OUTPUT_TYPE = "Segmentation"; //  or "Probabilities"
+var OUTPUT_TYPE = "Segmentation";
 var INPUT_DATASET = "/exported_data";
 var OUTPUT_DATASET = "/exported_data";
 var AXIS_ORDER = "tzyxc";
@@ -121,6 +121,15 @@ macro "measure FISH Signal on neurites (f6) Action Tool - C000T4b12f" {
 
 macro "measure FISH Signal on neurites [f6]" {
 	measureFISHOnNeurites();
+}
+
+macro "measure FISH Signal on neurites (f6) Action Tool Options" {
+	Dialog.create("measure FISH spots options");
+	Dialog.addNumber("scale: ", SIGMA);
+	Dialog.addNumber("proeminence: ", PROEMINENCE);
+	Dialog.show();
+	SIGMA = Dialog.getNumber();
+	PROEMINENCE = Dialog.getNumber();
 }
 
 macro "batch segment nuclei (f7) Action Tool - C037T1d13bT9d13nC555" {
@@ -268,6 +277,7 @@ function removeRoisWithoutSupport(image, otherImage) {
 }
 
 function mergeAndFilter() {
+	selectNucleiImage();
 	imageInfo = getImageInfo();
 	nucleiImageTitle = imageInfo[0];
 	nucleiImageID = imageInfo[1];
@@ -379,6 +389,7 @@ function batchSegmentNuclei(dir) {
  * to a roi on the input image.
  */
 function segmentNeurites() {
+	selectNeuriteImage();
 	Overlay.remove;
 	outputDataset = "exported_data";
 	compressionLevel = 0;
@@ -414,6 +425,7 @@ function segmentNeurites() {
  * of the channel.
  */
 function segmentNuclei() {
+	selectNucleiImage();
 	Overlay.remove;
 	if (!BATCH_MODE) setBatchMode("hide");
 	run("Duplicate...", " ");
