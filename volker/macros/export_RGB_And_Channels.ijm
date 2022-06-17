@@ -27,7 +27,7 @@ function processFile(input, output, file) {
 	// Do the processing here by adding your own code.
 	// Leave the print statements until things work, then remove them.
 	print("Processing: " + input + File.separator + file);
-	run("Bio-Formats", "open="+input + File.separator + file+" autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
+	run("Bio-Formats", "open=["+input + File.separator + file+"] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	newName = File.getNameWithoutExtension(file);
 	newName = newName + "-RGB.tif";
 	run("Duplicate...", "duplicate");
