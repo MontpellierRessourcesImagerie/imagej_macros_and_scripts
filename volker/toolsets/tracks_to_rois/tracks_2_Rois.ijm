@@ -35,7 +35,7 @@ function createTracksAsRois() {
             roiY = Array.concat(roiY, Y[i]);
         } 
         if (currentTrack != newTrack || i==X.length-1) {
-            makeSelection("polygon ", roiX, roiY);
+            makeSelection("polyline ", roiX, roiY);
             roiManager("add");
             count = roiManager("count");
             roiManager("select", count-1);
