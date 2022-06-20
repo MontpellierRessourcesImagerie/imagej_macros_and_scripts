@@ -22,6 +22,13 @@ macro "Tracks 2 Rois Action Tool (F11) Options" {
 
 function createTracksAsRois() {
     roiManager("reset");
+    value = Table.getString("TRACK_ID", 0);
+    if (value=="Track ID") {
+        Table.deleteRows(0, 2);
+    } 
+    Table.sort("POSITION_T");
+    Table.sort("TRACK_ID");
+    Table.update();
     X = Table.getColumn("POSITION_X");
     Y = Table.getColumn("POSITION_Y");
     TRACKS = Table.getColumn("TRACK_ID");
@@ -51,8 +58,11 @@ function createTracksAsRois() {
             }
         }
     }
+    run("Select None");
     roiManager("Remove Channel Info");
     roiManager("Remove Slice Info");
     roiManager("Remove Frame Info");
+    roiManager("Show None");
+    roiManager("Show All without labels");
 }
 
