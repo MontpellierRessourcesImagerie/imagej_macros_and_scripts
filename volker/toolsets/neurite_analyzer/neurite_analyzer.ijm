@@ -634,7 +634,7 @@ function batchMeasureFISHOnNeurites(dir) {
 			print("Processing file " + files[f]);
 			roiManager("reset");
 			file = folder + files[f];
-			file2 = replace(file, CHANNELS[2]+".tif", "composite.tif");
+			file2 = replace(file, CHANNELS[2]+".tif", "result_composite.tif");
 			open(file);
 			open(file2);
 			imageID = getImageID();
