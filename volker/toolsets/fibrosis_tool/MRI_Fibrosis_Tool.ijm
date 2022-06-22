@@ -6,21 +6,52 @@
   * written 2015 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
 */
 
-var r1 = 0.148;
-var g1 = 0.772;
-var b1 = 0.618;
-var r2 = 0.462;
-var g2 = 0.602;
-var b2 = 0.651;
-var r3 = 0.187;
-var g3 = 0.523;
-var b3 = 0.831;
+
+var vectors = newArray(
+0.148,
+0.772,
+0.618,
+0.462,
+0.602,
+0.651,
+0.187,
+0.523,
+0.831
+);
+
+/*
+var vectors = newArray(
+0.035,
+0.26,
+0.965,
+0.41,
+0.207,
+0.977,
+0.067,
+0.13,
+0.989
+);
+*/
+
+var r1 = vectors[0];
+var g1 = vectors[1];
+var b1 = vectors[2];
+var r2 = vectors[3];
+var g2 = vectors[4];
+var b2 = vectors[5];
+var r3 = vectors[6];
+var g3 = vectors[7];
+var b3 = vectors[8];
+
 var _EXT = ".ndpi";
 var _CONTROL_FOLDER = "control-images";
 var _RESULTS_TABLE = "Fibrosis area";
 var _REMOVE_SCALE = false;
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool";
+
+measureCurrentImage();
+exit;
 
 macro "MRI Fibrosis Tool Help [f1]" {
   showHelp();
@@ -96,6 +127,8 @@ function measureCurrentImage() {
 	close();
 	close();
 	setAutoThreshold("Default");
+    getThreshold(lower, upper);
+    setThreshold(1, upper);
 	run("Create Selection");
 	run("Set Scale...", "distance=1 known="+pixelWidth+" pixel=1 unit="+unit);
 	run("Measure");
