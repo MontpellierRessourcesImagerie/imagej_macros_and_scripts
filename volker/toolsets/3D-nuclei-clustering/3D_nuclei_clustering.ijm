@@ -667,7 +667,7 @@ function detectNuclei() {
 	Overlay.addSelection;
 	Overlay.setPosition(0, round(z), 0);
 	run("Select None");
-	return X.length;
+	return _X_COLUMN.length;
 }
 
 function addDistancesFromCenterToTable() {
@@ -877,14 +877,17 @@ function drawNearestNeighborConnections(tableName) {
 }
 
 function findCenterAndSetOrigin() {
+	getDimensions(width, height, channels, slices, frames);
 	Overlay.remove;
 	imageID = getImageID();
 	title = getTitle();
 	if (!_DEBUG) setBatchMode(true);
 	run("Duplicate...", "duplicate");
 	titleOfCopy = getTitle();
-	run("Split Channels");
-	run("Merge Channels...", "c1=C1-"+titleOfCopy+" c2=C2-"+titleOfCopy+" c3=C3-"+titleOfCopy);
+	if (channels>2) {
+		run("Split Channels");
+		run("Merge Channels...", "c1=C1-"+titleOfCopy+" c2=C2-"+titleOfCopy+" c3=C3-"+titleOfCopy);
+	}
 	run("8-bit");
 	setAutoThreshold("Default dark stack");
 	run("Convert to Mask", "method=Default background=Dark");
@@ -895,7 +898,9 @@ function findCenterAndSetOrigin() {
 	x = getResult("CX(pix)", nResults-1);
 	y = getResult("CY(pix)", nResults-1);
 	z = getResult("CZ(pix)", nResults-1);
-	close();
+	if (channels>2) {
+		close();
+	}
 	close();
 	close();
 	selectImage(imageID);
