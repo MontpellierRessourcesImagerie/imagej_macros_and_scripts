@@ -15,6 +15,7 @@ var _SCALE = 6;
 var _RADIUS_XY = 1.50;
 var _RADIUS_Z = 1.50;
 var _NOISE = 500;
+var _FINDER_MIN_THRESHOLD = 0;
 var _EXCLUDE_ON_EDGES = true;
 var _RADIUS_SPHERE = 3 	// in scaled units (for exampel  m)
 var _LOOKUP_TABLE = "glasbey on dark";
@@ -92,6 +93,7 @@ macro "detect nuclei [f5]" {
 macro "detect nuclei (f5) Action Tool Options" {
 	Dialog.create("Detect nuclei options");
 	Dialog.addNumber("scale: ", _SCALE);
+	Dialog.addNumber("min. threshold: ", _FINDER_MIN_THRESHOLD);
 	Dialog.addNumber("radius xy: ", _RADIUS_XY);
 	Dialog.addNumber("radius z: ", _RADIUS_Z);
 	Dialog.addNumber("noise: ", _NOISE);
@@ -100,6 +102,7 @@ macro "detect nuclei (f5) Action Tool Options" {
 	Dialog.addCheckbox("create results channel ", _CREATE_RESULTS_CHANNEL);
 	Dialog.show();
 	_SCALE = Dialog.getNumber();
+	_FINDER_MIN_THRESHOLD = Dialog.getNumber();
 	_RADIUS_XY = Dialog.getNumber();
 	_RADIUS_Z = Dialog.getNumber();
 	_NOISE = Dialog.getNumber();
@@ -604,8 +607,9 @@ function detectNuclei() {
 	getVoxelSize(width, height, depth, unit);
 	run("FeatureJ Laplacian", "compute smoothing="+_SCALE);
 	run("Invert", "stack");
+	run("16-bit");
 	filteredID = getImageID();
-	run("3D Maxima Finder", "radiusxy="+_RADIUS_XY+" radiusz="+_RADIUS_Z+" noise="+_NOISE);
+	run("3D Maxima Finder", "minimmum=" + _FINDER_MIN_THRESHOLD + " radiusxy="+_RADIUS_XY+" radiusz="+_RADIUS_Z+" noise="+_NOISE);
 	selectWindow("peaks");
 	peaksID = getImageID();
 	if (_EXCLUDE_ON_EDGES) {
@@ -898,9 +902,6 @@ function findCenterAndSetOrigin() {
 	x = getResult("CX(pix)", nResults-1);
 	y = getResult("CY(pix)", nResults-1);
 	z = getResult("CZ(pix)", nResults-1);
-	if (channels>2) {
-		close();
-	}
 	close();
 	close();
 	selectImage(imageID);
