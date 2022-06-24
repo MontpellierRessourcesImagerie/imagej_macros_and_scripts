@@ -1,30 +1,71 @@
-a = 522.38927
-b = 1690.71042
-c = 4.93057
-d = 7.72141
+var plotX;
+var plotY;
+var width;
+var height;
+var channels; 
+var slices; 
+var frames;
+var imageID;
 
-
-getDimensions(width, height, channels, slices, frames);
-
-ZFactor = newArray(slices);
-
-for (i = 0; i < slices; i++) {
-	ZFactor[i] = gauss(i);	
+macro "get profile (f2) Action Tool - C000T4b12p" {
+	getZProfile();
 }
 
-ranks = Array.rankPositions(ZFactor);
-max = ZFactor[ranks[ranks.length-1]];
-
-for (i = 0; i < slices; i++) {
-	ZFactor[i] = max / ZFactor[i];
+macro "get profile [f2]" {
+	getZProfile();
 }
 
-for (i = 0; i < slices; i++) {
-	Stack.setSlice(i+1);
-	run("Multiply...", "value="+ZFactor[i]+" slice");
+macro "subtract profile (f3) Action Tool - C000T4b12s" {
+	subtractProfile();
 }
 
-function gauss(z) {
-	y = a+(b-a)*Math.exp(-(z-c)*(z-c)/(2*d*d));
-	return y;
+macro "subtract profile [f3]" {
+	subtractProfile();
 }
+
+
+macro "multiply profile (f4) Action Tool - C000T4b12m" {
+	multiplyProfile();
+}
+
+macro "multiply profile [f4]" {
+	multiplyProfile();
+}
+
+function getZProfile() {
+	imageID = getImageID();
+	getDimensions(width, height, channels, slices, frames);
+	run("Plot Z-axis Profile");
+	Plot.getValues(plotX, plotY);
+	close();
+	roiManager("add");
+	run("Select None");
+}
+
+function subtractProfile() {
+	Fit.doFit("Rodbard", plotX, plotY);
+	rodbardValues = newArray(slices);
+	for (i = 0; i < slices; i++) {
+		rodbardValues[i] = Fit.f(i);
+	}
+	for (i = 0; i < slices; i++) {
+		Stack.setSlice(i+1);
+		run("Subtract...", "value="+rodbardValues[i]+" slice");
+	}
+	Stack.setSlice(1);
+}
+
+function multiplyProfile() {
+	Fit.doFit("Rodbard", plotX, plotY);
+	rodbardValues = newArray(slices);
+	max = Fit.f(0);
+	for (i = 0; i < slices; i++) {
+		rodbardValues[i] = max / Fit.f(i);
+	}
+	for (i = 0; i < slices; i++) {
+		Stack.setSlice(i+1);
+		run("Multiply...", "value="+rodbardValues[i]+" slice");
+	}
+	Stack.setSlice(1);
+}
+
