@@ -19,7 +19,7 @@ def main(args):
         untangler.evaluate()
     if args[0] == "GlobalEvaluate":
         untangler.globalEvaluate()
-    if args[0] == "Define?":  # TODO Change this option code
+    if args[0] == "DefineWorms":
         untangler.define()
     if args[0] == "Test":
         untangler.test()
@@ -31,19 +31,9 @@ class WormUntangler(object):
         self.segments = []
         self.nodes = []
         self.paths = []
-        if args:
-            pass
-            # parser = getArgumentParser()
-            # self.options = parser.parse_args(args)
-            # self.configureFromOptions()
 
     def untangle(self):
-        self.initialize()
-        self.doPathEnumeration()
-        self.buildPathTable("pathsTable")
-        orphans = self.getOrphanSegments()
-        self.removeOrphans(orphans)
-        print("Untangle Worms : Not Yet Implemented !")
+        self.define()
 
     def populate(self):
         self.initialize()
@@ -160,13 +150,14 @@ class WormUntangler(object):
         while roiID < rm.getCount():
             roi = rm.getRoi(roiID)
             # for roi in rm:
-            if roi.getName() not in pathNames:
+            if roi.getName() in pathNames:
+                roiID += 1
+
+            else:
                 roiID = rm.getRoiIndex(roi)
                 rm.select(roiID)
                 rm.runCommand("Delete")
                 rm.runCommand("Deselect")
-            else:
-                roiID = roiID + 1
 
     def calculateCostsOneLevel(
         self, level=1, previousCandidates=None, bestScore=3.1, bestSet=None
@@ -384,7 +375,7 @@ class WormUntangler(object):
         for seg in self.segments:
             print(str(seg) + "=>" + seg.stringNodes())
 
-    def doPathEnumeration(self, debug=False, verbose=False):
+    def doPathEnumeration(self, debug=True, verbose=False):
         validPaths = []
         for s in self.segments:
             if debug:
@@ -451,10 +442,7 @@ class WormUntangler(object):
         paths = self.paths
         orphans = []
         for s in self.segments:
-            orphan = True
-            for p in paths:
-                if s in p.segments:
-                    orphan = False
+            orphan = all(s not in p.segments for p in paths)
             if orphan:
                 orphans.append(s)
         return orphans
@@ -557,9 +545,9 @@ class WormUntangler(object):
 
 
 class Path:
-    minWormLength = 450
-    maxWormLength = 750
-    maxSegmentNumber = 12
+    minWormLength = 400
+    maxWormLength = 700
+    maxSegmentNumber = 10
 
     def __init__(self, args=None):
         self.ID = None
@@ -910,8 +898,11 @@ class Segment:
         self.roi = inputRoi
         self.ID = inputRoi.getName()
 
-        imageWidth, imageHeight, _, _, _ = inputRoi.getImage().getDimensions()
-        bounds = inputRoi.getBounds()
+        self.defineIfTouchingTheEdge()
+
+    def defineIfTouchingTheEdge(self):
+        imageWidth, imageHeight, _, _, _ = self.roi.getImage().getDimensions()
+        bounds = self.roi.getBounds()
         margin = self.margin
 
         self.touchingTheEdge = (
