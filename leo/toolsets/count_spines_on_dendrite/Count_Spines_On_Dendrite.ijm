@@ -48,7 +48,6 @@ macro "Draw Spines Tool Options"{
     drawSpinesOption();
 }
 
-
 macro "Count Spines Action Tool - C000T4b12C"{
     countSpinesAction();
 }
@@ -91,7 +90,15 @@ function countSpinesAction(){
     for(i=0;i<spineInGroup.length;i++){
         print("Number of Spines in group "+ i+1 + " = " + spineInGroup[i]);
     }
-    roiManager("save",getDir("Directory")+"/ROI.zip");
+
+    Dialog.create("Roi Saving Options");
+    Dialog.addDirectory("ROI Directory","");
+    Dialog.addString("File Name", "");
+    Dialog.show();
+    directory = Dialog.getString();
+    file = Dialog.getString();
+    
+    roiManager("save",directory+"/ROI_"+file+".zip");
 }
 
 function openImageAction(){
@@ -101,8 +108,6 @@ function openImageAction(){
     fileToOpen = Dialog.getString();
     openAndCleanImage(fileToOpen);
 }
-
-
 
 function drawDendriteAction(){
     enlargeRadius = _ENLARGE_RADIUS;
@@ -126,7 +131,8 @@ function drawDendrite(enlargeRadius,minDendriteArea){
     
     keepAreaAroundSelection(enlargeRadius);
     run("Select None");
-    
+
+    //run("Options...", "iterations=5 count=1 black pad do=Erode");
     run("Options...", "iterations=1 count=1 black do=Open");
     run("Analyze Particles...", "size="+minDendriteArea+"-Infinity pixel show=Masks");
     
@@ -177,6 +183,7 @@ function openAndCleanImage(fileName){
     
     setSlice(nSlices/2);
     run("Enhance Contrast", "saturated=0.35");
+    run("Brightness/Contrast...");
 }
 
 function openImageOption(){
