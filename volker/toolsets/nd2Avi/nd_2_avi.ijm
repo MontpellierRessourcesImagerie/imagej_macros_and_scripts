@@ -120,7 +120,7 @@ function convert() {
 			run("Remove Overlay");
 			run("Time Bar...", options);
 			outPath = replace(paths[pos], ".tif", ".avi");
-			run("AVI... ", "compression=JPEG frame="+FRAME_RATE+" save="+outPath);
+			run("AVI... ", "compression=JPEG frame="+FRAME_RATE+" save=["+outPath+"]");
 			close();
 		}
 	}
