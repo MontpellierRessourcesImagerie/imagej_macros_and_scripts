@@ -26,6 +26,8 @@ var _REMOVE_SMALL_OBJECTS_SIZE = 50;
 
 var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Analyze-Spheroid-Cell-Invasion-In-3D-Matrix";
 
+measureArea();
+exit;
 
 macro "HELP for the Analyze Spheroid Cell Invasion In 3D Matrix Action Tool - C777D75D76D77D78D88D95D98Da4CfffD17D81D91DaeDdbDe5CbbbD29D2aD34D36D3bD3cD3dD43D45D52D72D82D9bDb3Db5Dc3Dc5Dc6Dc8CaaaD39D3aD47D57D63D6aD79D7aD83D84Da9Dc7CcccD5eD6dDb2DbbDc9Dd5Dd6Dd8C999D27D28D48D49D4aD59D5aD64D65D89D97D99Db7Db8CcccD37D5dD92Da2DcaDe7CbbbD38D44D46D4cD53D54D5cD62D6cD73D7bD7cD8bDa3Db4DbaDc4Dd7CeeeD6eD8dD9dDacC999D4bD55D56D58D66D67D69D74D8aD94D9aDa6Da7DaaDb6CaaaD26D4dD5bD6bD8cD93Da5DabDb9CdddD2bD35Dd4CeeeD71Dd9DdaDe6De9C888D68D85D86D87D96Da8CdddD25D7dD9cDe8" {
 	 run('URL...', 'url='+_URL);
@@ -200,9 +202,7 @@ function measureArea() {
 	run("Fill Holes (Binary/Gray)");
 	run("Invert LUT");
 	if (_REMOVE_SMALL_OBJECTS) {
-		run("Invert");
 		run("Analyze Particles...", "size="+_MIN_SIZE+"-Infinity show=Masks in_situ");
-		run("Invert");
 	}
 	run("Create Selection");
 	close();
