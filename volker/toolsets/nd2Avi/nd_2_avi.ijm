@@ -57,7 +57,7 @@ macro "convert ND2AVI (f5) Action Tool Options" {
 	Dialog.addNumber("AVI frame rate: ", FRAME_RATE);
 	Dialog.addMessage("Timestamp (Timebar) options");
 	Dialog.addNumber("offset: ", OFFSET);
-	Dialog.addNumber("thikness: ", THICKNESS);
+	Dialog.addNumber("thickness: ", THICKNESS);
 	Dialog.addNumber("font size: ", FONTSIZE);
 	Dialog.addChoice("color: ", COLORS, COLOR);
 	Dialog.addChoice("background color: ", BACKGROUND_COLORS, BACKGROUND_COLOR);

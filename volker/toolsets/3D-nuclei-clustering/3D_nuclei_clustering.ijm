@@ -897,6 +897,7 @@ function findCenterAndSetOrigin() {
 	run("Convert to Mask", "method=Default background=Dark");
 	run("Fill Holes", "stack");
 	run("Options...", "iterations=10 count=1 do=Close stack");
+	run("Options...", "iterations=1");
 	run("Analyze Particles...", "size=5000-Infinity show=Masks stack");
 	run("3D Centroid");
 	x = getResult("CX(pix)", nResults-1);
