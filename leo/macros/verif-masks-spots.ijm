@@ -1,4 +1,6 @@
-var mipRedSuffix = "w2Cy3.tif";
+//6-verif-spots
+
+var mipRedSuffix = "w1Cy3.tif";
 var mipGreenSuffix = "w2GFP.tif";
 var maskPrefix = "mask_";
 var maskSuffix = mipRedSuffix;
@@ -48,7 +50,7 @@ function displayCompositeRED(mipCy3Dir, maskDir, spotsDir, baseFileName){
     maskTitle = openMaskImage(maskDir, baseFileName, maskPrefix, maskSuffix);
     
     spotsTitle = splitAndOutlineRED(spotsDir, baseFileName, spotsSuffix);
-    spotsTitleRed = spotsTitle + " (blue)";
+    spotsTitleRed = spotsTitle;
     
     mergeRedImage(maskTitle,mipTitleRed,spotsTitleRed);
 }
@@ -58,21 +60,6 @@ function splitAndOutlineRED(spotsDir, baseFileName, titleSuffix){
     
     open(spotsPath);
     spotsTitle = getTitle();
-    run("Split Channels");
-    
-    spotsTitleRed = spotsTitle + " (red)";
-    spotsTitleGreen = spotsTitle + " (green)";
-    spotsTitleBlue = spotsTitle + " (blue)";
-    
-    selectWindow(spotsTitleBlue);
-    setThreshold(254, 255);
-    run("Convert to Mask");
-    
-    selectWindow(spotsTitleRed);
-    close();
-    
-    selectWindow(spotsTitleGreen);
-    close();
     
     return spotsTitle;
 }
