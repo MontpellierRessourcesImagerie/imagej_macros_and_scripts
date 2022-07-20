@@ -31,6 +31,9 @@ var _DIR;
 var _ID_CYTOPLASM_IMAGE;
 var _ID_NUCLEI_IMAGE;
 
+measureIntensityRatioForOpenImage();
+exit;
+
 
 macro "Unused Tool - C037" { }
 
@@ -39,7 +42,7 @@ macro 'Intensity Ratio Nuclei Cytoplasm Help (f1) Action Tool - C000D00D01D02D03
 }
 
 macro "correct background (f2) Action Tool - C000T4b12c" {
-                       findAndSubtractBackground(_SUBTRACT_BACKGROUND_RADIUS, _SUBTRACT_BACKGROUND_OFFSET, _SUBTRACT_BACKGROUND_ITERATIONS, _SUBTRACT_BACKGROUND_SKIP_LIMIT);
+     findAndSubtractBackground(_SUBTRACT_BACKGROUND_RADIUS, _SUBTRACT_BACKGROUND_OFFSET, _SUBTRACT_BACKGROUND_ITERATIONS, _SUBTRACT_BACKGROUND_SKIP_LIMIT);
 }
 
 macro "correct background (f2) Action Tool Options" {
@@ -187,8 +190,13 @@ function measureIntensityRatioForOpenImage() {
     resetThreshold();
     selectImage(_ID_CYTOPLASM_IMAGE);
     run("Restore Selection");
+    medianIntensityNuclei = getValue("Median");
     run("Measure");
     run("Make Inverse");
+    nBins = 256;
+    if (bitDepth()==16) nBins = 65536; 
+    getHistogram(values, counts, nBins);
+    medianCytoplasm = getMedianWithoutZero(counts);
     run("Measure");
     totalIntensityNuclei = getResult("IntDen", nResults-2);
     meanIntensityNuclei = getResult("Mean", nResults-2);
@@ -202,7 +210,7 @@ function measureIntensityRatioForOpenImage() {
     table="["+tableTitle+"]";
     if (!isOpen(tableTitle)) {
         run("Table...", "name="+tableTitle+" width=550 height=250");
-        print(table, "\\Headings:n\timage\ticn factor\t% nuclei\t% cytoplasm\tav. nuclei intensity\tav. cytoplasm intensity\tnuclei area\tcytoplasm area\tt. nuclei intensity\tt. cytoplasm intensity\tfolder");
+        print(table, "\\Headings:n\timage\ticn factor\t% nuclei\t% cytoplasm\tav. nuclei intensity\tav. cytoplasm intensity\tnuclei area\tcytoplasm area\tt. nuclei intensity\tt. cytoplasm intensity\tmedian nuclei intensity\tmedian cytoplasm intensity\tfolder");
     }
     selectWindow(tableTitle);
     info = split(getInfo("window.contents"), "\n");
@@ -210,11 +218,44 @@ function measureIntensityRatioForOpenImage() {
     percentIntensityNuclei = 100 * (totalIntensityNuclei / ((totalIntensityCytoplasm + totalIntensityNuclei) * 1.0));
     percentIntensityCytoplasm = 100 * (totalIntensityCytoplasm / ((totalIntensityCytoplasm + totalIntensityNuclei) * 1.0));
     icnFactor = percentIntensityNuclei / (percentIntensityCytoplasm * 1.0);
-    line = "" + index + "\t" + _FILENAME + "\t" + icnFactor + "\t" + percentIntensityNuclei + "\t" + percentIntensityCytoplasm + "\t" + meanIntensityNuclei + "\t" + meanIntensityCytoplasm + "\t" + areaNuclei + "\t" + areaCytoplasm + "\t" + totalIntensityNuclei + "\t" + totalIntensityCytoplasm + "\t" + _DIR; 
+    line = "" + index + "\t" + _FILENAME + "\t" + icnFactor + "\t" + percentIntensityNuclei + "\t" + percentIntensityCytoplasm + "\t" + meanIntensityNuclei + "\t" + meanIntensityCytoplasm + "\t" + areaNuclei + "\t" + areaCytoplasm + "\t" + totalIntensityNuclei + "\t" + totalIntensityCytoplasm + "\t" + medianIntensityNuclei + "\t" + medianCytoplasm + "\t" + _DIR; 
     print (table, line);
     createControlImage();
 }
 
+
+function getMedianWithoutZero(histogram) {
+    number = 0;
+    for (i = 1; i < histogram.length; i++) {
+        number = number + histogram[i];
+    }
+    index1 = 0;
+    index2 = 0;
+    if (number%2>0) {
+        index1 = Math.floor(number/2);
+    } else {
+        index2 = number/2;
+        index1 = index2-1;
+        
+    }
+    number = 0;
+    for (i = 1; i < histogram.length; i++) {
+        lowerIndex = number;
+        upperIndex = lowerIndex + histogram[i] - 1;
+        number = number + histogram[i];
+        if (index2 == 0 && index1>=lowerIndex && index1<=upperIndex) {
+            return i;
+        }
+        if (index2 > 0 && index1>=lowerIndex && index1<=upperIndex) {
+            if (index2>=lowerIndex && index2<=upperIndex) {
+                return i;
+            } 
+            return (i + (i + 1)) / 2;
+        }
+    }
+    return -1;
+}
+    
 function createControlImage() {
     selectImage(_ID_NUCLEI_IMAGE);
     nucleiTitle = getTitle();
