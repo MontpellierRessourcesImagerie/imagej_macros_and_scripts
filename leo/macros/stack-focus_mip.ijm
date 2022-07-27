@@ -6,72 +6,76 @@
 dir1 = getDirectory("Choose stack_Source Directory");
 dir2 = getDirectory("Choose_result Directory");
 
-list1 = getFileList(dir1);
-
-redSuffix = "Cy3.tif";
+redSuffix = "w1Cy3.tif";
 outputDirectoryRed = dir2+"/"+replace(redSuffix, ".tif","");
 
-greenSuffix = "GFP.tif";
+greenSuffix = "w2GFP.tif";
 outputDirectoryGreen = dir2+"/"+replace(greenSuffix, ".tif","");
 
+
+
+list = getFileList(dir1);
+list = filterRedChannelImages(list);
+
+
 setBatchMode(true);
-mipOneChannel(redSuffix,outputDirectoryRed,list1);
-mipOneChannel(greenSuffix,outputDirectoryGreen,list1);
+mipTwoChannels(dir1, list);
 setBatchMode(false);
 
-/*
-// boucle sur les images des diffÃ©rents dossiers
-for (i=0; i<list1.length; i++) {
-	if(endsWith(toLowerCase(list1[i]),toLowerCase(redSuffix))){
-        open(dir1+list1[i]);
-        //run("Bio-Formats Importer", "open=["+dir1+list1[i]+"] color_mode=Grayscale split_channels rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
-   	 	name=getTitle();
-		run("Find focused slices", "select=100 variance=0.000 edge verbose");
-     
-		selectWindow(name);
-		m=getSliceNumber();
-		//print(m);
-		//min=m-3;
-		min=maxOf(m-3, 1);
-		//max=m+3;
-		max = minOf(m+3, nSlices);
-		//"Slice Keeper", "first="+min+" last="+max+" increment=1");
-		//run("Z Project...", "projection=[Max Intensity]");
-		run("Z Project...", "start="+min+" stop="+max+" projection=[Max Intensity]");
-		save(outputDirectoryRed+"MIP_"+name);
-		
-		run("Close All");
-	}
-}*/
-
-function mipOneChannel(fileSuffix,outputDirectory,fileList){ 
-    File.makeDirectory(outputDirectory);
+function mipTwoChannels(dir, fileList){ 
+    File.makeDirectory(outputDirectoryRed);
+    File.makeDirectory(outputDirectoryGreen);
     
     for (i=0; i<fileList.length; i++) {
-        if(endsWith(toLowerCase(fileList[i]),toLowerCase(fileSuffix))){
-            open(dir1+fileList[i]);
-            //run("Bio-Formats Importer", "open=["+dir1+fileList[i]+"] color_mode=Grayscale split_channels rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
-            name=getTitle();
-            run("Find focused slices", "select=100 variance=0.000 edge verbose");
-
-            selectWindow(name);
-            m=getSliceNumber();
-            //print(m);
-            //min=m-3;
-            min=maxOf(m-3, 1);
-            //max=m+3;
-            max = minOf(m+3, nSlices);
-            //"Slice Keeper", "first="+min+" last="+max+" increment=1");
-            //run("Z Project...", "projection=[Max Intensity]");
-            run("Z Project...", "start="+min+" stop="+max+" projection=[Max Intensity]");
-            save(outputDirectory+"/MIP_"+name);
-            
+        open(dir+fileList[i]);
+        m = getFocusedSliceNumber();
+        mipProjectAroundFocus(m);
+        save(outputDirectoryRed+"/MIP_"+fileList[i]);
+        close();
+        
+        parts = split(redSuffix, ".");
+        redChannelName = parts[0];
+        parts = split(greenSuffix, ".");
+        greenChannelName = parts[0];
+        
+        greenFile = replace(fileList[i], redChannelName, greenChannelName);
+        if (!File.exists(dir+greenFile)) {
             run("Close All");
+            continue;
+        }
+        open(dir+greenFile);
+        mipProjectAroundFocus(m);
+        save(outputDirectoryGreen+"/MIP_"+greenFile);
+        
+        run("Close All");
+    }
+    outputFileList = getFileList(outputDirectoryGreen);
+    if(outputFileList.length == 0) {
+        File.delete(outputDirectoryGreen);
+    }
+}
+
+function mipProjectAroundFocus(slice) {
+    name=getTitle();
+    min=maxOf(slice-3, 1);
+    max = minOf(slice+3, nSlices);
+    run("Z Project...", "start="+min+" stop="+max+" projection=[Max Intensity]");
+}
+
+function filterRedChannelImages(list) {
+    newList = newArray(0);
+    for (i = 0; i < list.length; i++) {
+        file = list[i];
+        if (endsWith(toLowerCase(file), toLowerCase(redSuffix))) {
+            newList = Array.concat(newList, file);
         }
     }
-    
-    outputFileList = getFileList(outputDirectory);
-    if(outputFileList.length==0){
-        File.delete(outputDirectory);
-    }
+    return newList;
+}
+
+function getFocusedSliceNumber() {
+    run("Find focused slices", "select=100 variance=0.000 edge verbose");
+    close();
+    m = getSliceNumber();
+    return m;
 }
