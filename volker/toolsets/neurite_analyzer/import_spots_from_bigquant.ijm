@@ -1,5 +1,4 @@
-path = "/home/baecker/Programs/fiji-linux64/Fiji.app/mri-tools/big-fish-examples/notebooks/spots.txt";
-
+path = File.openDialog("Select a File");
 content = File.openAsString(path);
 lines = split(content, "\n");
 xpoints = newArray(lines.length);
