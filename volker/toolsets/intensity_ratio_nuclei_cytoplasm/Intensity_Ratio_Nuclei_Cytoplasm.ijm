@@ -6,7 +6,7 @@
   * Subtract the background intensity and measure the ratio of the intensity in the nuclei and the intensity in 
   * the cytoplasm.
   *
-  * (c) 2014, INSERM
+  * (c) 2014-2022, INSERM
   * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
  *
 */
@@ -18,6 +18,8 @@ var _SUBTRACT_BACKGROUND_SKIP_LIMIT = 0.05;
 
 var _NUCLEI_CHANNEL = "Hoechst";
 var _CYTOPLASM_CHANNEL = "GFP";
+var _NUCLEI_CHANNEL_NUMBER = 1;
+var _CYTOPLASM_CHANNEL_NUMBER = 2;
 var _MAX_PERCENT_SATURATED = 0.5;
 var _THRESHOLD_METHOD = "Huang";
 var _MIN_NUCLEUS_AREA = 20;
@@ -77,8 +79,12 @@ macro "Intensity Ratio Batch (f4) Action Tool Options" {
 
 function createOptionsDialog() {
      Dialog.create("Intensity Ratio Options");
-     Dialog.addString("nuclei channel: ", _NUCLEI_CHANNEL);
-     Dialog.addString("cytoplasm channel: ", _CYTOPLASM_CHANNEL);
+     Dialog.addString("nuclei channel name: ", _NUCLEI_CHANNEL);
+     Dialog.addToSameRow();
+     Dialog.addNumber("or nuclei channel number: ", _NUCLEI_CHANNEL_NUMBER);
+     Dialog.addString("cytoplasm channel name: ", _CYTOPLASM_CHANNEL);
+     Dialog.addToSameRow();
+     Dialog.addNumber("or cytoplasm channel number: ", _CYTOPLASM_CHANNEL_NUMBER);
      Dialog.addNumber("max. % saturation:  ", _MAX_PERCENT_SATURATED);
      Dialog.addChoice("thresholding method", newArray("Default", "Huang", "Intermodes", "IsoData", "IJ_IsoData", "Li", "MaxEntropy", "Mean", "MinError",  "Minimum", "Moments",  "Otsu", "Percentile", "RenyiEntropy", "Shanbhag", "Triangle", "Yen"),  _THRESHOLD_METHOD);
      Dialog.addNumber("min. nucleus area", _MIN_NUCLEUS_AREA);
@@ -87,7 +93,9 @@ function createOptionsDialog() {
      Dialog.addCheckbox("remove scale", _REMOVE_SCALE);
      Dialog.show();
     _NUCLEI_CHANNEL = Dialog.getString();
+    _NUCLEI_CHANNEL_NUMBER = Dialog.getNumber();
     _CYTOPLASM_CHANNEL = Dialog.getString();
+    _CYTOPLASM_CHANNEL_NUMBER = Dialog.getNumber();
     _MAX_PERCENT_SATURATED = Dialog.getNumber();
     _THRESHOLD_METHOD = Dialog.getChoice();
     _MIN_NUCLEUS_AREA = Dialog.getNumber();
@@ -167,12 +175,21 @@ function isInputImage(name) {
 function measureIntensityRatioForOpenImage() {
     run("Set Measurements...", "area mean integrated area_fraction display redirect=None decimal=3");
     _FILENAME = getInfo("image.filename");
-    _DIR= getInfo("image.directory");
+    _DIR = getInfo("image.directory");
+    Stack.getDimensions(width, height, channels, slices, frames);
+    if (channels>1) {
+        Stack.setChannel(_CYTOPLASM_CHANNEL_NUMBER);
+        _FILENAME = getTitle();
+    }
     if (isImageSaturated(_MAX_PERCENT_SATURATED)) {
         print("skipped saturated image: " + _DIR + "/" + _FILENAME);
         return;
     }
-    loadOtherChannel();
+    if (channels==1) {
+        loadOtherChannel();
+    } else {
+        splitChannels();
+    }
     selectImage(_ID_CYTOPLASM_IMAGE);
     if (_REMOVE_SCALE) run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
     findAndSubtractBackground(_SUBTRACT_BACKGROUND_RADIUS, _SUBTRACT_BACKGROUND_OFFSET, _SUBTRACT_BACKGROUND_ITERATIONS, _SUBTRACT_BACKGROUND_SKIP_LIMIT);    
@@ -290,6 +307,18 @@ function loadOtherChannel() {
     else {
         _ID_NUCLEI_IMAGE = getImageID();
     }
+}
+
+function splitChannels() {
+    imageID = getImageID();
+    Stack.getPosition(channel, slice, frame); 
+    options = "duplicate channels=" + _NUCLEI_CHANNEL_NUMBER + "-" + _NUCLEI_CHANNEL_NUMBER + " slices=" + slice + "-" + slice;
+    run("Duplicate...", options);
+    _ID_NUCLEI_IMAGE = getImageID();
+    selectImage(imageID);
+    options = "duplicate channels=" + _CYTOPLASM_CHANNEL_NUMBER + "-" + _CYTOPLASM_CHANNEL_NUMBER + " slices=" + slice + "-" + slice;
+    run("Duplicate...", options);
+    _ID_CYTOPLASM_IMAGE = getImageID();
 }
     
 function isImageSaturated(maxPercentSaturated) {
