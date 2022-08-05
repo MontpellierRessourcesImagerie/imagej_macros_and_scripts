@@ -25,6 +25,7 @@ ALPHA = 0.7
 BETA = 1
 GAMMA = 5
 MAX_SPOTS_FOR_DECOMPOSITION = 1000000
+THRESHOLD_LIMIT_FACTOR = 1
 
 def main():
     """
@@ -40,14 +41,23 @@ def main():
     subfoldersOfRootFolder = getMatchingSubfoldersIn(rootFolder, 'Coleno')
     for folder in subfoldersOfRootFolder:
         files = getFilesForChannel(folder, RNA_FISH_SPOTS_CHANNEL)
-        for file in files:
+        thresholds = [0]*len(files)
+        for  count, file in enumerate(files):
             rna = stack.read_image(file)
             print("processing file {}".format(file))
             spots, threshold = detectSpots(rna)
+            thresholds[count] = threshold
             if spots.shape[0] < MAX_SPOTS_FOR_DECOMPOSITION:
                 spots, dense_regions, reference_spot = decomposeSpots(rna, spots)
             outPath = file.split(".")[0]+".txt"
             np.savetxt(outPath, spots, delimiter =", ")
+        meanThreshold = np.mean(thresholds)
+        stdDevThreshold = np.std(thresholds)
+        limitThresholdDiff = THRESHOLD_LIMIT_FACTOR * stdDevThreshold
+        for count, threshold in enumerate(thresholds):
+            diffThreshold = abs(meanThreshold - threshold)
+            if diffThreshold > limitThresholdDiff:
+                print("Threshold {} for file {} deviates from mean ({})".format(threshold, files[count], meanThreshold))
             
 def detectSpots(rna):
     """
@@ -72,8 +82,7 @@ def detectSpots(rna):
     voxel_size=(VOXEL_SIZE, VOXEL_SIZE),  
     spot_radius=(SPOT_RADIUS, SPOT_RADIUS)) 
     print("detected spots")
-    print("\r shape: {0}".format(spots.shape))
-    print("\r dtype: {0}".format(spots.dtype))
+    print("\r count: {0}".format(spots.shape[0]))
     print("\r threshold: {0}".format(threshold))
     return spots, threshold
 
@@ -107,10 +116,9 @@ def decomposeSpots(rna, spots):
     beta = BETA,  # beta impacts the number of candidate regions to decompose
     gamma = GAMMA)  # gamma the filtering step to denoise the image
     print("detected spots before decomposition")
-    print("\r shape: {0}".format(spots.shape))
-    print("\r dtype: {0}".format(spots.dtype), "\n")
+    print("\r count: {0}".format(spots.shape[0]))
     print("detected spots after decomposition")
-    print("\r shape: {0}".format(spots_post_decomposition.shape))
+    print("\r count: {0}".format(spots_post_decomposition.shape)[0])
     return spots_post_decomposition, dense_regions, reference_spot
 
 def getFilesForChannel(folder, channel):
@@ -130,7 +138,7 @@ def getFilesForChannel(folder, channel):
         A list of image-files of the given channel in the given folder.
 
     """
-    files = glob.glob(folder+"/"+"*"+channel+"*")    
+    files = glob.glob(folder+"/"+"*"+channel+"*.tif")    
     return files
     
 def getFolderFromUser():
