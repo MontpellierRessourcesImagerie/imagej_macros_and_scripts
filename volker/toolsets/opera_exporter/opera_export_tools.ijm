@@ -65,7 +65,7 @@ var _CORRECT_FIND_AND_SUB_BACK_SKIP = 0.3;
 var _COLORS = newArray("Red", "Green", "Blue", "Cyan", "Magenta", "Yellow", "Grays");
 var _COLORS_SELECTED = newArray("Blue", "Green", "Red", "Cyan", "Magenta", "Yellow", "Grays");
 
-
+var _CUSTOM_OUTPUT_FOLDER = "";
 
 	
 launchExport();
@@ -226,154 +226,11 @@ function getOptions(){
 		}
 	}
 	options = options + " --min-max-display=" + minMaxList;
+	if(_CUSTOM_OUTPUT_FOLDER != ""){
+		options = options + " --customOutput=" + _CUSTOM_OUTPUT_FOLDER;
+	}
 	options = options + " " + _OPERA_INDEX_FILE;
 	return options;
-}
-
-function old_setOptions() {
-	channelName = getChannelsFromIndex();
-	_NB_CHANNELS = channelName.length;
-	Dialog.create("Options");
-	Dialog.addMessage("Base for stitching",14);
-	
-	sopState = _STITCHING_BASE[0];
-	if(_STITCH_ON_PROJECTION){	sopState = _STITCHING_BASE[1];}
-	Dialog.addRadioButtonGroup("", _STITCHING_BASE, 1, 2, sopState);	
-	
-	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
-
-	Dialog.addChoice("Channel for Stitching",channelName,channelName[_CHANNEL-1]);
-
-	Dialog.addMessage("Export Options",14);
-
-	Dialog.addCheckbox("Export Z-Stack of Fields", _EXPORT_Z_STACK_FIELDS);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_FIELDS_COMPOSITE);
-	
-	Dialog.addCheckbox("Export Projections of Fields", _EXPORT_PROJECTION_FIELDS);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_FIELDS_COMPOSITE);
-	
-	Dialog.addCheckbox("Export Z-Stack of Mosaics", _EXPORT_Z_STACK_MOSAIC);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("+ Composite ", _EXPORT_Z_STACK_MOSAIC_COMPOSITE);
-	
-	Dialog.addCheckbox("Export Projection of Mosaics", _EXPORT_PROJECTION_MOSAIC);
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("+ Composite ", _EXPORT_PROJECTION_MOSAIC_COMPOSITE);
-
-	Dialog.addCheckbox("RGB of Projection of Mosaic", _EXPORT_PROJECTION_MOSAIC_RGB);
-
-	Dialog.addMessage("invert and export individual channel:");
-	for(i=0;i<_NB_CHANNELS;i++){
-		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
-			Dialog.addToSameRow();
-		}
-		Dialog.addCheckbox(channelName[i],_EXPORT_RGB_CHANNEL[i]);
-	}
-
-	Dialog.addMessage("Fusion parameters:",14);
-	
-	Dialog.addCheckbox("Compute Overlap", _FUSION_COMPUTE_OVERLAP);
-	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
-	Dialog.addToSameRow();
-	Dialog.addNumber("regression threshold: ", _FUSION_REGRESSION_THRESHOLD);
-	Dialog.addNumber("max/avg displacement threshold: ", _FUSION_DISPLACEMENT_THRESHOLD);
-	Dialog.addToSameRow();
-	Dialog.addNumber("absolute displacement threshold: ", _FUSION_ABS_DISPLACEMENT_THRESHOLD);
-
-	Dialog.addMessage("Image correction/normalization:",14);
-
-	Dialog.addCheckbox("! Experimental ! Flatfield correction from index-file ", _CORRECT_INDEX_FLAT_FIELD);	
-	Dialog.addToSameRow();
-	Dialog.addCheckbox("normalize", _CORRECT_NORMALIZE);
-	Dialog.addNumber("pseudo flat field radius (0 = off): ", _CORRECT_PSEUDO_FLAT_FIELD_RADIUS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("rolling ball radius (0 = off): ", _CORRECT_ROLLING_BALL_RADIUS);
-	Dialog.addNumber("find background radius (0 = off): ", _CORRECT_FIND_AND_SUB_BACK_RADIUS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("find background offset: ", _CORRECT_FIND_AND_SUB_BACK_OFFSET);
-	Dialog.addNumber("find background iterations: ", _CORRECT_FIND_AND_SUB_BACK_ITERATIONS);
-	Dialog.addToSameRow();
-	Dialog.addNumber("find background skip limit: ", _CORRECT_FIND_AND_SUB_BACK_SKIP);
-	
-	Dialog.addMessage("Export Colours:",14);
-
-	for(i=0;i<_NB_CHANNELS;i++){
-		if(i%_CHANNEL_PER_ROW_IN_DIALOG !=0){
-			Dialog.addToSameRow();
-		}
-		Dialog.addChoice(channelName[i], _COLORS, _COLORS_SELECTED[i]);
-	}
-
-	Dialog.addMessage("Export Bounds:",14);
-
-	for(i=0;i<_NB_CHANNELS;i++){
-		minMax=getMinMax(i+1);
-		Dialog.addNumber(channelName[i]+":  Min",minMax[0]);
-		Dialog.addToSameRow();
-		Dialog.addNumber("Max",minMax[1]);
-	}
-
-	
-	Dialog.show();
-
-
-	stitchingBase = Dialog.getRadioButton();
-	if(stitchingBase == _STITCHING_BASE[1]){
-		_STITCH_ON_PROJECTION = true;
-	}else{
-		_STITCH_ON_PROJECTION = false;
-	}
-	
-	_ZSLICE = Dialog.getNumber();
-	
-	chan = Dialog.getChoice();
-	for(i = 0; i < _NB_CHANNELS; i++){
-		if(channelName[i]==chan){
-			_CHANNEL = i+1;
-			break;
-		}
-	}
-
-	_EXPORT_Z_STACK_FIELDS = Dialog.getCheckbox();
-	_EXPORT_Z_STACK_FIELDS_COMPOSITE = Dialog.getCheckbox();
-	_EXPORT_PROJECTION_FIELDS = Dialog.getCheckbox();
-	_EXPORT_PROJECTION_FIELDS_COMPOSITE = Dialog.getCheckbox();
-	_EXPORT_Z_STACK_MOSAIC = Dialog.getCheckbox();
-	_EXPORT_Z_STACK_MOSAIC_COMPOSITE = Dialog.getCheckbox();
-	_EXPORT_PROJECTION_MOSAIC = Dialog.getCheckbox();
-	_EXPORT_PROJECTION_MOSAIC_COMPOSITE = Dialog.getCheckbox();
-	_EXPORT_PROJECTION_MOSAIC_RGB = Dialog.getCheckbox();
-
-	for(i=0;i<_NB_CHANNELS;i++){
-		_EXPORT_RGB_CHANNEL[i]=Dialog.getCheckbox();
-	}
-
-	_FUSION_COMPUTE_OVERLAP = Dialog.getCheckbox();
-	_FUSION_METHOD = Dialog.getChoice();
-	_FUSION_REGRESSION_THRESHOLD = Dialog.getNumber();
-	_FUSION_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
-	_FUSION_ABS_DISPLACEMENT_THRESHOLD = Dialog.getNumber();
-
-	_CORRECT_INDEX_FLAT_FIELD = Dialog.getCheckbox();
-	_CORRECT_NORMALIZE = Dialog.getCheckbox();
-	_CORRECT_PSEUDO_FLAT_FIELD_RADIUS = Dialog.getNumber();
-	_CORRECT_ROLLING_BALL_RADIUS = Dialog.getNumber();
-	_CORRECT_FIND_AND_SUB_BACK_RADIUS = Dialog.getNumber();
-	_CORRECT_FIND_AND_SUB_BACK_OFFSET = Dialog.getNumber();
-	_CORRECT_FIND_AND_SUB_BACK_ITERATIONS = Dialog.getNumber();
-	_CORRECT_FIND_AND_SUB_BACK_SKIP = Dialog.getNumber();
-
-	for(i=0;i<_NB_CHANNELS;i++){
-		_COLORS_SELECTED[i]=Dialog.getChoice();
-	}
-	for(i=1;i<=_NB_CHANNELS;i++){
-		min=Dialog.getNumber();
-		max=Dialog.getNumber();
-		saveMinMax(i,min,max);
-	}
-	
 }
 
 function setOptions(){
@@ -385,6 +242,7 @@ function setOptions(){
 	addExportOptionsDialog(channelNames);
 	addExportColoursDialog(channelNames);
 	addExportBoundsDialog(channelNames);
+	Dialog.addDirectory("Custom Output Folder",_CUSTOM_OUTPUT_FOLDER);
 
 	Dialog.show();
 
@@ -393,6 +251,7 @@ function setOptions(){
 	getExportOptionsDialog();
 	getExportColoursDialog();
 	getExportBoundsDialog();
+	_CUSTOM_OUTPUT_FOLDER = Dialog.getString();
 }
 
 macro "Open Correction Options" {
