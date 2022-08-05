@@ -14,7 +14,8 @@ from ij.process import ImageConverter
 from ij.measure import ResultsTable
 import unittest
 
-DEBUG = True
+DEBUG = False
+IO_DEBUG = False
 
 _CUSTOM_OUTPUT_PATH = ""
 _USING_CUSTOM_OUTPUT_PATH = False
@@ -646,14 +647,16 @@ class Well(object):
         return res
 
     def openImage(self, filePath):
-        print("Opening image file " + filePath)
+        if IO_DEBUG:
+            print("Opening image file " + filePath)
         if not self.checkIfPathExists(filePath):
             raise FileNotFoundException("OpenImage > File " + filePath + " not found !")
 
         IJ.open(filePath)
 
     def saveImage(self, image, filePath):
-        print("Saving image to " + filePath)
+        if IO_DEBUG:
+            print("Saving image to " + filePath)
         directoryPath = os.path.dirname(filePath)
         if not self.checkIfPathExists(directoryPath):
             raise FileNotFoundException(
@@ -665,7 +668,8 @@ class Well(object):
     def copyImages(self, srcPath, dstPath, srcNames, dstNames):
         failed = False
         for srcName, dstName in zip(srcNames, dstNames):
-            print("Copying image file" + srcPath + os.sep + srcName)
+            if IO_DEBUG:
+                print("Copying image file" + srcPath + os.sep + srcName)
             if not self.checkIfPathExists(srcPath + os.sep + srcName):
                 raise FileNotFoundException(
                     "CopyImages > File " + srcPath + os.sep + srcName + " not found !"
@@ -673,7 +677,8 @@ class Well(object):
             shutil.copy(srcPath + os.sep + srcName, dstPath + os.sep + dstName)
 
     def moveFile(self, srcPath, dstPath, srcName, dstName):
-        print("Moving/Renaming image to " + dstPath)
+        if IO_DEBUG:
+            print("Moving/Renaming image to " + dstPath)
         if not self.checkIfPathExists(dstPath):
             raise FileNotFoundException(
                 "MoveFile > Directory " + dstPath + " not found !"
@@ -687,7 +692,8 @@ class Well(object):
         shutil.move(srcPath + srcName, dstPath + dstName)
 
     def deleteFile(self, path, fileList=None):
-        print("Deleting files in " + path)
+        if IO_DEBUG:
+            print("Deleting files in " + path)
         if not self.checkIfPathExists(path):
             raise FileNotFoundException(
                 "DeleteFile > Directory " + path + " not found !"
