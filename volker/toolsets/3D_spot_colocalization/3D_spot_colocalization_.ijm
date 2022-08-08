@@ -45,7 +45,7 @@ var _VOLUME_CYTOPLASM = -1;
 
 macro "Get Spots Outside of Nucleus Action Tool - C000T4b12S"{
 	getSpotsOutsideOfNucleusAction();
-	sendPointsToNapari();
+	//sendPointsToNapari();
 }
 
 macro "Get Spots Outside of Nucleus Action Tool Options"{
@@ -68,7 +68,6 @@ macro "Get Nearest Neighbors Action Tool Options "{
 }
 
 macro "Export Results Action Tool - C000T4b12E "{
-	
 	exportResultsAction();
 }
 
@@ -97,7 +96,7 @@ function exportTable(baseFolder,tableName){
 }
 
 macro "Unused Tool 0 - " {}  // leave empty slot
-
+/*
 var cmdSendToNapari = newArray("Send Everything",
 					"--",
 					"Send Active Image", 
@@ -114,7 +113,7 @@ macro "Send to Napari Menu Tool - C000T4b12^"{
 }
 
 macro "Unused Tool 1 - " {}  // leave empty slot
-
+*/
 var cmdSpots = newArray("Get Spots Outside of Nucleus",
 					"Open Settings Dialog",
 					"--",
@@ -209,10 +208,11 @@ function getSpotsOutsideOfNucleusAction(){
 	getSpotsOutsideOfNucleus(_SPOTS1_CHANNEL,_NUCLEUS_CHANNEL,0);
 	if(isOpen(_TABLE_SPOTS_1)){	close(_TABLE_SPOTS_1);}
 	Table.rename("Results", _TABLE_SPOTS_1);
-	
+	Table.update();
 	getSpotsOutsideOfNucleus(_SPOTS2_CHANNEL,_NUCLEUS_CHANNEL,1);
 	if(isOpen(_TABLE_SPOTS_2)){	close(_TABLE_SPOTS_2);}
 	Table.rename("Results", _TABLE_SPOTS_2);
+	Table.update();
 }
 
 function detectSpotsAction(){
@@ -379,10 +379,11 @@ function detectSpots(channel, paramID) {
 	radiusZ = _RADIUS_Z[paramID] / depth;
 	
 	channelImage = getImageID();
-	run("FeatureJ Laplacian", "compute smoothing=" + _SIGMA[paramID]);	
+	run("FeatureJ Laplacian", "compute smoothing=" + _SIGMA[paramID]);
 	laplaceImage = getImageID();
-	run("8-bit");
-	run("Invert", "stack");
+    
+    run("Multiply...", "value=-1.000");
+	//run("Invert", "stack");
 	run("3D Maxima Finder", "minimmum="+_MAX_FINDER_THRESHOLD[paramID]+" radiusxy="+radiusXY+" radiusz="+radiusZ+" noise="+_NOISE[paramID]);
 	setThreshold(1, 65535);
 	setOption("BlackBackground", false);
@@ -431,6 +432,7 @@ function filterSpots(imageID,voxelWidth,voxelHeight,voxelDepth) {
 	}
 	close("Results");
 	Table.rename("spots", "Results");
+	Table.update();
 }
 
 
@@ -511,6 +513,7 @@ function makeNeighborsTable(tableA,tableB){
 		Table.set("Nearest neighbor of B", i, nearestOf[i].contains("b")  ,neighborsTable);
 	}
 	
+	Table.update();
 }
 
 function sendEverythingToNapari(){
@@ -530,9 +533,7 @@ function sendPointsToNapari(){
 	sendToNapari("sendPoints",_TABLE_SPOTS_1,_TABLE_SPOTS_2);
 
 	addMicronsToPointsTable(_TABLE_SPOTS_1,"X","Y","Z");
-	Table.update(_TABLE_SPOTS_1);
 	addMicronsToPointsTable(_TABLE_SPOTS_2,"X","Y","Z");
-	Table.update(_TABLE_SPOTS_2);
 }
 
 function sendDistancesToNapari(){
@@ -548,7 +549,7 @@ function sendToNapari(action,table1,table2){
 	script = File.openAsString(macrosDir + "/toolsets/3D_spot_py_interface.py");
 	parameter = "action="+action+",tableName1="+table1+",tableName2="+table2;
 	
-	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
+	call("ij.plugin.Macro_Runner.runPython", script, parameter);
 }
 
 
@@ -582,6 +583,7 @@ function findColocThreshold(table){
 	return firstRadiusUnder;
 }
 
+/*
 macro "TMP"{
 	print("Total Image Volume	: "+calculateImageVolume());
 	print("Nuclei Volume		: "+calculateNucleiVolume());
@@ -594,6 +596,7 @@ macro "TMP-2"{
 	radius = findColocThreshold("Ripley's Table");
 	countColocs(neighborsTableA,neighborsTableB,radius);
 }
+*/
 
 function countColocs(neighborsTableA,neighborsTableB,radius){
 	tableA = neighborsTableA;
@@ -781,6 +784,7 @@ function addMicronsToPointsTable(inTable,xHeader,yHeader,zHeader){
 		Table.set(xHeader+" (microns)", i, x, inTable);
 		Table.set(yHeader+" (microns)", i, y, inTable);
 		Table.set(zHeader+" (microns)", i, z, inTable);
+		Table.update(inTable);
 	}
 }
 
