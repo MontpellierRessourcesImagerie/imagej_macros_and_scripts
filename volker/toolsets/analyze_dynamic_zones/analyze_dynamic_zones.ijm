@@ -51,9 +51,9 @@ for (t = 0; t <frames; t++) {
     Table.update("StdDev Dynamic Zones");
 }
 
-run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
+selectImage(labelImageID);
 
-for(l=1; l<labels.length; l++) {
+for(l=1; l<=lastLabel; l++) {
        areaOverTime = Table.getColumn(l, "Area Dynamic Zones"); 
        timePoints = Array.getSequence(areaOverTime.length);
        Fit.doFit("Error Function", timePoints, areaOverTime);
@@ -92,6 +92,7 @@ for(l=1; l<labels.length; l++) {
             continue;
        }
 }
+run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
 count = roiManager("count");
 if (count>0) {
     run("From ROI Manager");
