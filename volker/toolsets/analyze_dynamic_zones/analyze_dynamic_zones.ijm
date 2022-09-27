@@ -1,4 +1,5 @@
-CONST_THRESHOLD = 1;  //  in micrometer
+CONST_THRESHOLD = 1;  //  in physical units
+ALIGN_FRAMES = true;
 
 getDimensions(width, height, channels, slices, frames);
 run("ROI Manager...");
@@ -8,33 +9,16 @@ run("Properties...", "slices="+frames+" frames="+slices);
 inputImageID = getImageID();
 inputImageTitle = getTitle();
 run("Grays");
-run("StackReg ", "transformation=[Rigid Body]");
-title = getTitle();
-run("Duplicate...", "duplicate");
-titleSmoothed = getTitle();
-run("Gaussian Blur...", "sigma=15 stack");
-imageCalculator("Subtract create stack", title, titleSmoothed);
-close(titleSmoothed);
-dogImageID = getImageID();
+if (ALIGN_FRAMES) run("StackReg ", "transformation=[Rigid Body]");
+removeBackground();
 dogImageTitle = getTitle();
-run("Morphological Filters (3D)", "operation=Gradient element=Cube x-radius=2 y-radius=2 z-radius=2");
-gradientImageID = getImageID();
-gradientImageTitle = getTitle();
-run("Convert to Mask", "method=Otsu background=Dark");
-removeXYBorderVoxels();
-run("Fill Holes", "stack");
-run("Connected Components Labeling", "connectivity=6 type=[16 bits]");
-run("Random");
+segmentActiveZones();
 labelImageID = getImageID();
 labelImageTitle = getTitle();
-close(dogImageTitle);
-close(gradientImageTitle);
-selectImage(labelImageID);
 run("Properties...", "slices="+slices+" frames="+frames); 
 Stack.setFrame(frames);
 lastLabel = getValue("Max");
-lblTitle = getTitle();
-tableTitle = lblTitle + "-Morphometry";
+tableTitle = labelImageTitle + "-Morphometry";
 iTableTitle = "in-intensity-measurements";
 Table.create("Area Dynamic Zones");
 Table.create("Mean Int. Dynamic Zones");
@@ -115,6 +99,33 @@ if (count>0) {
 }
 
 setBatchMode("exit and display");
+
+function segmentActiveZones() {
+    run("Morphological Filters (3D)", "operation=Gradient element=Cube x-radius=2 y-radius=2 z-radius=2");
+    gradientImageTitle = getTitle();
+    run("Convert to Mask", "method=Otsu background=Dark");
+    removeXYBorderVoxels();
+    run("Fill Holes", "stack");
+    run("Connected Components Labeling", "connectivity=6 type=[16 bits]");
+    run("Random");
+    labelImageID = getImageID();
+    labelImageTitle = getTitle();
+    close(dogImageTitle);
+    close(gradientImageTitle);    
+}
+
+function removeBackground() {
+    dogRemoveBackground();
+}
+
+function dogRemoveBackground() {
+    title = getTitle();
+    run("Duplicate...", "duplicate");
+    titleSmoothed = getTitle();
+    run("Gaussian Blur...", "sigma=15 stack");
+    imageCalculator("Subtract create stack", title, titleSmoothed);
+    close(titleSmoothed);
+}
 
 function addZoneRoi(label, class) {
     run("Select Label(s)", "label(s)="+l);
