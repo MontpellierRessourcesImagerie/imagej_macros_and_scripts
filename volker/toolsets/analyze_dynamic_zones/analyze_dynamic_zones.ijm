@@ -140,7 +140,14 @@ function analyzeDynamicZonesInImage() {
     setBatchMode("hide");
     run("Properties...", "slices="+frames+" frames="+slices); 
     
-    if (ALIGN_FRAMES) run("StackReg ", "transformation=[Rigid Body]");
+    if (ALIGN_FRAMES) {
+        stackRegCommand = "StackReg ";
+        commands = List.setCommands;
+        if (List.indexOf("StackReg")>=0) {
+            stackRegCommand = "StackReg";
+        }       
+        run(stackRegCommand, "transformation=[Rigid Body]");
+    }
     
     removeBackground();
     dogImageTitle = getTitle();
