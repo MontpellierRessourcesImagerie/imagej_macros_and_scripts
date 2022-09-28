@@ -43,7 +43,7 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.create("Analyze Dynamic Zones Options");
     Dialog.addChoice("Dynamic: ", DYNAMICS, DYNAMIC);
     Dialog.addNumber("Dynamic threshold: ", CONST_THRESHOLD);
-    Dialog.addNumber("Radius of bckground filter (DoG): ", DOG_LARGE_RADIUS);
+    Dialog.addNumber("Radius of background filter (DoG): ", DOG_LARGE_RADIUS);
     Dialog.addNumber("Gradient filter xy-radius: ", GRADIENT_FILTER_RADIUS_XY);
     Dialog.addNumber("Gradient filter z-radius: ", GRADIENT_FILTER_RADIUS_Z);
     Dialog.addNumber("Border size: ", BORDER_SIZE);
