@@ -1,8 +1,17 @@
-var DYNAMICS = newArray("Area", "Intensity");
+/**
+  *  In a 2D+t stack, find zones in which the signal changes over time. Find if the signal increases, decreases or has a u- or n-shape. 
+  *   
+  *   (c) INSERM, 2022
+  *  
+  *  written 2022 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
+  **
+*/
+
+var DYNAMICS = newArray("Total Intensity", "Area", "Mean Intensity");
 var DYNAMIC = DYNAMICS[0];
-var DYNAMIC_TABLES = newArray("Area Dynamic Zones", "Mean Int. Dynamic Zones");
+var DYNAMIC_TABLES = newArray("Total Int. Dynamic Zones", "Area Dynamic Zones", "Mean Int. Dynamic Zones");
 var DYNAMIC_TABLE = DYNAMIC_TABLES[0];
-var CONST_THRESHOLD = 4.75;  //  in physical units
+var CONST_THRESHOLD = 1000;  //  in physical units
 var ALIGN_FRAMES = true;
 var GRADIENT_FILTER_RADIUS_XY = 2;
 var GRADIENT_FILTER_RADIUS_Z = 2;
@@ -58,20 +67,28 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     DYNAMIC_TABLE = DYNAMIC_TABLES[i];
 }
 
-macro "Plot area over time (f6) Action Tool - C000T4b12p" {
+macro "Plot total intensity over time (f6) Action Tool - C000T4b12t" {
+    plotTotalIntensityOverTime();
+}
+
+macro "Plot total intensity over time [f6]" {
+    plotTotalIntensityOverTime();
+}
+
+macro "Plot area over time (f7) Action Tool - C000T4b12p" {
     plotAreaOverTime()
 }
 
-macro "Plot area over time [f6]" {
+macro "Plot area over time [f7]" {
     plotAreaOverTime()
 }
 
-macro "Plot intensity over time (f7) Action Tool - C000T4b12i" {
-    plotIntensityOverTime()
+macro "Plot mean intensity over time (f8) Action Tool - C000T4b12m" {
+    plotMeanIntensityOverTime()
 }
 
-macro "Plot intensity over time [f7]" {
-    plotIntensityOverTime()
+macro "Plot mean intensity over time [f8]" {
+    plotMeanIntensityOverTime()
 }
 
 function plotAreaOverTime() {
@@ -79,9 +96,13 @@ function plotAreaOverTime() {
     plotOverTime(tableName);
 }
 
-
-function plotIntensityOverTime() {
+function plotMeanIntensityOverTime() {
     tableName = "Mean Int. Dynamic Zones";
+    plotOverTime(tableName);
+}
+
+function plotTotalIntensityOverTime() {
+    tableName = "Total Int. Dynamic Zones";
     plotOverTime(tableName);
 }
 
@@ -193,6 +214,7 @@ function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
     iTableTitle = "in-intensity-measurements";
     Table.create("Area Dynamic Zones");
     Table.create("Mean Int. Dynamic Zones");
+    Table.create("Total Int. Dynamic Zones");
     Table.create("StdDev Dynamic Zones");
     for (t = 0; t < frames; t++) {
         selectImage(labelImageID);
@@ -211,16 +233,25 @@ function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
         iLabels = Table.getColumn("Label", iTableTitle);
         means = Table.getColumn("Mean", iTableTitle);
         stdDevs = Table.getColumn("StdDev", iTableTitle);
+        totalInt = newArray(means.length);
+        for (i = 0; i < means.length; i++) {
+            totalInt[i] = means[i] * areas[i];
+        }
+
         for(l=0; l<iLabels.length; l++) {
             Table.set(iLabels[l], t, means[l], "Mean Int. Dynamic Zones");
             Table.set(iLabels[l], t, stdDevs[l], "StdDev Dynamic Zones");
+            Table.set(iLabels[l], t, totalInt[l], "Total Int. Dynamic Zones");
         }
         close("in");
         close("labels");   
         Table.update("Area Dynamic Zones");
         Table.update("Mean Int. Dynamic Zones");
         Table.update("StdDev Dynamic Zones");
+        Table.update("Total Int. Dynamic Zones");
     }
+    close(iTableTitle);
+    close(tableTitle);
     return lastLabel;
 }
 
