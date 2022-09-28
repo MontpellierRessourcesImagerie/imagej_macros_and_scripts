@@ -47,3 +47,4 @@ function getImagesIn(aFolder) {
     } 
     return images;
 }
+
