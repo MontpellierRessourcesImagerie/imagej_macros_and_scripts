@@ -18,6 +18,10 @@ var GRADIENT_FILTER_RADIUS_Z = 3;
 var BORDER_SIZE = 10;   // in pixel
 var DOG_LARGE_RADIUS = 15;
 var SHOW_CONSTANT = false;
+var LUTS = getList("LUTs");
+var LUT = LUTS[25];
+if (LUT!="Random") LUT = "glasbey on dark";
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Dynamic_Zones_Analyzer";
 
 analyzeDynamicZonesInImage();
@@ -49,6 +53,7 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.addNumber("Border size: ", BORDER_SIZE);
     Dialog.addCheckbox("Align frames", ALIGN_FRAMES);
     Dialog.addCheckbox("Show constant zones", SHOW_CONSTANT);
+    Dialog.addChoice("LUT for zones", LUTS, LUT);
     
     Dialog.show();
     
@@ -60,6 +65,7 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     BORDER_SIZE = Dialog.getNumber();
     ALIGN_FRAMES = Dialog.getCheckbox();
     SHOW_CONSTANT = Dialog.getCheckbox();
+    LUT = Dialog.getChoice();
     
     for (i = 0; i < DYNAMICS.length; i++) {
         if (DYNAMICS[i] == DYNAMIC) break;
@@ -126,6 +132,7 @@ function plotOverTime(tableName) {
 }
 
 function analyzeDynamicZonesInImage() {
+    LUTFolder = getDir("luts");
     getDimensions(width, height, channels, slices, frames);
     inputImageID = getImageID();
     inputImageTitle = getTitle();
@@ -262,7 +269,7 @@ function segmentActiveZones() {
     removeXYBorderVoxels();
     run("Fill Holes", "stack");
     run("Connected Components Labeling", "connectivity=6 type=[16 bits]");
-    run("Random");
+    run(LUT);
     labelImageID = getImageID();
     labelImageTitle = getTitle();
     close(dogImageTitle);
