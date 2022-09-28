@@ -23,7 +23,8 @@ function processFolder(input) {
     }
     title = getTitle();
     run("Concatenate...", "all_open");
-    save(output + File.separator + title);
+    subFolderName  = File.getName(input);
+    save(output + File.separator + subFolderName + "-" + title);
     close();
     for (j = 0; j < subFolders.length; j++) {
         processFolder(subFolders[j]);
