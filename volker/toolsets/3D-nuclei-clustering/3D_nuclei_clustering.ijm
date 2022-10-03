@@ -542,7 +542,7 @@ function processImage() {
 	print("min nr. of points: \t" + _MIN_PTS);
 	print("-----------------");
 	totalNumberOfNuclei = detectNuclei();
-	print("total number of nuclei: " + totalNumberOfNuclei();
+	print("total number of nuclei: " + totalNumberOfNuclei);
 	Overlay.copy;
 	
 	numberOfRedNuclei = filterAboveThreshold();
