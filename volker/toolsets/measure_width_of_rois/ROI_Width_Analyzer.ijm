@@ -1,8 +1,11 @@
 var MIN_SIZE=8000;
 var INTERPOLATION_LENGTH=150;
+var _PROEMINENCE = 0.5;
+
 inputImageID = getImageID();
 box = Roi.getCoordinates(xpoints, ypoints);
 run("Duplicate...", " ");
+workingImage = getImageID();
 zoneImageID = getImageID();
 run("Threshold...");
 waitForUser("Set a threshold to select the object(s) of interest");
@@ -15,12 +18,12 @@ for (r = 0; r < count; r++) {
 }
 roiManager("deselect");
 
-count = roiManager("count");
 for (r = 0; r < count; r++) {
     roiManager("select", r);
-    run("Interpolate", "interval="+INTERPOLATION_LENGTH+" smooth");
-    roiManager("update");
+    run("Create Mask");
+    run("Exact Euclidean Distance Transform (3D)");
+    close("Mask");
+    run("Find Maxima...", "prominence="+_PROEMINENCE+" output=[Point Selection]");
 }
-
 
 
