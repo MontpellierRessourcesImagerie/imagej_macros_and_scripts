@@ -1,7 +1,7 @@
 var XDIR = newArray(-1, 0, 1, -1, 1, -1, 0, 1);
 var YDIR = newArray(-1, -1, -1, 0, 0, 1, 1, 1);
-var RADIUS = 1;
-SAMPLES = 101;
+var RADIUS = 40;
+SAMPLES = 75;
 width = getWidth();
 height = getHeight();
 roiManager("reset");
@@ -11,12 +11,17 @@ setOption("BlackBackground", true);
 run("Duplicate...", " ");
 skeletonID = getImageID();
 run("Skeletonize");
+
 for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++) {
-        p = getPixel(x, y);
-        if (p > 0) break;
+        p = getPixel(x, y);        
+        nn = 0;
+        if (p > 0) {
+            nn = getPixel(x-1, y-1) + getPixel(x, y-1) + getPixel(x+1, y-1) + getPixel(x-1, y) + getPixel(x+1, y) + getPixel(x-1, y+1) + getPixel(x, y+1) + getPixel(x+1, y+1);
+            if (nn==255) break;
+        }
     }   
-    if (p > 0) break; 
+    if (p > 0 && nn==255) break; 
 }
 numberOfPoints = getValue("RawIntDen") / 255;
 xpoints = newArray(numberOfPoints);
@@ -49,39 +54,76 @@ for (i = 0; i < numberOfPoints; i++) {
         break;
     }
 }
+xpoints = Array.deleteValue(xpoints, 0);
+ypoints = Array.deleteValue(ypoints, 0);
 close();
 makeSelection("freeline", xpoints, ypoints);
 run("Interpolate", "interval=1 smooth adjust");
 Roi.getCoordinates(xpoints, ypoints);
-Overlay.addSelection;
+Overlay.addSelection("green");
+
 
 middleIndex = floor(xpoints.length / 2);
-
 stepWidth = floor(middleIndex / ((SAMPLES - 1) / 2 ));
-print(stepWidth);
 
-
+X1 = newArray(0);
+Y1 = newArray(0);
+X2 = newArray(0);
+Y2 = newArray(0);
 
 for (i = middleIndex; i > 0; i = i - stepWidth) {
-    if ((i-RADIUS) > -1 && (i+RADIUS)<xpoints.length) {
-        makeLine(xpoints[i-RADIUS], ypoints[i-RADIUS], xpoints[i+RADIUS], ypoints[i+RADIUS]);
-        Roi.getCoordinates(xSampleLine, ySampleLine);
-        rotated = rotateLineSegmentBy90(xSampleLine[0], ySampleLine[0], xSampleLine[xSampleLine.length-1], ySampleLine[xSampleLine.length-1]);
-        makeLine(rotated[0], rotated[1], rotated[2], rotated[3]);
-        Overlay.addSelection;
+    if ((i - RADIUS) > -1 && (i + RADIUS)<xpoints.length) {
+        rotated = rotateLineSegmentBy90(xpoints[i-RADIUS], ypoints[i-RADIUS], xpoints[i+RADIUS], ypoints[i+RADIUS]);
+        allongatedLine = growLineToBorders(rotated[0], rotated[1], rotated[2], rotated[3]);
+        X1 = Array.concat(allongatedLine[0] ,X1);
+        Y1 = Array.concat(allongatedLine[1] ,Y1);
+        X2 = Array.concat(allongatedLine[2] ,X2);
+        Y2 = Array.concat(allongatedLine[3] ,Y2);
     }
 }
 
-for (i = middleIndex; i < xpoints.length; i = i + stepWidth) {
+for (i = middleIndex + stepWidth; i < xpoints.length; i = i + stepWidth) {
     if ((i-RADIUS) > -1 && (i+RADIUS)<xpoints.length) {
-        makeLine(xpoints[i-RADIUS], ypoints[i-RADIUS], xpoints[i+RADIUS], ypoints[i+RADIUS]);
-        Roi.getCoordinates(xSampleLine, ySampleLine);
-        rotated = rotateLineSegmentBy90(xSampleLine[0], ySampleLine[0], xSampleLine[xSampleLine.length-1], ySampleLine[xSampleLine.length-1]);
-        makeLine(rotated[0], rotated[1], rotated[2], rotated[3]);
-        Overlay.addSelection;
+        rotated = rotateLineSegmentBy90(xpoints[i-RADIUS], ypoints[i-RADIUS], xpoints[i+RADIUS], ypoints[i+RADIUS]);
+        allongatedLine = growLineToBorders(rotated[0], rotated[1], rotated[2], rotated[3]);
+        X1 = Array.concat(X1, allongatedLine[0]);
+        Y1 = Array.concat(Y1, allongatedLine[1]);
+        X2 = Array.concat(X2, allongatedLine[2]);
+        Y2 = Array.concat(Y2, allongatedLine[3]);
     }    
 }
 
+for (i = 0; i < X1.length; i++) {
+    makeLine(X1[i], Y1[i], X2[i], Y2[i]);
+    Overlay.addSelection("red");    
+}
+
+run("Select None");
+
+function growLineToBorders(x1, y1, x2, y2) {
+        deltaX = x2 - x1;
+        deltaY = y2 - y1;
+        n = round(sqrt(deltaX*deltaX + deltaY*deltaY));
+        deltaX = deltaX / n;
+        deltaY = deltaY / n;
+        x0 = x1;
+        y0 = y1;
+        while(true) {
+            v = getPixel(x0, y0);
+            if (v<255) break;
+            x0 = x0 + deltaX;
+            y0 = y0 + deltaY;
+        }    
+        xN = x1;
+        yN = y1;
+        while(true) {
+            v = getPixel(xN, yN);
+            if (v<255) break;
+            xN = xN - deltaX;
+            yN = yN - deltaY;
+        }
+        return newArray(xN, yN, x0, y0);
+}
 
 function rotateLineSegmentBy90(x1, y1, x2, y2) {
     cx = (x1 + x2) / 2;
@@ -96,13 +138,13 @@ function rotateLineSegmentBy90(x1, y1, x2, y2) {
     //rotate both points
     xtemp = x1; 
     ytemp = y1;
-    x1 = -ytemp; 
-    y1 = xtemp; 
+    x1 = ytemp; 
+    y1 = -xtemp;
     
     xtemp = x2; 
     ytemp = y2;
-    x2 = -ytemp; 
-    y2 = xtemp; 
+    x2 = ytemp; 
+    y2 = -xtemp; 
     
     //move the center point back to where it was
     x1 = x1 + cx; 

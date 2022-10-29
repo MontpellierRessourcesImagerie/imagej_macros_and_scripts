@@ -3,6 +3,11 @@ var INTERPOLATION_LENGTH=150;
 var _PROEMINENCE = 0.5;
 
 inputImageID = getImageID();
+
+if (selectionType() == -1) {
+    run("Select All");
+}
+
 box = Roi.getCoordinates(xpoints, ypoints);
 run("Duplicate...", " ");
 workingImage = getImageID();
