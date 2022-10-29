@@ -1,7 +1,9 @@
 var XDIR = newArray(-1, 0, 1, -1, 1, -1, 0, 1);
 var YDIR = newArray(-1, -1, -1, 0, 0, 1, 1, 1);
-var RADIUS = 40;
-SAMPLES = 75;
+var RADIUS = 6;
+var CENTERLINE_METHODS = newArray("ij-skeleton", "geodesic-diameter");
+var CENTERLINE_METHOD = CENTERLINE_METHODS[0];
+SAMPLES = 60;
 width = getWidth();
 height = getHeight();
 roiManager("reset");
@@ -9,9 +11,19 @@ Overlay.remove;
 maskID = getImageID();
 setOption("BlackBackground", true);
 run("Duplicate...", " ");
-skeletonID = getImageID();
-run("Skeletonize");
 
+
+if (CENTERLINE_METHOD == "ij-skeleton") 
+    run("Skeletonize");
+if (CENTERLINE_METHOD == "geodesic-diameter") {
+    title = getTitle();
+    run("Geodesic Diameter", "label=["+title+"] distances=[Borgefors (3,4)] export");
+    roiManager("Select", 0);
+    run("Create Mask");
+    rename("geodesic");
+}
+roiManager("reset");    
+skeletonID = getImageID();
 for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++) {
         p = getPixel(x, y);        
@@ -134,7 +146,7 @@ function rotateLineSegmentBy90(x1, y1, x2, y2) {
     y1 = y1 - cy;
     x2 = x2 - cx; 
     y2 = y2 - cy;
-    
+   
     //rotate both points
     xtemp = x1; 
     ytemp = y1;
@@ -145,12 +157,15 @@ function rotateLineSegmentBy90(x1, y1, x2, y2) {
     ytemp = y2;
     x2 = ytemp; 
     y2 = -xtemp; 
-    
+   
+    deltaX = x2 - x1;
+    deltaY = y2 - y1;
+    n = round(sqrt(deltaX*deltaX + deltaY*deltaY));
     //move the center point back to where it was
-    x1 = x1 + cx; 
-    y1 = y1 + cy;
-    x2 = x2 + cx; 
-    y2 = y2 + cy;
+    x1 = (2*deltaX/n) + cx; 
+    y1 = (2*deltaY/n) + cy;
+    x2 = cx - (2*deltaX/n); 
+    y2 = cy - (2*deltaY/n);
     
     res = newArray(x1, y1, x2, y2);
     return res;
