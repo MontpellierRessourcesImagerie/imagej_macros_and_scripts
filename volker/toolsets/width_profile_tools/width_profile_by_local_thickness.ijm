@@ -85,6 +85,7 @@ function runLocalThickness() {
     Table.set("Min", row, min);
     Table.set("Max", row, max);
     Table.set("Median", row, median);
+    Table.set("Method", row, "width profile by local thickness");
     run("Select All");
     run("Copy");
     setPasteMode("Blend");
