@@ -1,5 +1,5 @@
-var METHODS = newArray("Skeletonize", "Largest shortest path", "Monte Carlo estimation");
-var METHOD = "Monte Carlo estimation";
+var METHODS = newArray("Skeletonize", "Largest_Shortest_Path", "Monte_Carlo_Centerline_Estimation");
+var METHOD = "Monte_Carlo_Centerline_Estimation";
 
 var LINE_INTERPOLATION = 1;
 
@@ -16,32 +16,84 @@ var YDIR = newArray(-1, -1, -1, 0, 0, 1, 1, 1);
 var seedsX = newArray(0);
 var seedsY = newArray(0);
 
-Overlay.remove;
-width = getWidth();
-height = getHeight();
-run("Clear Results");
-roiManager("reset");
-if (METHOD != "Monte Carlo estimation") {
-    run("Select None");
-    run("Duplicate...", " ");
+var SAVE_OPTIONS = true;
+
+var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Width-Profile-Tools";
+
+optionsOnly = call("ij.Prefs.get", "mri.options.only", "false");
+showDialog();
+if (optionsOnly=="true") exit;
+
+startTime = getTime();
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+print(year + "-" + IJ.pad(month+1, 2) + "-" + IJ.pad(dayOfMonth, 2) + " " + hour + ":" + minute + ":" + second + "." + msec);
+print("select_centerline.ijm");
+print(getOptionsString());
+
+selectCenterline();
+
+endTime = getTime();
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+print("execution time: ", ((endTime - startTime) / 1000), "sec.");
+print(year + "-" + IJ.pad(month+1, 2) + "-" + IJ.pad(dayOfMonth, 2) + " " + hour + ":" + minute + ":" + second + "." + msec);
+    
+function showDialog() {
+    if (File.exists(getOptionsPath())) loadOptions();
+    Dialog.create("Options of select centerline");
+    Dialog.addChoice("method:", METHODS, METHOD);
+    Dialog.addMessage("Skeletonize and Largest Shortest Path Options");
+    Dialog.addNumber("Interpolation interval", LINE_INTERPOLATION);
+    Dialog.addMessage("Monte Carlo Centerline Estimation Options");
+    Dialog.addNumber("min_radius", MIN_RADIUS);
+    Dialog.addNumber("min_distance", MIN_DIST);
+    Dialog.addNumber("samples", SAMPLES);
+    Dialog.addNumber("max_trials", MAX_TRIALS);
+    Dialog.addCheckbox("Save_options", SAVE_OPTIONS);
+    Dialog.addHelp(_URL);
+    Dialog.show();
+    
+    METHOD = Dialog.getChoice();
+    LINE_INTERPOLATION = Dialog.getNumber();
+    MIN_RADIUS = Dialog.getNumber();
+    MIN_DIST = Dialog.getNumber();
+    SAMPLES = Dialog.getNumber();
+    MAX_TRIALS = Dialog.getNumber();
+    
+    SAVE_OPTIONS = Dialog.getCheckbox(); 
+    
+    if (SAVE_OPTIONS) saveOptions();
 }
 
-if (METHOD=="Skeletonize") runCenterlineFromSkeleton();
-if (METHOD=="Largest shortest path") runCenterlineFromPath();
-if (METHOD=="Monte Carlo estimation") runCenterlineFromMonteCarlo();
 
-if (METHOD != "Monte Carlo estimation") {
-    run("line mask to line roi", "interpolation="+LINE_INTERPOLATION);
+function selectCenterline() {
+    Overlay.remove;
+    width = getWidth();
+    height = getHeight();
+    run("Clear Results");
+    roiManager("reset");
+    if (METHOD != "Monte_Carlo_Centerline_Estimation") {
+        run("Select None");
+        run("Duplicate...", " ");
+    }
+    
+    if (METHOD=="Skeletonize") runCenterlineFromSkeleton();
+    if (METHOD=="Largest_Shortest_Path") runCenterlineFromPath();
+    if (METHOD=="Monte_Carlo_Centerline_Estimation") runCenterlineFromMonteCarlo();
+    
+    if (METHOD != "Monte_Carlo_Centerline_Estimation") {
+        run("line mask to line roi", "interpolation="+LINE_INTERPOLATION);
+    }
+    roiManager("add");
+    close();
+    roiManager("show none");
+    roiManager("show all without labels");
+    roiManager("select", 0);
+    Overlay.addSelection;
+    
+    if (METHOD=="Monte_Carlo_Centerline_Estimation")
+        run("Canvas Size...", "width="+width+" height="+height+" position=Center");
 }
-roiManager("add");
-close();
-roiManager("show none");
-roiManager("show all without labels");
-roiManager("select", 0);
-Overlay.addSelection;
 
-if (METHOD=="Monte Carlo estimation")
-    run("Canvas Size...", "width="+width+" height="+height+" position=Center");
 
 function runCenterlineFromSkeleton() {
     run("Skeletonize (2D/3D)");
@@ -323,3 +375,45 @@ function removeCloseBubbles() {
     run("Select None");
 }
 
+function loadOptions() {
+    optionsPath = getOptionsPath();
+    optionsString = File.openAsString(optionsPath);
+    optionsString = replace(optionsString, "\n", "");
+    options = split(optionsString, " ");   
+    for (i = 0; i < options.length; i++) {
+        option = options[i];
+        parts = split(option, "=");
+        key = parts[0];
+        value = "";
+        if (indexOf(option, "=") > -1) value = parts[1];
+        if (key=="method") METHOD = value;
+        if (key=="interpolation") LINE_INTERPOLATION = value;
+        if (key=="min_radius") MIN_RADIUS = value;
+        if (key=="min_distance") MIN_DIST = value;
+        if (key=="samples") SAMPLES = value;
+        if (key=="max_trials") MAX_TRIALS = value;
+    }
+}
+
+function getOptionsPath() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/select-centerline-options.txt";
+    return optionsPath;
+}
+
+function getOptionsString() {
+    optionsString = "";
+    optionsString = optionsString + "method=" + METHOD;
+    optionsString = optionsString + " interpolation=" + LINE_INTERPOLATION;
+    optionsString = optionsString + " min_radius=" + MIN_RADIUS;
+    optionsString = optionsString + " min_distance=" + MIN_DIST;
+    optionsString = optionsString + " samples=" + SAMPLES;
+    optionsString = optionsString + " max_trials=" + MAX_TRIALS;
+    return optionsString;
+}
+
+function saveOptions() {
+    optionsString = getOptionsString();
+    optionsPath = getOptionsPath();
+    File.saveString(optionsString, optionsPath);
+}
