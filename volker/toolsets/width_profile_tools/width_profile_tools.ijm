@@ -37,7 +37,7 @@ macro "Perpendicular to inertia axis (f6) Action Tool Options" {
     showPerpendicularToInertiaAxisOptions();
 }
 
-macro "Local Thickness [f6]" {
+macro "Perpendicular to inertia axis [f6]" {
     runPerpendicularToInertiaAxis();
 }
 
