@@ -18,92 +18,119 @@
 var TABLE_TITLE = "width measurements";
 var SHOW_PROFILE_PLOT = true;
 var OVERLAY = true;
+var SAVE_OPTIONS = true;
 
-run("Options...", "iterations=1 count=1 black edm=32-bit do=Nothing");
-title = getTitle();
-getPixelSize(unit, pixelWidth, pixelHeight);
-nrOfRoisInOverlay = Overlay.size;
-run("Duplicate...", " ");
-inputMaskID = getImageID();
-inputMaskTitle = getTitle();
-if (nrOfRoisInOverlay > 0) Overlay.copy;
-run("Morphological Filters", "operation=Gradient element=Disk radius=1");
-gradientID = getImageID();
-if (nrOfRoisInOverlay > 0) Overlay.paste;
-run("Connected Components Labeling", "connectivity=8 type=[8 bits]");
-nrOfLabels = getValue("Max");
-close();
-if (nrOfLabels != 2 && nrOfRoisInOverlay != 2) {
-    print("To separate the contour into two parts, the mask must either touch the image borders in two places or there must be two selections 'cutting the caps' in the overlay"); 
-    selectWindow("Log");
-    exit;    
+var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Width-Profile-Tools";
+
+optionsOnly = call("ij.Prefs.get", "mri.options.only", "false");
+showDialog();
+if (optionsOnly=="true") exit;
+widthProfileVoronoi();
+
+function showDialog() {
+    if (File.exists(getOptionsPath())) loadOptions();
+    Dialog.create("Options of Width profile voronoi");
+    
+    Dialog.addCheckbox("Show profile plot: ", SHOW_PROFILE_PLOT);
+    Dialog.addCheckbox("Create overlay: ", OVERLAY);    
+    Dialog.addCheckbox("Save_options", SAVE_OPTIONS);
+    Dialog.addHelp(_URL);
+    
+    Dialog.show();
+    SHOW_PROFILE_PLOT = Dialog.getCheckbox();
+    OVERLAY = Dialog.getCheckbox();
+    SAVE_OPTIONS = Dialog.getCheckbox();
+    
+    if (SAVE_OPTIONS) saveOptions();
 }
 
-capsCut = false;
-
-if (nrOfLabels != 2) {
-    removeCaps();
+function widthProfileVoronoi() {
+    run("Options...", "iterations=1 count=1 black edm=32-bit do=Nothing");
+    title = getTitle();
+    getPixelSize(unit, pixelWidth, pixelHeight);
+    nrOfRoisInOverlay = Overlay.size;
+    run("Duplicate...", " ");
+    inputMaskID = getImageID();
+    inputMaskTitle = getTitle();
+    if (nrOfRoisInOverlay > 0) Overlay.copy;
+    run("Morphological Filters", "operation=Gradient element=Disk radius=1");
+    gradientID = getImageID();
+    if (nrOfRoisInOverlay > 0) Overlay.paste;
     run("Connected Components Labeling", "connectivity=8 type=[8 bits]");
     nrOfLabels = getValue("Max");
     close();
-    if (nrOfLabels != 2) {
-        print("Couldn't separate the contour into two parts");
+    if (nrOfLabels != 2 && nrOfRoisInOverlay != 2) {
+        print("To separate the contour into two parts, the mask must either touch the image borders in two places or there must be two selections 'cutting the caps' in the overlay"); 
         selectWindow("Log");
-        exit;
+        exit;    
     }
-    capsCut = true;
     
+    capsCut = false;
+    
+    if (nrOfLabels != 2) {
+        removeCaps();
+        run("Connected Components Labeling", "connectivity=8 type=[8 bits]");
+        nrOfLabels = getValue("Max");
+        close();
+        if (nrOfLabels != 2) {
+            print("Couldn't separate the contour into two parts");
+            selectWindow("Log");
+            exit;
+        }
+        capsCut = true;
+        
+    }
+    
+    //run("Skeletonize (2D/3D)");
+    run("Voronoi");
+    voronoiTitle = getTitle();
+    voronoiID = getImageID();
+    selectImage(inputMaskID);
+    run("Create Selection");
+    selectImage(voronoiID);
+    run("Restore Selection");
+    run("Clear Outside");
+    run("Select None");
+    
+    if (capsCut) {
+        Overlay.paste
+        removeCaps();
+    }
+    
+    run("Multiply...", "value=2.000");
+    run("Duplicate...", " ");
+    setThreshold(2.0000, 1000000000000000000000000000000.0000);
+    setOption("BlackBackground", true);
+    run("Convert to Mask");
+    run("Skeletonize (2D/3D)");
+    run("line mask to line roi", "interpolation=1");
+    Overlay.activateSelection(0);
+    Roi.getCoordinates(xpoints, ypoints);
+    run("Select None");
+    close();
+    run("Morphological Filters", "operation=Dilation element=Square radius=4");
+    makeSelection("polyline", xpoints, ypoints);
+    run("Interpolate", "interval=1 smooth adjust");
+    resetMinAndMax();
+    min = getValue("Min");
+    max = getValue("Max");
+    setMinAndMax(min, max);
+    run("Fire");
+    Overlay.addSelection;
+    resultImageID = getImageID();
+    run("Calibrate...", "function=None unit="+unit);
+    report();
+    if (SHOW_PROFILE_PLOT) run("Plot Profile");
+    if (OVERLAY) createOverlay(resultImageID, inputMaskID, title, capsCut);
+    selectImage(inputMaskID);
+    close();
+    selectImage(gradientID);
+    close();
+    selectImage(voronoiID);
+    close();
+    selectImage(resultImageID);
+    Overlay.activateSelection(Overlay.size-1);
 }
-
-//run("Skeletonize (2D/3D)");
-run("Voronoi");
-voronoiTitle = getTitle();
-voronoiID = getImageID();
-selectImage(inputMaskID);
-run("Create Selection");
-selectImage(voronoiID);
-run("Restore Selection");
-run("Clear Outside");
-run("Select None");
-
-if (capsCut) {
-    Overlay.paste
-    removeCaps();
-}
-
-run("Multiply...", "value=2.000");
-run("Duplicate...", " ");
-setThreshold(2.0000, 1000000000000000000000000000000.0000);
-setOption("BlackBackground", true);
-run("Convert to Mask");
-run("Skeletonize (2D/3D)");
-run("line mask to line roi", "interpolation=1");
-Overlay.activateSelection(0);
-Roi.getCoordinates(xpoints, ypoints);
-run("Select None");
-close();
-run("Morphological Filters", "operation=Dilation element=Square radius=4");
-makeSelection("polyline", xpoints, ypoints);
-run("Interpolate", "interval=1 smooth adjust");
-resetMinAndMax();
-min = getValue("Min");
-max = getValue("Max");
-setMinAndMax(min, max);
-run("Fire");
-Overlay.addSelection;
-resultImageID = getImageID();
-run("Calibrate...", "function=None unit="+unit);
-report();
-if (SHOW_PROFILE_PLOT) run("Plot Profile");
-if (OVERLAY) createOverlay(resultImageID, inputMaskID, title, capsCut);
-selectImage(inputMaskID);
-close();
-selectImage(gradientID);
-close();
-selectImage(voronoiID);
-close();
-selectImage(resultImageID);
-Overlay.activateSelection(Overlay.size-1);
 
 function createOverlay(resultImageID, inputMaskID, title, capsCut) {
    selectImage(resultImageID);
@@ -150,4 +177,41 @@ function report() {
     Table.set("Max", row, max);
     Table.set("Median", row, median);
     Table.set("Method", row, "width profile voronoi");
+}
+
+function loadOptions() {
+    optionsPath = getOptionsPath();
+    optionsString = File.openAsString(optionsPath);
+    optionsString = replace(optionsString, "\n", "");
+    options = split(optionsString, " ");
+    SHOW_PROFILE_PLOT = false;
+    OVERLAY = false;
+    for (i = 0; i < options.length; i++) {
+        option = options[i];
+        parts = split(option, "=");
+        key = parts[0];
+        value = "";
+        if (indexOf(option, "=") > -1) value = parts[1];
+        if (key=="show") SHOW_PROFILE_PLOT = true;
+        if (key=="create") OVERLAY = true;
+    }
+}
+
+function getOptionsPath() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/wpvoronoi-options.txt";
+    return optionsPath;
+}
+
+function getOptionsString() {
+    optionsString = "";
+    if (SHOW_PROFILE_PLOT) optionsString = optionsString + "show";
+    if (OVERLAY) optionsString = optionsString + " create";
+    return optionsString;
+}
+
+function saveOptions() {
+    optionsString = getOptionsString();
+    optionsPath = getOptionsPath();
+    File.saveString(optionsString, optionsPath);
 }
