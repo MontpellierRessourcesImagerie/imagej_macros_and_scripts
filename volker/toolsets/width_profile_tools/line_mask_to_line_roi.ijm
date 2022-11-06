@@ -39,6 +39,7 @@ function runLineMaskToLineRoi() {
     width = getWidth();
     height = getHeight();
     Overlay.remove;
+    run("Canvas Size...", "width="+(width+2)+" height="+(height+2)+" position=Center zero");
     run("Duplicate...", " ");
     skeletonID = getImageID();
     startPoint = findASkeletonEndPoint();
@@ -83,6 +84,7 @@ function runLineMaskToLineRoi() {
     makeSelection("freeline", xpoints, ypoints);
     run("Interpolate", "interval="+INTERPOLATION_INTERVAL+" smooth adjust");
     Overlay.addSelection("green")
+    run("Canvas Size...", "width="+width+" height="+height+" position=Center zero");
 }
 
 
