@@ -2,6 +2,7 @@
   *  Tools to calculate the width-profile of an object given as a binary mask. 
   *  - calculate the width profile of the objext
   *    - as local thickness 
+  *    - as voronoi distance between two parts of the contour-line
   *    - perpendicular to the axis of inertia
   *    - at regular distances using rays perpendicular to a centerline segment 
   *   
@@ -29,16 +30,45 @@ macro "Local Thickness [f5]" {
     runLocalThickness();
 }
 
-macro "Perpendicular to inertia axis (f6) Action Tool - C000T4b12i" {
+
+macro "Voronoi (f6) Action Tool - C000T4b12v" {
+    runVoronoi();
+}
+
+macro "Voronoi (f6) Action Tool Options" {
+    showVoronoiOptions();
+}
+
+macro "Voronoi [f6]" {
+    runVoronoi();
+}
+
+macro "Perpendicular to inertia axis (f7) Action Tool - C000T4b12i" {
     runPerpendicularToInertiaAxis();
 }
 
-macro "Perpendicular to inertia axis (f6) Action Tool Options" {
+macro "Perpendicular to inertia axis (f7) Action Tool Options" {
     showPerpendicularToInertiaAxisOptions();
 }
 
-macro "Perpendicular to inertia axis [f6]" {
+macro "Perpendicular to inertia axis [f7]" {
     runPerpendicularToInertiaAxis();
+}
+
+function runVoronoi() {
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathWPVoronoi())) {
+        options = loadOptionsWPVoronoi();
+        run("width profile voronoi", options);
+    } else {
+        run("width profile voronoi");
+    }     
+}
+
+function showVoronoiOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("width profile voronoi");
+    call("ij.Prefs.set", "mri.options.only", "false");  
 }
 
 function showLocalThicknessOptions() {
@@ -71,6 +101,19 @@ function runPerpendicularToInertiaAxis() {
     } else {
         run("width profile perpendicular to inertia axis");
     }   
+}
+
+function loadOptionsWPVoronoi() {
+    optionsPath = getOptionsPathWPVoronoi();
+    optionsString = File.openAsString(optionsPath);
+    optionsString = replace(optionsString, "\n", "");
+    return optionsString;
+}
+
+function getOptionsPathWPVoronoi() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/wpvoronoi-options.txt";
+    return optionsPath;
 }
 
 function loadOptionsWPLT() {
