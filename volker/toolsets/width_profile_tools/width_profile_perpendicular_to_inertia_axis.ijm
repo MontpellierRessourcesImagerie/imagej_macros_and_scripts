@@ -15,7 +15,7 @@ runPerpendicularLines();
 
 function showDialog() {
     if (File.exists(getOptionsPath())) loadOptions();
-    Dialog.create("Options of width profile to inertia axis");
+    Dialog.create("Options of width profile perpendicular to inertia axis");
     Dialog.addNumber("Sample_width: ", SAMPLE_WIDTH);
     Dialog.addNumber("Left_offset: ", START_OFFSET);
     Dialog.addNumber("Right_offset: ", END_OFFSET);
