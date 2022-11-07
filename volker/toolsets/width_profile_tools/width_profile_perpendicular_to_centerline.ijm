@@ -1,7 +1,12 @@
-var SAMPLE_DISTANCE = 5;
-var RADIUS = 150;
+var SAMPLE_DISTANCE = 1;
+var RADIUS = 30;
+
+
+
+runWidthProfilePerpendicularToCenterline();
 
 function runWidthProfilePerpendicularToCenterline() {
+    Overlay.remove;
     width = getWidth();
     height = getHeight();
     roiManager("reset");
@@ -19,18 +24,14 @@ function runWidthProfilePerpendicularToCenterline() {
     Y2 = newArray(0);
     
     for (i = middleIndex; i >= 0; i = i - stepWidth) {
-        leftIndex = i;
-        rightIndex = i + 2*RADIUS;
-        if (i>=middleIndex - RADIUS) {
-            leftIndex = i - RADIUS + (middleIndex - i);    
-            rightIndex = i + RADIUS + (middleIndex - i);
-           
-        }
-        if (leftIndex<0) break;
-        if (i>=middleIndex - RADIUS) {
-            rotated = rotateLineSegmentBy90Around(xpoints[rightIndex], ypoints[rightIndex], xpoints[leftIndex], ypoints[leftIndex], xpoints[i], ypoints[i]);    
+        leftIndex = i - RADIUS;
+        rightIndex = i + RADIUS;
+        if (leftIndex < 0) {
+            rightIndex = rightIndex + -leftIndex;
+            leftIndex = 0;
+            rotated = rotateLineSegmentBy90Around(xpoints[leftIndex], ypoints[leftIndex], xpoints[rightIndex], ypoints[rightIndex], xpoints[i], ypoints[i]);    
         } else {
-            rotated = rotateLineSegmentBy90AroundP2(xpoints[rightIndex], ypoints[rightIndex], xpoints[leftIndex], ypoints[leftIndex]);
+            rotated = rotateLineSegmentBy90(xpoints[leftIndex], ypoints[leftIndex], xpoints[rightIndex], ypoints[rightIndex]);
         }
         allongatedLine = growLineToBorders(rotated[0], rotated[1], rotated[2], rotated[3]);
         X1 = Array.concat(allongatedLine[0] ,X1);
@@ -40,17 +41,14 @@ function runWidthProfilePerpendicularToCenterline() {
     }
     
     for (i = middleIndex + stepWidth; i < xpoints.length; i = i + stepWidth) {
-        leftIndex = i - 2*RADIUS;
-        rightIndex = i;
-        if (i<middleIndex + RADIUS) {
-            leftIndex = i-RADIUS - (i - middleIndex);    
-            rightIndex = i+RADIUS - (i - middleIndex);
-        }
-        if (rightIndex > xpoints.length-1) break;
-        if (i<middleIndex + RADIUS) {
-            rotated = rotateLineSegmentBy90Around(xpoints[rightIndex], ypoints[rightIndex], xpoints[leftIndex], ypoints[leftIndex], xpoints[i], ypoints[i]);    
+        leftIndex = i - RADIUS;
+        rightIndex = i + RADIUS;
+        if (rightIndex >  xpoints.length - 1) {
+            leftIndex = i-RADIUS - (rightIndex - ( xpoints.length - 1));    
+            rightIndex =  xpoints.length - 1;
+            rotated = rotateLineSegmentBy90Around(xpoints[leftIndex], ypoints[leftIndex], xpoints[rightIndex], ypoints[rightIndex], xpoints[i], ypoints[i]);
         } else {
-            rotated = rotateLineSegmentBy90AroundP2(xpoints[leftIndex], ypoints[leftIndex], xpoints[rightIndex], ypoints[rightIndex]);
+            rotated = rotateLineSegmentBy90(xpoints[leftIndex], ypoints[leftIndex], xpoints[rightIndex], ypoints[rightIndex]);
         }
         allongatedLine = growLineToBorders(rotated[0], rotated[1], rotated[2], rotated[3]);
         X1 = Array.concat(X1, allongatedLine[0]);
