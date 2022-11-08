@@ -41,9 +41,9 @@ function runPerpendicularLines() {
     print("width_profile_perpendicular_to_inertia_axis.ijm");
     print(getOptionsString());
     title = getTitle();
-    getPixelSize(unit, pixelWidth, pixelHeight);
     toUnscaled(START_OFFSET);
     toUnscaled(END_OFFSET);
+    run("Set Measurements...", "min centroid fit display redirect=None decimal=3");
     getVoxelSize(pixelWidth, pixelHeight, voxelDepth, unit);
     Image.removeScale();
     Overlay.remove;
@@ -51,7 +51,8 @@ function runPerpendicularLines() {
     height = getHeight();
     newWidth = width;
     newHeight = height;
-    setThreshold(1, 65535);
+    if (bitDepth()==8) setThreshold(1, 255);
+    else setThreshold(1, 65535);
     run("Analyze Particles...", "display clear");
     angle = Table.get("Angle", 0);
     rotated = false;
@@ -136,7 +137,8 @@ function measure(title) {
     Overlay.measure;
     lengths = Table.getColumn("Length", "Results");
     Array.getStatistics(lengths, min, max, mean, stddev);
-    median = calculateMedian(lengths);
+    copyOfLengths = Array.copy(lengths);
+    median = calculateMedian(copyOfLengths);
     mode = calculateMode();
     if (!isOpen(TABLE_TITLE)) {
         Table.create(TABLE_TITLE);
@@ -171,7 +173,7 @@ function calculateMedian(values) {
         index = floor(N / 2);
         median = values[index];
     } else {
-        index2 = N / 2
+        index2 = N / 2;
         index1 = index2 - 1;
         median = (values[index1] + values[index2]) / 2;
     }

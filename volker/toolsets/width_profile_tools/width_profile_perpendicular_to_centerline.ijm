@@ -32,11 +32,19 @@ function showDialog() {
 }
 
 function runWidthProfilePerpendicularToCenterline() {
-    Overlay.remove;
+    startTime = getTime();
+    getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+    print(year + "-" + IJ.pad(month+1, 2) + "-" + IJ.pad(dayOfMonth, 2) + " " + hour + ":" + minute + ":" + second + "." + msec);
+    print("width_profile_perpendicular_to_centerline.ijm");
+    print(getOptionsString());
+    
     width = getWidth();
     height = getHeight();
+    title = getTitle();
     roiManager("reset");
     
+    Overlay.activateSelection(0);
+    Overlay.remove;     
     Roi.getCoordinates(xpoints, ypoints);
     Overlay.addSelection("green");
     
@@ -85,10 +93,78 @@ function runWidthProfilePerpendicularToCenterline() {
     
     for (i = 0; i < X1.length; i++) {
         makeLine(X1[i], Y1[i], X2[i], Y2[i]);
-        Overlay.addSelection("red");    
-    }
-    
+        Overlay.addSelection(LINE_COLOR);    
+    }    
     run("Select None");
+    run("Clear Results");
+    run("Measure Overlay");
+    Table.deleteRows(0, 0);
+    lengths= Table.getColumn("Length", "Results");
+    getVoxelSize(pixelWidth, pixelHeight, pixelDepth, unit);
+    if (SHOW_PROFILE_PLOT) showProfilePlot(title, lengths, pixelWidth, unit);
+    measure(title);
+
+    endTime = getTime();
+    getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+    print("execution time: ", ((endTime - startTime) / 1000), "sec.");
+    print(year + "-" + IJ.pad(month+1, 2) + "-" + IJ.pad(dayOfMonth, 2) + " " + hour + ":" + minute + ":" + second + "." + msec);
+}
+
+function showProfilePlot(title, values, pixelWidth, unit) {
+    xValues = Array.getSequence(values.length);
+    for (i = 0; i < xValues.length; i++) {
+        xValues[i] = xValues[i] * pixelWidth * SAMPLE_DISTANCE;
+    }
+    Plot.create("Width profile of " + title, "distance [" + unit + "]", "width [" + unit + "]"); 
+    Plot.add("line", xValues, values); 
+    Plot.setStyle(0, "green,green,2.0,Line");
+    Plot.show();  
+}
+
+function measure(title) {
+    lengths = Table.getColumn("Length", "Results");
+    Array.getStatistics(lengths, min, max, mean, stddev);
+    copyOfLengths = Array.copy(lengths);
+    median = calculateMedian(copyOfLengths);
+    mode = calculateMode();
+    if (!isOpen(TABLE_TITLE)) {
+        Table.create(TABLE_TITLE);
+    }
+    row = Table.size(TABLE_TITLE);
+    Table.set("Image", row, title);    
+    Table.set("Mean", row, mean);
+    Table.set("StdDev", row, stddev);
+    Table.set("Mode", row, mode);
+    Table.set("Min", row, min);
+    Table.set("Max", row, max);
+    Table.set("Median", row, median);
+    Table.set("Method", row, "width profile perpendicular to centerline");
+    return lengths;
+}
+
+function calculateMode() {
+    run("Distribution...", "parameter=Length automatic");
+    selectWindow("Length Distribution");
+    Plot.getValues(bins, counts);
+    close("Length Distribution");
+    ranks = Array.rankPositions(counts);
+    index = ranks[ranks.length-1];
+    return bins[index];
+}
+
+function calculateMedian(values) {
+    Array.sort(values);
+    N = values.length;
+    median = 0;
+    if ((N % 2) == 1) {
+        index = floor(N / 2);
+        median = values[index];
+    } else {
+        index2 = N / 2;
+        index1 = index2 - 1;
+        median = (values[index1] + values[index2]) / 2;
+    }
+    return median;
 }
 
 function growLineToBorders(x1, y1, x2, y2) {

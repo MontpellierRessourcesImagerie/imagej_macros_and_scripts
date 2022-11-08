@@ -83,6 +83,7 @@ function selectCenterline() {
     if (METHOD != "Monte_Carlo_Centerline_Estimation") {
         run("line mask to line roi", "interpolation="+LINE_INTERPOLATION);
     }
+    run("Interpolate", "interval=1 smooth adjust");
     roiManager("add");
     close();
     roiManager("show none");

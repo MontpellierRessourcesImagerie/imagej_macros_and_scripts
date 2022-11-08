@@ -55,6 +55,18 @@ macro "Perpendicular to inertia axis [f7]" {
     runPerpendicularToInertiaAxis();
 }
 
+macro "Perpendicular to centerline (f8) Action Tool - C000T4b12c" {
+    runPerpendicularToCenterline();
+}
+
+macro "Perpendicular to centerline (f8) Action Tool Options" {
+    showPerpendicularToCenterlineOptions();
+}
+
+macro "Perpendicular centerline [f8]" {
+    runPerpendicularToCenterline();
+}
+
 function runVoronoi() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathWPVoronoi())) {
@@ -103,6 +115,22 @@ function runPerpendicularToInertiaAxis() {
     }   
 }
 
+function showPerpendicularToCenterlineOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("width profile perpendicular to centerline");
+    call("ij.Prefs.set", "mri.options.only", "false");   
+}
+
+function runPerpendicularToCenterline() {
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathCenterline())) {
+        options = loadOptionsCenterline();
+        run("width profile perpendicular to centerline", options);
+    } else {
+        run("width profile perpendicular to centerline");
+    }   
+}
+
 function loadOptionsWPVoronoi() {
     optionsPath = getOptionsPathWPVoronoi();
     optionsString = File.openAsString(optionsPath);
@@ -139,5 +167,18 @@ function loadOptionsPIA() {
 function getOptionsPathPIA() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Width-Profile-Tools/wppia-options.txt";
+    return optionsPath;
+}
+
+function loadOptionsCenterline() {
+    optionsPath = getOptionsPathCenterline();
+    optionsString = File.openAsString(optionsPath);
+    optionsString = replace(optionsString, "\n", "");
+    return optionsString;
+}
+
+function getOptionsPathCenterline() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/wppc-options.txt";
     return optionsPath;
 }
