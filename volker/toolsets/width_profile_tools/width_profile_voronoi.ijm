@@ -96,10 +96,8 @@ function widthProfileVoronoi() {
         Overlay.paste
         removeCaps();
     }
-    
-    run("Multiply...", "value=2.000");
     run("Duplicate...", " ");
-    setThreshold(2.0000, 1000000000000000000000000000000.0000);
+    setThreshold(1.0000, 1000000000000000000000000000000.0000);
     setOption("BlackBackground", true);
     run("Convert to Mask");
     run("Skeletonize (2D/3D)");
@@ -108,6 +106,8 @@ function widthProfileVoronoi() {
     Roi.getCoordinates(xpoints, ypoints);
     run("Select None");
     close();
+    run("Multiply...", "value=2.000");
+    run("Multiply...", "value=" + pixelWidth);
     run("Morphological Filters", "operation=Dilation element=Square radius=4");
     makeSelection("polyline", xpoints, ypoints);
     run("Interpolate", "interval=1 smooth adjust");
@@ -120,6 +120,7 @@ function widthProfileVoronoi() {
     resultImageID = getImageID();
     run("Calibrate...", "function=None unit="+unit);
     report();
+    run("Set Scale...", "distance=1 known="+pixelWidth+" unit="+unit);
     if (SHOW_PROFILE_PLOT) run("Plot Profile");
     if (OVERLAY) createOverlay(resultImageID, inputMaskID, title, capsCut);
     selectImage(inputMaskID);
@@ -131,6 +132,7 @@ function widthProfileVoronoi() {
     selectImage(resultImageID);
     Overlay.activateSelection(Overlay.size-1);
 }
+
 
 function createOverlay(resultImageID, inputMaskID, title, capsCut) {
    selectImage(resultImageID);

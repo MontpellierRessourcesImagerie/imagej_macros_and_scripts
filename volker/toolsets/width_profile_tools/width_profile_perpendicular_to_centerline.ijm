@@ -1,6 +1,8 @@
 var SAMPLE_DISTANCE = 1;
 var COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "white", "yellow");
 var LINE_COLOR = "pink";
+var START_OFFSET = 0;
+var END_OFFSET = 0;
 var RADIUS = 15;
 var SAVE_OPTIONS = true;
 var SHOW_PROFILE_PLOT = true;
@@ -16,6 +18,8 @@ function showDialog() {
     if (File.exists(getOptionsPath())) loadOptions();
     Dialog.create("Options of width profile perpendicular to centerline");
     Dialog.addNumber("Sample distance: ", SAMPLE_DISTANCE);
+    Dialog.addNumber("Left_offset: ", START_OFFSET);
+    Dialog.addNumber("Right_offset: ", END_OFFSET);
     Dialog.addNumber("Radius: ", RADIUS);
     Dialog.addChoice("Line_color: ", COLORS, LINE_COLOR);
     Dialog.addCheckbox("Show profile plot", SHOW_PROFILE_PLOT);
@@ -23,6 +27,8 @@ function showDialog() {
     Dialog.addHelp(_URL);
     Dialog.show();
     SAMPLE_DISTANCE = Dialog.getNumber();
+    START_OFFSET = Dialog.getNumber();
+    END_OFFSET = Dialog.getNumber();
     RADIUS = Dialog.getNumber();
     LINE_COLOR = Dialog.getChoice();
     SHOW_PROFILE_PLOT = Dialog.getCheckbox();
@@ -57,7 +63,12 @@ function runWidthProfilePerpendicularToCenterline() {
     X2 = newArray(0);
     Y2 = newArray(0);
     
-    for (i = middleIndex; i >= 0; i = i - stepWidth) {
+    leftOffset = START_OFFSET;
+    toUnscaled(leftOffset);
+    rightOffset = END_OFFSET;
+    toUnscaled(rightOffset);
+    
+    for (i = middleIndex; i >= leftOffset; i = i - stepWidth) {
         leftIndex = i - RADIUS;
         rightIndex = i + RADIUS;
         if (leftIndex < 0) {
@@ -74,7 +85,7 @@ function runWidthProfilePerpendicularToCenterline() {
         Y2 = Array.concat(allongatedLine[3] ,Y2);
     }
     
-    for (i = middleIndex + stepWidth; i < xpoints.length; i = i + stepWidth) {
+    for (i = middleIndex + stepWidth; i < xpoints.length-rightOffset; i = i + stepWidth) {
         leftIndex = i - RADIUS;
         rightIndex = i + RADIUS;
         if (rightIndex >  xpoints.length - 1) {
@@ -307,6 +318,8 @@ function loadOptions() {
         value = "";
         if (indexOf(option, "=") > -1) value = parts[1];
         if (key=="sample") SAMPLE_DISTANCE = value;
+        if (key=="left_offset") START_OFFSET = value;
+        if (key=="right_offset") END_OFFSET = value;
         if (key=="radius") RADIUS = value;
         if (key=="line_color") LINE_COLOR = value;
         if (key=="show") SHOW_PROFILE_PLOT = true;
@@ -322,6 +335,8 @@ function getOptionsPath() {
 function getOptionsString() {
     optionsString = "";
     optionsString = optionsString + "sample=" + SAMPLE_DISTANCE;
+    optionsString = optionsString + " left_offset=" + START_OFFSET;
+    optionsString = optionsString + " right_offset=" + END_OFFSET;
     optionsString = optionsString + " radius=" + RADIUS;
     optionsString = optionsString + " line_color=" + LINE_COLOR;
     if (SHOW_PROFILE_PLOT) optionsString = optionsString + " show";

@@ -41,8 +41,10 @@ function runPerpendicularLines() {
     print("width_profile_perpendicular_to_inertia_axis.ijm");
     print(getOptionsString());
     title = getTitle();
-    toUnscaled(START_OFFSET);
-    toUnscaled(END_OFFSET);
+    leftOffset = START_OFFSET;
+    toUnscaled(leftOffset);
+    rightOffset = END_OFFSET;
+    toUnscaled(rightOffset);
     run("Set Measurements...", "min centroid fit display redirect=None decimal=3");
     getVoxelSize(pixelWidth, pixelHeight, voxelDepth, unit);
     Image.removeScale();
@@ -69,7 +71,7 @@ function runPerpendicularLines() {
     run("To Bounding Box");
     bbx = getValue("BX") + START_OFFSET;
     bby = getValue("BY");
-    bbWidth = getValue("Width") - START_OFFSET - END_OFFSET;
+    bbWidth = getValue("Width") - leftOffset - rightOffset;
     bbHeight = getValue("Height");
     SAMPLES = round(bbWidth / SAMPLE_WIDTH);
     for (i = 0; i < SAMPLES; i++) {

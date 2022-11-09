@@ -67,10 +67,76 @@ macro "Perpendicular centerline [f8]" {
     runPerpendicularToCenterline();
 }
 
+var cmds = newMenu("Utilities Menu Tool", newArray("Select Centerline", 
+                                                   "Smooth Mask", 
+                                                   "Line Mask to Line ROI", 
+                                                   "Re-Measure Thickness",
+                                                   "---", 
+                                                   "Select Centerline Options", 
+                                                   "Smooth Mask Options", 
+                                                   "Line Mask to Line ROI Options"));
+    
+macro "Utilities Menu Tool - C000Db4Dc3C999D4cD5bD6aDa3Da6C777D25D36D3bD4aD52D59D95D96CfffD15D51D57D58D75D85D8aD93D9bDa8DacDb6Db9DbdDcaDdbC444D45D54Da4Dc4DccCeeeD14D26D62D86D94Dd2Dd4C888D69D87Da9DcbC222D35D3cD4bD53D5aD66D77D88D99Da5DaaDbbCcccD23D32Dc5DcdDdcC888D63D78D9aDb5DbcC555D24D42D46D56D64D65CeeeD2bD3aD41D44D49D68D79D97DddC999D2cD67D76D89D98DabDbaDc2C111D55Db3CbbbD2dD34D3dD43Db2Dd3" {
+    cmd = getArgument();
+    if (cmd=="Select Centerline") {
+        call("ij.Prefs.set", "mri.options.only", "false");   
+        if (File.exists(getOptionsPathWPVoronoi())) {
+            options = loadOptions(getOptionsPathWPVoronoi());
+            run("select centerline", options);
+        } else {
+            run("select centerline");
+        }
+        return;           
+    }
+    if (cmd=="Smooth Mask") {
+        call("ij.Prefs.set", "mri.options.only", "false");   
+        if (File.exists(getOptionsPathSmoothMask())) {
+            options = loadOptions(getOptionsPathSmoothMask());
+            run("smooth mask", options);
+        } else {
+            run("smooth mask",;
+        }
+        return;           
+    }
+    if (cmd=="Line Mask to Line ROI") {
+        call("ij.Prefs.set", "mri.options.only", "false");   
+        if (File.exists(getOptionsPathLineMaskToLineROI())) {
+            options = loadOptions(getOptionsPathLineMaskToLineROI());
+            run("line mask to line roi", options);
+        } else {
+            run("line mask to line roi",;
+        }
+        return;           
+    }
+        }
+    if (cmd== "Re-Measure Thickness") {
+        run("remeasure thickness");
+        return;           
+    }
+    if (cmd=="Select Centerline Options") {
+        call("ij.Prefs.set", "mri.options.only", "true"); 
+        run("select centerline");
+        call("ij.Prefs.set", "mri.options.only", "false"); 
+        return;           
+    }
+    if (cmd=="Smooth Mask Options") {
+        call("ij.Prefs.set", "mri.options.only", "true"); 
+        run("smooth mask");
+        call("ij.Prefs.set", "mri.options.only", "false"); 
+        return;           
+    }
+    if (cmd=="Line Mask to Line ROI Options") {
+        call("ij.Prefs.set", "mri.options.only", "true"); 
+        run("line mask to line roi");
+        call("ij.Prefs.set", "mri.options.only", "false"); 
+        return;           
+    }
+}
+
 function runVoronoi() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathWPVoronoi())) {
-        options = loadOptionsWPVoronoi();
+        options = loadOptions(getOptionsPathWPVoronoi());
         run("width profile voronoi", options);
     } else {
         run("width profile voronoi");
@@ -92,7 +158,7 @@ function showLocalThicknessOptions() {
 function runLocalThickness() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathWPLT())) {
-        options = loadOptionsWPLT();
+        options = loadOptions(getOptionsPathWPLT());
         run("width profile by local thickness", options);
     } else {
         run("width profile by local thickness");
@@ -108,7 +174,7 @@ function showPerpendicularToInertiaAxisOptions() {
 function runPerpendicularToInertiaAxis() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathPIA())) {
-        options = loadOptionsPIA();
+        options = loadOptions(getOptionsPathPIA());
         run("width profile perpendicular to inertia axis", options);
     } else {
         run("width profile perpendicular to inertia axis");
@@ -124,18 +190,17 @@ function showPerpendicularToCenterlineOptions() {
 function runPerpendicularToCenterline() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathCenterline())) {
-        options = loadOptionsCenterline();
+        options = loadOptions(getOptionsPathCenterline());
         run("width profile perpendicular to centerline", options);
     } else {
         run("width profile perpendicular to centerline");
     }   
 }
 
-function loadOptionsWPVoronoi() {
-    optionsPath = getOptionsPathWPVoronoi();
-    optionsString = File.openAsString(optionsPath);
+function loadOptions(path) {
+    optionsString = File.openAsString(path);
     optionsString = replace(optionsString, "\n", "");
-    return optionsString;
+    return optionsString;  
 }
 
 function getOptionsPathWPVoronoi() {
@@ -144,24 +209,10 @@ function getOptionsPathWPVoronoi() {
     return optionsPath;
 }
 
-function loadOptionsWPLT() {
-    optionsPath = getOptionsPathWPLT();
-    optionsString = File.openAsString(optionsPath);
-    optionsString = replace(optionsString, "\n", "");
-    return optionsString;
-}
-
 function getOptionsPathWPLT() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Width-Profile-Tools/wplt-options.txt";
     return optionsPath;
-}
-
-function loadOptionsPIA() {
-    optionsPath = getOptionsPathPIA();
-    optionsString = File.openAsString(optionsPath);
-    optionsString = replace(optionsString, "\n", "");
-    return optionsString;
 }
 
 function getOptionsPathPIA() {
@@ -170,15 +221,26 @@ function getOptionsPathPIA() {
     return optionsPath;
 }
 
-function loadOptionsCenterline() {
-    optionsPath = getOptionsPathCenterline();
-    optionsString = File.openAsString(optionsPath);
-    optionsString = replace(optionsString, "\n", "");
-    return optionsString;
-}
-
 function getOptionsPathCenterline() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Width-Profile-Tools/wppc-options.txt";
+    return optionsPath;
+}
+
+function getOptionsPathSelectCenterline() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/select-centerline-options.txt";
+    return optionsPath;
+}
+
+function getOptionsPathSmoothMask() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/smooth-mask-options.txt";
+    return optionsPath;
+}
+
+function getOptionsPathLineMaskToLineROI() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Width-Profile-Tools/lmtl-options.txt";
     return optionsPath;
 }
