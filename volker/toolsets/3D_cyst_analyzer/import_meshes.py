@@ -20,4 +20,7 @@ for i in range(0, len(ms)):
     m = ms[i]
     v_matrix = m.vertex_matrix()
     f_matrix = m.face_matrix()
-    viewer.add_surface((v_matrix, f_matrix, np.linspace(1, 1, len(v_matrix))), name='cell '+str(i+1))
+    try:
+        viewer.add_surface((v_matrix, f_matrix, np.linspace(1, 1, len(v_matrix))), name='cell '+str(i+1))
+    except ValueError:
+        pass

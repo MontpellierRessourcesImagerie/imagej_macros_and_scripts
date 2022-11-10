@@ -671,7 +671,7 @@ function detectNuclei() {
 	Overlay.addSelection;
 	Overlay.setPosition(0, round(z), 0);
 	run("Select None");
-	return _X_COLUMN.length;
+	return nResults;
 }
 
 function addDistancesFromCenterToTable() {

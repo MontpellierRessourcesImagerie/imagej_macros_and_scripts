@@ -8,31 +8,38 @@
   *  * the number of secondary roots
   *  * the length and area of the whole root
   *
-  * (c) 2017, INSERM
+  * (c) 2017-2022, INSERM
   * written by Volker Baecker at Montpellier RIO Imaging (www.mri.cnrs.fr)
  *
 */
 
-var _MIN_AREA = 10000;
+var _MIN_AREA = 150;
 var _MAX_ROOT_WIDTH = 25;
-var _MIN_ROOT_LENGTH = 3000;
-var _STEP_WIDTH = 3;
-var _MEDIAN_FILTER_RADIUS = 5;
-var _TIP_DISTANCE = 6;
-var _ENLARGE_MAIN_ROOT_SELECTION1 = 10;
+var _MIN_ROOT_LENGTH = 30;
+var _STEP_WIDTH = 2;
+var _MEDIAN_FILTER_RADIUS = 1;
+var _TIP_DISTANCE = 1;
+var _ENLARGE_MAIN_ROOT_SELECTION1 = 4;
 var _MAIN_CENTER_COLOR = "blue";
 var _SKELETON_COLOR = "red";
 var _MAIN_BORDER_COLOR = "magenta";
 var _SEC_ROOT_COLOR = "green";
-var _MIN_OBJECT_SIZE = 80;
+var _MIN_OBJECT_SIZE = 25;
 var _REPORT_TITLE = "Roots-measurements";
 var _REPORT_HANDLE = "[" + _REPORT_TITLE + "]";
 var _CONTROL_FOLDER = "control";
-var _ROTATE = true;
+var _ROTATE = false;
 var _ROTATE_DIRECTION = "Right";
 var _FILE_EXTENSION = ".jpg";
- 
+var _DO_PREPROCESSING = false;
+var _TEXT_SIZE = 8;
+var _THRESHOLDING_METHOD = "IsoData";
+var _THRESHOLDING_METHODS = getList("threshold.methods");
 var helpURL = "http://dev.mri.cnrs.fr/wiki/imagej-macros/MRI_Analyze_Roots_Tool";
+
+openResultsTable();
+analyzeRootsInCurrentImage();
+exit;
 
 macro "MRI Analyze Roots Tool Help Action Tool - - C0f0D53D63Da4DadDb4Cf00D2bD35D37D38D39D3aD3bD44D45D46D54Db5Db6DbdDbeDc7Dc8Dc9DdaDeaDebC00fD71D72D79D7aD7bD7cD83D84D85D86D87D88D8cD8dD8eD93D94D95D96Cff0D00D01D02D03D04D05D06D07D08D09D0aD0bD0cD0dD0eD0fD10D1fD20D2fD30D3fD40D4fD50D5fD60D6fD70D7fD80D8fD90D9fDa0DafDb0DbfDc0DcfDd0DdfDe0DefDf0Df1Df2Df3Df4Df5Df6Df7Df8Df9DfaDfbDfcDfdDfeDffCf0eD61D62D68D69D6aD6bD6cD6dD73D74D75D76D77D78D7dD7eD81D82D89D8aD8bD92D97D98D99D9bD9cD9dD9eDa2Da3Da5Da6"{
 	run('URL...', 'url='+helpURL);
@@ -69,6 +76,8 @@ macro 'Batch Process Images (f6) Action Tool Options' {
 
 function showOptionsDialog() {
 	Dialog.create("Analyze Roots Tool Options");
+     Dialog.addCheckbox("preprocess image", _DO_PREPROCESSING);
+     Dialog.addChoice("auto-thresholding method: ", _THRESHOLDING_METHODS, _THRESHOLDING_METHOD);
 	 Dialog.addNumber("min. area: ", _MIN_AREA);
 	 Dialog.addNumber("max. root width: ", _MAX_ROOT_WIDTH);
 	 Dialog.addNumber("min. root length: ", _MIN_ROOT_LENGTH);
@@ -77,6 +86,7 @@ function showOptionsDialog() {
 	 Dialog.addNumber("tip distance: ", _TIP_DISTANCE);
 	 Dialog.addNumber("enlarge main root selection: ", _ENLARGE_MAIN_ROOT_SELECTION1);
 	 Dialog.addNumber("min. object size: ", _MIN_OBJECT_SIZE);
+     Dialog.addNumber("text size: ", _TEXT_SIZE);
 	 Dialog.addString("center color of main root: ", _MAIN_CENTER_COLOR);
 	 Dialog.addString("border color of main root: ", _MAIN_BORDER_COLOR); 
 	 Dialog.addString("skeleton color of secondary roots: ", _SKELETON_COLOR);
@@ -86,6 +96,8 @@ function showOptionsDialog() {
 	 
 	 Dialog.show();
 	 
+     _DO_PREPROCESSING = Dialog.getCheckbox();
+     _THRESHOLDING_METHOD = Dialog.getChoice();
 	 _MIN_AREA = Dialog.getNumber();
 	 _MAX_ROOT_WIDTH = Dialog.getNumber();
 	 _MIN_ROOT_LENGTH = Dialog.getNumber();
@@ -94,6 +106,7 @@ function showOptionsDialog() {
 	 _TIP_DISTANCE = Dialog.getNumber();
 	 _ENLARGE_MAIN_ROOT_SELECTION1 = Dialog.getNumber();
 	 _MIN_OBJECT_SIZE = Dialog.getNumber();
+     _TEXT_SIZE = Dialog.getNumber();
 	 _MAIN_CENTER_COLOR = Dialog.getString();
 	 _MAIN_BORDER_COLOR = Dialog.getString();
 	 _SKELETON_COLOR = Dialog.getString();
@@ -142,6 +155,40 @@ function batchProcessImages() {
 	print(endTimeStamp);
 }
 
+/**
+ * Replace this function with whatever pre-processing is useful for your images.
+ * The aim is to remove "things" around the roots so that only the roots with a 
+ * more ore less homogenous background remain in the image.
+ * Should this not be possible instead of the preprocessing you can make a selection 
+ * around the roots and crop the image.
+ */
+function preprocessImage() {
+    for(i=150; selectionType()<0 && i<5600; i=i+150) {
+        doWand(3456+i, 3564, 45.0, "Legacy");
+    }
+    if (selectionType() >= 0) {
+
+        run("Enlarge...", "enlarge=20");
+        run("Enlarge...", "enlarge=-30");
+    }
+    getStatistics(area, mean);
+    
+    run("Create Mask");
+    firstMaskID = getImageID();
+    run("Fill Holes");
+    run("Create Selection");
+    selectImage(inputImageID);
+    run("Restore Selection");
+    selectImage(firstMaskID);
+    close();
+    selectImage(inputImageID);
+    
+    run("Make Inverse");
+    setForegroundColor(mean, mean, mean);
+    run("Fill", "slice");
+    run("Select None");
+}
+
 function analyzeRootsInCurrentImage() {
 	setBackgroundColor(255,255,255);
 	run("Set Measurements...", "area bounding area_fraction stack display redirect=None decimal=3");
@@ -151,55 +198,21 @@ function analyzeRootsInCurrentImage() {
 	inputImageID = getImageID();
 	inputTitle = getTitle();
 
-	for(i=150; selectionType()<0 && i<5600; i=i+150) {
-		doWand(3456+i, 3564, 45.0, "Legacy");
-	}
-	run("Enlarge...", "enlarge=20");
-	run("Enlarge...", "enlarge=-30");
-	getStatistics(area, mean);
-	
-	run("Create Mask");
-	firstMaskID = getImageID();
-	run("Fill Holes");
-	run("Create Selection");
-	selectImage(inputImageID);
-	run("Restore Selection");
-	selectImage(firstMaskID);
-	close();
-	selectImage(inputImageID);
-	
-	run("Make Inverse");
-	setForegroundColor(mean, mean, mean);
-	run("Fill", "slice");
-	run("Select None");
-	
-	run("Duplicate...", " ");
-	maskImage = getImageID();
-	setAutoThreshold("Intermodes dark");
-	setOption("BlackBackground", false);
-	run("Convert to Mask");
-	run("Invert");
-	cleanUpSmallObjects();
-	
-	run("Create Selection");
-	run("To Bounding Box");
-	getSelectionBounds(x, y, width, height);
-	height = height + 50;
-	x = x -50;
-	width = width +100;
-	makeRectangle(x, y, width, height);
-	run("Crop");
-
-	findTips();
-	
-	selectImage(inputImageID);
-	
-	makeRectangle(x,y,width,height);
-	run("Crop");
-	
-	traceMainRoots();
-	
-	smoothTracings();
+	if (_DO_PREPROCESSING) preprocessImage();
+  
+    run("8-bit");
+    run("Duplicate...", " ");
+    maskImage = getImageID();
+    setAutoThreshold(_THRESHOLDING_METHOD);
+    setOption("BlackBackground", false);
+    run("Convert to Mask");
+    findTips();
+        
+    selectImage(inputImageID);
+        
+    traceMainRoots();
+        
+    smoothTracings();
 	
 	selectImage(maskImage);
 	boxStartIndex = roiManager("count");
@@ -283,11 +296,13 @@ function analyzeRootsInCurrentImage() {
 		run("Restore Selection");
 		getSelectionBounds(xt, yt, wt, ht);
 		setSelectionLocation(x+xt, y+yt);
-		roiManager("add");
-		last = roiManager("count") - 1;
-		roiManager("Select", last);
-		roiManager("Rename", rootNR + "-skeletons");
-		roiManager("Set Color", _SKELETON_COLOR);
+        if (nrOfSecondOrderRoots>0) {
+            roiManager("add");
+            last = roiManager("count") - 1;
+            roiManager("Select", last);
+            roiManager("Rename", rootNR + "-skeletons");
+            roiManager("Set Color", _SKELETON_COLOR);
+        }
 		run("Select None");
 		measurements[rootNR-1] = "" + length + "\t" + area +"\t" + nrOfSecondOrderRoots + "\t" + totalArea + "\t" + totalLength + "\t" + inputTitle; 
 	}
@@ -319,7 +334,7 @@ function analyzeRootsInCurrentImage() {
 	run("From ROI Manager");
 	roiManager("Delete");
 	
-	setFont("SansSerif" ,72 , "bold");
+	setFont("SansSerif" , _TEXT_SIZE, "bold");
 	for (i=0; i<nrOfRoots; i++) {
 		Overlay.drawString(""+(i+1), boundsX[i]+5, boundsY[i]+72);
 	}
@@ -333,7 +348,7 @@ function findTips() {
 	tipsX = newArray();
 	tipsY = newArray();
 	roiManager("Reset");
-	run("Analyze Particles...", "size=6000-Infinity add");
+	run("Analyze Particles...", "size="+_MIN_OBJECT_SIZE+"-Infinity add");
 	count = roiManager("count");
 	for(i=0; i<count; i++) {
 		roiManager("select", i);

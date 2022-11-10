@@ -116,9 +116,9 @@ def decomposeSpots(rna, spots):
     beta = BETA,  # beta impacts the number of candidate regions to decompose
     gamma = GAMMA)  # gamma the filtering step to denoise the image
     print("detected spots before decomposition")
-    print("\r count: {0}".format(spots.shape[0]))
+    print("\r count: {}".format(spots.shape[0]))
     print("detected spots after decomposition")
-    print("\r count: {0}".format(spots_post_decomposition.shape)[0])
+    print("\r count: {}".format(spots_post_decomposition.shape[0]))
     return spots_post_decomposition, dense_regions, reference_spot
 
 def getFilesForChannel(folder, channel):

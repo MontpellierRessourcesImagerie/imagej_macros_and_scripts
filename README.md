@@ -56,6 +56,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [MRI_Create_Synthetic_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Create_Synthetic_Spots_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/054649b1a184aa24155b0feb633c20bf28c5dc03/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323035352f73706f74732e706e67" height='100'/> The tool creates images of 2D-spots for the evaluation and benchmarking of spot detection tools. Two populations of spots with different means and variations of the size can be created in the same image. 
+####   [MRI Dynamic Zones Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Dynamic_Zones_Analyzer)
+
+<img align='right' src="https://camo.githubusercontent.com/a53c5744c6d7cc78fa23897d508da759131a69d1cf0b03cdf0be928fc34be06c/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323634302f6163746976655f7a6f6e65732e676966" height='100'/> Find and segment zones in which the intensity changes over time. Classify the zones into zones with increasing, decreasing, constant, u-shaped and n-shapes intensity profiles.  
 ####   [MRI_Fibrosis_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool) 
 
 <img align='right' src="https://camo.githubusercontent.com/7571589a6dbdd5b6ee98470e3c269bd353e12ebf/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313532342f726573756c7430312e706e67" height='100'/> Measure the relative area of sirius red stained fibrosis. The tool uses the colour deconvolution plugin from Gabriel Landini. 
@@ -89,6 +92,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Measure_Border_And_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Border_And_Spots_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/f52961f446b8594da6641fe0a26f7d024671f0931b9dea20feb64b2b39b77611/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323431352f6f75747075742e706e67" height='100'/> The tool counts the number of spots (foci) per nucleus and measures the intensity, form, size and position of the spots. It also optionally measures the intensity in the membrane of the nucleus. 
+####   [MRI Neurite Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer)
+
+<img align='right' src="https://camo.githubusercontent.com/f17d22fd96fbd8f164d42ac3f95a0e6c0fbeda4d81543b550a5ea868e0e4b4f4/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323631382f464953485f73706f74732e706e67" height='100'/> The toolset helps to segment neurites, measure the distances on the neurites to the closest soma, assign each neurite to a soma and to measure the FISH-signal on the neurites.
 ####   [Measure_Nuclei_And_Membranes](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Nuclei_And_Membranes_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/ab2994029c23fa0e43d8e2e550f09c3302f7ef8fb2a8b9f2c80c934f60925a04/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323537322f4d6f6e746167652e706e67" height='100'/> The tool measures the membranes and nuclei, of cells segmented with cellpose, in all channels but the nuclei-channel.
