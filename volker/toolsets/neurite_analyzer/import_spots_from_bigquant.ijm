@@ -1,3 +1,5 @@
+
+
 path = File.openDialog("Select a File");
 content = File.openAsString(path);
 lines = split(content, "\n");
