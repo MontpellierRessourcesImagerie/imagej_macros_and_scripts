@@ -7,6 +7,17 @@ var RAW = "https://raw.githubusercontent.com";
 var COMPONENT = HOST + "/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/<tag>/"+AUTHOR+"/toolsets/" + TOOL;
 var TAGS_URL = 'https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tags';
 
+
+toolToBeUpdated = call("ij.Prefs.get", "mri.update.tool", "");
+updateFolder = call("ij.Prefs.get", "mri.update.folder", "");
+updateAuthor = call("ij.Prefs.get", "mri.update.author", "");
+
+if (toolToBeUpdated != "" && updateFolder != "" && updateAuthor != "") {
+    TOOL = toolToBeUpdated;
+    FOLDER = updateFolder;
+    AUTHOR = updateAuthor;
+}
+
 currentVersion = getCurrentVersion();
 
 tags = getTags(COMPONENT, TAGS_URL);
