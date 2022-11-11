@@ -18,7 +18,7 @@ import bigfish.detection as detection
 
 from tkinter import filedialog, Tk
 
-RNA_FISH_SPOTS_CHANNEL = '561'
+RNA_FISH_SPOTS_CHANNEL = '488'
 VOXEL_SIZE = 1
 SPOT_RADIUS = 1.2
 ALPHA = 0.7

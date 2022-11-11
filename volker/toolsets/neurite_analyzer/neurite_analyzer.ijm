@@ -1,7 +1,9 @@
 var SIGMA = 7;
 var THRESHOLDING_METHOD = "Intermodes";		
 var THRESHOLDING_METHODS = getList("threshold.methods");
-var CHANNELS = newArray("405", "640", "488");
+var CHANNELS = newArray("405", "640", "488", "561");
+var FISH_CHANNELS = newArray("488", "561");
+var FISH_CHANNEL = FISH_CHANNELS[0];
 var BATCH_MODE = false;
 
 var CLASSIFIER_FOLDER = getDirectory("macros") + "/toolsets/";
@@ -25,9 +27,13 @@ var SCALE = 1.7;
 var PROEMINENCE = 200;
 var NEURITE_ID_CHANNEL = 3;
 var DISTANCE_CHANNEL = 4;
+
+var MAX_SPOTS = 99999;
+
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer";
  
-batchProcessImages();
+//batchProcessImages();
+readSpotsFromFile("/media/baecker/4toEXFAT1/in/ready/Coleno_smFISH_IF_p1tivneg_oligopool456_neuronespurifiés_201016/_B02_Kif1a__488.txt");
 exit;
 
 macro "Neurite Analyzer (F1) Action Tool - C060L0020C050L3050C051D60C041D70C040L8090C030La0b0C020Lc0d0C010Le0f0C050D01C060L1121C050L3151C051D61C040L71a1C030Db1C020Lc1d1C010Le1f1C050D02C060D12C050L2242C040D52C041D62C040L7292C030Da2C020Lb2d2C010Le2f2C050D03C070D13C050L2343C040L5393C030Da3C020Lb3d3C010Le3f3C050D04C060D14C070D24C060L3444C061D54C0afL6474C080D84C070D94C050Da4C030Db4C020Lc4d4C010Le4f4C050L0515C070D25C080D35C0a0D45C0afL5575C0a1D85C080D95C090Da5C080Db5C050Dc5C030Dd5C010Le5f5C050D06C040D16C050L2636C080D46C0b5D56C0afD66C0a4D76C050D86C030D96C040Da6C070Db6C030Lc6d6C020De6C010Df6C040L0737C060D47C0c1D57C0b1D67C060D77C030L8797C020Da7C050Db7C030Dc7C010Ld7f7C040L0838C070D48C0c0D58C080D68C040D78C030L88b8C050Dc8C010Ld8e8C050L0929C070D39C0a0D49C080D59C070D69C040L7989C030L99a9C020Db9C040Dc9C020Dd9C010De9C050D0aC060D1aC080D2aC090D3aC070D4aC050D5aC080D6aC040L7a8aC030L9aaaC020LbadaC010LeafaC050D0bC060L1b2bC050L3b4bC070D5bC080D6bC050D7bC040L8b9bC030LabbbC020LcbdbC010LebfbC050L0c5cC070D6cC050D7cC040D8cC030L9cbcC020LccdcC010LecfcC060D0dC050L1d5dC060D6dC040L7d9dC030LadbdC020LcdddC010LedfdC060L0e1eC050L2e6eC040L7e9eC030LaeceC020LdeeeC010DfeC060L0f1fC050L2f6fC040L7f9fC030LafcfC020LdfefC010Dff" {
@@ -116,18 +122,20 @@ macro "label neurites (f5) Action Tool Options" {
 }
 
 macro "measure FISH Signal on neurites (f6) Action Tool - C000T4b12f" {
-	measureFISHOnNeurites();
+	measureFISHOnNeurites(false);
 }
 
 macro "measure FISH Signal on neurites [f6]" {
-	measureFISHOnNeurites();
+	measureFISHOnNeurites(false);
 }
 
 macro "measure FISH Signal on neurites (f6) Action Tool Options" {
 	Dialog.create("measure FISH spots options");
+	Dialog.addChoice("FISH channel: ", FISH_CHANNELS, FISH_CHANNEL);
 	Dialog.addNumber("scale: ", SIGMA);
 	Dialog.addNumber("proeminence: ", PROEMINENCE);
 	Dialog.show();
+	FISH_CHANNEL = Dialog.getChoice();
 	SIGMA = Dialog.getNumber();
 	PROEMINENCE = Dialog.getNumber();
 }
@@ -196,6 +204,18 @@ macro "batch measure FISH Signal on neurites [f12]" {
 	batchMeasureFISHOnNeurites(dir);
 }
 
+macro "batch measure FISH Signal on neurites (f12) Action Tool Options" {
+	Dialog.create("batch measure FISH Signal on neurites options");
+	fishChannelsString = String.join(FISH_CHANNELS) 
+	Dialog.addString("FISH channels: ", fishChannelsString);
+	Dialog.show();
+	fishChannelsString = Dialog.getString();
+	FISH_CHANNELS = split(fishChannelsString, ",");
+	for (i = 0; i < FISH_CHANNELS.length; i++) {
+		FISH_CHANNELS[i] = String.trim(FISH_CHANNELS[i]);
+	}
+}
+
 macro "batch process images Action Tool - C000T4b12b" {
 	batchProcessImages();
 }
@@ -217,7 +237,7 @@ function selectNeuriteImage() {
 
 
 function selectFISHImage() {
-	selectImageWithTextInTitle(CHANNELS[2]);
+	selectImageWithTextInTitle(FISH_CHANNEL);
 }
 
 function selectCompositeImage() {
@@ -269,7 +289,10 @@ function removeRoisWithoutSupport(image, otherImage) {
 		run("Select None");
 	}
 	print("Removed :"+toBeRemoved.length+" rois");
-	run("From ROI Manager");
+	count = roiManager("count");
+	if (count>0) {
+		run("From ROI Manager");
+	}
 	roiManager("reset");
 	selectImage(otherImageMaskID);
 	close();
@@ -590,7 +613,7 @@ function batchMergeAndFilter(dir) {
 		for (f = 0; f < files.length; f++) {
 			print("Processing file " + files[f]);
 			roiManager("reset");
-			outFile = replace(files[f], CHANNELS[0]+".tif", "composite.tif");
+			outFile = replace(files[f], CHANNELS[0]+".tif", "result_composite.tif");
 			outFile = folder + outFile;
 			file = folder + files[f];			
 			open(file);
@@ -629,35 +652,63 @@ function batchMeasureFISHOnNeurites(dir) {
 		showProgress(i+1, subfolders.length);
 		folder = dir + subfolders[i];
 		files = getFileList(folder);
-		files = getFilesForChannel(files, CHANNELS[2], "tif");
-		for (f = 0; f < files.length; f++) {
-			print("Processing file " + files[f]);
-			roiManager("reset");
-			file = folder + files[f];
-			file2 = replace(file, CHANNELS[2]+".tif", "result_composite.tif");
-			open(file);
-			open(file2);
-			imageID = getImageID();
-			measureFISHOnNeurites();
-			selectImage(imageID);
-			run("From ROI Manager");
-			save(file2);
-			parts = split(file, ".");
-			Table.save(parts[0] + ".xls", "Results");
-			close("*");
+		oldFISHChannel = FISH_CHANNEL;
+		for (c=0; c<FISH_CHANNELS.length; c++) {
+			FISH_CHANNEL =  FISH_CHANNELS[c];
+			files = getFilesForChannel(files, FISH_CHANNEL, "tif");
+			for (f = 0; f < files.length; f++) {
+				print("Processing file " + files[f]);
+				roiManager("reset");
+				file = folder + files[f];
+				file2 = replace(file, FISH_CHANNEL + ".tif", "result_composite.tif");
+				open(file);
+				open(file2);
+				imageID = getImageID();
+				txtFile = replace(file, FISH_CHANNEL + ".tif", FISH_CHANNEL +".txt");
+				read = readSpotsFromFile(txtFile);
+				if (!read) {
+					print("To many spots in file " +  txtFile + "! Skipping!!!");
+					run("Close All");
+					continue;
+				}
+				measureFISHOnNeurites(true);
+				selectImage(imageID);
+				run("From ROI Manager");
+				save(file2);
+				parts = split(file, ".");
+				Table.save(parts[0] + ".xls", "Results");
+				close("*");
+			}
 		}
+		FISH_CHANNEL = oldFISHChannel;
 	}
 //	setBatchMode("exit and display");
 //	BATCH_MODE = false;
 }	
 
-function measureFISHOnNeurites() {
-	selectFISHImage();
-	run("FeatureJ Laplacian", "compute smoothing="+SCALE);
-	run("Find Maxima...", "prominence="+PROEMINENCE+" light output=[Point Selection]");
+function readSpotsFromFile(path) {
+	content = File.openAsString(path);
+	lines = split(content, "\n");
+	if (lines.length > MAX_SPOTS) {
+		return false;
+	}
+	xpoints = newArray(lines.length);
+	ypoints = newArray(lines.length);
+	for (i=0; i<lines.length; i++) {
+	    line = lines[i];
+	    parts = split(line, ", ");
+	    ypoints[i] = parseFloat(parts[0]);
+	    xpoints[i] = parseFloat(parts[1]);
+	}
+	makeSelection("point", xpoints, ypoints);
 	roiManager("reset");
-	roiManager("Add");
-	close();
+	roiManager("add");	
+	return true;
+}
+
+function measureFISHOnNeurites(useExistingSpots) {
+	selectFISHImage();
+	if (!useExistingSpots) detectSpots();
 	selectCompositeImage();
 	roiManager("Show None");
 	roiManager("Show All");
@@ -677,7 +728,7 @@ function measureFISHOnNeurites() {
 	xPoints = newArray(0);
 	yPoints = newArray(0);
 	for (i = 0; i < neuronID.length; i++) {
-		if (neuronID[i] == 0 || somaDistance[i]==0) continue;
+//		if (neuronID[i] == 0 || somaDistance[i]==0) continue;		measure everything, outside id == 0, in soma distance == 0.
 		xPoints = Array.concat(xPoints, X[i]);
 		yPoints = Array.concat(yPoints, Y[i]);
 	}
@@ -705,6 +756,15 @@ function measureFISHOnNeurites() {
 	Table.setColumn("Neuron-ID", neuronID);
 	Table.setColumn("Dist. to Soma", somaDistance);
 	Table.sort("Neuron-ID", "Results");
+}
+
+function detectSpots() {
+	run("FeatureJ Laplacian", "compute smoothing="+SCALE);
+	run("16-bit");
+	run("Find Maxima...", "prominence="+PROEMINENCE+" light output=[Point Selection]");
+	roiManager("reset");
+	roiManager("Add");
+	close();
 }
 
 function batchProcessImages() {
