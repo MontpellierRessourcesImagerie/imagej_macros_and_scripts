@@ -94,7 +94,7 @@ macro "Utilities Menu Tool - C000Db4Dc3C999D4cD5bD6aDa3Da6C777D25D36D3bD4aD52D59
             options = loadOptions(getOptionsPathSmoothMask());
             run("smooth mask", options);
         } else {
-            run("smooth mask",;
+            run("smooth mask");
         }
         return;           
     }

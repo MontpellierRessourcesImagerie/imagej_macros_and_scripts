@@ -129,8 +129,8 @@ function loadOptions() {
         if (key=="shrink") SHRINK = value;
         if (key=="interval") INTERVAL = value;
         if (key=="scaling") SCALE = value;
-        if (key=="open") OPEN_RADIUS = true;
-        if (key=="close") CLOSE_RADIUS = true;
+        if (key=="open") OPEN_RADIUS = value;
+        if (key=="close") CLOSE_RADIUS = value;
     }
 }
 
@@ -147,7 +147,7 @@ function getOptionsString() {
     optionsString = optionsString + " interval=" + INTERVAL;
     optionsString = optionsString + " scaling=" + SCALE;
     optionsString = optionsString + " open=" + OPEN_RADIUS;
-     optionsString = optionsString + " close=" + CLOSE_RADIUS;
+    optionsString = optionsString + " close=" + CLOSE_RADIUS;
     return optionsString;
 }
 
