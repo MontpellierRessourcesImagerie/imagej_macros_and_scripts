@@ -80,8 +80,6 @@ function widthProfileVoronoi() {
         capsCut = true;
         
     }
-    
-    //run("Skeletonize (2D/3D)");
     run("Voronoi");
     voronoiTitle = getTitle();
     voronoiID = getImageID();
@@ -90,8 +88,7 @@ function widthProfileVoronoi() {
     selectImage(voronoiID);
     run("Restore Selection");
     run("Clear Outside");
-    run("Select None");
-    
+    run("Select None");    
     if (capsCut) {
         Overlay.paste
         removeCaps();

@@ -71,6 +71,7 @@ var cmds = newMenu("Utilities Menu Tool", newArray("Select Centerline",
                                                    "Smooth Mask", 
                                                    "Line Mask to Line ROI", 
                                                    "Re-Measure Thickness",
+                                                   "Reverse Plot",
                                                    "---", 
                                                    "Select Centerline Options", 
                                                    "Smooth Mask Options", 
@@ -110,6 +111,10 @@ macro "Utilities Menu Tool - C000Db4Dc3C999D4cD5bD6aDa3Da6C777D25D36D3bD4aD52D59
     }
     if (cmd=="Re-Measure Thickness") {
         run("remeasure thickness");
+        return;           
+    }
+    if (cmd=="Reverse Plot") {
+        run("reverse plot");
         return;           
     }
     if (cmd=="Select Centerline Options") {

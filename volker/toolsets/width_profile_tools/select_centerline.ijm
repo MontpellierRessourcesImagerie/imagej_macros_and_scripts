@@ -1,5 +1,5 @@
-var METHODS = newArray("Skeletonize", "Largest_Shortest_Path", "Monte_Carlo_Centerline_Estimation");
-var METHOD = "Monte_Carlo_Centerline_Estimation";
+var METHODS = newArray("Voronoi", "Skeletonize", "Largest_Shortest_Path", "Monte_Carlo_Centerline_Estimation");
+var METHOD = "Voronoi";
 
 var LINE_INTERPOLATION = 1;
 
@@ -76,13 +76,15 @@ function selectCenterline() {
         run("Duplicate...", " ");
     }
     
+    if (METHOD=="Voronoi") runCenterlineFromVoronoi();
     if (METHOD=="Skeletonize") runCenterlineFromSkeleton();
     if (METHOD=="Largest_Shortest_Path") runCenterlineFromPath();
     if (METHOD=="Monte_Carlo_Centerline_Estimation") runCenterlineFromMonteCarlo();
     
-    if (METHOD != "Monte_Carlo_Centerline_Estimation") {
+    if (METHOD != "Monte_Carlo_Centerline_Estimation" && METHOD != "Voronoi") {
         run("line mask to line roi", "interpolation="+LINE_INTERPOLATION);
     }
+    Overlay.activateSelection(Overlay.size - 1);
     run("Interpolate", "interval=1 smooth adjust");
     roiManager("add");
     close();
@@ -95,10 +97,78 @@ function selectCenterline() {
         run("Canvas Size...", "width="+width+" height="+height+" position=Center");
 }
 
+function runCenterlineFromVoronoi() {
+    run("Options...", "iterations=1 count=1 black edm=32-bit do=Nothing");
+    title = getTitle();
+    getPixelSize(unit, pixelWidth, pixelHeight);
+    nrOfRoisInOverlay = Overlay.size;
+    run("Duplicate...", " ");
+    inputMaskID = getImageID();
+    inputMaskTitle = getTitle();
+    if (nrOfRoisInOverlay > 0) Overlay.copy;
+    run("Morphological Filters", "operation=Gradient element=Disk radius=1");
+    gradientID = getImageID();
+    if (nrOfRoisInOverlay > 0) Overlay.paste;
+    run("Connected Components Labeling", "connectivity=8 type=[8 bits]");
+    nrOfLabels = getValue("Max");
+    close();
+    if (nrOfLabels != 2 && nrOfRoisInOverlay != 2) {
+        print("To separate the contour into two parts, the mask must either touch the image borders in two places or there must be two selections 'cutting the caps' in the overlay"); 
+        selectWindow("Log");
+        exit;    
+    }
+    
+    capsCut = false;
+    
+    if (nrOfLabels != 2) {
+        removeCaps();
+        run("Connected Components Labeling", "connectivity=8 type=[8 bits]");
+        nrOfLabels = getValue("Max");
+        close();
+        if (nrOfLabels != 2) {
+            print("Couldn't separate the contour into two parts");
+            selectWindow("Log");
+            exit;
+        }
+        capsCut = true;
+        
+    }
+    run("Voronoi");
+    voronoiTitle = getTitle();
+    voronoiID = getImageID();
+    selectImage(inputMaskID);
+    run("Create Selection");
+    selectImage(voronoiID);
+    run("Restore Selection");
+    run("Clear Outside");
+    run("Select None");    
+    if (capsCut) {
+        Overlay.paste
+        removeCaps();
+    }
+    run("Duplicate...", " ");
+    setThreshold(1.0000, 1000000000000000000000000000000.0000);
+    setOption("BlackBackground", true);
+    run("Convert to Mask");
+    run("Skeletonize (2D/3D)");
+    run("line mask to line roi", "interpolation=1");
+    Overlay.activateSelection(0);
+    Roi.getCoordinates(xpoints, ypoints);
+    run("Select None");
+    close();
+    close();
+    close();
+    close();
+    makeSelection("polyline", xpoints, ypoints);
+    run("Interpolate", "interval=1 smooth adjust");
+    Overlay.addSelection;
+}
+
 
 function runCenterlineFromSkeleton() {
     run("Skeletonize (2D/3D)");
 }
+
 
 function runCenterlineFromPath() {
     inputImageID = getImageID();
@@ -112,6 +182,7 @@ function runCenterlineFromPath() {
     selectImage(inputImageID);
     close();
 }
+
 
 function runCenterlineFromMonteCarlo() {
     run("Set Measurements...", "min centroid display redirect=None decimal=3");
@@ -155,6 +226,7 @@ function runCenterlineFromMonteCarlo() {
     close();
     makeSelection("polyline", X, Y);
     if (X.length>2) run("Fit Spline");
+    Overlay.addSelection;
     roiManager("reset");
 }
 
