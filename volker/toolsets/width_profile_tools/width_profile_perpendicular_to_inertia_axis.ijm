@@ -1,8 +1,10 @@
 var SAMPLE_WIDTH = 5;
 var COLORS = newArray("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta", "orange", "pink", "red", "white", "yellow");
 var LINE_COLOR = "pink";
-var START_OFFSET = 5;
-var END_OFFSET = 5;
+var START_OFFSET = 0;
+toScaled(START_OFFSET);
+var END_OFFSET = 0;
+toScaled(END_OFFSET);
 var SAVE_OPTIONS = true;
 var SHOW_PROFILE_PLOT = true;
 var TABLE_TITLE = "width measurements";
@@ -43,8 +45,10 @@ function runPerpendicularLines() {
     title = getTitle();
     leftOffset = START_OFFSET;
     toUnscaled(leftOffset);
+    leftOffset = round(leftOffset);
     rightOffset = END_OFFSET;
     toUnscaled(rightOffset);
+    rightOffset = round(rightOffset);
     run("Set Measurements...", "min centroid fit display redirect=None decimal=3");
     getVoxelSize(pixelWidth, pixelHeight, voxelDepth, unit);
     Image.removeScale();
@@ -69,7 +73,16 @@ function runPerpendicularLines() {
     run("Convert to Mask");
     run("Create Selection");
     run("To Bounding Box");
-    bbx = getValue("BX") + START_OFFSET;
+    bbRadius = getValue("Width") / 2;
+    if (leftOffset > bbRadius) {
+        leftOffset = round(bbRadius - ((10 * bbRadius) / 100));
+        print("Left offset too high, using: " +  (leftOffset * pixelWidth) + " " + unit + " instead.");
+    }
+    if (rightOffset > bbRadius) {
+        rightOffset = round(bbRadius - ((10 * bbRadius) / 100));
+        print("Right offset too high, using: " +  (rightOffset * pixelWidth) + " " + unit + " instead.");
+    }
+    bbx = getValue("BX") + leftOffset;
     bby = getValue("BY");
     bbWidth = getValue("Width") - leftOffset - rightOffset;
     bbHeight = getValue("Height");
