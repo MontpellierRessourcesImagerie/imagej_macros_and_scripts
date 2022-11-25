@@ -102,7 +102,7 @@ function runPerpendicularLines() {
             lastColor = v;
         }
         changesLength = changes.length;
-        if (changesLength==0 || changesLength % 2 == 1) {
+        if (changesLength==0 || changesLength % 2 == 1) {
             print("anomaly at x = " + x);
             print("number of contrast changes: " + changesLength);
             print("positions of coordinate changes: ");
