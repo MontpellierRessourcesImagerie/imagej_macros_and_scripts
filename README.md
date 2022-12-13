@@ -197,3 +197,8 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 #### [MRI_Spiral_Mosaic_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spiral_Mosaic_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/1286c071c479eb1d7ed1a1eb5dc51f035fb323fe/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323237382f74312d686561642e7469662d2532307265636f6e73747275637465642d312e706e67" height='100'/> The tool copies the images in a stack into a new image and places them in a spiral order, i.e. the first image is in the middle, the second right of the first, the third above the second, the fourth left of the third, and so on. 
+
+### Macros
+#### [Measure_Rois](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Rois)
+
+<img align='right' src="https://user-images.githubusercontent.com/7602420/207379516-b6d80803-3fe4-45a9-ad89-f56ac1b41d3e.png" height='100'/> The macro calls the Measure Roi plugin for each selected ROI in the roi-manager or for all the ROIs in the roi-manager, if none are selected.  
