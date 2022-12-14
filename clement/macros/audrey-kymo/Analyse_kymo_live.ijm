@@ -1,13 +1,19 @@
+// REDMINE: Ticket #1794
+// ! In the following code, whenever "channel" is mentionned, we are talking about the channels in which axons are.
+// ! They have nothing to do with the color channels of an image.
 
-// In this variable we will store the path of the directory in which our image is located.
-var global_workingDirectory = "";
-var global_fileName = "";
-var global_measures = newArray(5);
-var global_units = newArray(2);
+// >>> GLOBAL VARIABLES DECLARATION ET INITIALISATION <<<
+var global_workingDirectory = ""; // Path of the directory in which our image is located.
+var global_fileName = ""; // Name of our image, extension included
+var global_measures = newArray(5); // 0: height, 1: width, 2: depth, 3: frames interval, 4: number of axons channels (nothing to do with color channels)
+var global_units = newArray(2); // 0: voxels' size unit, 1: frame interval time
 var global_exportPaths = newArray(3); // 0: kymos,  1: Results,  2: Extrapolated coordinates
 var emptyStr = "";
+// -------------------------------------------------------
 
 // Function merging two elements to form a path
+// Works whether the root ends with the separator or not.
+// ex: joinPath("my/path", "thing") --> "my/path/thing"
 function joinPath(root, name) {
 	if (root.endsWith(File.separator)) {
 		return root + name;
@@ -15,13 +21,17 @@ function joinPath(root, name) {
 	return root + File.separator + name;
 }
 
-// Close an image without disturbing the that is active
+// Close an image by specifying its ID (<0 number)
 function closeImage(img) {
 	selectImage(img);
 	close();
 }
 
-
+// Make a window active by specifying the begining of its name.
+// 'target' is the begining of the title to find.
+// If a window whose the begining of the title matches 'target', the window is made active and the full title is returned.
+// In case no window was found, an empty string is returned and the active window doesn't change.
+// ex: findByWindowTitle("Res") would make the "Results" window active and return the string "Results".
 function findByWindowTitle(target) {
 	windows = getList("window.titles");
 	for (w = 0 ; w < windows.length ; w++) {
@@ -33,17 +43,16 @@ function findByWindowTitle(target) {
 	return emptyStr;
 }
 
-// "Extrapolated coordinates"
-
 
 // Everything we need to do before we start.
 function init() {
 	// We want to close everything before starting.
 	run("Close All");
+	// Clearing results table in case of a previous try.
 	run("Clear Results");
 }
 
-// Select the video on which we want to work.
+// Let the user select the video on which we want to work.
 function choseImage() {
 	// Sélectionner le chemin de la vidéo à traiter.
 	path = File.openDialog("Choose a File");
@@ -53,27 +62,28 @@ function choseImage() {
 	global_workingDirectory = File.getParent(path);
 
 	// Creation of export directories.
-	// | Create the paths
+	//  1. Create the paths
 	cleanName       = File.getNameWithoutExtension(global_fileName);
 	kymos_path      = joinPath(global_workingDirectory, "kymos_" + cleanName);
 	results_path    = joinPath(global_workingDirectory, "results_" + cleanName);
 	extrap_cos_path = joinPath(global_workingDirectory, "extracos_" + cleanName);
 
-	// | Save the paths in global.
+	//  2. Save the paths in global so they can be accessed everywhere.
 	global_exportPaths[0] = kymos_path;
 	global_exportPaths[1] = results_path;
 	global_exportPaths[2] = extrap_cos_path;
 
-	// | Generate the actual folders on the system, alongside the image.
+	//  3. Generate the actual folders on the system, alongside the image.
 	File.makeDirectory(kymos_path);
 	File.makeDirectory(results_path);
 	File.makeDirectory(extrap_cos_path);
 
-	// Opening image.
+	// Opening the image.
 	open(path);
 	workingImage = getImageID();
 
-	return workingImage; // Returns the unique ID of our image.
+	// Returns the unique ID of our image.
+	return workingImage; 
 }
 
 // Function opening a dialog box to ask the user for properties about the image.
@@ -86,13 +96,13 @@ function askPropertiesToUser(img) {
 	Stack.getUnits(X, Y, Z, Time, Value);
 
 	// Seting up default values
-	vWidth         = width;
-	vHeight        = height;
-	vDepth         = depth;
-	unit           = mUnit;
-	interframeTime = Stack.getFrameInterval();
-	interframeUnit = Time;
-	nbAxons        = 5;
+	vWidth         = width; // voxels width
+	vHeight        = height; // voxels height
+	vDepth         = depth; // voxels depth
+	unit           = mUnit; // length measuring unit (certainly "µm")
+	interframeTime = Stack.getFrameInterval(); // Time elapsed between two frames
+	interframeUnit = Time; // time measuring unit ("ms", "sec", ...)
+	nbAxons        = 5; // Number of channels (arbitrarily chosen now)
 
 	// Creating dialog box fields
 	Dialog.create("Image's properties");
@@ -110,7 +120,7 @@ function askPropertiesToUser(img) {
 	// Showing dialog box to user.
 	Dialog.show();
 
-	// Reading values provided by the user.
+	// Reading values provided by the user. Order matters. Must be the same as when we added fields.
 	vHeight        = Dialog.getNumber();
 	vWidth         = Dialog.getNumber();
 	vDepth         = Dialog.getNumber();
@@ -145,10 +155,10 @@ function preprocessImage(img) {
 	// Fix contrast
 	run("Enhance Contrast...", "saturated=0.35 normalize process_all");
 	// Denoising
-	run("Gaussian Blur 3D...", "x=3.5 y=3.5 z=0.8"); // To be fixed, width of axon must be asked in dialog.
+	run("Gaussian Blur 3D...", "x=3.5 y=3.5 z=0.8");
 	// Z-projection according to the max intensity along the slices
 	run("Z Project...", "projection=[Max Intensity] all");
-	// We take the ID of the new image, and close the old one that has become useless at this point.
+	// We take the ID of the new image (the projection), and close the old one (the original image) that has become useless at this point.
 	proj = getImageID();
 	closeImage(img);
 	selectImage(proj);
@@ -161,7 +171,7 @@ function preprocessImage(img) {
 	return proj;
 }
 
-
+// Simply make a stroke over the projection image.
 function makeCanalLine(lWidth, img, canal) {
 	run("Line Width...", "line="+lWidth);
 	// Due to a bug of Draw Kymo, we can only use polylines...
@@ -172,7 +182,7 @@ function makeCanalLine(lWidth, img, canal) {
 	roiManager("Add");
 }
 
-
+// Build the kymograph from a line on the original image.
 function makeKymograph(img, canal) {
 	// Selecting original image
 	selectImage(img);
@@ -188,7 +198,7 @@ function makeKymograph(img, canal) {
 	run("Enhance Contrast", "saturated=0.35");
 	run("Invert LUT");
 
-	// Retreive measurement units
+	// The generated kymograph didn't copy the values from the image, we need to copy them before analyse.
 	setVoxelSize(global_measures[0], 1, 1, global_units[0]);
 	Stack.setTUnit(global_units[1]);
 	Stack.setFrameInterval(global_measures[3]);
@@ -196,7 +206,7 @@ function makeKymograph(img, canal) {
 	return kymo;
 }
 
-
+// Making lines over bladders in kymograph images
 function makeBladderLines(kymo, canal) {
 	// Making polylines over bladders
 	selectImage(kymo);
@@ -205,8 +215,8 @@ function makeBladderLines(kymo, canal) {
 	waitForUser("Tracer des lignes segmentées par dessus le tracé des vésicules qui se déplacent.\nSi aucune vésicule n'est visible, [OK] passe au prochain canal.\n- [Double-click] pour terminer un tracé.\n- [T] pour ajouter au ROI Manager.\n- [OK] quand tous les tracés sont terminés.");
 	run("Smart Calib'", "pixel=" + global_measures[0] + " space=" + global_units[0] + " frame=" + global_measures[3] + " time=" + global_units[1]);
 	
+	// No bladder was found on this channel, we can skip it.
 	if (RoiManager.size() == 0) {
-		// No bladder was found on this channel, we can skip it.
 		closeImage(kymo);
 		return false;
 	}
@@ -216,7 +226,7 @@ function makeBladderLines(kymo, canal) {
 	analysedKymo = getImageID();
 	closeImage(kymo);
 
-	// Exporting image and results
+	// Exporting kymograph image with strokes.
 	selectImage(analysedKymo);
 	newTitle = "canal_" + canal + "_" + File.getNameWithoutExtension(global_fileName);
 	rename(newTitle);
@@ -233,15 +243,15 @@ function makeBladderLines(kymo, canal) {
 	return true;
 }
 
-
+// Loop processing each channel one after the other.
 function kymographProcedure(lWidth, img) {
 	selectImage(img);
 	cleanName = File.getNameWithoutExtension(global_fileName);
 
-	// Converting sequence of frames to stack of slices (for Draw Kymo)
+	// Forcing conversion from sequence of frames, to stack of slices (for Draw Kymo)
 	Stack.setDimensions(1, nSlices, 1);
 
-	// global_measures[4] is the number of axons
+	// global_measures[4] is the number of channels
 	// c is the index of the current canal
 	for (c = 1 ; c <= global_measures[4] ; c++) {
 		selectImage(img);
@@ -281,9 +291,14 @@ function main() {
 
 	// The ID of an image is a negative number. If we have something greater or equal than zero, it's an error, and we can stop the macro.
 	if (img >= 0) { return -1; }
-
-	askPropertiesToUser(img);
+	
+	// Blurring and z-projection
 	prep = preprocessImage(img);
+
+	// Dialog box asking properties to the user.
+	askPropertiesToUser(prep);
+
+	// Building kymographs and extracting them to files
 	kymographProcedure(30, prep);
 
 	// Saving results all at once in a folder.
@@ -302,37 +317,10 @@ function main() {
 }
 
 
-main();
+// # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+// |                   MACRO                                                         |
+// # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-/*
-
-	TO-DO:
-
-- [X] Encapsuler tout le code dans des fonctions avec un main() pour pouvoir abort.
-- [X] Passer en global tous les paramètres qui ont besoin d'être utilisés plusieurs fois.
-- [X] Faire un dialogue clean au début du script pour les settings.
-- [X] Rajouter une phase de denoising avec un gaussian.
-- [X] Passer les arguments en dialogues des fonctions run plutôt que laisser ouvrir le dialogue.
-- [X] Preshot tous les dialogues qui demandent des informations déjà fournies dans le dialogue de départ.
-- [~] Rajouter une étape au script pour déterminer la largeur d'un canal. (pour le Gaussian)
-- [~] Faire un essai de détection automatique des canaux + placement des lignes.
-- [X] Exporter les kymos dans un folder et les results dans un autre, au même endroit que l'image.
-- [X] Fix le bug du à la variable d'environnement de KymoToolBox.
-- [X] Copie du code sur le GitHub MRI.
-- [X] Changer "axons" à "canaux".
-- [X] Contourner le problème de la ligne qui se tord.
-- [X] Nettoyer les sélections d'une itération à l'autre.
-- [X] Clear la table de "Results" avant de commencer.
-- [ ] Make a macro of the main function.
-- [~] Activer le mode batch par moments pour masque les images de travail ?
-- [X] Renvoyer un mail à Audrey pour montrer le final.
-- [ ] Mettre une copie du code final sur GitHub.
-- [ ] Mettre à jour le ticket (avec un lien vers le code).
-
-
-	NOTES:
-
-- Si aucune vésicule n'est visible, simplement appuyer sur OK peut permettre de passer à la prochaine itération.
-- Le sens de tracé de la ligne par dessus le canal est important.
-
-*/
+macro "Live Kymo Analysis" {
+	main();
+}
