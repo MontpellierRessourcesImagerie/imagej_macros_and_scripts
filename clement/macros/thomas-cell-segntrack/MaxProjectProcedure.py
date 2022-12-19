@@ -3,13 +3,17 @@ from __future__ import with_statement, division, print_function
 from ij import IJ, WindowManager, ImagePlus, ImageStack
 from ij.gui import GenericDialog
 from ij.io import OpenDialog
-from ij.plugin import ChannelSplitter, ZProjector, Concatenator, Duplicator
+from ij.plugin import ChannelSplitter, ZProjector, Concatenator, Duplicator, ImageCalculator
+from ij.plugin.filter import ImageMath
 from inra.ijpb.label.edit import ReplaceLabelValues
 from inra.ijpb.label.select import LabelSizeFiltering, RelationalOperator
+from inra.ijpb.plugins import MorphologicalFilterPlugin
+from inra.ijpb.morphology.Morphology import Operation
+from inra.ijpb.morphology import Strel
+from ij.process import ShortProcessor, FloatProcessor
 import os
 import json
 import sys
-import logging
 
 from fiji.plugin.trackmate import Model
 from fiji.plugin.trackmate import Settings
@@ -197,7 +201,7 @@ def getFocusInfos(curve, tolerance):
     extremums = seekExtremums(points, der)
     acceptedRange = findAcceptedRange(points, extremums, tolerance)
 
-    logging.debug("Focus infos: " + str(acceptedRange))
+    logging("Focus infos: " + str(acceptedRange))
 
     return acceptedRange
 
@@ -279,10 +283,10 @@ def askForPath(path=None):
 
     if path is None:
         dataPath = IJ.getFilePath("Select an image")
+        if dataPath is None:
+            return None
     else:
         dataPath = path
-
-    logging.debug("Path selected by the user: {0}".format(dataPath))
 
     if os.path.isfile(dataPath):
         return dataPath
@@ -301,7 +305,7 @@ def acquireImage(path):
         if rawImage is None:
             return None
     except:
-        logging.debug("Failed to open image: {0}".format(path))
+        logging("Failed to open image: {0}".format(path))
         return None
 
     width, height, nChannels, nSlices, nFrames = rawImage.getDimensions()
@@ -344,10 +348,7 @@ def acquireClassifier(path=None):
         dataPath = path
     
     if (dataPath is None) or (not os.path.isfile(dataPath) or (not dataPath.endswith(".classifier"))):
-        logging.debug("LabKit classifier expected with 'classifier' extension (\"some_name.classifier\")")
         return None
-    
-    logging.debug("Classifier in use: {0}".format(dataPath))
 
     return dataPath
 
@@ -356,28 +357,32 @@ def acquireClassifier(path=None):
 ## @param rawImage: Image as it was opened from the disk.
 ## @return A tuple containing the preprocessed segmentation channel and the raw data channel.
 def preprocessRawImage(rawImage):
-    logging.debug("Starting preprocessing")
+    logging(">>> Starting preprocessing")
     # 1. Splitting channels and closing original image
     if rawImage.getNChannels() != 2:
-        logging.debug("Only two channeled images are handled (1:segmentation, 2:data)")
+        logging("Only two channeled images are handled (1:segmentation, 2:data)")
         return (None, None)
     
     segmentationChannel, dataChannel = ChannelSplitter.split(rawImage)
     rawImage.close()
 
     # 2. Applying median blur to each channel
+    logging("Median bluring")
     IJ.run(segmentationChannel, "Median 3D...", "x=5 y=5 z=1.5")
     IJ.run(dataChannel, "Median 3D...", "x=5 y=5 z=1.5")
 
     # 3. Ditching out-of-focus slices
+    logging("Processing in-focus slices")
     inFocusInfos = getFocusInfos(zProfileOverLaplacian(segmentationChannel), 0.3)
     segmentationChannel = keepInFocusSlices(inFocusInfos, segmentationChannel)
 
     # 4. Z-projection (max intensity)
+    logging("Projection along z-axis")
     segmentationChannel = ZProjector.run(segmentationChannel, "max all")
     dataChannel = ZProjector.run(dataChannel, "max all")
 
     # 5. Enhance contrast and normalize between 0 and 1 (32-bits)
+    logging("Fixing contrast; passing on 32-bits; passing values between 0 and 1")
     IJ.run(segmentationChannel, "Enhance Contrast...", "saturated=0.35 normalize process_all")
     IJ.run(segmentationChannel, "32-bit", "")
     IJ.run(segmentationChannel, "Divide...", "value=65535 stack");
@@ -391,20 +396,51 @@ def preprocessRawImage(rawImage):
 ## @param classifierPath: The path to the classifier suitable to segment this image.
 ## @return The segmentation produced by LabKit.
 def labkitSegmentation(segmentation, classifierPath):
-    logging.debug("Starting LabKit automatic segmentation")
+    logging("Starting LabKit automatic segmentation")
     segmentation.show() # Mandatory to get LabKit working...
     try:
         IJ.run(segmentation, "Segment Image With Labkit", "segmenter_file={0} use_gpu={1}".format(classifierPath, "true" if globalVars['useGpu'] else "false"));
     except:
-        logging.debug("Failed to launch LabKit")
+        logging("Failed to launch LabKit")
         return None
     
     segmentationVirtual = IJ.getImage()
     rawSegmentation = segmentationVirtual.duplicate()
+
+    segmentationVirtual.changes = False
+    segmentation.changes = False
     segmentationVirtual.close()
     segmentation.close()
 
     return rawSegmentation
+
+
+def selectLabel(img, lbl):
+    ip = img.getProcessor()
+    fp = ip.convertToFloatProcessor()
+    fp2 = ip.convertToFloatProcessor()
+
+    fp2.set(1.0)
+    buffer = ImagePlus("temp1", fp2)
+
+    fp.subtract(lbl)
+    im1 = ImagePlus("temp2", fp)
+    im2 = ImageCalculator.run(im1, im1, "mul")
+    im2.getProcessor().multiply(-0.5)
+    im2.getProcessor().exp()
+
+    imOut = ImageCalculator.run(buffer, im2, "and")
+
+    lp = imOut.getProcessor()
+    lp.multiply(lbl/65535.0)
+
+    im1.close()
+    im2.close()
+
+    return ImagePlus("label_{0}".format(lbl), lp.convertToShortProcessor())
+
+def closing(img, rad):
+	return MorphologicalFilterPlugin().process(img, Operation.CLOSING, Strel.Shape.DISK.fromRadius(rad))
 
 
 ## @brief Filters all the labels contained on a frame by applying multiple transformations.
@@ -412,22 +448,24 @@ def labkitSegmentation(segmentation, classifierPath):
 ## @return A new image representing the input frame but with labels filtered and fixed.
 def filterLabels(frame):
     IJ.run(frame, "Connected Components Labeling", "connectivity=4 type=[16 bits]")
-    compos = IJ.getImage()
+    temp = IJ.getImage()
+    compos = temp.duplicate()
+    temp.close()
     
     labels = []
 
     stats = compos.getStatistics()
 
-    for i in range(int(stats.histMin), int(stats.histMax)):
+    for i in range(int(stats.histMin), int(stats.histMax)+1):
         
         if stats.histogram16[i] < 6500:
             continue # If the component is less than 7000 pixels of area, we consider that it's not a nuclei
         
-        IJ.run(compos, "Select Label(s)", "label(s)={0}".format(i))
-        isolatedLabel = IJ.getImage()
+        # IJ.run(compos, "Select Label(s)", "label(s)={0}".format(i))
+        isolatedLabel = selectLabel(compos, i) # IJ.getImage()
 
-        IJ.run(isolatedLabel, "Morphological Filters", "operation=Closing element=Disk radius=20")
-        fixedLabel = IJ.getImage()
+        # IJ.run(isolatedLabel, "Morphological Filters", "operation=Closing element=Disk radius=25")
+        fixedLabel = closing(isolatedLabel, 25) # IJ.getImage()
         isolatedLabel.close()
         labels.append(fixedLabel)
 
@@ -514,6 +552,8 @@ def labelsTracking(labeledFrames):
     settings.trackerSettings['SCALE_FACTOR'] = 1.0
     settings.trackerSettings['MIN_IOU'] = 0.3
     settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
+    settings.trackerSettings['ALLOW_TRACK_SPLITTING'] = False
+    settings.trackerSettings['ALLOW_TRACK_MERGING'] = False
 
 
     # Add ALL the feature analyzers known to TrackMate. They will 
@@ -557,12 +597,19 @@ def labelsTracking(labeledFrames):
 ## @brief Launches all the procedures required to post-process the animation coming from LabKit.
 ## @return The cleaned, labelled and segmented animation.
 def postProcessSegmentation(rawSeg):
-    logging.debug("Starting postprocessing")
+    rs = rawSeg.duplicate()
+    rawSeg.close()
+    rawSeg = rs
+    logging(">>> Starting postprocessing")
+    logging("Removing outline from segmentation")
     ReplaceLabelValues().process(rawSeg, [2], 0)
+    logging("Filtering rough labels")
     filteredLabels = launchFilteringLabels(rawSeg)
+    logging("Tracking labels across frames")
     tracked = labelsTracking(filteredLabels).duplicate()
     filteredLabels.close()
     rawSeg.close()
+    logging("Removing border labels")
     IJ.run(tracked, "Remove Border Labels", "left right top bottom")
     clean = IJ.getImage()
     tracked.close()
@@ -598,8 +645,8 @@ def aggregateValuesFromLabels(segmentation, data):
             for l in range(segmentation.getHeight()):
                 lbl = segFrame.get(c, l)
 
-                if lbl == 0: # Skip BG
-                    continue
+                if lbl == 0:
+                    lbl = 'BG'
                 
                 val = dataFrame.get(c, l)
                 labelsData.setdefault(lbl, []) 
@@ -613,17 +660,28 @@ def aggregateValuesFromLabels(segmentation, data):
                 'max': data[-1],
                 'Q1': data[int(len(data)/4)],
                 'Q3': data[3*int(len(data)/4)],
-                'median': data[int(len(data)/2)],
-                'average': sum(data) / len(data)
+                'med': data[int(len(data)/2)],
+                'avg': sum(data) / len(data),
+                'area': len(data)
             })
         
     toBeDeleted = []
-    if len(toBeDeleted) > 0:
-        logging.debug("Labels discarded: {0}".format(str(toBeDeleted)))
 
     for lbl, data in stats.items():
+        if lbl == 'BG':
+            continue
         if len(data) != nFms:
             toBeDeleted.append(lbl)
+            continue
+        for i in range(len(data)-1):
+            # If the difference of area between two frames is too big, two cells were probably aggregated.
+            if abs(data[i]['area'] - data[i+1]['area']) > data[i]['area'] * 0.2:
+                toBeDeleted.append(lbl)
+                break
+
+
+    if len(toBeDeleted) > 0:
+        logging("Labels discarded: {0}".format(str(toBeDeleted)))
     
     for lbl in toBeDeleted:
         del stats[lbl]
@@ -633,7 +691,7 @@ def aggregateValuesFromLabels(segmentation, data):
 
 def exportAsJSON(stats):
     pathJSON = os.path.join(globalVars['exportPath'], globalVars['baseName']+"_stats.json")
-    logging.debug("Exporting data to: {0}".format(pathJSON))
+    logging("Exporting data to: {0}".format(pathJSON))
     data = json.dumps(stats, indent=4)
 
     fJSON = open(pathJSON, 'w')
@@ -643,7 +701,7 @@ def exportAsJSON(stats):
 
 def exportAsCSV(stats):
     pathCSV = os.path.join(globalVars['exportPath'], globalVars['baseName']+"_stats.csv")
-    logging.debug("Exporting data to: {0}".format(pathCSV))
+    logging("Exporting data to: {0}".format(pathCSV))
     fCSV = open(pathCSV, 'w')
 
     nextRow = True
@@ -683,6 +741,12 @@ def exportAsCSV(stats):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
+def logging(txt):
+    if globalVars['logsFile'] is not None:
+        globalVars['logsFile'].write(txt)
+        globalVars['logsFile'].write('\n')
+
+
 def createExportPath(imgPath):
     global globalVars
 
@@ -697,10 +761,11 @@ def createExportPath(imgPath):
     if not os.path.isdir(ep):
         os.mkdir(ep)
     globalVars['exportPath'] = ep
-    logging.debug("Results will be exported in the folder: {0}".format(ep))
+    logging("Results will be exported in the folder: {0}".format(ep))
 
     if globalVars['useLogs']:
-        logging.basicConfig(filename=os.path.join(ep, "logs.txt"), level=logging.DEBUG)
+        l_path = os.path.join(ep, "logs.txt")
+        globalVars['logsFile'] = open(l_path, 'w')
 
     return True
 
@@ -716,7 +781,6 @@ def askOptions():
     gui.addChoice("Export format", ["JSON", "CSV"], globalVars['format'])
     gui.addCheckbox("Process entire folder", globalVars['processFolder'])
     gui.addCheckbox("Export logs", globalVars['useLogs'])
-    #gui.addCheckbox("Generate HTML", globalVars['generateHTML'])
 
     gui.showDialog()
 
@@ -725,9 +789,12 @@ def askOptions():
         globalVars['processFolder'] = gui.getNextBoolean()
         globalVars['useLogs'] = gui.getNextBoolean()
 
-        logging.debug("Export format: {0}".format(globalVars['format']))
-        logging.debug("Process whole folder: {0}".format(str(globalVars['processFolder'])))
-        #globalVars['generateHTML'] = gui.getNextBoolean()
+        logging("Export format: {0}".format(globalVars['format']))
+        logging("Process whole folder: {0}".format(str(globalVars['processFolder'])))
+
+        return True
+
+    return False
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -739,24 +806,49 @@ def askOptions():
 def main():
 
     path = askForPath()
+    if path is None:
+        return -1
+
     globalVars['classiPath'] = acquireClassifier(globalVars['classiPath'])
-    askOptions()
+    if globalVars['classiPath'] is None:
+        return -2
+
+    if not askOptions():
+        return -3
+    
     queue = buildQueue(path)
     createExportPath(path)
-    logging.debug("Processing queue: {0}".format(str(queue)))
+    logging("Processing queue: {0}".format(str(queue)))
 
     for filePath in queue:
-        logging.debug("======== Processing file: {0} ========".format(filePath))
+        logging("========== Processing file: {0} ==========".format(filePath))
+
+        if filePath is None:
+            logging("None found in processind queue. Continuing")
+            continue
+
         rawImage = acquireImage(filePath)
+        if rawImage is None:
+            logging("Working image couldn't be open. Abort.")
+            return -1
+        
         updateBaseName(filePath)
 
         segmentation, data = preprocessRawImage(rawImage)
+        if (segmentation is None) or (data is None):
+            logging("Failed to preprocess the input image. Abort.")
+            return -2
+
         rawSegmentation = labkitSegmentation(segmentation, globalVars['classiPath'])
+        if rawSegmentation is None:
+            logging("Failed to compute rough segmentation through LabKit")
+            return -3
+        
         cleanSegmentation = postProcessSegmentation(rawSegmentation)
-        IJ.saveAsTiff(cleanSegmentation, os.join(globalVars['exportPath'], globalVars['baseName'] + '_tracked.tif'))
+        IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_tracked.tif'))
         stats = aggregateValuesFromLabels(cleanSegmentation, data)
         
-        logging.debug("Exporting statistics for: {}".format(globalVars['baseName']))
+        logging("Exporting statistics for: {}".format(globalVars['baseName']))
         if globalVars['format'] == 'JSON':
             exportAsJSON(stats)
         else:
@@ -764,6 +856,9 @@ def main():
 
         cleanSegmentation.close()
 
+    if globalVars['useLogs']:
+        globalVars['logsFile'].close()
+    
     return 0
 
 
@@ -771,15 +866,19 @@ def main():
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
 
-main()
+if main() == 0:
+    IJ.log("Process Done")
+else:
+    IJ.log("Process failed. Read the logs")
 
 
-
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 #   ==================================================  NOTES  ==================================================
 #
 # - Channels have to be splitted before the projection, otherwise channels influence each other for some reason.
 # - Using a Laplacian with a Min projection and averaging it with the Max projection of the original channel gives something unstable.
+# - Les stats sont filtrées juste avant l'export, ce qui est visible à l'image n'est pas obligatoirement dans le fichier (ex: NoAux_001)
 #	
 #	==================================================  TO DO  ==================================================
 #
@@ -804,20 +903,27 @@ main()
 # - [X] Essayer une méthode où on prend des carrés avec des thresholds locaux pour l'aasemblage.
 # - [?] Générer un HTML pour la visualisation des données.
 # - [X] Retirer les labels qui ne sont pas sur toutes les frames.
-# - [ ] Filtrer par taille maximale les noyaux pour éviter les aggrégats.
+# - [X] Filtrer par taille maximale les noyaux pour éviter les aggrégats.
 # - [ ] Tester sur des fichiers Auxin.
-# - [ ] Soustraire la valeur moyenne du BG à toutes les valeurs obtenues.
+# - [X] Soustraire la valeur moyenne du BG à toutes les valeurs obtenues.
 # - [X] Faire un système de logging dans un fichier.
 # - [ ] Séparer le code en modules pour la propreté.
 # - [ ] Aménager le script pour qu'il puisse être utilisé sans GUI, utilisé lui-même comme un module.
 # - [ ] Faire plusieurs macros qui séparent le process en étapes (pour pouvoir corriger les erreurs à la main).
 # - [ ] Remplacer les run() par des calls API quand c'est possible.
 # - [ ] Check que les indices commencent bien à 1 et pas 0.
-# - [X] Système d'export en JSON ou en CSV
-# - [ ] Handle les erreurs dans le main (en cas de retour de None)
+# - [X] Système d'export en JSON et en CSV.
+# - [X] Handle les erreurs dans le main (en cas de retour de None)
+# - [X] Ajouter un check de la variation de la taille au cours du temps. Discard si variation trop forte.
+# - [X] Se débarasser du message de save qui pop à un moment.
+# - [X] Essayer de se débarasser de l'avalanche de fenêtres au moment du postprocess.
+# - [ ] Ajouter des options dans la GUI.
+# - [ ] Faire en sorte que la GUI ne soit pas obligatoire en passant des arguments.
 #
 #	============================================  QUESTIONS THOMAS  =============================================
 #
 # - [ ] Est-ce que je dois soustraire la valeur moyenne du background à toutes les mesures ?
 # - [ ] Y a-t-il d'autres données à exporter ? Ou sous une autre format ?
+# - [ ] Est-ce qu'une façon d'exploiter ces données est déjà prévue, ou est-elle à développer ?
 #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
