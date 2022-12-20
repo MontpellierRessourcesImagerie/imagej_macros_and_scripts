@@ -221,6 +221,11 @@ function makeBladderLines(kymo, canal) {
 		return false;
 	}
 
+	newTitle = "canal_" + canal + "_" + File.getNameWithoutExtension(global_fileName);
+	
+	// Saving the ROIs into a file aside
+	roiManager("save", joinPath(global_exportPaths[0], newTitle)+".zip");
+
 	// Launching kymograph analysis
 	run("Analyse Kymo", "outward=[From left to right] lim.=0 line=2 log_all_data log_extrapolated_coordinates show");
 	analysedKymo = getImageID();
@@ -228,7 +233,6 @@ function makeBladderLines(kymo, canal) {
 
 	// Exporting kymograph image with strokes.
 	selectImage(analysedKymo);
-	newTitle = "canal_" + canal + "_" + File.getNameWithoutExtension(global_fileName);
 	rename(newTitle);
 	saveAs("Tiff", joinPath(global_exportPaths[0], newTitle)+".tif");
 	closeImage(analysedKymo);

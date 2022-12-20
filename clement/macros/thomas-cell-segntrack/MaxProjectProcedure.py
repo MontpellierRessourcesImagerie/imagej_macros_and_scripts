@@ -14,6 +14,7 @@ from ij.process import ShortProcessor, FloatProcessor
 import os
 import json
 import sys
+import threading
 
 from fiji.plugin.trackmate import Model
 from fiji.plugin.trackmate import Settings
@@ -39,15 +40,16 @@ dimensions = {
 }
 
 globalVars = {
-    'classiPath': None,
-    'useGpu': False,
-    'exportPath': "",
-    'baseName': "",
-    'processFolder': False,
-    'useLogs': True,
-    'logsFile': None,
-    'generateHTML': True,
-    'format': 'JSON'
+    'classiPath': None,     # Path of the classifier to use. None to open GUI dialog.
+    'useGpu': False,        # Should LabKit use the GPU?
+    'exportPath': "",       # Path of the folder in which we will export statistics and final images.
+    'baseName': "",         # Name to which an extension is going to be stuck to export something.
+    'processFolder': False, # Should we process the whole folder?
+    'useLogs': True,        # Should the logs be exported in a file.
+    'logsFile': None,       # Descriptor of the log file (None while not opened).
+    'generateHTML': True,   # Relicate of a former implementation. Useless.
+    'format': 'JSON',       # 'JSON' or 'CSV'. Format to which the stats must be exported.
+    'showLogs': False       # Should the log appear on screen in real time during processing.
 }
 
 
@@ -104,7 +106,6 @@ def seekExtremums(data, derivate):
         'maximums': maximums}
 
 
-
 ## @brief Smoothing by nearest neighbors averaging of the provided points.
 ## @param curve: A list of samples of a function in a list (ordinate only).
 ## @param side_range: Number of points considered in the smoothing process. Ex: side_range=2 => 5(2+2+1) points used for smoothing.
@@ -143,6 +144,7 @@ def derivate(points):
         derivative.append(points[i+1]-points[i])
     derivative.append(0)
     return derivative
+
 
 ## @brief Locates the two caracteristic peaks and the valley within the extremums lists.
 ## @param extremums: A dictionary containing the structure returned by the function seekExtremums.
@@ -204,6 +206,7 @@ def getFocusInfos(curve, tolerance):
     logging("Focus infos: " + str(acceptedRange))
 
     return acceptedRange
+
 
 ## @brief Calculates the z-profile of a stack. Could be deleted if a straight-forward way to use "Plot z-axis" was available in Python
 ## @param imp: The image in levels of gray on which the ploting has to be realised.
@@ -275,6 +278,7 @@ def keepInFocusSlices(inFocusInfos, old):
 # | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+
 ## @brief Ask the user for a file path (in parameter or generic dialog), verifies that it is valid.
 ## @param path: A string if the path is known, None if a file choosing dialog must be opened.
 ## @return The path if it is valid, None otherwise.
@@ -319,6 +323,9 @@ def acquireImage(path):
     return rawImage
 
 
+## @brief In the case the user wants to process the whole folder, builds the list of images path to be processed.
+## @param path The path of an image in the folder to be processed.
+## @return A list containing the path of each image to be processed in the folder.
 def buildQueue(path):
     if globalVars['processFolder']:
         queue = []
@@ -370,10 +377,11 @@ def preprocessRawImage(rawImage):
     logging("Median bluring")
     IJ.run(segmentationChannel, "Median 3D...", "x=5 y=5 z=1.5")
     IJ.run(dataChannel, "Median 3D...", "x=5 y=5 z=1.5")
+ 
 
     # 3. Ditching out-of-focus slices
     logging("Processing in-focus slices")
-    inFocusInfos = getFocusInfos(zProfileOverLaplacian(segmentationChannel), 0.3)
+    inFocusInfos = getFocusInfos(zProfileOverLaplacian(segmentationChannel), 0.2)
     segmentationChannel = keepInFocusSlices(inFocusInfos, segmentationChannel)
 
     # 4. Z-projection (max intensity)
@@ -388,7 +396,6 @@ def preprocessRawImage(rawImage):
     IJ.run(segmentationChannel, "Divide...", "value=65535 stack");
 
     return (segmentationChannel, dataChannel)
-
 
 
 ## @brief Launches LabKit and attempts to produce a rough segmentation of the image.
@@ -415,6 +422,10 @@ def labkitSegmentation(segmentation, classifierPath):
     return rawSegmentation
 
 
+## @brief Isolate the label having the specified value in the image through a Gaussian function. This function's purpose is to replace MorpholibJ.selectLabel that opens a GUI window with the result.
+## @param img A labeled image.
+## @param lbl The value of the label to isolate
+## @return An image with a black background and only one label, which has the value of lbl.
 def selectLabel(img, lbl):
     ip = img.getProcessor()
     fp = ip.convertToFloatProcessor()
@@ -439,6 +450,8 @@ def selectLabel(img, lbl):
 
     return ImagePlus("label_{0}".format(lbl), lp.convertToShortProcessor())
 
+
+## @brief More consise way to write the closing operation.
 def closing(img, rad):
 	return MorphologicalFilterPlugin().process(img, Operation.CLOSING, Strel.Shape.DISK.fromRadius(rad))
 
@@ -461,10 +474,8 @@ def filterLabels(frame):
         if stats.histogram16[i] < 6500:
             continue # If the component is less than 7000 pixels of area, we consider that it's not a nuclei
         
-        # IJ.run(compos, "Select Label(s)", "label(s)={0}".format(i))
         isolatedLabel = selectLabel(compos, i) # IJ.getImage()
 
-        # IJ.run(isolatedLabel, "Morphological Filters", "operation=Closing element=Disk radius=25")
         fixedLabel = closing(isolatedLabel, 25) # IJ.getImage()
         isolatedLabel.close()
         labels.append(fixedLabel)
@@ -523,16 +534,15 @@ def launchFilteringLabels(original):
     return result
 
 
+## @brief Track objects over a sequence of labeled frames.
+## @parap labeledFrames A sequence of 1-slice deep images considered like frames.
+## @return A sequence of the same size as the input, but labels are supposed to be consistant in time.
 def labelsTracking(labeledFrames):
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
     model = Model()
     model.setLogger(Logger.VOID_LOGGER) # Rediriger vers un fichier ou None
-
-    #------------------------
-    #  SETTINGS
-    #------------------------
 
     settings = Settings(labeledFrames)
 
@@ -543,10 +553,6 @@ def labelsTracking(labeledFrames):
         'SIMPLIFY_CONTOURS': False
     }  
 
-    # Configure spot filters - Classical filter on quality
-    # filter1 = FeatureFilter('QUALITY', 30, True)
-    # settings.addSpotFilter(filter1)
-
     # Configure tracker - We want to allow merges and fusions
     settings.trackerFactory = OverlapTrackerFactory()
     settings.trackerSettings['SCALE_FACTOR'] = 1.0
@@ -554,47 +560,26 @@ def labelsTracking(labeledFrames):
     settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
     settings.trackerSettings['ALLOW_TRACK_SPLITTING'] = False
     settings.trackerSettings['ALLOW_TRACK_MERGING'] = False
-
-
-    # Add ALL the feature analyzers known to TrackMate. They will 
-    # yield numerical features for the results, such as speed, mean intensity etc.
     settings.addAllAnalyzers()
-
-
-    #-------------------
-    # Instantiate plugin
-    #-------------------
 
     trackmate = TrackMate(model, settings)
 
-    #--------
-    # Process
-    #--------
-
-    ok = trackmate.checkInput()
-    if not ok:
+    if not trackmate.checkInput():
         sys.exit(str(trackmate.getErrorMessage()))
 
-    ok = trackmate.process()
-    if not ok:
+    if not trackmate.process():
         sys.exit(str(trackmate.getErrorMessage()))
-
-
-    #----------------
-    # Display results
-    #----------------
-
 
     exportSpotsAsDots = False
-    exportTracksOnly = True
+    exportTracksOnly = False
     beUseless = False
     
-    # This function doesn't match its documentation in any version, the last boolean is unknown...
+    # This function doesn't match its documentation in any version. The last boolean is unknown but outputs a binary mask when True...
     return LabelImgExporter.createLabelImagePlus(trackmate, exportSpotsAsDots, exportTracksOnly, beUseless)
 
 
-
 ## @brief Launches all the procedures required to post-process the animation coming from LabKit.
+## @param rawSeg The image as it is produced by LabKit.
 ## @return The cleaned, labelled and segmented animation.
 def postProcessSegmentation(rawSeg):
     rs = rawSeg.duplicate()
@@ -623,6 +608,7 @@ def postProcessSegmentation(rawSeg):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 
 ## @brief Creates statistics over the fluorescence of nuclei in the data's channel.
 ## @param segmentation: An animation representing tracked labels.
@@ -689,6 +675,8 @@ def aggregateValuesFromLabels(segmentation, data):
     return stats
 
 
+## @brief Takes a dictionary of stats built by aggregateValuesFromLabels() and formats it in a JSON form before exporting it.
+## @param stats The output of aggregateValuesFromLabels()
 def exportAsJSON(stats):
     pathJSON = os.path.join(globalVars['exportPath'], globalVars['baseName']+"_stats.json")
     logging("Exporting data to: {0}".format(pathJSON))
@@ -699,6 +687,8 @@ def exportAsJSON(stats):
     fJSON.close()
 
 
+## @brief Takes a dictionary of stats built by aggregateValuesFromLabels() and formats it in a CSV form before exporting it.
+## @param stats The output of aggregateValuesFromLabels()
 def exportAsCSV(stats):
     pathCSV = os.path.join(globalVars['exportPath'], globalVars['baseName']+"_stats.csv")
     logging("Exporting data to: {0}".format(pathCSV))
@@ -741,12 +731,19 @@ def exportAsCSV(stats):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
+## @brief Writes the argument in all the selected logging descriptor.
+## @param txt A string representing the text to be logged.
 def logging(txt):
     if globalVars['logsFile'] is not None:
         globalVars['logsFile'].write(txt)
         globalVars['logsFile'].write('\n')
+    if globalVars['showLogs']:
+        IJ.log(txt)
 
 
+## @brief Creates the folder in which all exports will be performed. This folder is necessarily located next the processed image.
+## @param imgPath The path of the image being processed.
+## @return True
 def createExportPath(imgPath):
     global globalVars
 
@@ -770,29 +767,46 @@ def createExportPath(imgPath):
     return True
 
 
+## @brief Updates the export base path according to the currently processed image.
+## @param imgPath The full path of an image. The head will be used to build the name.
 def updateBaseName(imgPath):
     root, imName = os.path.split(imgPath)
     globalVars['baseName'] = imName.split('.')[0].replace(' ', '_')
 
 
-def askOptions():
-    gui = GenericDialog("Settings")
+## @brief Opens a GUI dialog asking the user to set his preferences. Can be skipped if a dict was passed to the function.
+## @param userVals A dictionary of settings (using defaults if empty). If None, opens the dialog.
+## @return False if the dialog was aborted, True otherwise.
+def askOptions(userVals):
 
-    gui.addChoice("Export format", ["JSON", "CSV"], globalVars['format'])
-    gui.addCheckbox("Process entire folder", globalVars['processFolder'])
-    gui.addCheckbox("Export logs", globalVars['useLogs'])
-
-    gui.showDialog()
-
-    if gui.wasOKed():
-        globalVars['format'] = gui.getNextChoice()
-        globalVars['processFolder'] = gui.getNextBoolean()
-        globalVars['useLogs'] = gui.getNextBoolean()
-
-        logging("Export format: {0}".format(globalVars['format']))
-        logging("Process whole folder: {0}".format(str(globalVars['processFolder'])))
+    if userVals is not None:
+        for key, val in userVals:
+            globalVars[key] = val
 
         return True
+    
+    else:
+        gui = GenericDialog("Settings")
+
+        gui.addChoice("Export format", ["JSON", "CSV"], globalVars['format'])
+        gui.addCheckbox("Process entire folder", globalVars['processFolder'])
+        
+        gui.addMessage("-- Logging --")
+        gui.addCheckbox("Export logs", globalVars['useLogs'])
+        gui.addCheckbox("Show logs", globalVars['showLogs'])
+
+        gui.showDialog()
+
+        if gui.wasOKed():
+            globalVars['format'] = gui.getNextChoice()
+            globalVars['processFolder'] = gui.getNextBoolean()
+            globalVars['useLogs'] = gui.getNextBoolean()
+            globalVars['showLogs'] = gui.getNextBoolean()
+
+            return True
+    
+    logging("Export format: {0}".format(globalVars['format']))
+    logging("Process whole folder: {0}".format(str(globalVars['processFolder'])))
 
     return False
 
@@ -802,18 +816,22 @@ def askOptions():
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
+## @brief Function launching the whole procedure. Possibility to specify parameters if GUI must be skiped.
+## @param imgPath The path of the image on which we want to apply the process.
+## @param classifierPath The path of the classifier to use to segment the desired image.
+## @param settings Dictionary of settings to skip the GUI menu asking for them. Available keys: 'processFolder', 'useLogs', 'showLogs', 'format'
+## @return 0 on success or a negative number if an error happened and the function was aborted.
+def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
 
-def main():
-
-    path = askForPath()
+    path = askForPath(imgPath)
     if path is None:
         return -1
 
-    globalVars['classiPath'] = acquireClassifier(globalVars['classiPath'])
+    globalVars['classiPath'] = acquireClassifier(classifierPath)
     if globalVars['classiPath'] is None:
         return -2
 
-    if not askOptions():
+    if not askOptions(settings):
         return -3
     
     queue = buildQueue(path)
@@ -863,13 +881,18 @@ def main():
 
 
 
-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | #
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
 
-if main() == 0:
+
+# segTrackAndStats("/home/benedetti/Documents/projects/1-thomas-segntrack/NoAux/20220926-1106_NoAux_p009.tif", "/home/benedetti/Bureau/classifier-16-dec/current.classifier") == 0:
+if segTrackAndStats() == 0:
     IJ.log("Process Done")
 else:
     IJ.log("Process failed. Read the logs")
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -886,7 +909,7 @@ else:
 # - [X] Scripting Trackmate: https://imagej.net/plugins/trackmate/scripting
 # - [X] Voir s'il n'y a pas quelque chose à faire avec le Laplacien de la couche de segmentation...
 # - [X] Retrain un classifier avec ces données précises, en faire d'autres avec d'autres segmentation maps.
-# - [ ] Faire un script qui inspecte la rondeur des formes extraites, pour retirer les pointes de pixels qui apparaissent.
+# - [~] Faire un script qui inspecte la rondeur des formes extraites, pour retirer les pointes de pixels qui apparaissent.
 #       On peut chercher à faire une enveloppe autour de chaque label en un nombre limité de points, et ne garder que ce qui est dedans.
 #       Ca nécessite de construire un dictionnaire des labels, ou de maintenir un state pour chaque état.
 #       Mesurer les variations de distance entre le centroid et les points et retirer les points avec une trop forte variation.
@@ -897,32 +920,34 @@ else:
 # - [X] La projection peut avoir lieu avant qu'on split les channels.
 # - [X] On peut jouer avec la std dev du Gaussian au début avant de train le classifier.
 # - [X] Doit proposer un batch mode qui permet de sélectionner un fichier et de traiter tout ce qui se trouve dans le même dossier que ce fichier.
-# - [ ] Sortir de meilleurs codes d'erreur quand le script doit abort.
+# - [X] Sortir de meilleurs codes d'erreur quand le script doit abort.
 # - [ ] Vérifier que ce script marche aussi pour les images ayant une seule frame.
 # - [X] On ne va kill les borders qu'après la phase de tracking pour éviter de perturber l'opération.
-# - [X] Essayer une méthode où on prend des carrés avec des thresholds locaux pour l'aasemblage.
+# - [X] Essayer une méthode où on prend des carrés avec des thresholds locaux pour l'assemblage.
 # - [?] Générer un HTML pour la visualisation des données.
 # - [X] Retirer les labels qui ne sont pas sur toutes les frames.
 # - [X] Filtrer par taille maximale les noyaux pour éviter les aggrégats.
-# - [ ] Tester sur des fichiers Auxin.
+# - [X] Tester sur des fichiers Auxin.
 # - [X] Soustraire la valeur moyenne du BG à toutes les valeurs obtenues.
 # - [X] Faire un système de logging dans un fichier.
 # - [ ] Séparer le code en modules pour la propreté.
-# - [ ] Aménager le script pour qu'il puisse être utilisé sans GUI, utilisé lui-même comme un module.
+# - [X] Aménager le script pour qu'il puisse être utilisé sans GUI, utilisé lui-même comme un module.
 # - [ ] Faire plusieurs macros qui séparent le process en étapes (pour pouvoir corriger les erreurs à la main).
 # - [ ] Remplacer les run() par des calls API quand c'est possible.
-# - [ ] Check que les indices commencent bien à 1 et pas 0.
+# - [X] Check que les indices commencent bien à 1 et pas 0.
 # - [X] Système d'export en JSON et en CSV.
 # - [X] Handle les erreurs dans le main (en cas de retour de None)
 # - [X] Ajouter un check de la variation de la taille au cours du temps. Discard si variation trop forte.
 # - [X] Se débarasser du message de save qui pop à un moment.
 # - [X] Essayer de se débarasser de l'avalanche de fenêtres au moment du postprocess.
 # - [ ] Ajouter des options dans la GUI.
-# - [ ] Faire en sorte que la GUI ne soit pas obligatoire en passant des arguments.
-#
+# - [X] Faire en sorte que la GUI ne soit pas obligatoire en passant des arguments.
+# - [X] Écrire la doc détaillée du module.
+# - [ ] Rédiger la procédure finale.
+# - [ ] Mettre à jour le Redmine
+# 
 #	============================================  QUESTIONS THOMAS  =============================================
 #
-# - [ ] Est-ce que je dois soustraire la valeur moyenne du background à toutes les mesures ?
 # - [ ] Y a-t-il d'autres données à exporter ? Ou sous une autre format ?
 # - [ ] Est-ce qu'une façon d'exploiter ces données est déjà prévue, ou est-elle à développer ?
 #
