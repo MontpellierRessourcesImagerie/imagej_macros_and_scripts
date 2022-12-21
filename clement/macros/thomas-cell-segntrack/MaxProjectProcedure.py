@@ -30,6 +30,7 @@ import fiji.plugin.trackmate.features.FeatureFilter as FeatureFilter
 from fiji.plugin.trackmate.tracking.overlap import OverlapTrackerFactory
 from fiji.plugin.trackmate.action import LabelImgExporter
 
+
 dimensions = {
     'vWidth': 0.102, 
     'vHeight': 0.102, 
@@ -407,8 +408,9 @@ def preprocessRawImage(rawImage):
     IJ.run(segmentationChannel, "32-bit", "")
     IJ.run(segmentationChannel, "Divide...", "value=65535 stack")
 
-    IJ.saveAs(segmentationChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_seg.tif"))
-    IJ.saveAs(dataChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_data.tif"))
+    if globalVars['exportPath'] is not None:
+        IJ.saveAs(segmentationChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_seg.tif"))
+        IJ.saveAs(dataChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_data.tif"))
 
     return (segmentationChannel, dataChannel)
 
@@ -561,6 +563,7 @@ def launchFilteringLabels(original):
     return result
 
 
+
 ## @brief Track objects over a sequence of labeled frames.
 ## @parap labeledFrames A sequence of 1-slice deep images considered like frames.
 ## @return A sequence of the same size as the input, but labels are supposed to be consistant in time.
@@ -569,7 +572,7 @@ def labelsTracking(labeledFrames):
     sys.setdefaultencoding('utf-8')
 
     model = Model()
-    model.setLogger(Logger.VOID_LOGGER) # Rediriger vers un fichier ou None
+    model.setLogger(Logger.VOID_LOGGER) # Kill logging
 
     settings = Settings(labeledFrames)
 
@@ -581,13 +584,14 @@ def labelsTracking(labeledFrames):
     }  
 
     # Configure tracker - We want to allow merges and fusions
-    settings.trackerFactory = OverlapTrackerFactory()
-    settings.trackerSettings['SCALE_FACTOR'] = 1.0
-    settings.trackerSettings['MIN_IOU'] = 0.3
-    settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
+    settings.trackerFactory = SparseLAPTrackerFactory()
+    settings.trackerSettings = LAPUtils.getDefaultLAPSettingsMap()
+
+    settings.trackerSettings['LINKING_MAX_DISTANCE'] = 80.0
+    settings.trackerSettings['ALLOW_GAP_CLOSING'] = False
     settings.trackerSettings['ALLOW_TRACK_SPLITTING'] = False
     settings.trackerSettings['ALLOW_TRACK_MERGING'] = False
-    settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
+
     settings.addAllAnalyzers()
 
     trackmate = TrackMate(model, settings)
@@ -610,7 +614,9 @@ def labelsTracking(labeledFrames):
 ## @param rawSeg The image as it is produced by LabKit.
 ## @return The cleaned, labelled and segmented animation.
 def postProcessSegmentation(rawSeg):
-    IJ.saveAs(rawSeg, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_rawseg.tif"))
+    if globalVars['exportPath'] is not None:
+        IJ.saveAs(rawSeg, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_rawseg.tif"))
+
     rs = rawSeg.duplicate()
     rawSeg.close()
     rawSeg = rs
@@ -620,7 +626,10 @@ def postProcessSegmentation(rawSeg):
     logging("Filtering rough labels")
     filteredLabels = launchFilteringLabels(rawSeg)
     logging("Tracking labels across frames")
-    IJ.saveAs(filteredLabels, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_early.tif"))
+
+    if globalVars['exportPath'] is not None:
+        IJ.saveAs(filteredLabels, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_early.tif"))
+    
     tracked = labelsTracking(filteredLabels).duplicate()
     filteredLabels.close()
     rawSeg.close()
@@ -842,6 +851,154 @@ def askOptions(userVals):
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#    SEQUENCE OF OPERATIONS                                                                       #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+def justPreprocess():
+    gui = GenericDialog("Preprocessing")
+
+    gui.addChoice("Target", WindowManager.getImageTitles(), "")
+
+    gui.showDialog()
+
+    if not gui.wasOKed():
+        return (None, None)
+
+    title = gui.getNextChoice()
+    target = WindowManager.getImage(title)
+
+    width, height, nChannels, nSlices, nFrames = target.getDimensions()
+
+    target.getCalibration().setXUnit("um");
+    target.getCalibration().setYUnit("um");
+    target.getCalibration().setZUnit("um");
+    IJ.run(target, "Properties...", "channels={0} slices={1} frames={2} pixel_width={3} pixel_height={4} voxel_depth={5} frame=[{6} {7}]".format(nChannels, nSlices, nFrames, dimensions['vWidth'], dimensions['vHeight'], dimensions['vDepth'], dimensions['frameInterval'], dimensions['timeUnit']))
+
+    globalVars['baseName'] = title.split('.')[0] # Removing extension
+
+    return preprocessRawImage(target)
+
+
+
+def justSegmentAndClean():
+    gui = GenericDialog("Segmentation")
+
+    gui.addChoice("Target", WindowManager.getImageTitles(), "")
+    gui.addStringField("Classifier", "/home/benedetti/Documents/imagej_macros_and_scripts/clement/macros/thomas-cell-segntrack/set3/iter2.classifier")
+
+    gui.showDialog()
+
+    if not gui.wasOKed():
+        return None
+
+    title = gui.getNextChoice()
+    target = WindowManager.getImage(title)
+
+    globalVars['classiPath'] = gui.getNextString()
+    globalVars['baseName'] = title.split('.')[0] # Removing extension
+
+    return labkitSegmentation(target, globalVars['classiPath'])
+
+
+
+def justTrack():
+    gui = GenericDialog("Postprocess + Tracking")
+
+    gui.addChoice("Target", WindowManager.getImageTitles(), "")
+
+    gui.showDialog()
+
+    if not gui.wasOKed():
+        return None
+
+    title = gui.getNextChoice()
+    target = WindowManager.getImage(title)
+
+    globalVars['baseName'] = title.split('.')[0] # Removing extension
+
+    return postProcessSegmentation(target)
+
+
+def justMakeStats():
+    gui = GenericDialog("Make statistics")
+
+    gui.addChoice("Segmentation", WindowManager.getImageTitles(), "")
+    gui.addChoice("Data", WindowManager.getImageTitles(), "")
+    gui.addChoice("Format", ['JSON', 'CSV'], globalVars['format'])
+    gui.addStringField("Export path", "")
+
+    gui.showDialog()
+
+    if not gui.wasOKed():
+        return None
+
+    segTitle = gui.getNextChoice()
+    dataTitle = gui.getNextChoice()
+    globalVars['format'] = gui.getNextChoice()
+    globalVars['exportPath'] = gui.getNextString()
+
+    seg = WindowManager.getImage(segTitle)
+    data = WindowManager.getImage(dataTitle)
+
+    globalVars['baseName'] = "stats"
+
+    return aggregateValuesFromLabels(seg, data)
+
+
+def launchAnOperation():
+    gui = GenericDialog("Launcher")
+
+    gui.addChoice("Operation", ['Everything', 'Preprocess', 'Segmentation', 'Postprocess + Tracking', 'Statistics'], 'Everything')
+    gui.addCheckbox("Show logs", globalVars['showLogs'])
+
+    gui.showDialog()
+
+    if not gui.wasOKed():
+        return None
+
+    choice = gui.getNextChoice()
+    globalVars['showLogs'] = gui.getNextBoolean()
+    globalVars['useLogs']  = False
+    globalVars['exportPath'] = None
+
+    if choice == 'Everything':
+        return segTrackAndStats()
+
+    elif choice == 'Preprocess':
+        seg, data = justPreprocess()
+        if seg is None:
+            return -1
+        seg.setTitle("segmentation")
+        data.setTitle("data")
+        seg.show()
+        data.show()
+
+    elif choice == 'Segmentation':
+        seg = justSegmentAndClean()
+        if seg is None:
+            return -2
+        seg.setTitle("labkit_out")
+        seg.show()
+
+    elif choice == 'Postprocess + Tracking':
+        tr = justTrack()
+        if tr is None:
+            return None
+        tr.setTitle("tracked")
+        tr.show()
+
+    elif choice == 'Statistics':
+        stats = justMakeStats()
+        if globalVars['format'] == 'JSON':
+            exportAsJSON(stats)
+        else:
+            exportAsCSV(stats)
+    
+    return 0
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #    MAIN                                                                                         #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -893,7 +1050,10 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
             return -3
         
         cleanSegmentation = postProcessSegmentation(rawSegmentation)
-        IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_tracked.tif'))
+
+        if globalVars['exportPath'] is not None:
+            IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_tracked.tif'))
+        
         stats = aggregateValuesFromLabels(cleanSegmentation, data)
         
         logging("Exporting statistics for: {}".format(globalVars['baseName']))
@@ -917,11 +1077,10 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
 
 
 
-# segTrackAndStats("/home/benedetti/Documents/projects/1-thomas-segntrack/NoAux/20220926-1106_NoAux_p009.tif", "/home/benedetti/Bureau/classifier-16-dec/current.classifier") == 0:
-if segTrackAndStats() == 0:
-    IJ.log("Process Done")
+if launchAnOperation() < 0:
+    IJ.log("Something went wrong. Aborted")
 else:
-    IJ.log("Process failed. Read the logs")
+    IJ.log("DONE.")
 
 
 
