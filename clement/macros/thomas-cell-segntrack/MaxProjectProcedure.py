@@ -34,7 +34,7 @@ dimensions = {
     'vWidth': 0.102, 
     'vHeight': 0.102, 
     'vDepth': 0.4, 
-    'lengthUnit': "µm",
+    'lengthUnit': "um",
     'frameInterval': 15,
     'timeUnit': "min"
 }
@@ -49,9 +49,12 @@ globalVars = {
     'logsFile': None,       # Descriptor of the log file (None while not opened).
     'generateHTML': True,   # Relicate of a former implementation. Useless.
     'format': 'JSON',       # 'JSON' or 'CSV'. Format to which the stats must be exported.
-    'showLogs': False       # Should the log appear on screen in real time during processing.
+    'showLogs': True       # Should the log appear on screen in real time during processing.
 }
 
+testGlobalVars = {
+    'classiPath': {'val': None, 'type': str, "descr": "Path of the classifier to use"}
+}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                                                             #
@@ -314,9 +317,9 @@ def acquireImage(path):
 
     width, height, nChannels, nSlices, nFrames = rawImage.getDimensions()
 
-    rawImage.getCalibration().setXUnit("µm");
-    rawImage.getCalibration().setYUnit("µm");
-    rawImage.getCalibration().setZUnit("µm");
+    rawImage.getCalibration().setXUnit("um");
+    rawImage.getCalibration().setYUnit("um");
+    rawImage.getCalibration().setZUnit("um");
     
     IJ.run(rawImage, "Properties...", "channels={0} slices={1} frames={2} pixel_width={3} pixel_height={4} voxel_depth={5} frame=[{6} {7}]".format(nChannels, nSlices, nFrames, dimensions['vWidth'], dimensions['vHeight'], dimensions['vDepth'], dimensions['frameInterval'], dimensions['timeUnit']))
 
@@ -374,14 +377,23 @@ def preprocessRawImage(rawImage):
     rawImage.close()
 
     # 2. Applying median blur to each channel
-    logging("Median bluring")
+    logging("Median bluring on segmentation channel")
     IJ.run(segmentationChannel, "Median 3D...", "x=5 y=5 z=1.5")
+    logging("Median bluring on data channel")
     IJ.run(dataChannel, "Median 3D...", "x=5 y=5 z=1.5")
  
 
     # 3. Ditching out-of-focus slices
     logging("Processing in-focus slices")
     inFocusInfos = getFocusInfos(zProfileOverLaplacian(segmentationChannel), 0.2)
+    shift = 2
+
+    if inFocusInfos['end'] - inFocusInfos['start'] <= 2 * shift:
+        logging("Not enough is-focus slices on {0}".format(globalVars['baseName']))
+        return (None, None)
+
+    inFocusInfos['start'] += 2
+    inFocusInfos['end'] -= 2
     segmentationChannel = keepInFocusSlices(inFocusInfos, segmentationChannel)
 
     # 4. Z-projection (max intensity)
@@ -391,9 +403,12 @@ def preprocessRawImage(rawImage):
 
     # 5. Enhance contrast and normalize between 0 and 1 (32-bits)
     logging("Fixing contrast; passing on 32-bits; passing values between 0 and 1")
-    IJ.run(segmentationChannel, "Enhance Contrast...", "saturated=0.35 normalize process_all")
+    IJ.run(segmentationChannel, "Enhance Contrast...", "saturated=0.35 normalize equalize process_all")
     IJ.run(segmentationChannel, "32-bit", "")
-    IJ.run(segmentationChannel, "Divide...", "value=65535 stack");
+    IJ.run(segmentationChannel, "Divide...", "value=65535 stack")
+
+    IJ.saveAs(segmentationChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_seg.tif"))
+    IJ.saveAs(dataChannel, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_data.tif"))
 
     return (segmentationChannel, dataChannel)
 
@@ -468,17 +483,29 @@ def filterLabels(frame):
     labels = []
 
     stats = compos.getStatistics()
+    discarded = []
 
     for i in range(int(stats.histMin), int(stats.histMax)+1):
         
-        if stats.histogram16[i] < 6500:
-            continue # If the component is less than 7000 pixels of area, we consider that it's not a nuclei
+        if stats.histogram16[i] < 500:
+            continue
         
-        isolatedLabel = selectLabel(compos, i) # IJ.getImage()
+        isolatedLabel = selectLabel(compos, i)
 
-        fixedLabel = closing(isolatedLabel, 25) # IJ.getImage()
+        fixedLabel = closing(isolatedLabel, 25)
         isolatedLabel.close()
-        labels.append(fixedLabel)
+
+        area = fixedLabel.getStatistics().histogram16[i]
+
+        if area < 5000:
+            discarded.append(i)
+            fixedLabel.close() # If the component is less than 6500 pixels of area, we consider that it's not a nuclei
+        else:
+            labels.append(fixedLabel)
+
+        #print("After: ", area)
+
+    logging("Discarded due to their size: " + str(discarded))
 
     compos.close()
     filtered = Concatenator().concatenate(labels, False)
@@ -560,6 +587,7 @@ def labelsTracking(labeledFrames):
     settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
     settings.trackerSettings['ALLOW_TRACK_SPLITTING'] = False
     settings.trackerSettings['ALLOW_TRACK_MERGING'] = False
+    settings.trackerSettings['IOU_CALCULATION'] = 'PRECISE'
     settings.addAllAnalyzers()
 
     trackmate = TrackMate(model, settings)
@@ -582,6 +610,7 @@ def labelsTracking(labeledFrames):
 ## @param rawSeg The image as it is produced by LabKit.
 ## @return The cleaned, labelled and segmented animation.
 def postProcessSegmentation(rawSeg):
+    IJ.saveAs(rawSeg, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_rawseg.tif"))
     rs = rawSeg.duplicate()
     rawSeg.close()
     rawSeg = rs
@@ -591,6 +620,7 @@ def postProcessSegmentation(rawSeg):
     logging("Filtering rough labels")
     filteredLabels = launchFilteringLabels(rawSeg)
     logging("Tracking labels across frames")
+    IJ.saveAs(filteredLabels, "tiff", os.path.join(globalVars['exportPath'], globalVars['baseName']+"_early.tif"))
     tracked = labelsTracking(filteredLabels).duplicate()
     filteredLabels.close()
     rawSeg.close()
