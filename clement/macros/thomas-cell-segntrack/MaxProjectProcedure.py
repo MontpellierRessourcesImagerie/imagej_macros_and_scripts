@@ -50,7 +50,8 @@ globalVars = {
     'logsFile': None,       # Descriptor of the log file (None while not opened).
     'generateHTML': True,   # Relicate of a former implementation. Useless.
     'format': 'JSON',       # 'JSON' or 'CSV'. Format to which the stats must be exported.
-    'showLogs': True       # Should the log appear on screen in real time during processing.
+    'showLogs': True,       # Should the log appear on screen in real time during processing.
+    'toleratedSize': 3000   # Minimal area to reach (in number of pixels) for a label to be considered a cell.
 }
 
 testGlobalVars = {
@@ -499,13 +500,11 @@ def filterLabels(frame):
 
         area = fixedLabel.getStatistics().histogram16[i]
 
-        if area < 5000:
+        if area < globalVars['toleratedSize']:
             discarded.append(i)
             fixedLabel.close() # If the component is less than 6500 pixels of area, we consider that it's not a nuclei
         else:
             labels.append(fixedLabel)
-
-        #print("After: ", area)
 
     logging("Discarded due to their size: " + str(discarded))
 
@@ -649,12 +648,31 @@ def postProcessSegmentation(rawSeg):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
+def makeCleanExport(image, discarded, labels):
+    # Check la bit-depth de l'image
+    ReplaceLabelValues().process(image, discarded, 0)
+    labels = [int(i) for i in labels if i != 'BG']
+    labels.sort()
+    mapping = {}
+
+    for current, l in enumerate(labels):
+        ReplaceLabelValues().process(image, [l], current+1)
+        mapping[l] = current + 1
+
+    mapping['BG'] = 'BG'
+
+    IJ.run(image, "8-bit", "")
+    return mapping
+
+
 ## @brief Creates statistics over the fluorescence of nuclei in the data's channel.
 ## @param segmentation: An animation representing tracked labels.
 ## @param data: The animation of the data channel.
 ## @return A dictionary, exportable as a JSON, representing the evolution of fluorescence over time.
 def aggregateValuesFromLabels(segmentation, data):
     
+    logging(">>> Building statistics for: {0}".format(globalVars['baseName']))
+
     segStack  = segmentation.getImageStack()
     dataStack = data.getImageStack()
     stats = {}
@@ -691,6 +709,7 @@ def aggregateValuesFromLabels(segmentation, data):
             })
         
     toBeDeleted = []
+    logging("Checking labels consistency overtime.")
 
     for lbl, data in stats.items():
         if lbl == 'BG':
@@ -700,7 +719,7 @@ def aggregateValuesFromLabels(segmentation, data):
             continue
         for i in range(len(data)-1):
             # If the difference of area between two frames is too big, two cells were probably aggregated.
-            if abs(data[i]['area'] - data[i+1]['area']) > data[i]['area'] * 0.2:
+            if abs(data[i]['area'] - data[i+1]['area']) > data[i]['area'] * 0.25:
                 toBeDeleted.append(lbl)
                 break
 
@@ -711,7 +730,17 @@ def aggregateValuesFromLabels(segmentation, data):
     for lbl in toBeDeleted:
         del stats[lbl]
 
-    return stats
+    logging("Cleaning tracked image")
+
+    mapping = makeCleanExport(segmentation, toBeDeleted, stats.keys())
+    if globalVars['exportPath'] is not None:
+        IJ.saveAsTiff(segmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_cleanTracked.tif'))
+
+    cleanStats = {}
+    for key, item in stats.items():
+        cleanStats[mapping[key]] = item
+
+    return cleanStats
 
 
 ## @brief Takes a dictionary of stats built by aggregateValuesFromLabels() and formats it in a JSON form before exporting it.
@@ -827,6 +856,8 @@ def askOptions(userVals):
     else:
         gui = GenericDialog("Settings")
 
+        gui.addNumericField("Tolerated size: ", globalVars['toleratedSize'], 0)
+
         gui.addChoice("Export format", ["JSON", "CSV"], globalVars['format'])
         gui.addCheckbox("Process entire folder", globalVars['processFolder'])
         
@@ -837,6 +868,7 @@ def askOptions(userVals):
         gui.showDialog()
 
         if gui.wasOKed():
+            globalVars['toleratedSize'] = max(0, int(gui.getNextNumber()))
             globalVars['format'] = gui.getNextChoice()
             globalVars['processFolder'] = gui.getNextBoolean()
             globalVars['useLogs'] = gui.getNextBoolean()
@@ -885,7 +917,7 @@ def justSegmentAndClean():
     gui = GenericDialog("Segmentation")
 
     gui.addChoice("Target", WindowManager.getImageTitles(), "")
-    gui.addStringField("Classifier", "/home/benedetti/Documents/imagej_macros_and_scripts/clement/macros/thomas-cell-segntrack/set3/iter2.classifier")
+    gui.addStringField("Classifier", "/home/benedetti/Documents/imagej_macros_and_scripts/clement/macros/thomas-cell-segntrack/set3/iter2.classifier", 30)
 
     gui.showDialog()
 
@@ -906,6 +938,7 @@ def justTrack():
     gui = GenericDialog("Postprocess + Tracking")
 
     gui.addChoice("Target", WindowManager.getImageTitles(), "")
+    gui.addNumericField("Tolerated size: ", globalVars['toleratedSize'], 0)
 
     gui.showDialog()
 
@@ -913,6 +946,7 @@ def justTrack():
         return None
 
     title = gui.getNextChoice()
+    globalVars['toleratedSize'] = max(0, int(gui.getNextNumber()))
     target = WindowManager.getImage(title)
 
     globalVars['baseName'] = title.split('.')[0] # Removing extension
@@ -926,7 +960,7 @@ def justMakeStats():
     gui.addChoice("Segmentation", WindowManager.getImageTitles(), "")
     gui.addChoice("Data", WindowManager.getImageTitles(), "")
     gui.addChoice("Format", ['JSON', 'CSV'], globalVars['format'])
-    gui.addStringField("Export path", "")
+    gui.addStringField("Export path", "", 30)
 
     gui.showDialog()
 
@@ -941,7 +975,7 @@ def justMakeStats():
     seg = WindowManager.getImage(segTitle)
     data = WindowManager.getImage(dataTitle)
 
-    globalVars['baseName'] = "stats"
+    globalVars['baseName'] = segTitle.split('.')[0]
 
     return aggregateValuesFromLabels(seg, data)
 
@@ -990,6 +1024,10 @@ def launchAnOperation():
 
     elif choice == 'Statistics':
         stats = justMakeStats()
+
+        if stats is None:
+            return -2
+
         if globalVars['format'] == 'JSON':
             exportAsJSON(stats)
         else:
@@ -1025,6 +1063,8 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
     createExportPath(path)
     logging("Processing queue: {0}".format(str(queue)))
 
+    errorCode = 0
+
     for filePath in queue:
         logging("========== Processing file: {0} ==========".format(filePath))
 
@@ -1035,24 +1075,27 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
         rawImage = acquireImage(filePath)
         if rawImage is None:
             logging("Working image couldn't be open. Abort.")
-            return -1
+            errorCode -= 1
+            continue
         
         updateBaseName(filePath)
 
         segmentation, data = preprocessRawImage(rawImage)
         if (segmentation is None) or (data is None):
             logging("Failed to preprocess the input image. Abort.")
-            return -2
+            errorCode -= 2
+            continue
 
         rawSegmentation = labkitSegmentation(segmentation, globalVars['classiPath'])
         if rawSegmentation is None:
             logging("Failed to compute rough segmentation through LabKit")
-            return -3
+            errorCode -= 3
+            continue
         
         cleanSegmentation = postProcessSegmentation(rawSegmentation)
 
         if globalVars['exportPath'] is not None:
-            IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_tracked.tif'))
+            IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_rawTracked.tif'))
         
         stats = aggregateValuesFromLabels(cleanSegmentation, data)
         
@@ -1067,7 +1110,7 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
     if globalVars['useLogs']:
         globalVars['logsFile'].close()
     
-    return 0
+    return errorCode
 
 
 
@@ -1119,9 +1162,9 @@ else:
 # - [X] Tester sur des fichiers Auxin.
 # - [X] Soustraire la valeur moyenne du BG à toutes les valeurs obtenues.
 # - [X] Faire un système de logging dans un fichier.
-# - [ ] Séparer le code en modules pour la propreté.
+# - [~] Séparer le code en modules pour la propreté.
 # - [X] Aménager le script pour qu'il puisse être utilisé sans GUI, utilisé lui-même comme un module.
-# - [ ] Faire plusieurs macros qui séparent le process en étapes (pour pouvoir corriger les erreurs à la main).
+# - [X] Faire plusieurs macros qui séparent le process en étapes (pour pouvoir corriger les erreurs à la main).
 # - [ ] Remplacer les run() par des calls API quand c'est possible.
 # - [X] Check que les indices commencent bien à 1 et pas 0.
 # - [X] Système d'export en JSON et en CSV.
@@ -1133,7 +1176,8 @@ else:
 # - [X] Faire en sorte que la GUI ne soit pas obligatoire en passant des arguments.
 # - [X] Écrire la doc détaillée du module.
 # - [ ] Rédiger la procédure finale.
-# - [ ] Mettre à jour le Redmine
+# - [ ] Mettre à jour le Redmine.
+# - [ ] Écrire la documentation et la faire passer à Thomas.
 # 
 #	============================================  QUESTIONS THOMAS  =============================================
 #
