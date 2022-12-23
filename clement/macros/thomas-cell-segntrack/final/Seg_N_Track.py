@@ -917,7 +917,7 @@ def justSegmentAndClean():
     gui = GenericDialog("Segmentation")
 
     gui.addChoice("Target", WindowManager.getImageTitles(), "")
-    gui.addStringField("Classifier", "/home/benedetti/Documents/imagej_macros_and_scripts/clement/macros/thomas-cell-segntrack/set3/iter2.classifier", 30)
+    gui.addStringField("Classifier", IJ.getDirectory('home'), 30)
 
     gui.showDialog()
 
@@ -1126,62 +1126,3 @@ else:
     IJ.log("DONE.")
 
 
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#   ==================================================  NOTES  ==================================================
-#
-# - Channels have to be splitted before the projection, otherwise channels influence each other for some reason.
-# - Using a Laplacian with a Min projection and averaging it with the Max projection of the original channel gives something unstable.
-# - Les stats sont filtrées juste avant l'export, ce qui est visible à l'image n'est pas obligatoirement dans le fichier (ex: NoAux_001)
-#	
-#	==================================================  TO DO  ==================================================
-#
-# - [X] Mettre à jour le temps d'interframe dans les images.
-# - [X] Scripting Trackmate: https://imagej.net/plugins/trackmate/scripting
-# - [X] Voir s'il n'y a pas quelque chose à faire avec le Laplacien de la couche de segmentation...
-# - [X] Retrain un classifier avec ces données précises, en faire d'autres avec d'autres segmentation maps.
-# - [~] Faire un script qui inspecte la rondeur des formes extraites, pour retirer les pointes de pixels qui apparaissent.
-#       On peut chercher à faire une enveloppe autour de chaque label en un nombre limité de points, et ne garder que ce qui est dedans.
-#       Ca nécessite de construire un dictionnaire des labels, ou de maintenir un state pour chaque état.
-#       Mesurer les variations de distance entre le centroid et les points et retirer les points avec une trop forte variation.
-# - [X] Entrainer un autre classifier sur une image générée avec le script qui détecte l'arrivée au focus.
-# - [X] Passer le chemin à ouvrir comme string parameter plutôt qu'en ouverture GUI pour pouvoir batcher.
-#       Faire de même avec le chemin du classifier qui ne doit être demandé qu'une fois.
-# - [X] Tester si la combinaison avec un Laplacian ne donne pas quelque chose de plus facile à train pour le classifier.
-# - [X] La projection peut avoir lieu avant qu'on split les channels.
-# - [X] On peut jouer avec la std dev du Gaussian au début avant de train le classifier.
-# - [X] Doit proposer un batch mode qui permet de sélectionner un fichier et de traiter tout ce qui se trouve dans le même dossier que ce fichier.
-# - [X] Sortir de meilleurs codes d'erreur quand le script doit abort.
-# - [ ] Vérifier que ce script marche aussi pour les images ayant une seule frame.
-# - [X] On ne va kill les borders qu'après la phase de tracking pour éviter de perturber l'opération.
-# - [X] Essayer une méthode où on prend des carrés avec des thresholds locaux pour l'assemblage.
-# - [?] Générer un HTML pour la visualisation des données.
-# - [X] Retirer les labels qui ne sont pas sur toutes les frames.
-# - [X] Filtrer par taille maximale les noyaux pour éviter les aggrégats.
-# - [X] Tester sur des fichiers Auxin.
-# - [X] Soustraire la valeur moyenne du BG à toutes les valeurs obtenues.
-# - [X] Faire un système de logging dans un fichier.
-# - [~] Séparer le code en modules pour la propreté.
-# - [X] Aménager le script pour qu'il puisse être utilisé sans GUI, utilisé lui-même comme un module.
-# - [X] Faire plusieurs macros qui séparent le process en étapes (pour pouvoir corriger les erreurs à la main).
-# - [ ] Remplacer les run() par des calls API quand c'est possible.
-# - [X] Check que les indices commencent bien à 1 et pas 0.
-# - [X] Système d'export en JSON et en CSV.
-# - [X] Handle les erreurs dans le main (en cas de retour de None)
-# - [X] Ajouter un check de la variation de la taille au cours du temps. Discard si variation trop forte.
-# - [X] Se débarasser du message de save qui pop à un moment.
-# - [X] Essayer de se débarasser de l'avalanche de fenêtres au moment du postprocess.
-# - [ ] Ajouter des options dans la GUI.
-# - [X] Faire en sorte que la GUI ne soit pas obligatoire en passant des arguments.
-# - [X] Écrire la doc détaillée du module.
-# - [ ] Rédiger la procédure finale.
-# - [ ] Mettre à jour le Redmine.
-# - [ ] Écrire la documentation et la faire passer à Thomas.
-# 
-#	============================================  QUESTIONS THOMAS  =============================================
-#
-# - [ ] Y a-t-il d'autres données à exporter ? Ou sous une autre format ?
-# - [ ] Est-ce qu'une façon d'exploiter ces données est déjà prévue, ou est-elle à développer ?
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
