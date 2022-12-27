@@ -30,7 +30,7 @@ import fiji.plugin.trackmate.features.FeatureFilter as FeatureFilter
 from fiji.plugin.trackmate.tracking.overlap import OverlapTrackerFactory
 from fiji.plugin.trackmate.action import LabelImgExporter
 
-
+## @brief Correct dimensions for an image.
 dimensions = {
     'vWidth': 0.102, 
     'vHeight': 0.102, 
@@ -40,6 +40,7 @@ dimensions = {
     'timeUnit': "min"
 }
 
+## @brief Dict containing all variables that need to be available accross the whole script.
 globalVars = {
     'classiPath': None,     # Path of the classifier to use. None to open GUI dialog.
     'useGpu': False,        # Should LabKit use the GPU?
@@ -54,9 +55,6 @@ globalVars = {
     'toleratedSize': 3000   # Minimal area to reach (in number of pixels) for a label to be considered a cell.
 }
 
-testGlobalVars = {
-    'classiPath': {'val': None, 'type': str, "descr": "Path of the classifier to use"}
-}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                                                             #
@@ -227,6 +225,14 @@ def zProfileOverLaplacian(imp):
         1,
         1)
 
+    width, height, nChannels, nSlices, nFrames = ori.getDimensions()
+
+    ori.getCalibration().setXUnit("um");
+    ori.getCalibration().setYUnit("um");
+    ori.getCalibration().setZUnit("um");
+    
+    IJ.run(ori, "Properties...", "channels={0} slices={1} frames={2} pixel_width={3} pixel_height={4} voxel_depth={5} frame=[{6} {7}]".format(nChannels, nSlices, nFrames, dimensions['vWidth'], dimensions['vHeight'], dimensions['vDepth'], dimensions['frameInterval'], dimensions['timeUnit']))
+
     IJ.run(ori, "FeatureJ Laplacian", "compute smoothing=1.0 detect")
     lapla = IJ.getImage()
 
@@ -378,12 +384,9 @@ def preprocessRawImage(rawImage):
     segmentationChannel, dataChannel = ChannelSplitter.split(rawImage)
     rawImage.close()
 
-    # 2. Applying median blur to each channel
+    # 2. Applying median blur to segmentation channel
     logging("Median bluring on segmentation channel")
     IJ.run(segmentationChannel, "Median 3D...", "x=5 y=5 z=1.5")
-    logging("Median bluring on data channel")
-    IJ.run(dataChannel, "Median 3D...", "x=5 y=5 z=1.5")
- 
 
     # 3. Ditching out-of-focus slices
     logging("Processing in-focus slices")
@@ -647,7 +650,11 @@ def postProcessSegmentation(rawSeg):
 # | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-
+## @brief Modifies the output image so it matches the label that were discarded due to their inconsistent statistics over time. The produced image will be on 8 bits and its label will follow an increment of 1 instead of being chaotic.
+## @param image The image containing tracked labels, but some could be wrong (disappearing on a frame, ...)
+## @param discarded List of labels (integers) that were discarded at the previous step but are still present on the image.
+## @param labels The list of labels that will be modified to have an increment of one.
+## @return A map indicating for each old label, what it was replaced by in the new image.
 def makeCleanExport(image, discarded, labels):
     # Check la bit-depth de l'image
     ReplaceLabelValues().process(image, discarded, 0)
@@ -776,12 +783,12 @@ def exportAsCSV(stats):
         line = []
         for label, frames in stats.items():
             if lineIndex < 0:
-                suffix = "_{0}".format(str(label).zfill(3))
+                suffix = "_{0}".format(str(label).zfill(3) if label != 'BG' else label)
                 line += [c+suffix for c in frames[0].keys()]
             else:
                 line += frames[lineIndex].values()
 
-        lines.append(", ".join([str(s) for s in line])+'\n')
+        lines.append(",".join([str(s) for s in line])+'\n')
         lineIndex += 1
     
     for line in lines:
@@ -886,7 +893,7 @@ def askOptions(userVals):
 #    SEQUENCE OF OPERATIONS                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-
+## @brief Function allowing the user to only launch the preprocess phase.
 def justPreprocess():
     gui = GenericDialog("Preprocessing")
 
@@ -912,7 +919,7 @@ def justPreprocess():
     return preprocessRawImage(target)
 
 
-
+## @brief Function allowing the user to only launch the segmentation phase.
 def justSegmentAndClean():
     gui = GenericDialog("Segmentation")
 
@@ -933,7 +940,7 @@ def justSegmentAndClean():
     return labkitSegmentation(target, globalVars['classiPath'])
 
 
-
+## @brief Function allowing the user to only launch the tracking phase.
 def justTrack():
     gui = GenericDialog("Postprocess + Tracking")
 
@@ -954,6 +961,7 @@ def justTrack():
     return postProcessSegmentation(target)
 
 
+## @brief Function allowing the user to only rebuild the statistics from a segmentation and a data images.
 def justMakeStats():
     gui = GenericDialog("Make statistics")
 
@@ -980,6 +988,7 @@ def justMakeStats():
     return aggregateValuesFromLabels(seg, data)
 
 
+## @brief Launcher allowing the user to pick what phase he wants to launch (or the whole process).
 def launchAnOperation():
     gui = GenericDialog("Launcher")
 
