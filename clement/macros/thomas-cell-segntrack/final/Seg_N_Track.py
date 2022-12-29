@@ -622,6 +622,8 @@ def postProcessSegmentation(rawSeg):
     rs = rawSeg.duplicate()
     rawSeg.close()
     rawSeg = rs
+    dupliRawSeg = rawSeg.duplicate()
+
     logging(">>> Starting postprocessing")
     logging("Removing outline from segmentation")
     ReplaceLabelValues().process(rawSeg, [2], 0)
@@ -639,7 +641,8 @@ def postProcessSegmentation(rawSeg):
     IJ.run(tracked, "Remove Border Labels", "left right top bottom")
     clean = IJ.getImage()
     tracked.close()
-    return clean
+
+    return dupliRawSeg, clean
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -676,27 +679,35 @@ def makeCleanExport(image, discarded, labels):
 ## @param segmentation: An animation representing tracked labels.
 ## @param data: The animation of the data channel.
 ## @return A dictionary, exportable as a JSON, representing the evolution of fluorescence over time.
-def aggregateValuesFromLabels(segmentation, data):
+def aggregateValuesFromLabels(segmentation, data, rawSegmentation):
     
     logging(">>> Building statistics for: {0}".format(globalVars['baseName']))
 
     segStack  = segmentation.getImageStack()
     dataStack = data.getImageStack()
+    rawStack  = rawSegmentation.getImageStack()
+
     stats = {}
     nFms = segmentation.getNFrames()
 
     for f in range(1, nFms+1):
         index = segmentation.getStackIndex(1, 1, f)
+
         segFrame  = segStack.getProcessor(index)
         dataFrame = dataStack.getProcessor(index)
+        rawFrame  = rawStack.getProcessor(index)
+
         labelsData = {}
 
         for c in range(segmentation.getWidth()):
             for l in range(segmentation.getHeight()):
                 lbl = segFrame.get(c, l)
 
-                if lbl == 0:
-                    lbl = 'BG'
+                if lbl == 0: # We don't want to consider discarded labels as background
+                    if rawFrame.get(c, l) == 0:
+                        lbl = 'BG'
+                    else:
+                        continue
                 
                 val = dataFrame.get(c, l)
                 labelsData.setdefault(lbl, []) 
@@ -967,6 +978,8 @@ def justMakeStats():
 
     gui.addChoice("Segmentation", WindowManager.getImageTitles(), "")
     gui.addChoice("Data", WindowManager.getImageTitles(), "")
+    gui.addChoice("Raw Segmentation", WindowManager.getImageTitles(), "")
+
     gui.addChoice("Format", ['JSON', 'CSV'], globalVars['format'])
     gui.addStringField("Export path", "", 30)
 
@@ -977,15 +990,18 @@ def justMakeStats():
 
     segTitle = gui.getNextChoice()
     dataTitle = gui.getNextChoice()
+    rawTitle = gui.getNextChoice()
+
     globalVars['format'] = gui.getNextChoice()
     globalVars['exportPath'] = gui.getNextString()
 
     seg = WindowManager.getImage(segTitle)
     data = WindowManager.getImage(dataTitle)
+    raw = WindowManager.getImage(rawTitle)
 
     globalVars['baseName'] = segTitle.split('.')[0]
 
-    return aggregateValuesFromLabels(seg, data)
+    return aggregateValuesFromLabels(seg, data, raw)
 
 
 ## @brief Launcher allowing the user to pick what phase he wants to launch (or the whole process).
@@ -1101,12 +1117,12 @@ def segTrackAndStats(imgPath=None, classifierPath=None, settings=None):
             errorCode -= 3
             continue
         
-        cleanSegmentation = postProcessSegmentation(rawSegmentation)
+        rawSeg, cleanSegmentation = postProcessSegmentation(rawSegmentation)
 
         if globalVars['exportPath'] is not None:
             IJ.saveAsTiff(cleanSegmentation, os.path.join(globalVars['exportPath'], globalVars['baseName'] + '_rawTracked.tif'))
         
-        stats = aggregateValuesFromLabels(cleanSegmentation, data)
+        stats = aggregateValuesFromLabels(cleanSegmentation, data, rawSeg)
         
         logging("Exporting statistics for: {}".format(globalVars['baseName']))
         if globalVars['format'] == 'JSON':
