@@ -3,23 +3,28 @@ from ij import IJ
 from ij import IJ, WindowManager, ImagePlus
 from ij.gui  import Roi, PointRoi, PolygonRoi
 from ij.process import FloatPolygon
+from java.awt import Point
 import math
 import time
 
-# v1 - v2
+## @brief v1 - v2
 def vecSub(v1, v2):
     x1, y1 = v1
     x2, y2 = v2
     return (x1-x2, y1-y2)
 
 
-# Normalize a vector
+## @brief Process the distance between two points
+def distance(p1, p2):
+    return math.sqrt(p1[0]*p2[0] + p1[1]*p2[1])
+
+## @brief Normalize a vector
 def norma(vec):
     length = math.sqrt(vec[0]*vec[0]+vec[1]*vec[1])
     return (vec[0]/length, vec[1]/length)
 
 
-# Given an angle, calculates the module to create an ellipsis (in polar coordinates)
+## @brief Given an angle, calculates the module to create an ellipsis (in polar coordinates)
 def makeEllipsisPoints(width, height, angle, img):
     a = int(min(height, width) / 2) - 1
     b = int(max(height, width) / 2) - 1
@@ -30,38 +35,52 @@ def makeEllipsisPoints(width, height, angle, img):
 # Class representing a ray with its origin and its direction. Handles moves.
 class Ray:
 
+    ## @brief Constructor
+    ## @param o The origin point of this ray, where it will start its travel.
+    ## @param d Director vector of this ray. It is recommended to provided something normalized.
+    ## @param img Image on which intensities will be scanned to detect if a ray can keep going.
+    ## @param tol Maximal tolerated difference of intensity between two steps of the ray to block its travel (detect a contour).
     def __init__(self, o, d, img, tol):
         self.origin    = o
         self.direction = d
+        self.normal    = (0, 0)
         self.image     = img
         self.go        = True
         self.tolerance = tol
         self.distance  = []
         self.reset()
 
+    ## @brief Resets the locking status of this ray so it can move again.
     def reset(self):
         self.go = True
         self.distance.append(0)
     
+    ## @brief Returns the distance traveled by this ray during this iteration (from start to lock)
     def getDistance(self, idx=-1):
         return self.distance[idx]
 
+    ## @brief Modifies the current position of this ray.
     def setOrigin(self, o):
         self.origin = o
 
+    ## @brief Modifies the director vector of this ray
     def setDirection(self, d):
         self.direction = d
 
+    ## @brief Get the current location of the ray.
     def getOrigin(self):
         return self.origin
 
+    ## @brief Get the director vector of this ray
     def getDirection(self):
         return self.direction
 
+    ## @brief Forces a step to go forward, independently of its locking status.
     def forceStep(self, t, n=1):
         T = n * t
         self.origin = (self.origin[0]+T*self.direction[0], self.origin[1]+T*self.direction[1])
 
+    ## @brief Method moving a ray along its normal according to the provided distance.
     def move(self, t):
         if not self.go:
             return False
@@ -82,18 +101,40 @@ class Ray:
             self.origin = newPoint
             return True
 
-# Class representing an n-gon that can shrink around a structure.
+
+## @brief Class representing an n-gon that can shrink around a structure.
 class MovingNGon:
 
-    def __init__(self, nbPoints, img, tol):
+    def __init__(self, center, nbPoints, img, tol, mode):
         self.points    = []
         self.nPoints   = nbPoints
         self.image     = img
         self.tolerance = tol
-        self.centroid  = (0, 0)
-        self.buildFramePointsList(nbPoints, img)
+        self.centroid  = center
+        
+        if mode == 'SHRINK':
+            self.buildShrinkingRays()
+        elif mode == 'EXPAND':
+            self.buildExpandingRays()
+        else:
+            IJ.log("Unknown mode for MovingNGon: '{0}'".format(mode))
 
 
+    ## @brief Process the total length of the polygon and the length of each segment composing it.
+    def distanceCurve(self):
+        distances = []
+        for i in range(0, len(self.points)-1):
+            p1 = self.points[i].getOrigin()
+            p2 = self.points[i+1].getOrigin()
+            distances.append(distance(p1, p2))
+        
+        total = sum(distances)
+        theory = total / self.nPoints
+
+        return map(lambda e : e / theory, distances)
+
+
+    ## @brief Displays this N-Gon as an ROI in Fiji
     def displayPoints(self):
         IJ.run(self.image, "Select None", "")
 
@@ -103,25 +144,38 @@ class MovingNGon:
         ))
 
 
+    ## @brief Spreads the points more evenly on the detected contour.
     def balancePoints(self):
         pass
 
     
+    ## @brief Function used in the shrinking process to change the position of the centroid according to the detected contours.
     def updateCentroid(self):
         pass
 
 
-    def buildFramePointsList(self, nbPoints, img):
-        incre = (2*math.pi) / nbPoints
-        self.centroid = (img.getHeight()/2, img.getWidth()/2)
+    ## @brief Builds a list of points shaped as an ellipsis settled to shrink.
+    def buildShrinkingRays(self):
+        incre = (2 * math.pi) / self.nPoints
         angle = -math.pi
 
-        for i in range(0, nbPoints):
-            ro = makeEllipsisPoints(img.getWidth(), img.getHeight(), angle, img)
-            x = (img.getWidth() / 2) + ro * math.cos(angle)
-            y = (img.getHeight() / 2) + ro * math.sin(angle)
+        for i in range(0, self.nPoints):
+            ro = makeEllipsisPoints(self.image.getWidth(), self.image.getHeight(), angle, self.image)
+            x = (self.image.getWidth() / 2) + ro * math.cos(angle)
+            y = (self.image.getHeight() / 2) + ro * math.sin(angle)
             vDir = norma(vecSub(self.centroid, (x, y)))
-            self.points.append(Ray((x, y), vDir, img, self.tolerance))
+            self.points.append(Ray((x, y), vDir, self.image, self.tolerance))
+            angle += incre
+
+
+    ## @brief Builds a list of rays settled to start all on the same point and expand as a circle.
+    def buildExpandingRays(self):
+        incre = (2 * math.pi) / self.nPoints
+        angle = -math.pi
+
+        for i in range(0, self.nPoints):
+            vDir = (math.cos(angle), math.sin(angle))
+            self.points.append(Ray(self.centroid, vDir, self.image, self.tolerance))
             angle += incre
 
     
@@ -129,25 +183,26 @@ class MovingNGon:
         return str(self.points)
 
     
+    ## @brief Resets the locking status of all rays
     def reset(self):
         for pt in self.points:
             pt.reset()
 
-    
+
+    ## @brief Forces rays to go one step ahead even if they are locked.
     def forceStep(self, t, n=1):
         for pt in self.points:
             pt.forceStep(t, n)
 
 
+    ## @brief Get the median distance traveled by rays for this iteration.
     def getMedianDistance(self):
         return sorted(map(Ray.getDistance, self.points))[int(len(self.points)/2)]
 
 
-    def expand(self, t):
-        return False
-
-
-    def shrink(self, t):
+    ## @brief Calls the move function of each ray until no one can move anymore
+    ## @return A boolean telling if at least a ray can still move in this n-gon.
+    def move(self, t):
         moved = False
 
         for p in self.points:
@@ -159,32 +214,45 @@ class MovingNGon:
         return moved
 
 
+## @brief If the first slots of the ROI Manager contains a points selection, uses it as starting points for moving n-gons.
+## @return A list of tuple (possibly empty) containing all starting points.
+def seedsFromRoiManager():
+    rm = RoiManager().getInstance()
+    if rm.getCount() == 0:
+        return []
+
+    roi = rm.getRoi(0) # Tous les points sont stockés dans la même ROI
+    if roi.getType() != Roi.POINT:
+        return []
+    
+    startingPoints = [(p.x, p.y) for p in roi.getContainedPoints()]
+    return startingPoints
+
 
 def main():
     img = IJ.getImage()
-    mvng = MovingNGon(80, img, 25)
+    points = seedsFromRoiManager()
 
-    while mvng.shrink(0.2):
-        mvng.displayPoints()
-        time.sleep(0.02)
+    f = open("/home/benedetti/Bureau/curveNgon.txt", 'w')
 
-    print(mvng.getMedianDistance())
-    time.sleep(2)
-    mvng.reset()
-    mvng.forceStep(0.5)
-    
-    while mvng.shrink(0.2):
-        mvng.displayPoints()
-        time.sleep(0.02)
+    for pt in points:
+        mvng = MovingNGon(pt, 40, img, 1, 'EXPAND')
 
-    print(mvng.getMedianDistance())
+        while mvng.move(0.2):
+            mvng.displayPoints()
+            time.sleep(0.02)
 
+        print(mvng.getMedianDistance())
+        f.write(str(mvng.distanceCurve()).replace(" ", "") + "\n")
+
+    f.close()
 
 main()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
+# - [ ] Output a curve representing the distance between each points of the ROI.
 # - [ ] The amount of points in an area must be balanced at each iteration.
 # - [ ] The normals must be adapted.
 # - [ ] The centroid's position must be updated along the execution.
@@ -197,22 +265,11 @@ main()
 # - [ ] Implement an average filter that uses the neighbors to smooth the points.
 # - [ ] Modify the launching function so if a points selection is in the ROI manager, it uses it to place N centroids of N polygons.
 # - [ ] Store steps in ROI manager? Process final selection (difference step1 - step2)?
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-# - RDV Maxime -> Lundi (pas d'heure précise)
-# - Record l'écran pendant les explications.
-# - Comment tu segmenterais les cellules qui se touchent à la main ? Qu'est-ce qu'on fait en cas de contact (perte d'information)
-# - Où commence la membrane ? Le halo blanc ou le noir à l'intérieur ? Les deux ?
-# - Sur quel channel faire les mesures ?
-# - Niveau de précision attendu ?
-# - Forme du rendu ? (CSV, Image, ...)
-# - Pour quand ?
-# - Liste totale des mesures à extraire ? (aire, largeur moyenne/mediane de membrane, intensité, ...)
+# - [ ] What does the input look like? A tiff with a filled ROI Manager? A bio-format image?
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 
-#       = = = NOTES = = =
+#       = = = = = = NOTES = = = = = =
 #
 # - On peut détecter 3 zones (fond, cytoplasme1 et cytoplasme2) et utiliser ces 3 zones pour faire des expanding polygons.
 #   On dirait que ces zones peuvent être facilement trouvées avec une localisation de composantes connexes. (si on considère le BG comme une structure et la membrane comme du BG).
@@ -228,5 +285,15 @@ main()
 # - Tester une segmentation par LabKit ?
 #
 # - Revoir les options proposées par Volker (marque-page orange).
+#
+# - L'avantage du lissage de points et de la vérification de distance est aussi que les 2 structure n'ont pas à être totalement fermées.
+#   On peut simplement placer le "mauvais point" entre 2 autres avec un léger shift.
+#
+# - Pour retirer les coprs à l'intérieur de la cellule, on peut utiliser la proximité avec la sélection.
+#   La roundness ou compactness des formes peut aussi être testée. Même la taille, mais ça risque d'être peu représentatif.
+#   Nos shapes sont censées être très vides et épouser les bords d'un cercloïde.
+#
+# - Si les normales ne sont pas correctement calculées, l'épaisseur de la membrane sera faussée car le trajet sera plus long à travers la membrane.
+#   Il faut absolument actualiser les normales, au moins avant la deuxième phase (et arrêter d'utiliser le centroïde comme référent tout le long).
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
