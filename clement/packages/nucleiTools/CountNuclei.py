@@ -236,13 +236,6 @@ class CountNuclei:
         newPath = os.path.join(self.exportFolder, newName)
 
         assembled = RGBStackMerge.mergeChannels([labels, img], False)
-        # poly = MaximumFinder().getMaxima(assembled.getProcessor(), 1.0, False)
-        
-        # pt = PointRoi(poly)
-        # pt.setHandleSize(4)
-        # pt.setShowLabels(True)
-
-        # assembled.setRoi(pt, True)
         
         assembled.setProp(pathPropName, os.path.join(self.exportFolder, self.outputName))
         assembled.setProp(idPropName, self.current)
