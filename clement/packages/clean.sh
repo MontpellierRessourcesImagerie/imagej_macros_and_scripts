@@ -1,0 +1,1 @@
+find . -type f -name '*$py.class' -exec rm {} +
