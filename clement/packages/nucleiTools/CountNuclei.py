@@ -99,7 +99,7 @@ class CountNuclei:
 
         gui.addDirectoryField("Folder:", IJ.getDirectory("home"))
         gui.addStringField("Extension:", self.extension)
-        gui.addFileField("Classifier", "")
+        gui.addFileField("Classifier", os.path.join(os.path.dirname(os.path.abspath(__file__)), "current.classifier"))
         gui.addSlider("Min size:", 0, 500000, self.minSize)
         gui.addSlider("Max size:", 0, 500000, self.maxSize)
         gui.addStringField("Output name:", self.outputName, 25)
@@ -383,6 +383,8 @@ def updatePointsCount(img):
 
 
 def makePointsROI(img):
+    img.setC(1)
+    IJ.setTool("multipoint")
 
     poly = MaximumFinder().getMaxima(img.getProcessor(), 1.0, False)
     
