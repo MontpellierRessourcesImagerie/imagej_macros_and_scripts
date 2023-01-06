@@ -62,6 +62,11 @@ downloads = {
             'path': "solange-detection",
             'name': "Update_CSV.py",
             'url': "https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/clement/macros/solange-detection/Update_CSV.py"
+        },
+        {
+            'path': "solange-detection",
+            'name': "current.classifier",
+            'url': "https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/clement/macros/solange-detection/current.classifier"
         }
     ],
     "nucleiTools-toolset": [
@@ -102,6 +107,17 @@ class Wizard:
             return False
         
         IJ.log("LabKit detected")
+        return True
+
+    
+    def checkMorphoLibJ(self):
+        try:
+            from inra.ijpb.label.edit import ReplaceLabelValues
+        except:
+            IJ.log("MorphoLibJ is not installed")
+            return False
+        
+        IJ.log("MorphoLibJ detected")
         return True
     
 
@@ -206,6 +222,9 @@ class Wizard:
 
     def run(self):
         if not self.checkLabkit():
+            return False
+
+        if not self.checkMorphoLibJ():
             return False
 
         if (not self.checkRandomLUT()) and (not self.getRandomLUT()):

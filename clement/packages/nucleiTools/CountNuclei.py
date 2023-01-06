@@ -97,9 +97,12 @@ class CountNuclei:
     def getSettings(self):
         gui = GenericDialogPlus("Count Nuclei Settings")
 
+        defaultClassif = os.path.join(IJ.getDirectory("plugins"), "solange-detection")
+        defaultClassif = os.path.join(defaultClassif, "current.classifier")
+
         gui.addDirectoryField("Folder:", IJ.getDirectory("home"))
         gui.addStringField("Extension:", self.extension)
-        gui.addFileField("Classifier", os.path.join(os.path.dirname(os.path.abspath(__file__)), "current.classifier"))
+        gui.addFileField("Classifier", defaultClassif)
         gui.addSlider("Min size:", 0, 500000, self.minSize)
         gui.addSlider("Max size:", 0, 500000, self.maxSize)
         gui.addStringField("Output name:", self.outputName, 25)
@@ -205,6 +208,7 @@ class CountNuclei:
             self.state = "Failed to export results in: {0}".format()
             return False
 
+        f.write("File, Count\n")
         keys = sorted(self.results.keys())
         for key in keys:
             f.write("{0},{1}\n".format(key, str(self.results[key])))
