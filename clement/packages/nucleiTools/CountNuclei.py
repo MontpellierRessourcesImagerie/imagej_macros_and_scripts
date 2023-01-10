@@ -107,7 +107,7 @@ class CountNuclei:
         gui.addSlider("Max size:", 0, 500000, self.maxSize)
         gui.addStringField("Output name:", self.outputName, 25)
         gui.addCheckbox("Export maps:", self.exportMaps)
-        gui.addHelp(r"example.com")
+        gui.addHelp(r"http://www.rule94.com/documentation-html/nucleicount/index.html")
 
         gui.showDialog()
 

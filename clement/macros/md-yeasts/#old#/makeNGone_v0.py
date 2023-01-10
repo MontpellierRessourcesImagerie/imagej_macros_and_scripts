@@ -7,6 +7,9 @@ from java.awt import Point
 import math
 import time
 
+def isSmall(e):
+    return abs(e) < 0.0001
+
 ## @brief v1 - v2
 def vecSub(v1, v2):
     x1, y1 = v1
@@ -43,7 +46,6 @@ class Ray:
     def __init__(self, o, d, img, tol):
         self.origin    = o
         self.direction = d
-        self.normal    = (0, 0)
         self.image     = img
         self.go        = True
         self.tolerance = tol
@@ -110,7 +112,7 @@ class MovingNGon:
         self.nPoints   = nbPoints
         self.image     = img
         self.tolerance = tol
-        self.centroid  = center
+        self.origin  = center
         
         if mode == 'SHRINK':
             self.buildShrinkingRays()
@@ -155,7 +157,7 @@ class MovingNGon:
 
 
     ## @brief Builds a list of points shaped as an ellipsis settled to shrink.
-    def buildShrinkingRays(self):
+    def buildShrinkingEllipsis(self):
         incre = (2 * math.pi) / self.nPoints
         angle = -math.pi
 
@@ -163,8 +165,75 @@ class MovingNGon:
             ro = makeEllipsisPoints(self.image.getWidth(), self.image.getHeight(), angle, self.image)
             x = (self.image.getWidth() / 2) + ro * math.cos(angle)
             y = (self.image.getHeight() / 2) + ro * math.sin(angle)
-            vDir = norma(vecSub(self.centroid, (x, y)))
+            vDir = norma(vecSub(self.origin, (x, y)))
             self.points.append(Ray((x, y), vDir, self.image, self.tolerance))
+            angle += incre
+
+    
+    def processCentroid(self):
+        pc = self.image.getProcessor()
+        xs = []
+        ys = []
+
+        for c in range(self.image.getWidth()):
+            for l in range(self.image.getHeight()):
+                if pc.get(c, l) == 255:
+                    xs.append(c)
+                    ys.append(l)
+
+        self.origin = (
+            sum(xs) / len(xs),
+            sum(ys) / len(ys)
+        )
+
+    
+    def intersection(self, d):
+        if isSmall(d[0]):
+            return (self.origin[0], 0) if d[1] < 0 else (self.origin[0], self.image.getHeight()-1)
+        else:
+            if d[0] < 0:
+                dist = self.origin[0]
+            else:
+                dist = self.image.getWidth() - self.origin[0]
+            tx = abs(dist / d[0])
+
+        if isSmall(d[1]):
+            return (0, self.origin[1]) if d[0] < 0 else (self.image.getWidth()-1, self.origin[1])
+        else:
+            if d[1] < 0:
+                dist = self.origin[1]
+            else:
+                dist = self.image.getHeight() - self.origin[1]
+            ty = abs(dist / d[1])
+
+        t = min(tx, ty)
+
+        x = int(self.origin[0] + d[0] * t)
+        y = int(self.origin[1] + d[1] * t)
+
+        if x < 0:
+            x = 0
+        if x >= self.image.getWidth():
+            x = self.image.getWidth() - 1
+
+        if y < 0:
+            y = 0
+        if y >= self.image.getHeight():
+            y = self.image.getHeight() - 1
+
+        return (x, y)
+            
+
+    
+    def buildShrinkingRays(self):
+        incre = (2 * math.pi) / self.nPoints
+        angle = -math.pi
+        self.processCentroid()
+
+        for i in range(0, self.nPoints):
+            vDir = (math.cos(angle), math.sin(angle))
+            point = self.intersection(vDir)
+            self.points.append(Ray(point, (-1.0*vDir[0], -1.0*vDir[1]), self.image, self.tolerance))
             angle += incre
 
 
@@ -175,7 +244,7 @@ class MovingNGon:
 
         for i in range(0, self.nPoints):
             vDir = (math.cos(angle), math.sin(angle))
-            self.points.append(Ray(self.centroid, vDir, self.image, self.tolerance))
+            self.points.append(Ray(self.origin, vDir, self.image, self.tolerance))
             angle += incre
 
     
@@ -199,6 +268,53 @@ class MovingNGon:
     def getMedianDistance(self):
         return sorted(map(Ray.getDistance, self.points))[int(len(self.points)/2)]
 
+    
+    def outputCoordinates(self, path):
+        f = open(path, 'w')
+        for p in self.points:
+            f.write(str(p.origin) + ";" + str(p.direction) + "\n")
+        f.close()
+
+    
+    def updateNormals(self):
+        for i in range(len(self.points)):
+            a = self.points[i-1].origin # A
+            b = self.points[i].origin   # B
+
+            if i+1 >= len(self.points):
+                c = self.points[0].origin # C
+            else:
+                c = self.points[i+1].origin # C
+
+            v1 = (b[0]-a[0], b[1]-a[1]) # AB
+            v2 = (c[0]-b[0], c[1]-b[1]) # BC
+
+            x1 = 1.0
+            y1 = (x1 * v1[0]) / v1[1]
+
+            x2 = 1.0
+            y2 = (x2 * v2[0]) / v2[1]
+
+            n1 = norma((x1, y1))
+            n2 = norma((x2, y2))
+            d1 = distance(a, b)
+            d2 = distance(b, c)
+
+            nx = (d1 * n1[0] + d2 * n2[0])
+            ny = (d1 * n1[1] + d2 * n2[1])
+            cx = self.points[i].direction[0]
+            cy = self.points[i].direction[1]
+
+            if nx * cx + ny * cy > 0:
+                n = (nx, ny)
+            else:
+                n = (-nx, -ny)
+            
+            n = norma(n)
+
+            self.points[i].setDirection(n)
+
+
 
     ## @brief Calls the move function of each ray until no one can move anymore
     ## @return A boolean telling if at least a ray can still move in this n-gon.
@@ -207,9 +323,6 @@ class MovingNGon:
 
         for p in self.points:
             moved = p.move(t) or moved
-        
-        self.balancePoints()
-        self.updateCentroid()
 
         return moved
 
@@ -231,24 +344,31 @@ def seedsFromRoiManager():
 
 def main():
     img = IJ.getImage()
-    points = seedsFromRoiManager()
 
-    f = open("/home/benedetti/Bureau/curveNgon.txt", 'w')
+    mvng = MovingNGon((0, 0), 60, img, 1, 'SHRINK')
 
-    for pt in points:
-        mvng = MovingNGon(pt, 40, img, 1, 'EXPAND')
+    while mvng.move(0.2):
+        pass
+        # mvng.displayPoints()
+        # time.sleep(0.02)
+    
+    mvng.outputCoordinates("/home/benedetti/Bureau/before_update.txt")
 
-        while mvng.move(0.2):
-            mvng.displayPoints()
-            time.sleep(0.02)
+    mvng.updateNormals()
 
-        print(mvng.getMedianDistance())
-        f.write(str(mvng.distanceCurve()).replace(" ", "") + "\n")
+    mvng.outputCoordinates("/home/benedetti/Bureau/after_update.txt")
 
-    f.close()
+    # for i in range(10):
+    #     mvng.forceStep(0.2)
+    #     mvng.displayPoints()
+    #     time.sleep(0.02)
+
+
 
 main()
 
+# Pour la distance parcourue, au lieu d'arrêter, de faire un forceStep et de continuer, plutôt continuer tout du long mais changer
+# automatiquement de collection quand la tolérance est franchie.
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
