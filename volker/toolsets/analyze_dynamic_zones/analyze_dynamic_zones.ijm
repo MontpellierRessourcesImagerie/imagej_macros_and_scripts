@@ -7,6 +7,7 @@
   **
 */
 
+var MAIN_CHANNEL = 1;
 var DYNAMICS = newArray("Total Intensity", "Area", "Mean Intensity");
 var DYNAMIC = DYNAMICS[0];
 var DYNAMIC_TABLES = newArray("Total Int. Dynamic Zones", "Area Dynamic Zones", "Mean Int. Dynamic Zones");
