@@ -13,10 +13,10 @@ macro "AutoRun" {
 }
 
 macro "Run Command on Image Open Event Action Tool - C000T4b12r" {
-    runCommandOnImageOpenEventOprions();
+    runCommandOnImageOpenEventOptions();
 }  
 
-function runCommandOnImageOpenEventOprions() {
+function runCommandOnImageOpenEventOptions() {
     ON_IMAGE_OPEN_ON = call("ij.Prefs.get", "roots.on_image_open_on", false);
     Dialog.create("Root Tools - Options");
     Dialog.addCheckbox("auto run commands when image opened", ON_IMAGE_OPEN_ON);
