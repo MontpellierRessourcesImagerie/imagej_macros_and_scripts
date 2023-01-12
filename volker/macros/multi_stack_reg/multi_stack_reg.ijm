@@ -33,7 +33,11 @@ if (channels>1) {
 } 
 
 if (channels==1) {
-    multiStackReg(channel)
+    getMinAndMax(min, max);
+    Color.getLut(reds, greens, blues);
+    multiStackReg(channel);
+    Color.setLut(reds, greens, blues);
+    setMinAndMax(min, max);
 }
 
 function multiStackReg(channel) {
@@ -57,13 +61,13 @@ function multiStackReg(channel) {
 function calculateTransformation() {
     title = getTitle();
     path = getTransormationFilePath();
-    run("MultiStackReg", "stack_1="+title+" action_1=Align file_1=["+path+"] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body] save");    
+    run("MultiStackReg", "stack_1=["+title+"] action_1=Align file_1=["+path+"] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body] save");    
 }
 
 function applyTransformation() {
     title = getTitle();
     path = getTransormationFilePath();
-    run("MultiStackReg", "stack_1="+title+" action_1=[Load Transformation File] file_1=["+path+"] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body]");
+    run("MultiStackReg", "stack_1=["+title+"] action_1=[Load Transformation File] file_1=["+path+"] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body]");
 }
 
 function getTransormationFilePath() {
