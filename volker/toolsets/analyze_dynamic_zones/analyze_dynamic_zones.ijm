@@ -1,19 +1,20 @@
 /**
   *  In a 2D+t stack, find zones in which the signal changes over time. Find if the signal increases, decreases or has a u- or n-shape. 
   *   
-  *   (c) INSERM, 2022
+  *   (c) INSERM, 2022-2023
   *  
-  *  written 2022 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
+  *  written 2022-2023 by Volker Baecker (INSERM) at Montpellier RIO Imaging (www.mri.cnrs.fr)
   **
 */
 
-var MAIN_CHANNEL = 1;
+var MAIN_CHANNEL = 2;
+var REGISTRATION_METHODS = newArray("stack reg", "sift");
+var REGISTRATION_METHOD = REGISTRATION_METHODS[0];
 var DYNAMICS = newArray("Total Intensity", "Area", "Mean Intensity");
 var DYNAMIC = DYNAMICS[0];
 var DYNAMIC_TABLES = newArray("Total Int. Dynamic Zones", "Area Dynamic Zones", "Mean Int. Dynamic Zones");
 var DYNAMIC_TABLE = DYNAMIC_TABLES[0];
 var CONST_THRESHOLD = 1000;  //  in physical units
-var ALIGN_FRAMES = true;
 var GRADIENT_FILTER_RADIUS_XY = 1;
 var GRADIENT_FILTER_RADIUS_Z = 3;
 var BORDER_SIZE = 10;   // in pixel
@@ -36,6 +37,21 @@ macro "Dynamic Zones Analyzer  [f1]" {
     run('URL...', 'url='+helpURL);  
 }
 
+macro "register frames (F4) Action Tool - C000T4b12r" {
+    registerFrames();
+}
+
+macro "register frames (F4) Action Tool Options" {
+    Dialog.create("Register Frames Options");
+    Dialog.addChoice("registration method: ", REGISTRATION_METHODS, REGISTRATION_METHOD);
+    Dialog.show();
+    REGISTRATION_METHOD = Dialog.getChoice();
+}
+
+macro "register frames [F4]" {
+    registerFrames();
+}
+
 macro "Analyze dynamic zones in image (F5) Action Tool - C000T4b12a" {
     analyzeDynamicZonesInImage();
 }
@@ -52,7 +68,6 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.addNumber("Gradient filter xy-radius: ", GRADIENT_FILTER_RADIUS_XY);
     Dialog.addNumber("Gradient filter z-radius: ", GRADIENT_FILTER_RADIUS_Z);
     Dialog.addNumber("Border size: ", BORDER_SIZE);
-    Dialog.addCheckbox("Align frames", ALIGN_FRAMES);
     Dialog.addCheckbox("Show constant zones", SHOW_CONSTANT);
     Dialog.addChoice("LUT for zones", LUTS, LUT);
     
@@ -64,7 +79,6 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     GRADIENT_FILTER_RADIUS_XY = Dialog.getNumber();
     GRADIENT_FILTER_RADIUS_Z = Dialog.getNumber();
     BORDER_SIZE = Dialog.getNumber();
-    ALIGN_FRAMES = Dialog.getCheckbox();
     SHOW_CONSTANT = Dialog.getCheckbox();
     LUT = Dialog.getChoice();
     
@@ -96,6 +110,22 @@ macro "Plot mean intensity over time (f8) Action Tool - C000T4b12m" {
 
 macro "Plot mean intensity over time [f8]" {
     plotMeanIntensityOverTime()
+}
+
+function registerFrames() {
+    if (REGISTRATION_METHOD=="stack reg") {
+        run("multi stack reg");
+    }
+    if (REGISTRATION_METHOD=="sift") {
+        title = getTitle();
+        inputImageID = getImageID();
+        run("Linear Stack Alignment with SIFT MultiChannel");
+        alignedImageID = getImageID();
+        selectImage(inputImageID);
+        close();
+        selectImage(alignedImageID);
+        rename(title);
+    }
 }
 
 function plotAreaOverTime() {
@@ -133,6 +163,7 @@ function plotOverTime(tableName) {
 }
 
 function analyzeDynamicZonesInImage() {
+    assureStackIsMovie();
     LUTFolder = getDir("luts");
     getDimensions(width, height, channels, slices, frames);
     inputImageID = getImageID();
@@ -140,15 +171,6 @@ function analyzeDynamicZonesInImage() {
     initAnalysis();
     setBatchMode("hide");
     run("Properties...", "slices="+frames+" frames="+slices); 
-    
-    if (ALIGN_FRAMES) {
-        stackRegCommand = "StackReg ";
-        commands = List.setCommands;
-        if (List.indexOf("StackReg")>=0) {
-            stackRegCommand = "StackReg";
-        }       
-        run(stackRegCommand, "transformation=[Rigid Body]");
-    }
     
     removeBackground();
     dogImageTitle = getTitle();
@@ -172,6 +194,13 @@ function analyzeDynamicZonesInImage() {
     }
     
     setBatchMode("exit and display");
+}
+
+function assureStackIsMovie() {
+     getDimensions(width, height, channels, slices, frames);
+     if (slices>1 && frames == 1) {
+        run("Properties...", "slices="+frames+" frames="+slices); 
+     }
 }
 
 function initAnalysis() {
