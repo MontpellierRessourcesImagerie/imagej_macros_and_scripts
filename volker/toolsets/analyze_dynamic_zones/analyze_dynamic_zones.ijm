@@ -7,7 +7,7 @@
   **
 */
 
-var MAIN_CHANNEL = 2;
+var FUNCTION_TO_FIT = "Gamma Variate";
 var REGISTRATION_METHODS = newArray("stack reg", "sift");
 var REGISTRATION_METHOD = REGISTRATION_METHODS[0];
 var DYNAMICS = newArray("Total Intensity", "Area", "Mean Intensity");
@@ -15,6 +15,8 @@ var DYNAMIC = DYNAMICS[0];
 var DYNAMIC_TABLES = newArray("Total Int. Dynamic Zones", "Area Dynamic Zones", "Mean Int. Dynamic Zones");
 var DYNAMIC_TABLE = DYNAMIC_TABLES[0];
 var CONST_THRESHOLD = 1000;  //  in physical units
+var RELATIVE_CONST_THRESHOLD = 0.4;
+var USE_RELATIVE_CONST_THRESHOLD = true;
 var GRADIENT_FILTER_RADIUS_XY = 1;
 var GRADIENT_FILTER_RADIUS_Z = 3;
 var BORDER_SIZE = 10;   // in pixel
@@ -64,6 +66,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.create("Analyze Dynamic Zones Options");
     Dialog.addChoice("Dynamic: ", DYNAMICS, DYNAMIC);
     Dialog.addNumber("Dynamic threshold: ", CONST_THRESHOLD);
+    Dialog.addCheckbox("Use relative threshold", USE_RELATIVE_CONST_THRESHOLD);
+    Dialog.addNumber("Relative dynamic threshold: ", RELATIVE_CONST_THRESHOLD);
     Dialog.addNumber("Radius of background filter (DoG): ", DOG_LARGE_RADIUS);
     Dialog.addNumber("Gradient filter xy-radius: ", GRADIENT_FILTER_RADIUS_XY);
     Dialog.addNumber("Gradient filter z-radius: ", GRADIENT_FILTER_RADIUS_Z);
@@ -75,6 +79,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     
     DYNAMIC = Dialog.getChoice();
     CONST_THRESHOLD = Dialog.getNumber();
+    USE_RELATIVE_CONST_THRESHOLD = Dialog.getCheckbox();
+    RELATIVE_CONST_THRESHOLD = Dialog.getNumber();
     DOG_LARGE_RADIUS = Dialog.getNumber();
     GRADIENT_FILTER_RADIUS_XY = Dialog.getNumber();
     GRADIENT_FILTER_RADIUS_Z = Dialog.getNumber();
@@ -152,7 +158,7 @@ function plotOverTime(tableName) {
     Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
     data = Table.getColumn(label, tableName);
     X = Array.getSequence(data.length);
-    Fit.doFit("Error Function", X, data);
+    Fit.doFit(FUNCTION_TO_FIT, X, data);
     Y = newArray(X.length);
     for(i=0; i<X.length; i++) {
         Y[i] = Fit.f(X[i]);
@@ -163,7 +169,7 @@ function plotOverTime(tableName) {
 }
 
 function analyzeDynamicZonesInImage() {
-    assureStackIsMovie();
+    assertStackIsMovie();
     LUTFolder = getDir("luts");
     getDimensions(width, height, channels, slices, frames);
     inputImageID = getImageID();
@@ -196,7 +202,7 @@ function analyzeDynamicZonesInImage() {
     setBatchMode("exit and display");
 }
 
-function assureStackIsMovie() {
+function assertStackIsMovie() {
      getDimensions(width, height, channels, slices, frames);
      if (slices>1 && frames == 1) {
         run("Properties...", "slices="+frames+" frames="+slices); 
@@ -213,7 +219,7 @@ function classifyActiveZones(lastLabel) {
     for(l=1; l<=lastLabel; l++) {
        areaOverTime = Table.getColumn(l, DYNAMIC_TABLE); 
        timePoints = Array.getSequence(areaOverTime.length);
-       Fit.doFit("Error Function", timePoints, areaOverTime);
+       Fit.doFit(FUNCTION_TO_FIT, timePoints, areaOverTime);
        valueZero = Fit.f(0);
        indexAbsMax = 0;
        valueAbsMax = valueZero;
@@ -225,12 +231,10 @@ function classifyActiveZones(lastLabel) {
                 indexAbsMax = t;
            }
        }
-       diff1 = abs(valueZero - valueAbsMax);
-       diff2 = abs(valueLast - valueAbsMax);
-       diff3 = abs(valueZero - valueLast);
-       if (diff1 <= CONST_THRESHOLD && diff2 <= CONST_THRESHOLD && diff3 <= CONST_THRESHOLD) {
-            if (SHOW_CONSTANT) addZoneRoi(l, "constant");
-            continue;
+       constant = isConstant(valueZero, valueAbsMax, valueLast);
+       if (constant) {
+           if (SHOW_CONSTANT) addZoneRoi(l, "constant");
+           continue;
        }
        if (valueZero <= valueAbsMax && valueAbsMax <= valueLast) {
             addZoneRoi(l, "increasing");
@@ -241,7 +245,7 @@ function classifyActiveZones(lastLabel) {
             continue;
        }
        if (valueZero <= valueAbsMax && valueAbsMax >= valueLast) {
-            addZoneRoi(l, "n");*
+            addZoneRoi(l, "n");
             continue;
        }
        if (valueZero >= valueAbsMax && valueAbsMax <= valueLast) {
@@ -251,6 +255,27 @@ function classifyActiveZones(lastLabel) {
     }
 }
 
+function isConstant(valueZero, valueMax, valueLast) {
+    constant = false;
+    vz = Math.max(0, valueZero);
+    vl = Math.max(0, valueLast);
+    vm = Math.max(0, valueMax);
+    threshold = CONST_THRESHOLD;
+    if (USE_RELATIVE_CONST_THRESHOLD) {
+        vz = vz / valueMax;
+        vl = vl / valueMax;
+        vm = vm / valueMax;
+        threshold = RELATIVE_CONST_THRESHOLD;
+    } 
+    diff1 = abs(vz - vm);
+    diff2 = abs(vl - vm);
+    diff3 = abs(vz - vl);
+    if (diff1 <= threshold && diff2 <= threshold && diff3 <= threshold) {
+        constant = true;
+    }
+    return constant;
+}
+    
 function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
     Stack.setFrame(frames);
     lastLabel = getValue("Max");
