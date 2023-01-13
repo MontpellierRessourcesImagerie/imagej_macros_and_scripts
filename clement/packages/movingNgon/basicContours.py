@@ -70,9 +70,9 @@ def borderFromRay(d, ori, height, width):
     return (x, y)
 
 
-def buildShrinkingBox(nbPoints, ori, height, width):
+def buildShrinkingBox(nbPoints, height, width):
     vDirs = expandingDirVectors(makeAnglesList(nbPoints))
-    points = [borderFromRay((-vDir[0], -vDir[1]), ori, height, width) for vDir in vDirs]
+    points = [borderFromRay((-vDir[0], -vDir[1]), (width/2, height/2), height, width) for vDir in vDirs]
     return points, vDirs
 
 

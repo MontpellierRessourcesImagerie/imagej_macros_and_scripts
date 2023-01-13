@@ -1,7 +1,8 @@
 from movingNgon.rays import Ray, ConditionalRay
 from movingNgon.movingNgon import MovingNGon, ConditionalMovingNGon
-from mdYeasts.userIO import askSettings, checkSettings
+from mdYeasts.userIO import askSettings, checkSettings, makeDefaultSettings
 from movingNgon.basicContours import buildShrinkingBox, buildShrinkingEllipsis
+from movingNgon.basicOps import dotProduct
 
 from ij import IJ
 from ij.gui  import Roi, PolygonRoi
@@ -84,7 +85,7 @@ def mvngFromUser():
     
     
     if settings['shape'] == "Box":
-        pts, dirs = buildShrinkingBox(nPoints, mvng.getOrigin(), img.getHeight(), img.getWidth())
+        pts, dirs = buildShrinkingBox(nPoints, img.getHeight(), img.getWidth())
 
     if settings['shape'] == "Ellipsis":
         pts, dirs = buildShrinkingEllipsis(nPoints, img.getHeight(), img.getWidth())
@@ -100,6 +101,33 @@ def mvngFromUser():
     return mvng
 
 
+def searchMaxCurvature():
+    import os
+    basePath = "/home/benedetti/Documents/projects/2-maxime-yeasts/Testing/Segmentation-tests/results"
+    content = os.listdir(basePath)
+
+    for c in content:
+        if not c.startswith("segPair"):
+            continue
+        fPath = os.path.join(basePath, c)
+
+        img = IJ.openImage(fPath)
+
+        mvng = IJMovingNGon((img.getWidth()/2, img.getHeight()/2), 0.3, img, 1)
+        pts, dirs = buildShrinkingBox(70, img.getHeight(), img.getWidth())
+        mvng.makeRaysFromPoints(pts, dirs)
+        mvng.centroidFromMask()
+
+        while mvng.move():
+            pass
+        
+        mvng.updateNormals()
+        mvng.processCurvature()
+        mvng.outputCoordinates(os.path.join("/home/benedetti/Documents/projects/2-maxime-yeasts/Testing/Segmentation-tests/results", "measures_{0}.txt".format(c)))
+
+        img.close()
+
+
 def motherDaughterSegmentation():
     
     mvng = mvngFromUser()
@@ -112,7 +140,7 @@ def motherDaughterSegmentation():
         time.sleep(0.02)
 
     mvng.updateNormals()
-    mvng.processCurvate()
+    mvng.processCurvature()
 
     mvng.outputCoordinates("/home/benedetti/Bureau/testingRefactor.txt")
 

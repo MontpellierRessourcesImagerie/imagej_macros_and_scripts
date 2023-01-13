@@ -1,4 +1,4 @@
-from basicOps import normalize
+from basicOps import vecSub, normalize, distance
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #   RAYS BASE CLASS                                                                                   #
@@ -78,6 +78,20 @@ class Ray(object):
         self.count += 1
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#   UTILS RAY                                                                                         #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def merge(r1, r2):
+    ox1, oy1 = r1.getOrigin()
+    ox2, oy2 = r2.getOrigin()
+    dx1, dy1 = r1.getDirection()
+    dx2, dy2 = r2.getDirection()
+    x = (ox1 + ox2) / 2
+    y = (oy1 + oy2) / 2
+    dx = (dx1 + dx2) / 2
+    dy = (dy1 + dy2) / 2
+    return Ray((x, y), (dx, dy), r1.getStepSize())
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #   CONDITIONAL RAY                                                                                   #

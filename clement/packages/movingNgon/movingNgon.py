@@ -1,6 +1,7 @@
 import math
-from rays import Ray, ConditionalRay
-from basicOps import vecSub, normalize, distance
+from rays import Ray, ConditionalRay, merge
+from basicOps import vecSub, normalize, distance, nextRotate, dotProduct
+import copy
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #   MOVING N-GON BASE CLASS                                                                           #
@@ -43,7 +44,7 @@ class MovingNGon(object):
 
 
     ## @brief Recalculates the normals to point towards this polygon's center rather than towards their automatic direction.
-    def makeNormalsFromCentroid(mode):
+    def makeNormalsFromCentroid(self, mode):
         if (mode != 'SHRINK') and (mode != 'EXPAND'):
             return
         
@@ -82,7 +83,7 @@ class MovingNGon(object):
         distances = self.getSegmentsSize()
         total = sum(distances)
         theory = total / len(self.points)
-        return map(lambda e : e / theory, distances)
+        return list(map(lambda e : e / theory, distances))
 
 
     ## @brief Process the perimeter length of the polygon.
@@ -90,16 +91,228 @@ class MovingNGon(object):
         distances = self.getSegmentsSize()
         return sum(distances)
 
+    
+    def split(self, i, j):
+        if i >= j:
+            return None, None
+        
+        mn1 = MovingNGon((0.0, 0.0), self.stepSize)
+        mn2 = MovingNGon((0.0, 0.0), self.stepSize)
+
+        mn1.points = [copy.deepcopy(p) for p in self.points[i:j+1]]
+        mn2.points = [copy.deepcopy(p) for p in self.points[0:i+1] + self.points[j:]]
+
+        mn1.updateCentroid()
+        mn2.updateCentroid()
+
+        return mn1, mn2
+
+
+    # = = = A BOUGER DANS LA CLASSE QUI DEPEND DE IMAGEJ = = =
+    def splitCells(self):
+        curvatures = sorted(
+            [(p.getCurvature(), idx) for idx, p in enumerate(self.points)], 
+            key=lambda x: x[0]
+        )
+
+        curvatures.reverse()
+        maxIndex = curvatures[0][1]
+        scdMax = curvatures[1][1]
+        
+        for i in range(1, len(curvatures)):
+            if dotProduct(self.points[maxIndex].getDirection(), self.points[curvatures[i][1]].getDirection()) <= 0:
+                scdMax = curvatures[i][1]
+                break
+
+        if maxIndex < scdMax:
+            maxIndex, scdMax = scdMax, maxIndex
+
+        return self.split(scdMax, maxIndex)
+
+
+    def fixHolesAndBumps(self, lim=-0.3):
+        keepPoints = []
+        for p in self.points:
+            if p.getCurvature() < lim:
+                continue
+            keepPoints.append(p)
+        self.points = keepPoints()
+
+
+    def spreadSampling(self, tol=1, ang=0.4):
+        avg   = self.getPerimeter() / len(self.points) # average length of a segment
+        lower = tol
+        var   = self.getSegmentLengthVariations()
+        nvPts = [self.points[0]]
+        dst   = 0
+
+        for idx, p in enumerate(self.points):
+            if p.getCurvature() >= ang:
+                nD = distance(nvPts[-1].getOrigin(), p.getOrigin()) / avg
+                if (idx == 0) or (nD < 0.6):
+                    nvPts.pop()
+                nvPts.append(p)
+                dst = 0.0
+                continue
+
+            if dst >= lower:
+                nvPts.append(p)
+                dst = 0.0
+            else:
+                dst += var[idx] # var[i] == distance between points i and i+1
+            
+        
+        self.points = nvPts
+        self.updateNormals()
+        self.processCurvature()
+
+    
+    def interpolateSamples(self, tol=1.1):
+        avg   = self.getPerimeter() / len(self.points)
+        var   = self.getSegmentLengthVariations()
+        nvPts = []
+        
+        for idx in range(len(self.points)):
+            nvPts.append(self.points[idx])
+
+            if var[idx] >= tol:
+                
+                # Getting working indices
+                bfr = idx - 1
+                nxt1 = nextRotate(idx, len(self.points))
+                nxt2 = nextRotate(nxt1, len(self.points))
+                pMid = merge(self.points[idx], self.points[nxt1])
+
+                # Direction vectors of the three segments
+                b1ix = normalize((
+                    self.points[idx].getOrigin()[0] - self.points[bfr].getOrigin()[0],
+                    self.points[idx].getOrigin()[1] - self.points[bfr].getOrigin()[1]
+                ))
+                ixn1 = normalize((
+                    self.points[nxt1].getOrigin()[0] - self.points[idx].getOrigin()[0],
+                    self.points[nxt1].getOrigin()[1] - self.points[idx].getOrigin()[1]
+                ))
+                n1n2 = normalize((
+                    self.points[nxt2].getOrigin()[0] - self.points[nxt1].getOrigin()[0],
+                    self.points[nxt2].getOrigin()[1] - self.points[nxt1].getOrigin()[1]
+                ))
+
+                # Middle point of each segment
+                mid1 = (
+                    (self.points[idx].getOrigin()[0] + self.points[bfr].getOrigin()[0])/2.0,
+                    (self.points[idx].getOrigin()[1] + self.points[bfr].getOrigin()[1])/2.0
+                )
+                mid2 = (
+                    (self.points[nxt1].getOrigin()[0] + self.points[idx].getOrigin()[0])/2.0,
+                    (self.points[nxt1].getOrigin()[1] + self.points[idx].getOrigin()[1])/2.0
+                )
+                mid3 = (
+                    (self.points[nxt2].getOrigin()[0] + self.points[nxt1].getOrigin()[0])/2.0,
+                    (self.points[nxt2].getOrigin()[1] + self.points[nxt1].getOrigin()[1])/2.0
+                )
+
+                # Normal of each segment
+                med1 = (b1ix[1], -b1ix[0])
+                med2 = (ixn1[1], -ixn1[0])
+                med3 = (n1n2[1], -n1n2[0])
+
+                # Intersections of medians
+                u1 = (mid1[1]*med2[0] + med2[1]*mid2[0] - mid2[1]*med2[0] - med2[1]*mid1[0] ) / (med1[0]*med2[1] - med1[1]*med2[0])
+                u2 = (mid2[1]*med3[0] + med3[1]*mid3[0] - mid3[1]*med3[0] - med3[1]*mid2[0] ) / (med2[0]*med3[1] - med2[1]*med3[0])
+
+                v1 = (mid1[0] + med1[0] * u1 - mid2[0]) / med2[0]
+                v2 = (mid2[0] + med2[0] * u2 - mid3[0]) / med3[0]
+
+                if (u1 >= 0) and (v1 >= 0):
+                    c1 = (
+                        mid1[0] + med1[0] * u1,
+                        mid1[1] + med1[1] * u1
+                    )
+                else:
+                    c1 = None
+
+                if (u2 >= 0) and (v2 >= 0):
+                    c2 = (
+                        mid2[0] + med2[0] * t2,
+                        mid2[1] + med2[1] * t2
+                    )
+                else:
+                    c2 = None
+
+                if (c1 is None) or (c2 is None):
+                    continue
+
+                d1 = distance(c1, self.points[idx].getOrigin())
+                d2 = distance(c2, self.points[idx].getOrigin())
+                
+                r = d1 if d1 > d2 else d2
+                c = c1 if d1 > d2 else c2
+
+                vDir = normalize((
+                    pMid[0] - c[0],
+                    pMid[1] - c[1]
+                ))
+
+                nP = copy.deepcopy(self.points[idx])
+                nP.setOrigin(
+                    (
+                        c[0] + r * vDir[0],
+                        c[1] + r * vDir[1]
+                    )
+                )
+                nvPts.append(nP)
+
+        self.points = nvPts
+        self.updateNormals()
+        self.processCurvature()
+
+    
+    def _interpolateSamples(self, tol=1.1):
+        avg   = self.getPerimeter() / len(self.points)
+        var   = self.getSegmentLengthVariations()
+        nvPts = []
+        
+        for idx in range(len(self.points)):
+            nvPts.append(self.points[idx])
+
+            if var[idx] >= tol:
+                bfr = idx - 1
+                nxt1 = nextRotate(idx, len(self.points))
+                nxt2 = nextRotate(nxt1, len(self.points))
+
+                v1 = normalize((
+                    self.points[idx].getOrigin()[0] - self.points[bfr].getOrigin()[0],
+                    self.points[idx].getOrigin()[1] - self.points[bfr].getOrigin()[1]
+                ))
+                v2 = normalize((
+                    self.points[nxt2].getOrigin()[0] - self.points[nxt1].getOrigin()[0],
+                    self.points[nxt2].getOrigin()[1] - self.points[nxt1].getOrigin()[1]
+                ))
+                ang = (2 * math.pi - math.acos(dotProduct(v1, v2))) / 1.95
+                d = 0.5 * distance(self.points[idx].getOrigin(), self.points[nxt1].getOrigin()) / math.tan(ang / 2)
+                nPtemp  = merge(self.points[idx], self.points[nxt1])
+                px, py = nPtemp.getOrigin()
+                dx, dy = nPtemp.getDirection()
+                x = px - d * dx
+                y = py - d * dy
+                nP = copy.deepcopy(self.points[idx])
+                nP.setOrigin((x, y))
+                #nP.setOrigin(nPtemp.getOrigin())
+                nvPts.append(nP)
+
+        self.points = nvPts
+        self.updateNormals()
+        self.processCurvature()
 
     ## @brief Spreads the points more evenly on the detected contour.
-    def balancePoints(self, keepAngles=False, angleMax=math.pi/5):
+    def smoothCurve(self, keepAngles=False, angleMax=math.pi/5):
         nouvPts = []
     
         for i in range(len(self.points)):
             a = self.points[i-1].getOrigin() # A
             b = self.points[i].getOrigin()   # B
 
-            if i+1 >= len(points):
+            if i+1 >= len(self.points):
                 c = self.points[0].getOrigin() # C
             else:
                 c = self.points[i+1].getOrigin() # C
@@ -112,7 +325,7 @@ class MovingNGon(object):
 
             # We want to keep sharp angles in place.
             if keepAngles and (angle > angleMax):
-                nouvPts.append(points[i])
+                nouvPts.append(self.points[i].getOrigin())
                 continue
             
             pt = ((a[0] + c[0])/2, (a[1] + c[1])/2)
@@ -212,11 +425,11 @@ class MovingNGon(object):
             p.setDirection(n)
 
     
-    def processCurvate(self):
+    def processCurvature(self):
     
         curvatures = []
-        points = map(Ray.getOrigin, self.points)
-        directions = map(Ray.getDirection, self.points)
+        points = list(map(Ray.getOrigin, self.points))
+        directions = list(map(Ray.getDirection, self.points))
 
         for i in range(len(points)):
             # = = = = 1. Acquiring three points around the current one. = = = = 
@@ -247,15 +460,19 @@ class MovingNGon(object):
 
             # # # # # # # # # # # # # # # #
             # Angle between the vectors
-            dot = v1[0] * v2[0] + v1[1] * v2[1]
+            dot = round(v1[0] * v2[0] + v1[1] * v2[1], 5)
             ang = math.acos(dot)
+
+            if ang == 0:
+                curvatures.append(0.0)
+                continue
 
             # Processing sign
             dotN = n1[0] * v2[0] + n1[1] * v2[1]
             dotN /= abs(dotN) # 1.0 or -1
 
             # Append
-            curvatures.append(dotN * (2.0 * math.sin(ang / 2)))
+            curvatures.append(dotN * (math.sin(ang / 2))) # dotN to change the sign according to the direction of the angle.
         
         for p, c in zip(self.points, curvatures):
             p.curvature = c
