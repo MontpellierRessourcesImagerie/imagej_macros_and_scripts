@@ -20,6 +20,13 @@ class Ray(object):
         self.count     = 0
         self.curvature = 0.0
 
+    def makeCopy(self):
+        r = Ray(self.origin, self.direction, self.stepSize)
+        r.distance = self.distance
+        r.count = self.count
+        r.curvature = self.curvature
+        return r
+
     ## @brief Returns the curvature at that points under the form of a signed angle.
     #         A negative value corresponds to a closing, while a positive one to an opening.
     def getCurvature(self):
@@ -105,6 +112,17 @@ class ConditionalRay(Ray):
         self.go = True
         self.distances = []
         self.fx = None
+
+    
+    def makeCopy(self):
+        r = ConditionalRay(self.origin, self.direction, self.stepSize)
+        r.distance = self.distance
+        r.count = self.count
+        r.curvature = self.curvature
+        r.go = self.go
+        r.distances = self.distances.copy()
+        r.fx = self.fx
+        return r
 
     
     def setTestFunction(self, f):
