@@ -7,8 +7,6 @@ from movingNgon.basicOps import dotProduct
 from ij import IJ, ImagePlus
 from ij.gui  import Roi, PolygonRoi
 from ij.process import FloatPolygon
-from ij.measure import ResultsTable
-import time
 import math
 
 
@@ -18,6 +16,10 @@ def drawYeast(yeast, canvas, color, roi):
     proc = canvas.getProcessor()
     proc.setColor(color)
     proc.fill(roiYeast)
+    proc.setColor(255)
+    proc.setAntialiasedText(True)
+    proc.setFontSize(60)
+    proc.drawString("abcdef12", 480, 540)
 
 
 def buildStatistics(histoBefore, histoAfter):
@@ -38,10 +40,6 @@ def buildStatistics(histoBefore, histoAfter):
     stats['mean'] = mean
 
     # ---> Min, max, median, quartiles and standard deviation
-    linearized = [[its2 for i in range(occurences)] for its2, occurences in enumerate(histoBefore)]
-    linearized = [item for sublist in linearized for item in sublist]
-    linearized.sort()
-    
 
     stats['min'] = 0
     stats['max'] = 0
@@ -63,7 +61,6 @@ def buildStatistics(histoBefore, histoAfter):
             if accu >= q * (total / 4):
                 stats['Q'+str(q)] = i
                 break
-
 
     stats['med'] = stats['Q2']
     del stats['Q2']
@@ -382,6 +379,11 @@ def motherDaughterSegmentation(img, data, control, base):
 
     for key, item in statsD.items():
         stats["D_{0}".format(key)] = item
+
+    infos = data.getTitle().split('$')
+    stats['origin'] = infos[0]
+    stats['X'] = infos[1]
+    stats['Y'] = infos[2]
 
     return (yeastD, yeastM, stats, "DONE.")
 

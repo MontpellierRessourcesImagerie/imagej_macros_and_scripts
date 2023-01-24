@@ -3,7 +3,7 @@ import os
 from ij import IJ
 from ij.plugin.frame import RoiManager
 from fiji.util.gui import GenericDialogPlus
-from ij.gui  import Roi, PointRoi
+from ij.gui import Roi, PointRoi
 
 md_yeasts_settings = ".md_yeasts_export.temp.txt"
 
@@ -37,8 +37,12 @@ def makeDefaultSettings():
         'ctr_from_mask': 'MASK',
         'nPoints': 70,
         'stepSize': 0.2,
-        'maxThickness': 0.633,
-        'exportRois': None
+        'maxThickness': 0.64,
+        'exportRois': None,
+        'showControl': True,
+        'exportControl': True,
+        'closeOri': True,
+        'closeRoiMngr': True
     }
 
 
@@ -94,13 +98,17 @@ def askSettings():
 
     settings = makeDefaultSettings()
 
-    gui.addDirectoryField("ROIs Folder", IJ.getDirectory("Home"))
+    gui.addDirectoryField("Working directory", IJ.getDirectory("Home"))
     gui.addChoice("Shape", ["Box", "Ellipsis"], settings['shape'])
     gui.addSlider("Tolerance", 1, 512, settings['tolerance'])
     gui.addSlider("Points", 3, 120, settings['nPoints'])
     gui.addSlider("Step size", 0.01, 1.0, settings['stepSize'])
     gui.addChoice("Centroid from", ['MASK', 'POINTS'], settings['ctr_from_mask'])
     gui.addSlider("Membrane thickness (um)", 0.01, 2.0, settings['maxThickness'])
+    gui.addCheckboxGroup(2, 2, 
+        ["Show control", "Export control", "Close original", "Close ROI Manager"], 
+        [settings['showControl'], settings['exportControl'], settings['closeOri'], settings['closeRoiMngr']]
+    )
 
     gui.showDialog()
 
@@ -112,6 +120,10 @@ def askSettings():
         settings['stepSize']      = gui.getNextNumber()
         settings['ctr_from_mask'] = gui.getNextChoice()
         settings['maxThickness']  = gui.getNextNumber()
+        settings['showControl']   = gui.getNextBoolean()
+        settings['exportControl'] = gui.getNextBoolean()
+        settings['closeOri']      = gui.getNextBoolean()
+        settings['closeRoiMngr']  = gui.getNextBoolean()
     
     else:
         return (False, "Command canceled.")
@@ -133,12 +145,18 @@ def askSettings():
     return (True, "DONE.")
 
 
-def exportRoiManager(img, path):
+def exportRoiManager(img, rootDir):
     r = RoiManager.getInstance()
 
     if (r is None) or (r.getCount() == 0):
         return False
 
+    path = os.path.join(rootDir, "rois")
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
     name = '.'.join(img.getTitle().split('.')[:-1]) + ".zip"
     r.runCommand("Save", os.path.join(path, name))
+    r.close()
+
     return True
