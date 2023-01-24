@@ -24,6 +24,7 @@ var DOG_LARGE_RADIUS = 15;
 var SHOW_CONSTANT = false;
 var LUTS = getList("LUTs");
 var LUT = LUTS[25];
+var SMOOTHING_RADIUS = 2;
 if (LUT!="Random") LUT = "glasbey on dark";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Dynamic_Zones_Analyzer";
@@ -157,8 +158,9 @@ function plotOverTime(tableName) {
     Plot.add("Connected Circles", Table.getColumn(label, tableName));
     Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
     data = Table.getColumn(label, tableName);
-    X = Array.getSequence(data.length);
-    Fit.doFit(FUNCTION_TO_FIT, X, data);
+    smoothedData = smoothArray(data);
+    X = Array.getSequence(smoothedData.length);
+    Fit.doFit(FUNCTION_TO_FIT, X, smoothedData);
     Y = newArray(X.length);
     for(i=0; i<X.length; i++) {
         Y[i] = Fit.f(X[i]);
@@ -190,7 +192,7 @@ function analyzeDynamicZonesInImage() {
     lastLabel = measureDynamic(frames, labelImageTitle, labelImageID, inputImageID);
     selectImage(labelImageID);
     
-    classifyActiveZones(lastLabel);
+    classifyActiveZones(lastLabel, frames);
     
     run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
     count = roiManager("count");
@@ -215,17 +217,21 @@ function initAnalysis() {
     run("Grays");
 }
 
-function classifyActiveZones(lastLabel) {
+function classifyActiveZones(lastLabel, frames) {
+    inf = parseFloat("Infinity");
     for(l=1; l<=lastLabel; l++) {
        areaOverTime = Table.getColumn(l, DYNAMIC_TABLE); 
        timePoints = Array.getSequence(areaOverTime.length);
-       Fit.doFit(FUNCTION_TO_FIT, timePoints, areaOverTime);
-       valueZero = Fit.f(0);
+       smoothedAreaOverTime = smoothArray(areaOverTime);
+       fittedAreaOverTime = getFittedSeries(smoothedAreaOverTime);
+       data = fittedAreaOverTime;
+       if (data[0] == inf) data = smoothedAreaOverTime;
+       valueZero = data[0];
        indexAbsMax = 0;
        valueAbsMax = valueZero;
-       valueLast = Fit.f(timePoints.length-1);
-       for (t = 1; t <frames; t++) {
-           value = Fit.f(t);
+       valueLast = data[timePoints.length-1];
+       for (t = 1; t < frames; t++) {
+           value = data[t];
            if(abs(value)>abs(valueAbsMax)) {
                 valueAbsMax = value;
                 indexAbsMax = t;
@@ -253,6 +259,17 @@ function classifyActiveZones(lastLabel) {
             continue;
        }
     }
+}
+
+function getFittedSeries(series) {
+    timePoints = Array.getSequence(series.length);
+    Fit.doFit(FUNCTION_TO_FIT, timePoints, series);
+    fittedSeries = newArray(series.length);
+    for (t = 0; t <series.length; t++) {
+       value = Fit.f(t);
+       fittedSeries[t] = value;
+    }
+    return fittedSeries;
 }
 
 function isConstant(valueZero, valueMax, valueLast) {
@@ -370,4 +387,42 @@ function removeXYBorderVoxels() {
     run("Make Inverse");
     run("Fill", "stack");
     run("Select None");
+}
+
+function smoothArray(anArray) {
+    kernel = meanKernel(SMOOTHING_RADIUS);
+    smoothedArray = convolve(anArray, kernel, "constant");
+    return smoothedArray;
+}
+
+function meanKernel(radius) {
+    n = 2 * radius + 1;
+    kernel = newArray(n);
+    for (i = 0; i < n; i++) {
+        kernel[i] = 1 / n;
+    }
+    return kernel;
+}
+ 
+function convolve(array, kernel, borderHandling) {
+    if ((kernel.length % 2) == 0) {
+        exit("The size of the kernel needs to be odd but the kernel size is: " + kernel.length);
+    }
+    
+    kernelCenterIndex = Math.floor(kernel.length / 2);
+    resultArray = newArray(array.length);
+    for (i = 0; i < resultArray.length; i++) {
+        sum = 0;
+        for (k = 0; k < kernel.length; k++) {
+            currentFactor = kernel[k];
+            currentIndex = i - kernelCenterIndex + k;
+            currentValue = array[i];
+            if (currentIndex > -1 && currentIndex < array.length) {
+                currentValue = array[currentIndex];
+            }
+            sum = sum + currentValue * currentFactor;
+        }
+        resultArray[i] = sum;
+    }
+    return resultArray;
 }
