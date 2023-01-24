@@ -3,7 +3,7 @@
  MRI Incucyte_Exporter
  
  Export the images from the Incucyte. Stitch the images, create a time-series and align the frames.
- (c) 2021, INSERM
+ (c) 2021-2023, INSERM
  
  written by Volker Baecker at Montpellier Ressources Imagerie, Biocampus Montpellier, INSERM, CNRS, University of Montpellier (www.mri.cnrs.fr)
  
@@ -566,34 +566,20 @@ function mergeImages() {
 function markEmptyImages() {
 	checkAndGetBaseDir();
 	timeStart = getTime();
-	root = BASE_DIR;
-	dataDir = root+"EssenFiles/ScanData/";
-	years = getFileList(dataDir);
 	setBatchMode(true);
-	for (y=0; y<years.length; y++) {
-		if (years[y]<START_YEAR || years[y]>END_YEAR) continue;
-		year = years[y];
-		days = getFileList(dataDir + year);
-		for(d=0; d<days.length; d++) {
-			if (days[d]<START_SERIES || days[d]>END_SERIES) continue;
-			day = days[d];
-			hours = getFileList(dataDir + year + day);
-			for(h=0; h<hours.length; h++) {
-				if (hours[h]<START_HOUR || hours[h]>END_HOUR) continue;
-				hour = hours[h];
-				imgDir = dataDir + year + day + hour + NR;
-				mergedDir = imgDir + FOLDER_MERGE;
-				print("Marking Empty Images : "+mergedDir);
-				files = getFileList(mergedDir);
-				files = filterEmpty(files);
-				for (i = 0; i < files.length; i++) {
-					well = replace(files[i],".tif","");
-					markEmptyOneWell(imgDir,well);
-					print("\\Update:Marking Empty Images : "+mergedDir+files[i]);
-				}
-				print("\\Update:Empty Images Marked : "+mergedDir);
-			}
-		}
+	files = getStartPositions()
+	firstTime = getFirstYearDayAndHour();
+	root = BASE_DIR;
+	if(!isDBRootFolder(root)) exit("db not found!");
+	dataDir = root+"EssenFiles/ScanData/";	
+	folder = dataDir + firstTime[0] + firstTime[1]+ firstTime[2] + NR + FOLDER_EXPORT + FOLDER_CLEAN;
+	mergedDir = folder + FOLDER_MERGE;
+	print("Marking Empty Images : "+mergedDir);
+	files = getFileList(mergedDir);
+	for (i = 0; i < files.length; i++) {
+		well = replace(files[i], ".tif", "");
+		markEmptyOneWell(folder, well);
+		print("\\Update:Marking Empty Images : "+mergedDir+files[i]);
 	}
 	setBatchMode(false);
 	timeEnd = getTime();
