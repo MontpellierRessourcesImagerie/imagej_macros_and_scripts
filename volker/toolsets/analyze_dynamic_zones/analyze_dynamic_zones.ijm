@@ -24,6 +24,9 @@ var DOG_LARGE_RADIUS = 15;
 var SHOW_CONSTANT = false;
 var LUTS = getList("LUTs");
 var LUT = LUTS[25];
+var SMOOTHING_RADIUS = 2;
+var MIDDLE_THRESHOLD_FACTOR = 1;
+var DEBUG = false;
 if (LUT!="Random") LUT = "glasbey on dark";
 
 var helpURL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Dynamic_Zones_Analyzer";
@@ -118,6 +121,12 @@ macro "Plot mean intensity over time [f8]" {
     plotMeanIntensityOverTime()
 }
 
+macro "Classify plot [f12]" {
+    Plot.getValues(xpoints, ypoints);
+    class = classifyData(ypoints);
+    print(class);
+}
+
 function registerFrames() {
     if (REGISTRATION_METHOD=="stack reg") {
         run("multi stack reg");
@@ -157,8 +166,9 @@ function plotOverTime(tableName) {
     Plot.add("Connected Circles", Table.getColumn(label, tableName));
     Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
     data = Table.getColumn(label, tableName);
-    X = Array.getSequence(data.length);
-    Fit.doFit(FUNCTION_TO_FIT, X, data);
+    smoothedData = smoothArray(data);
+    X = Array.getSequence(smoothedData.length);
+    Fit.doFit(FUNCTION_TO_FIT, X, smoothedData);
     Y = newArray(X.length);
     for(i=0; i<X.length; i++) {
         Y[i] = Fit.f(X[i]);
@@ -216,47 +226,99 @@ function initAnalysis() {
 }
 
 function classifyActiveZones(lastLabel) {
-    for(l=1; l<=lastLabel; l++) {
+    for(l = 1; l <= lastLabel; l++) {
        areaOverTime = Table.getColumn(l, DYNAMIC_TABLE); 
-       timePoints = Array.getSequence(areaOverTime.length);
-       Fit.doFit(FUNCTION_TO_FIT, timePoints, areaOverTime);
-       valueZero = Fit.f(0);
-       indexAbsMax = 0;
-       valueAbsMax = valueZero;
-       valueLast = Fit.f(timePoints.length-1);
-       for (t = 1; t <frames; t++) {
-           value = Fit.f(t);
-           if(abs(value)>abs(valueAbsMax)) {
-                valueAbsMax = value;
-                indexAbsMax = t;
-           }
-       }
-       constant = isConstant(valueZero, valueAbsMax, valueLast);
-       if (constant) {
+       class = classifyData(areaOverTime); 
+       if (class == "constant") {
            if (SHOW_CONSTANT) addZoneRoi(l, "constant");
            continue;
        }
-       if (valueZero <= valueAbsMax && valueAbsMax <= valueLast) {
-            addZoneRoi(l, "increasing");
-            continue;
-       }
-       if (valueZero >= valueAbsMax && valueAbsMax >= valueLast) {
-            addZoneRoi(l, "decreasing");
-            continue;
-       }
-       if (valueZero <= valueAbsMax && valueAbsMax >= valueLast) {
-            addZoneRoi(l, "n");
-            continue;
-       }
-       if (valueZero >= valueAbsMax && valueAbsMax <= valueLast) {
-            addZoneRoi(l, "u");
-            continue;
+       addZoneRoi(l, class);
+    }
+}
+
+function classifyData(data) {
+    inf = parseFloat("Infinity");
+    areaOverTime = data;
+    timePoints = Array.getSequence(areaOverTime.length);
+    smoothedAreaOverTime = smoothArray(areaOverTime);
+    fittedAreaOverTime = getFittedSeries(smoothedAreaOverTime);
+    data = fittedAreaOverTime;
+    if (data[0] == inf) data = smoothedAreaOverTime;
+    valueZero = data[0];
+    indexAbsMax = 0;
+    valueAbsMax = valueZero;
+    valueLast = data[timePoints.length-1];
+    for (t = 1; t < timePoints.length; t++) {
+       value = data[t];
+       if(abs(value)>abs(valueAbsMax)) {
+            valueAbsMax = value;
+            indexAbsMax = t;
        }
     }
+    if (DEBUG) {
+        print(valueZero, valueAbsMax, valueLast);
+        differencesAndThreshold = getDifferencesAndThreshold(valueZero, valueAbsMax, valueLast);  
+        Array.print(differencesAndThreshold);
+    }
+    constant = isConstant(valueZero, valueAbsMax, valueLast);
+    if (constant) {
+       return "constant";
+    }
+    increasing = isIncreasing(valueZero, valueAbsMax, valueLast);
+    if (increasing) {
+        return "increasing";
+    }
+    decreasing = isDecreasing(valueZero, valueAbsMax, valueLast);
+    if (decreasing) {
+        return "decreasing";
+    }
+    if (valueZero <= valueAbsMax && valueAbsMax >= valueLast) {
+        return "n";
+    }
+    if (valueZero >= valueAbsMax && valueAbsMax <= valueLast) {
+        return "u";
+    }
+    return "undefined";
+}
+
+function getFittedSeries(series) {
+    timePoints = Array.getSequence(series.length);
+    Fit.doFit(FUNCTION_TO_FIT, timePoints, series);
+    fittedSeries = newArray(series.length);
+    for (t = 0; t <series.length; t++) {
+       value = Fit.f(t);
+       fittedSeries[t] = value;
+    }
+    return fittedSeries;
 }
 
 function isConstant(valueZero, valueMax, valueLast) {
     constant = false;
+    differencesAndThreshold = getDifferencesAndThreshold(valueZero, valueMax, valueLast);  
+    if (differencesAndThreshold[0] <= differencesAndThreshold[3] && differencesAndThreshold[1] <= differencesAndThreshold[3]  && differencesAndThreshold[2] <= differencesAndThreshold[3]) {
+        constant = true;
+    }
+    return constant;
+}
+
+function isIncreasing(valueZero, valueMax, valueLast) {
+    differencesAndThreshold = getDifferencesAndThreshold(valueZero, valueMax, valueLast);  
+    smallerThreshold = differencesAndThreshold[3] * MIDDLE_THRESHOLD_FACTOR;
+    increasing = (valueZero < valueLast && (valueZero <= valueMax || differencesAndThreshold[0] <= smallerThreshold)  && (valueMax <= valueLast || differencesAndThreshold[1] <= smallerThreshold));
+    return increasing;
+}
+
+
+function isDecreasing(valueZero, valueMax, valueLast) {
+    differencesAndThreshold = getDifferencesAndThreshold(valueZero, valueMax, valueLast);  
+    smallerThreshold = differencesAndThreshold[3] * MIDDLE_THRESHOLD_FACTOR;
+    decreasing = (valueZero > valueLast && (valueZero >= valueMax || differencesAndThreshold[0] <= smallerThreshold)  && (valueMax >= valueLast || differencesAndThreshold[1] <= smallerThreshold));
+    return decreasing;
+}
+
+function getDifferencesAndThreshold(valueZero, valueMax, valueLast) {
+    result = newArray(4);    
     vz = Math.max(0, valueZero);
     vl = Math.max(0, valueLast);
     vm = Math.max(0, valueMax);
@@ -267,13 +329,12 @@ function isConstant(valueZero, valueMax, valueLast) {
         vm = vm / valueMax;
         threshold = RELATIVE_CONST_THRESHOLD;
     } 
-    diff1 = abs(vz - vm);
-    diff2 = abs(vl - vm);
-    diff3 = abs(vz - vl);
-    if (diff1 <= threshold && diff2 <= threshold && diff3 <= threshold) {
-        constant = true;
-    }
-    return constant;
+    result[0] = abs(vz - vm);
+    result[1] = abs(vl - vm);
+    result[2] = abs(vz - vl);
+    result[3] = threshold;
+    
+    return result;
 }
     
 function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
@@ -370,4 +431,42 @@ function removeXYBorderVoxels() {
     run("Make Inverse");
     run("Fill", "stack");
     run("Select None");
+}
+
+function smoothArray(anArray) {
+    kernel = meanKernel(SMOOTHING_RADIUS);
+    smoothedArray = convolve(anArray, kernel, "constant");
+    return smoothedArray;
+}
+
+function meanKernel(radius) {
+    n = 2 * radius + 1;
+    kernel = newArray(n);
+    for (i = 0; i < n; i++) {
+        kernel[i] = 1 / n;
+    }
+    return kernel;
+}
+ 
+function convolve(array, kernel, borderHandling) {
+    if ((kernel.length % 2) == 0) {
+        exit("The size of the kernel needs to be odd but the kernel size is: " + kernel.length);
+    }
+    
+    kernelCenterIndex = Math.floor(kernel.length / 2);
+    resultArray = newArray(array.length);
+    for (i = 0; i < resultArray.length; i++) {
+        sum = 0;
+        for (k = 0; k < kernel.length; k++) {
+            currentFactor = kernel[k];
+            currentIndex = i - kernelCenterIndex + k;
+            currentValue = array[i];
+            if (currentIndex > -1 && currentIndex < array.length) {
+                currentValue = array[currentIndex];
+            }
+            sum = sum + currentValue * currentFactor;
+        }
+        resultArray[i] = sum;
+    }
+    return resultArray;
 }
