@@ -66,7 +66,6 @@ var DO_CONCAT		= true;
 var DO_MAN_ALIGN 	= true;
 var DO_HSR_ALIGN 	= true;
 
-
 macro "Incucyte Exporter Help (f4) Action Tool-C000T4b12?" {
 	help();
 }
@@ -1129,6 +1128,11 @@ function manualAlignment(){
 	for(s=1;s<=timePointCount;s++){
 		setSlice(s);
 		run("Create Selection");
+        type = selectionType();
+        if (type < 0) {
+            close();
+            return;
+        }
 		run("Convex Hull");
 		centerX[s-1]=getValue("X");
 		centerY[s-1]=getValue("Y");
@@ -1274,7 +1278,7 @@ function filterEmpty(files) {
 	newFiles = newArray(0);
 	for (i = 0; i < files.length; i++) {
 		file = files[i];
-		if (indexOf(file, "Empty")<0) newFiles = Array.concat(newFiles, file);
+		if (indexOf(file, "Empty")<0 && endsWith(file, ".tif")) newFiles = Array.concat(newFiles, file);
 	}
 	return newFiles;
 }
