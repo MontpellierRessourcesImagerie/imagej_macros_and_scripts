@@ -1,18 +1,24 @@
-from ij import IJ
-from ij.plugin.frame import RoiManager
-from ij.plugin import ContrastEnhancer
 import os
 
-testingDir = "/home/benedetti/Bureau/testingYeasts"
-outputPath = "/home/benedetti/Bureau/testingYeasts/results"
+from ij import IJ, ImagePlus, ImageStack
+from ij.process import ImageProcessor, ByteProcessor
+from ij.plugin import ContrastEnhancer, ImageCalculator, ChannelSplitter, Concatenator
+from ij.plugin.frame import RoiManager
+from ij.measure import ResultsTable
+from util import FindConnectedRegions
+from fiji.util.gui import GenericDialogPlus
+from inra.ijpb.label import LabelImages
+from inra.ijpb.plugins import MorphologicalFilterPlugin
+from inra.ijpb.morphology.Morphology import Operation
+from inra.ijpb.morphology import Strel
+from ij.plugin.filter import Filler
 
-if not os.path.isdir(outputPath):
-    os.mkdir(outputPath)
+
+from mdYeasts.makeNGon import motherDaughterSegmentation
 
 
-
-def makeLaplacian(img):
-    IJ.run(img, "FeatureJ Laplacian", "compute smoothing=0.25")
+def makeLaplacian(img, smth=0.25):
+    IJ.run(img, "FeatureJ Laplacian", "compute smoothing={0}".format(smth))
 
     tres = IJ.getImage()
     res = tres.duplicate()
@@ -22,82 +28,118 @@ def makeLaplacian(img):
     return res
 
 
-def segment(img):
+def closing(img, rad):
+	return MorphologicalFilterPlugin().process(img, Operation.CLOSING, Strel.Shape.DISK.fromRadius(rad))
 
-    # 0. Acquire tile
-    d = img.duplicate()
-    img.close()
 
-    # 1. Enhance contrast (equalize + normalize)
-    # ce = ContrastEnhancer()
-    # ce.setNormalize(True)
-    # ce.equalize(d)
-    # ce.stretchHistogram(d, 0.35)
-    IJ.run(d, "Enhance Contrast...", "saturated=0.35 normalize equalize")
+def connectedComposAndLargest(imIn):
+   r = FindConnectedRegions().run(
+      imIn,  # Image
+      False, # Diagonal (4 or 8 connectivity)
+      False, # Image Per Region
+      True,  # Image All Regions
+      False, # Show Results
+      True,  # Must Have Same Value
+      False, # Start From Point ROI
+      False, # Auto Subtrack
+      1,     # Values Over Double
+      1,     # Minimum Points In Region
+      -1,    # Stop After Number Of Regions
+      True   # No UI
+   )
 
-    # 2. Laplacian (@ 0.25)
-    lp = makeLaplacian(d)
+   iStack = r.allRegions.imageStack
+   conCompos = ImagePlus("Test", iStack)
+   imIn.close()
+   imOut = LabelImages.keepLargestLabel(conCompos)
 
-    # 3. Threshold (w/ Otsu)
-    IJ.setAutoThreshold(lp, "Otsu dark no-reset")
-    IJ.run(lp, "Convert to Mask", "")
+   return imOut
 
-    # 4. Invert
-    IJ.run(lp, "Invert", "")
 
-    # 6. Label connected components & keep the largest
-    IJ.run(lp, "Connected Components Labeling", "connectivity=4 type=[16 bits]")
-    temp = IJ.getImage()
-    compos = temp.duplicate()
-    temp.close()
-    lp.close()
-
-    IJ.run(compos, "Keep Largest Label", "")
-    temp = IJ.getImage()
-    largest = temp.duplicate()
-    temp.close()
-    compos.close()
-
-    # 7. Closing or find a way to detect gaps
+def preprocess(d, contrast=True, lapla=True, thresh=True, invt=True, biggest=True, clsg=True):
     
-    # 8. Return
-    return largest
+    workingCopy = d.duplicate()
+
+    if contrast:
+        # 1. Enhance contrast (equalize + normalize)
+        ce = ContrastEnhancer()
+        ce.setNormalize(True)
+        ce.equalize(workingCopy)
+        ce.stretchHistogram(workingCopy, 0.35)
+    
+    if lapla:
+        # 2. Laplacian (@ 0.25)
+        workingCopy = makeLaplacian(workingCopy)
+
+    if thresh:
+        # 3. Threshold (w/ Otsu)
+        workingCopy.getProcessor().setAutoThreshold("Otsu", True, ImageProcessor.ISODATA)
+        workingCopy.setProcessor(workingCopy.getProcessor().createMask())
+
+    if invt:
+        # 4. Invert
+        workingCopy.getProcessor().invert()
+
+    if biggest:
+        # 5. Label connected components & keep the largest
+        workingCopy = connectedComposAndLargest(workingCopy)
+
+    if biggest:
+        # 6. Closing or find a way to detect gaps
+        closing(workingCopy, 3)
+    
+    # 7. Return
+    return workingCopy
 
 
-def mainLoop():
+def makeResultsTable(stats):
+    # 1. Clearing results table.
+    r = ResultsTable.getResultsTable()
 
-    for i in range(1, 17):
-        oriPath = os.path.join(testingDir, "ori_{0}.tif".format(str(i).zfill(2)))
-        roiPath = os.path.join(testingDir, "roi_{0}.zip".format(str(i).zfill(2)))
-        
-        ori = IJ.openImage(oriPath)
-        rm = RoiManager()
+    for cell in stats:
+        r.addRow()
+        for key, item in cell.items():
+            r.addValue(key, item)
 
-        try:
-            rm.runCommand("open", roiPath)
-        except:
-            print("Failed", oriPath)
-            continue
+    r.show("Results")
 
-        print(oriPath)
-        print(roiPath)
 
-        imgs = ori.crop(rm.getRoisAsArray())
-        nRois = rm.getCount()
 
-        for idx, img in enumerate(imgs):
-            cName = "segPair_{0}_{1}.tif".format(str(i).zfill(2), str(idx).zfill(2))
-            oName = "oriPair_{0}_{1}.tif".format(str(i).zfill(2), str(idx).zfill(2))
-            IJ.saveAs(img, "tiff", os.path.join(outputPath, oName))
+def segmentYeasts(rm, imIn):
+    # 1. Extracting images
+    chunks = imIn.crop(rm.getRoisAsArray(), "stack")
+    calib = imIn.getCalibration()
+    
 
-            img2 = segment(img)
-            
-            IJ.saveAs(img2, "tiff", os.path.join(outputPath, cName))
-            img2.close()
-        
-        ori.close()
-        rm.runCommand("delete")
-        rm.close()
+    control = ImagePlus("Control", ByteProcessor(imIn.getWidth(), imIn.getHeight()))
+    control.getProcessor().set(0)
 
-mainLoop()
-print("DONE.")
+    mergedStats = []
+
+    for idx, (roi, chunk) in enumerate(zip(rm.getRoisAsArray(), chunks)):
+
+        # 2. Splitting channels:
+        transmission, fluo = ChannelSplitter.split(chunk)
+        transmission.setCalibration(calib)
+        fluo.setCalibration(calib)
+
+        chunk.close()
+
+        # 3. Preprocess segmentation channel.
+        preprocessed = preprocess(transmission)
+        preprocessed.setCalibration(calib)
+
+        # 4. Segment both yeasts as precisely as possible.
+        yeastD, yeastM, stats, verbose = motherDaughterSegmentation(preprocessed, fluo, control, (roi.getXBase(), roi.getYBase()))
+        mergedStats.append(stats)
+
+
+        # 5. Close working images
+        transmission.close()
+        fluo.close()
+
+    imIn.resetRoi()
+    control.show()
+
+    makeResultsTable(mergedStats)
+

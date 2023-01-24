@@ -1,7 +1,6 @@
 import math
 from rays import Ray, ConditionalRay, merge
 from basicOps import vecSub, normalize, distance, nextRotate, dotProduct
-import copy
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #   MOVING N-GON BASE CLASS                                                                           #
@@ -14,6 +13,11 @@ class MovingNGon(object):
         self.points   = []
         self.origin   = center
         self.stepSize = s
+
+    def makeCopy(self):
+        n = MovingNGon(self.origin, self.stepSize)
+        n.points = [p.makeCopy() for p in self.points]
+        return n
 
     ## @brief Returns the point that is considered the center for this polygon.
     def getOrigin(self):
@@ -92,42 +96,33 @@ class MovingNGon(object):
         return sum(distances)
 
     
-    def split(self, i, j):
+    def split(self, i, j, sharpCut=False):
         if i >= j:
             return None, None
         
-        mn1 = MovingNGon((0.0, 0.0), self.stepSize)
-        mn2 = MovingNGon((0.0, 0.0), self.stepSize)
+        mn1 = self.makeCopy()
+        mn2 = self.makeCopy()
 
-        mn1.points = [copy.deepcopy(p) for p in self.points[i:j+1]]
-        mn2.points = [copy.deepcopy(p) for p in self.points[0:i+1] + self.points[j:]]
+        mn1.points = [p.makeCopy() for p in self.points[i:j+1]]
+        mn2.points = [p.makeCopy() for p in self.points[0:i+1] + self.points[j:]]
 
         mn1.updateCentroid()
         mn2.updateCentroid()
 
+        mn1.updateNormals()
+        mn2.updateNormals()
+
+        if sharpCut:
+            v1 = normalize(vecSub(self.points[j].getOrigin(), self.points[i].getOrigin()))
+            v2 = normalize(vecSub(self.points[i].getOrigin(), self.points[j].getOrigin()))
+
+            mn1.points[0].setDirection(v1)
+            mn1.points[-1].setDirection(v2)
+
+            mn2.points[i].setDirection(v1)
+            mn2.points[i+1].setDirection(v2)
+
         return mn1, mn2
-
-
-    # = = = A BOUGER DANS LA CLASSE QUI DEPEND DE IMAGEJ = = =
-    def splitCells(self):
-        curvatures = sorted(
-            [(p.getCurvature(), idx) for idx, p in enumerate(self.points)], 
-            key=lambda x: x[0]
-        )
-
-        curvatures.reverse()
-        maxIndex = curvatures[0][1]
-        scdMax = curvatures[1][1]
-        
-        for i in range(1, len(curvatures)):
-            if dotProduct(self.points[maxIndex].getDirection(), self.points[curvatures[i][1]].getDirection()) <= 0:
-                scdMax = curvatures[i][1]
-                break
-
-        if maxIndex < scdMax:
-            maxIndex, scdMax = scdMax, maxIndex
-
-        return self.split(scdMax, maxIndex)
 
 
     def fixHolesAndBumps(self, lim=-0.3):
@@ -139,23 +134,62 @@ class MovingNGon(object):
         self.points = keepPoints()
 
 
-    def spreadSampling(self, tol=1, ang=0.4):
+    def spreadSamplingLimit(self, tol=0.8, top=0, bottom=0):
+        dupliPoints = [(i, p, False) for i, p in enumerate(self.points)]
+        dupliPoints.sort(key=lambda tup: tup[1].getCurvature())
+
+        for i in range(bottom):
+            dupliPoints[i] = (dupliPoints[i][0], dupliPoints[i][1], True)
+
+        dupliPoints.reverse()
+
+        for i in range(top):
+            dupliPoints[i] = (dupliPoints[i][0], dupliPoints[i][1], True)
+
+        dupliPoints.sort(key=lambda tup: tup[0])
+
+        var   = self.getSegmentLengthVariations()
+        nvPts = [dupliPoints[0]]
+        dst   = 0.0
         avg   = self.getPerimeter() / len(self.points) # average length of a segment
-        lower = tol
+
+        for i, p, s in dupliPoints:
+            if s:
+                nD = distance(nvPts[-1][1].getOrigin(), p.getOrigin()) / avg
+                if (i == 0) or ((not nvPts[-1][2]) and (nD < tol)):
+                    nvPts.pop()
+                nvPts.append((i, p, s))
+                dst = 0.0
+                continue
+
+            if dst >= tol:
+                nvPts.append((i, p, s))
+                dst = 0.0
+            else:
+                dst += var[i] # var[i] == distance between points i and i+1
+            
+        
+        self.points = [p for i, p, s in nvPts]
+        self.updateNormals()
+        self.processCurvature()
+
+
+    def spreadSampling(self, tol=0.8, ang=0.2):
+        avg   = self.getPerimeter() / len(self.points) # average length of a segment
         var   = self.getSegmentLengthVariations()
         nvPts = [self.points[0]]
-        dst   = 0
+        dst   = 0.0
 
         for idx, p in enumerate(self.points):
             if p.getCurvature() >= ang:
                 nD = distance(nvPts[-1].getOrigin(), p.getOrigin()) / avg
-                if (idx == 0) or (nD < 0.6):
+                if (idx == 0) or (nD < tol):
                     nvPts.pop()
                 nvPts.append(p)
                 dst = 0.0
                 continue
 
-            if dst >= lower:
+            if dst >= tol:
                 nvPts.append(p)
                 dst = 0.0
             else:
@@ -167,107 +201,111 @@ class MovingNGon(object):
         self.processCurvature()
 
     
-    def interpolateSamples(self, tol=1.1):
-        avg   = self.getPerimeter() / len(self.points)
-        var   = self.getSegmentLengthVariations()
+    def isConvex(self):
+        return True
+
+
+    def interpolatePoint(self, idx, nbPts):
         nvPts = []
+
+        # = = = Building the list of coordinates on which we will work. = = =
+        iStart = idx-1
+        points = []
+
+        for i in range(4):
+            pt  = self.points[iStart].getOrigin()
+            nml = self.points[iStart].getDirection()
+            points.append({'point': pt, 'normal': nml})
+            iStart = nextRotate(iStart, len(self.points))
+
+        # = = = Building base points along the edge to interpolate. = = =
+        subdiv = []
+        incre = 1.0 / (nbPts + 1)
+        subStart = incre
+
+        for i in range(nbPts):
+            right = subStart + i * incre
+            left = 1.0 - right
+            subdiv.append((
+                points[1]['point'][0] * left + points[2]['point'][0] * right,
+                points[1]['point'][1] * left + points[2]['point'][1] * right
+            ))
+
+        # = = = Building base points along the edge to interpolate. = = =
+        midPoints = []
+        medVec    = []
+
+        for p1, p2 in zip(points, points[1:]):
+            edge = (
+                p2['point'][0] - p1['point'][0],
+                p2['point'][1] - p1['point'][1]
+            )
+            midPoint = (
+                (p1['point'][0] + p2['point'][0]) / 2,
+                (p1['point'][1] + p2['point'][1]) / 2
+            )
+            nml = (edge[1], -edge[0])
+            if dotProduct(nml, p1['normal']):
+                nml = (-edge[1], edge[0])
+
+            midPoints.append(midPoint)
+            medVec.append(nml)
+
+        circles = []
+        for med1, med2, mid1, mid2 in zip(medVec, medVec[1:], midPoints, midPoints[1:]):
+            alpha1 = med1[1]
+            beta1  = -med1[0]
+            gamma1 = -(alpha1 * mid1[0] + beta1 * mid1[1])
+
+            alpha2 = med2[1]
+            beta2  = -med2[0]
+            gamma2 = -(alpha2 * mid2[0] + beta2 * mid2[1])
+
+            circles.append((
+                (beta1 * gamma2 - beta2 * gamma1) / (alpha1 * beta2 - alpha2 * beta1),
+                (alpha2 * gamma1 - alpha1 * gamma2) / (alpha1 * beta2 - alpha2 * beta1)
+            ))
+
+        midPt = points[int(len(points)/2)]['point']
+        dists = [(idx, distance(center, midPt)) for idx, center in enumerate(circles)]
+        dists.sort(key=lambda tup: tup[1])
+
+        r = dists[-1][1]
+        c = circles[dists[-1][0]]
+
+        for s in subdiv:
+            vDir = normalize((
+                s[0] - c[0],
+                s[1] - c[1]
+            ))
+
+            nv = (
+                c[0] + r * vDir[0],
+                c[1] + r * vDir[1]
+            )
+
+            nvPts.append(nv)
         
-        for idx in range(len(self.points)):
-            nvPts.append(self.points[idx])
-
-            if var[idx] >= tol:
-                
-                # Getting working indices
-                bfr = idx - 1
-                nxt1 = nextRotate(idx, len(self.points))
-                nxt2 = nextRotate(nxt1, len(self.points))
-                pMid = merge(self.points[idx], self.points[nxt1])
-
-                # Direction vectors of the three segments
-                b1ix = normalize((
-                    self.points[idx].getOrigin()[0] - self.points[bfr].getOrigin()[0],
-                    self.points[idx].getOrigin()[1] - self.points[bfr].getOrigin()[1]
-                ))
-                ixn1 = normalize((
-                    self.points[nxt1].getOrigin()[0] - self.points[idx].getOrigin()[0],
-                    self.points[nxt1].getOrigin()[1] - self.points[idx].getOrigin()[1]
-                ))
-                n1n2 = normalize((
-                    self.points[nxt2].getOrigin()[0] - self.points[nxt1].getOrigin()[0],
-                    self.points[nxt2].getOrigin()[1] - self.points[nxt1].getOrigin()[1]
-                ))
-
-                # Middle point of each segment
-                mid1 = (
-                    (self.points[idx].getOrigin()[0] + self.points[bfr].getOrigin()[0])/2.0,
-                    (self.points[idx].getOrigin()[1] + self.points[bfr].getOrigin()[1])/2.0
-                )
-                mid2 = (
-                    (self.points[nxt1].getOrigin()[0] + self.points[idx].getOrigin()[0])/2.0,
-                    (self.points[nxt1].getOrigin()[1] + self.points[idx].getOrigin()[1])/2.0
-                )
-                mid3 = (
-                    (self.points[nxt2].getOrigin()[0] + self.points[nxt1].getOrigin()[0])/2.0,
-                    (self.points[nxt2].getOrigin()[1] + self.points[nxt1].getOrigin()[1])/2.0
-                )
-
-                # Normal of each segment
-                med1 = (b1ix[1], -b1ix[0])
-                med2 = (ixn1[1], -ixn1[0])
-                med3 = (n1n2[1], -n1n2[0])
-
-                # Intersections of medians
-                u1 = (mid1[1]*med2[0] + med2[1]*mid2[0] - mid2[1]*med2[0] - med2[1]*mid1[0] ) / (med1[0]*med2[1] - med1[1]*med2[0])
-                u2 = (mid2[1]*med3[0] + med3[1]*mid3[0] - mid3[1]*med3[0] - med3[1]*mid2[0] ) / (med2[0]*med3[1] - med2[1]*med3[0])
-
-                v1 = (mid1[0] + med1[0] * u1 - mid2[0]) / med2[0]
-                v2 = (mid2[0] + med2[0] * u2 - mid3[0]) / med3[0]
-
-                if (u1 >= 0) and (v1 >= 0):
-                    c1 = (
-                        mid1[0] + med1[0] * u1,
-                        mid1[1] + med1[1] * u1
-                    )
-                else:
-                    c1 = None
-
-                if (u2 >= 0) and (v2 >= 0):
-                    c2 = (
-                        mid2[0] + med2[0] * t2,
-                        mid2[1] + med2[1] * t2
-                    )
-                else:
-                    c2 = None
-
-                if (c1 is None) or (c2 is None):
-                    continue
-
-                d1 = distance(c1, self.points[idx].getOrigin())
-                d2 = distance(c2, self.points[idx].getOrigin())
-                
-                r = d1 if d1 > d2 else d2
-                c = c1 if d1 > d2 else c2
-
-                vDir = normalize((
-                    pMid[0] - c[0],
-                    pMid[1] - c[1]
-                ))
-
-                nP = copy.deepcopy(self.points[idx])
-                nP.setOrigin(
-                    (
-                        c[0] + r * vDir[0],
-                        c[1] + r * vDir[1]
-                    )
-                )
-                nvPts.append(nP)
-
-        self.points = nvPts
-        self.updateNormals()
-        self.processCurvature()
+        return nvPts
 
     
-    def _interpolateSamples(self, tol=1.1):
+    def makeStats(self):
+        distances = [distance(p.getOrigin(), self.origin) for p in self.points]
+        distDer   = [b - a for a, b in zip(distances, distances[1:] + [distances[0]])]
+        spacing   = [distance(p1.getOrigin(), p2.getOrigin()) for p1, p2 in zip(self.points, self.points[1:] + [self.points[0]])]
+        curvats   = [p.getCurvature() for p in self.points]
+        curvaDer  = [c2 - c1 for c1, c2 in zip(curvats, curvats[1:] + [curvats[0]])]
+
+        return {
+            'distances': distances,
+            'distances.derivative': distDer,
+            'spacing': spacing,
+            'curvatures': curvats,
+            'curvatures.derivative': curvaDer
+        }
+
+    
+    def interpolateSamples(self, tol=1):
         avg   = self.getPerimeter() / len(self.points)
         var   = self.getSegmentLengthVariations()
         nvPts = []
@@ -275,34 +313,43 @@ class MovingNGon(object):
         for idx in range(len(self.points)):
             nvPts.append(self.points[idx])
 
-            if var[idx] >= tol:
-                bfr = idx - 1
-                nxt1 = nextRotate(idx, len(self.points))
-                nxt2 = nextRotate(nxt1, len(self.points))
-
-                v1 = normalize((
-                    self.points[idx].getOrigin()[0] - self.points[bfr].getOrigin()[0],
-                    self.points[idx].getOrigin()[1] - self.points[bfr].getOrigin()[1]
-                ))
-                v2 = normalize((
-                    self.points[nxt2].getOrigin()[0] - self.points[nxt1].getOrigin()[0],
-                    self.points[nxt2].getOrigin()[1] - self.points[nxt1].getOrigin()[1]
-                ))
-                ang = (2 * math.pi - math.acos(dotProduct(v1, v2))) / 1.95
-                d = 0.5 * distance(self.points[idx].getOrigin(), self.points[nxt1].getOrigin()) / math.tan(ang / 2)
-                nPtemp  = merge(self.points[idx], self.points[nxt1])
-                px, py = nPtemp.getOrigin()
-                dx, dy = nPtemp.getDirection()
-                x = px - d * dx
-                y = py - d * dy
-                nP = copy.deepcopy(self.points[idx])
-                nP.setOrigin((x, y))
-                #nP.setOrigin(nPtemp.getOrigin())
-                nvPts.append(nP)
+            if var[idx] > tol:
+                pts = self.interpolatePoint(idx, int(var[idx] / tol))
+                for p in pts:
+                    nP = self.points[idx].makeCopy()
+                    nP.setOrigin(p)
+                    nvPts.append(nP)
 
         self.points = nvPts
         self.updateNormals()
         self.processCurvature()
+
+    def smoothProjection(self, strength=0.5):
+        newOris = []
+        for i in range(len(self.points)):
+            p0 = self.points[i-1].getOrigin()
+            p1 = self.points[i].getOrigin()
+            p2 = self.points[nextRotate(i, len(self.points))].getOrigin()
+
+            v1 = vecSub(p2, p0)
+            v2 = vecSub(p1, p0)
+
+            factor = dotProduct(v1, v2) / (distance((0, 0), v1) * distance((0, 0), v1))
+            projVec = (
+                factor * v1[0] + p0[0],
+                factor * v1[1] + p0[1])
+
+            newOris.append((
+                (projVec[0] * strength + p1[0] * (1.0 - strength)),
+                (projVec[1] * strength + p1[1] * (1.0 - strength))
+            ))
+        
+        for p, o in zip(self.points, newOris):
+            p.setOrigin(o)
+
+        self.updateNormals()
+        self.processCurvature()
+
 
     ## @brief Spreads the points more evenly on the detected contour.
     def smoothCurve(self, keepAngles=False, angleMax=math.pi/5):
@@ -492,6 +539,13 @@ class ConditionalMovingNGon(MovingNGon):
         self.moving = 1.0 # Proportions of rays able to move at last iteration.
 
     
+    def makeCopy(self):
+        n = ConditionalMovingNGon(self.origin, self.stepSize)
+        n.points = [p.makeCopy() for p in self.points]
+        n.moving = self.moving
+        return n
+
+    
     def makeRaysFromPoints(self, points, directions):
         self.points = [ConditionalRay(p, d, self.stepSize) for p, d in zip(points, directions)]
 
@@ -509,3 +563,14 @@ class ConditionalMovingNGon(MovingNGon):
         stillMoving = status.count(True)
         self.moving = stillMoving / len(self.points)
         return moved
+    
+
+    def setTestFunction(self, fx):
+        for r in self.points:
+            r.setTestFunction(fx)
+
+    
+    def shrink(self):
+        # !!! Add something to prevent infinite loops.
+        while self.move():
+            pass
