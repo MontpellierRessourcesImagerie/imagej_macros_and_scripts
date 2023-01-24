@@ -566,7 +566,7 @@ function markEmptyImages() {
 	checkAndGetBaseDir();
 	timeStart = getTime();
 	setBatchMode(true);
-	files = getStartPositions()
+	files = getStartPositions();
 	firstTime = getFirstYearDayAndHour();
 	root = BASE_DIR;
 	if(!isDBRootFolder(root)) exit("db not found!");
