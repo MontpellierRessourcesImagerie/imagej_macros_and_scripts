@@ -7,6 +7,8 @@
   **
 */
 
+var FOCAL_ADHESIONS_CHANNEL = 2;
+var TENSIN_CHANNEL = 1;
 var FUNCTION_TO_FIT = "Gamma Variate";
 var REGISTRATION_METHODS = newArray("stack reg", "sift");
 var REGISTRATION_METHOD = REGISTRATION_METHODS[0];
@@ -26,6 +28,9 @@ var LUTS = getList("LUTs");
 var LUT = LUTS[25];
 var SMOOTHING_RADIUS = 2;
 var MIDDLE_THRESHOLD_FACTOR = 1;
+var MIN_PROMINENCE = 5;
+var ROLLING_BALL_RADIUS = 50;
+
 var DEBUG = false;
 if (LUT!="Random") LUT = "glasbey on dark";
 
@@ -67,6 +72,8 @@ macro "Analyze dynamic zones in image [F5]" {
 
 macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.create("Analyze Dynamic Zones Options");
+    Dialog.addNumber("focal adhesions channel: ", FOCAL_ADHESIONS_CHANNEL);
+    Dialog.addNumber("tensin channel: ", TENSIN_CHANNEL);
     Dialog.addChoice("Dynamic: ", DYNAMICS, DYNAMIC);
     Dialog.addNumber("Dynamic threshold: ", CONST_THRESHOLD);
     Dialog.addCheckbox("Use relative threshold", USE_RELATIVE_CONST_THRESHOLD);
@@ -80,6 +87,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     
     Dialog.show();
     
+    FOCAL_ADHESIONS_CHANNEL = Dialog.getNumber();
+    TENSIN_CHANNEL = Dialog.getNumber();
     DYNAMIC = Dialog.getChoice();
     CONST_THRESHOLD = Dialog.getNumber();
     USE_RELATIVE_CONST_THRESHOLD = Dialog.getCheckbox();
@@ -106,19 +115,19 @@ macro "Plot total intensity over time [f6]" {
 }
 
 macro "Plot area over time (f7) Action Tool - C000T4b12p" {
-    plotAreaOverTime()
+    plotAreaOverTime();
 }
 
 macro "Plot area over time [f7]" {
-    plotAreaOverTime()
+    plotAreaOverTime();
 }
 
 macro "Plot mean intensity over time (f8) Action Tool - C000T4b12m" {
-    plotMeanIntensityOverTime()
+    plotMeanIntensityOverTime();
 }
 
 macro "Plot mean intensity over time [f8]" {
-    plotMeanIntensityOverTime()
+    plotMeanIntensityOverTime();
 }
 
 macro "Classify plot [f12]" {
@@ -185,7 +194,10 @@ function analyzeDynamicZonesInImage() {
     inputImageID = getImageID();
     inputImageTitle = getTitle();
     initAnalysis();
-    setBatchMode("hide");
+ //   setBatchMode("hide");
+    run("Split Channels");
+    selectImage("C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle);
+    focalAdhesionsImageID = getImageID(); 
     run("Properties...", "slices="+frames+" frames="+slices); 
     
     removeBackground();
@@ -197,11 +209,15 @@ function analyzeDynamicZonesInImage() {
     labelImageTitle = getTitle();
     run("Properties...", "slices="+slices+" frames="+frames); 
     
-    lastLabel = measureDynamic(frames, labelImageTitle, labelImageID, inputImageID);
+    lastLabel = measureDynamic(frames, labelImageTitle, labelImageID, focalAdhesionsImageID);
     selectImage(labelImageID);
     
     classifyActiveZones(lastLabel);
     
+    selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
+    tensinImageID = getImageID();
+    countTimesTouchedByTensin(tensinImageID);
+/**    
     run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
     count = roiManager("count");
     if (count>0) {
@@ -210,6 +226,28 @@ function analyzeDynamicZonesInImage() {
     }
     
     setBatchMode("exit and display");
+*/
+}
+
+function countTimesTouchedByTensin(imageID) {
+    selectImage(imageID);    
+    run("Duplicate...", "duplicate");
+    run("Subtract Background...", "rolling="+ROLLING_BALL_RADIUS+" stack");
+    setAutoThreshold("Moments dark stack");
+    run("Convert to Mask", "method=Moments background=Dark");    
+    run("Clear Results");
+    roiManager("deselect");
+    roiManager("measure");
+    count = roiManager("count");
+    for (i = 0; i < count; i++) {
+        roiManager("select", i);
+        run("Plot Z-axis Profile");
+        Plot.getValues(xpoints, ypoints);
+        maxima = Array.findMaxima(ypoints, MIN_PROMINENCE);
+        close();
+        setResult("Nr. of tensin contacts", i, maxima.length);
+    }
+    close();
 }
 
 function assertStackIsMovie() {
