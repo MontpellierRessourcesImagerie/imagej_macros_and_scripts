@@ -30,6 +30,8 @@ var SMOOTHING_RADIUS = 2;
 var MIDDLE_THRESHOLD_FACTOR = 1;
 var MIN_PROMINENCE = 5;
 var ROLLING_BALL_RADIUS = 50;
+var TOUCHED_THRESHOLD = 1;
+var CLASSES = newArray("decreasing", "n", "constant", "u", "increasing");
 
 var DEBUG = false;
 if (LUT!="Random") LUT = "glasbey on dark";
@@ -194,7 +196,7 @@ function analyzeDynamicZonesInImage() {
     inputImageID = getImageID();
     inputImageTitle = getTitle();
     initAnalysis();
- //   setBatchMode("hide");
+    setBatchMode(true);
     run("Split Channels");
     selectImage("C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle);
     focalAdhesionsImageID = getImageID(); 
@@ -217,6 +219,7 @@ function analyzeDynamicZonesInImage() {
     selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
     tensinImageID = getImageID();
     countTimesTouchedByTensin(tensinImageID);
+    reportDynamicTouchedUntouched(TOUCHED_THRESHOLD);
 /**    
     run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
     count = roiManager("count");
@@ -225,8 +228,41 @@ function analyzeDynamicZonesInImage() {
         run("Labels...", "color=white font=12 show use draw");
     }
     
+
+*/    
     setBatchMode("exit and display");
-*/
+}
+
+function reportDynamicTouchedUntouched(threshold) {
+    untouched = newArray(5);
+    touched = newArray(5);
+    tableName = "dynamic touched/untouched";
+    tableHandle = "[" + tableName + "]";
+    Table.create(tableName);
+    for (i = 0; i < CLASSES.length; i++) {
+        Table.set("class", i, CLASSES[i]);
+    }
+    for (i = 0; i < nResults; i++) {
+        class = getResult("class", i);
+        contacts = getResult("Nr. of tensin contacts", i);
+        if (contacts >= threshold) {
+            touched[class] = touched[class] + 1;
+        } else {
+            untouched[class] = untouched[class] + 1;
+        }
+    }
+    touchedPercent = newArray(5);
+    untouchedPercent = newArray(5);
+    for (i = 0; i < touched.length; i++) {
+        touchedPercent[i] = touched[i] / (touched[i] + untouched[i]);
+        untouchedPercent[i] = untouched[i] / (touched[i] + untouched[i]);
+    }
+
+    Table.setColumn("untouched (< "+threshold+")", untouched);
+    Table.setColumn("touched (>= "+threshold+")", touched);
+    Table.setColumn("fraction untouched", untouchedPercent);
+    Table.setColumn("fraction touched", touchedPercent);
+    Table.update;
 }
 
 function countTimesTouchedByTensin(imageID) {
@@ -246,8 +282,31 @@ function countTimesTouchedByTensin(imageID) {
         maxima = Array.findMaxima(ypoints, MIN_PROMINENCE);
         close();
         setResult("Nr. of tensin contacts", i, maxima.length);
+        label = getResultString("Label", i);
+        class = getClassFromLabel(label);
+        setResult("class", i, class);
     }
     close();
+}
+
+function getClassFromLabel(label) {
+    class = -1;
+    if (indexOf(label, "- decreasing") >= 0) {
+        class = 0;
+    }
+    if (indexOf(label, "- n") >= 0) {
+        class = 1;
+    }
+    if (indexOf(label, "- constant") >= 0) {
+        class = 2;
+    }
+    if (indexOf(label, "- u" ) >= 0) {
+        class = 3;
+    }
+    if (indexOf(label, "- i" ) >= 0) {
+        class = 4;
+    }
+    return class;
 }
 
 function assertStackIsMovie() {
