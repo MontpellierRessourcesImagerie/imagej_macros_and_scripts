@@ -999,7 +999,6 @@ function mergeOneWell(dir,well){
 	cleanDir = dir + FOLDER_CLEAN;
 	outDir = dir + FOLDER_MERGE;
 	if (!File.exists(outDir)) File.makeDirectory(outDir);
-
 	run("Stitch Collection of Images", "layout="+cleanDir+well+"-C1-translations.registered.txt channels_for_registration=[Red, Green and Blue] rgb_order=rgb fusion_method="+FUSION_METHOD+" fusion="+FUSION+" regression="+REGRESSION_THRESHOLD+" max/avg="+MAX_AVG_DISPLACEMENT_THRESHOLD+" absolute="+ABS_DISPLACEMENT_THRESHOLD);
 	rename("C1");
 	run("Enhance Contrast", "saturated=0.35");
@@ -1190,6 +1189,7 @@ function checkAndGetBaseDir() {
 		showMessage("WARNING!", "Your path contains spaces. Please remove all spaces from the path first!");
 		return;
 	}
+    BASE_DIR = replace(BASE_DIR, "\\", "/");
     dataDir = BASE_DIR + "EssenFiles/ScanData/";
     firstTime = getFirstYearDayAndHourFrom(dataDir);
     NR = getNR(dataDir + firstTime[0] + firstTime[1]+ firstTime[2]);
