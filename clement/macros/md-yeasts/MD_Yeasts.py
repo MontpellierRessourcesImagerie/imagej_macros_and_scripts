@@ -9,6 +9,8 @@ def run():
         return False
 
     imIn = IJ.getImage()
+    imIn.setTitle(imIn.getTitle().replace('$', '_'))
+    
     if imIn is None:
         IJ.log("An image is required to work")
         return False
