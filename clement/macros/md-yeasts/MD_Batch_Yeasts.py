@@ -46,7 +46,7 @@ def run():
     
     for idx, c in enumerate(content):
 
-        IJ.log("Processing {0} ({1}/{2})...".format(c, str(idx+1).zfill(3), str(len(content)).zfill(3)))
+        IJ.log(" = = = Processing {0} ({1}/{2})... = = = ".format(c, str(idx+1).zfill(3), str(len(content)).zfill(3)))
         
         roiName = '.'.join(c.split('.')[:-1]) + ".zip"
         rmPath = os.path.join(roisPath, roiName)

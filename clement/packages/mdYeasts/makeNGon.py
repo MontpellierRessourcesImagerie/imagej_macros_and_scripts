@@ -10,19 +10,47 @@ from ij.process import FloatPolygon
 import math
 
 
-def drawYeast(yeast, canvas, color, roi):
+def drawYeast(yeast, canvas, color, roiCoords):
+
+    """
+    Function drawing a yeast object (its unerlying ROI) on the 8-bit canvas
+    The yeast is supposed to be extracted from a wider image, so the coordinates on the original image are required.
+
+    @type  yeast: MovingNGon
+    @param yeast: This object will be turned into an ROI to be drawn on the canvas.
+    @type  canvas: ImagePlus
+    @param canvas: An 8-bit single-channeled image, as big as the original image, on which the yeast will be drawn.
+    @type  color: int
+    @param color: Color used to draw that yeast. Must be in [0, 255].
+    @type  roiCoords: (float, float)
+    @param roiCoords: A tuple representing the shift to apply to the coordinates of C{yeast} to draw its points on the canvas.
+
+    @rtype: void
+    """
+
     roiYeast = yeast.asROI()
-    roiYeast.setLocation(roi[0] + roiYeast.getXBase(), roi[1] + roiYeast.getYBase())
+    coordsDraw = (roiCoords[0] + roiYeast.getXBase(), roiCoords[1] + roiYeast.getYBase())
+    roiYeast.setLocation(coordsDraw[0], coordsDraw[1])
     proc = canvas.getProcessor()
     proc.setColor(color)
     proc.fill(roiYeast)
-    proc.setColor(255)
-    proc.setAntialiasedText(True)
-    proc.setFontSize(60)
-    proc.drawString("abcdef12", 480, 540)
 
 
 def buildStatistics(histoBefore, histoAfter):
+
+    """
+    Takes the histogram of the full cell, and the one of the cytoplasm.
+    The subtraction of these two entities produces the histogram of the membrane.
+    Processes: Q1, median, Q3, minimum, maximum, mean, standard deviation & area.
+
+    @type  histoBefore: int[]
+    @param histoBefore: Histogram of the entire cell.
+    @type  histoAfter: int[]
+    @param histoAfter: Histogram of the cytoplasm.
+
+    @rtype: dict((str, float))
+    @return: A dictionary representing statistics in the membrane of the cell.
+    """
 
     for i in range(len(histoBefore)):
         sous = histoBefore[i] - histoAfter[i]
@@ -74,6 +102,12 @@ def buildStatistics(histoBefore, histoAfter):
 
 
 def checkIntensityGap(obj):
+
+    """
+    Function determining if the intensity difference between two steps of a ray is too big.
+    Function exclusively used by LevelGapRay::checkCondition.
+    """
+
     x = obj.origin[0] + obj.stepSize * obj.direction[0]
     y = obj.origin[1] + obj.stepSize * obj.direction[1]
 
@@ -85,18 +119,48 @@ def checkIntensityGap(obj):
 
 
 def checkInsideHalo(obj):
-    x = obj.origin[0] + obj.stepSize * obj.direction[0]
-    y = obj.origin[1] + obj.stepSize * obj.direction[1]
+
+    """
+    Function exclusively used by LevelGapRay::checkCondition.
+    """
+
+    x = obj.origin[0] # + obj.stepSize * obj.direction[0]
+    y = obj.origin[1] # + obj.stepSize * obj.direction[1]
+
+    if (obj.origin[0] < 0) or (obj.origin[0] >= obj.image.getWidth()):
+        return False
+
+    if (x < 0) or (x >= obj.image.getWidth()):
+        return False
+
+    if (obj.origin[1] < 0) or (obj.origin[1] >= obj.image.getHeight()):
+        return False
+
+    if (y < 0) or (y >= obj.image.getHeight()):
+        return False
 
     proc = obj.image.getProcessor()
-    before = proc.get(int(obj.origin[0]), int(obj.origin[1]))
-    obj.enteredWhite = (before == 255) or obj.enteredWhite
-    after = proc.get(int(x), int(y))
+    val = proc.get(int(x), int(y))
 
-    return not (obj.enteredWhite and (before == 0))
+    if val == 0:
+        return not obj.enteredWhite
+    else:
+        obj.enteredWhite = (val == 255) or obj.enteredWhite
+
+    return True
+    # before = proc.get(int(obj.origin[0]), int(obj.origin[1]))
+    # obj.enteredWhite = (before == 255) or obj.enteredWhite
+    # after = proc.get(int(x), int(y))
+
+    # return not (obj.enteredWhite and (before == 0))
 
 
 def checkDistanceFunction(obj):
+
+    """
+    Function exclusively used by LevelGapRay::checkCondition.
+    """
+
     return obj.distance < obj.thickness
 
 
@@ -122,7 +186,7 @@ class LevelGapRay(ConditionalRay):
         r.thickness = self.thickness
         return r
 
-    
+
     def rollingSum(self, data, scalar=2):
         # Declaring used variables.
         length   = int(scalar * self.thickness)
@@ -139,6 +203,13 @@ class LevelGapRay(ConditionalRay):
 
         # Filling the values with what's currently considered as the membrane.
         for i in range(membrane):
+
+            if current[0] < 0 or current[0] >= data.getWidth():
+                return
+            
+            if current[1] < 0 or current[1] >= data.getHeight():
+                return
+
             values[i] = proc.get(int(current[0]), int(current[1]))
             current = (
                 self.origin[0] + i * step * self.direction[0],
@@ -153,21 +224,27 @@ class LevelGapRay(ConditionalRay):
             if len(values) >= membrane:
                 del values[0]
             
+            if current[0] < 0 or current[0] >= data.getWidth():
+                break
+            
+            if current[1] < 0 or current[1] >= data.getHeight():
+                break
+            
             values.append(proc.get(int(current[0]), int(current[1])))
             acc = sum(values)
 
             if acc > valMax:
                 valMax = acc
                 posMax = (
-                    self.origin[0] + i * step * self.direction[0],
-                    self.origin[1] + i * step * self.direction[1]
+                    self.origin[0] + (i - 0.5) * step * self.direction[0],
+                    self.origin[1] + (i - 0.5) * step * self.direction[1]
                 )
 
             current = (
                 current[0] + i * step * self.direction[0],
                 current[1] + i * step * self.direction[1]
             )
-        # print(self.origin, current)
+        
         self.origin = posMax
 
 
@@ -212,7 +289,9 @@ class IJMovingNGon(ConditionalMovingNGon):
         if maxIndex < scdMax:
             maxIndex, scdMax = scdMax, maxIndex
 
-        return self.split(scdMax, maxIndex, True)
+        c1, c2, cuts = self.split(scdMax, maxIndex, True)
+
+        return c1, c2, cuts
 
 
     def makeRaysFromPoints(self, points, directions):
@@ -249,9 +328,9 @@ class IJMovingNGon(ConditionalMovingNGon):
     def skipHalo(self, percentage):
         self.reset()
         self.setTestFunction(checkInsideHalo)
-
-        while (1.0 - self.moving) < percentage:
-            self.move()
+        while ((1.0 - self.moving) < percentage) and self.move():
+            # self.move()
+            pass
     
 
     def asROI(self):
@@ -270,6 +349,7 @@ class IJMovingNGon(ConditionalMovingNGon):
 
     
     def recordMembrane(self, data, control, marker, base):
+
         data.setRoi(self.asROI())
         statsBefore = data.getProcessor().getHistogram()
         perOut = self.getPerimeter()
@@ -296,6 +376,23 @@ class IJMovingNGon(ConditionalMovingNGon):
         for r in self.points:
             r.rollingSum(data, scalar)
 
+    
+    def validity(self):
+
+        curvatures = [p.getCurvature() for p in self.points]
+        maxCurv = max(curvatures)
+        minCurv = min(curvatures)
+
+        if maxCurv > 0.1:
+            IJ.log("Skipped. A curvature too high was detected.")
+            return False
+        
+        if minCurv < -0.7:
+            IJ.log("Skipped. A curvature too low was detected.")
+            return False
+
+        return True
+
 
 def mvngFromUser(img):
 
@@ -311,7 +408,7 @@ def mvngFromUser(img):
     if settings['shape'] == "Box":
         pts, dirs = buildShrinkingBox(nPoints, img.getHeight(), img.getWidth())
 
-    if settings['shape'] == "Ellipsis":
+    if settings['shape'] == "Ellipse":
         pts, dirs = buildShrinkingEllipsis(nPoints, img.getHeight(), img.getWidth())
     
     mvng.makeRaysFromPoints(pts, dirs)
@@ -327,12 +424,23 @@ def mvngFromUser(img):
     return (mvng, "DONE.")
 
 
+def exportYeasts(yd, ym, name, idx, fldr):
+    import os
 
-def motherDaughterSegmentation(img, data, control, base):
-    
+    folder = os.path.join("/home/benedetti/Documents/projects/2-maxime-yeasts/Testing/Segmentation-tests/results/", fldr)
+    dName = "{0}_{1}_D.json".format(name, str(idx).zfill(2))
+    mName = "{0}_{1}_M.json".format(name, str(idx).zfill(2))
+
+    yd.outputCoordinates(os.path.join(folder, dName))
+
+    if ym is not None:
+        ym.outputCoordinates(os.path.join(folder, mName))
+
+
+
+def motherDaughterSegmentation(img, data, control, base, idx=None):
     # 1. Acquiring polygon object from user's input
     mvng, verbose = mvngFromUser(img)
-
     if mvng is None:
         return (None, None, None, "Failed to create polygon from settings: {0}".format(verbose))
 
@@ -342,36 +450,53 @@ def motherDaughterSegmentation(img, data, control, base):
     mvng.processCurvature()
 
     # 3. Adjusting the new polygon, and splitting it to separate yeasts.
-    mvng.smoothProjection()
-    mvng.spreadSamplingLimit(1, 2, 0)
+    mvng.smoothProjection(tol=0.8)
+    mvng.spreadSamplingLimit(1.0, 2, 0)
     mvng.interpolateSamples(1)
-    yeastD, yeastM = mvng.splitCells()
 
+    yeastD, yeastM, cuts = mvng.splitCells()
+    cuts = (cuts[1], cuts[0], cuts[2], cuts[3])
+    
     if yeastD.getPerimeter() > yeastM.getPerimeter():
         yeastD, yeastM = yeastM, yeastD
+        cuts = (cuts[2], cuts[3], cuts[0], cuts[1])
+    exportYeasts(yeastD, yeastM, img.getTitle(), idx, "16-before")
 
-    # 4. Checking that the segmentation in valid.
-    if not (yeastD.isConvex() and yeastM.isConvex()):
-        return (None, None, None, "Yeasts are supposed to be star-convex shapes.")
-
-    # 5. Going to the cells.
+    # 4. Going to the cells.
     percTolHalo = 0.8
     yeastD.skipHalo(percTolHalo)
     yeastM.skipHalo(percTolHalo)
 
+    yeastD.updateNormals()
+    yeastM.updateNormals()
+
+    yeastD.subdivide(cuts[0], 3)
+    yeastM.subdivide(cuts[2], 3)
+
+    # 5. Getting to the actual membrane
     yeastD.rollingSum(data)
     yeastM.rollingSum(data)
 
+    # 6. Fixing holes
+    yeastD.inflate()
+    yeastM.inflate()
+
+    # 7. Updating normals and curvature
     yeastD.updateNormals()
     yeastM.updateNormals()
 
     yeastD.processCurvature()
     yeastM.processCurvature()
+    exportYeasts(yeastD, yeastM, img.getTitle(), idx, "14-splitted")
 
-    # 6. Starting recording points and going through the membrane
+    # 8. Recording the membrane area
+    if not (yeastD.validity() and yeastM.validity()):
+        return (None, None, None, "Segmentation failed: Invalid polygon.")
+
     statsM = yeastM.recordMembrane(data, control, 255, base)
     statsD = yeastD.recordMembrane(data, control, 127, base)
 
+    # 9. Making stats for daughter (D) and mother (M) yeasts
     stats = {}
 
     for key, item in statsM.items():

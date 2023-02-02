@@ -4,10 +4,13 @@ from basicOps import vecSub, normalize, distance
 #   RAYS BASE CLASS                                                                                   #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-## @brief Class representing a ray with its origin and its direction. Handles moves.
-#         It keeps track of the distance it travelled, the number of iterations that it took to get here, and manages its own step size.
-#         It contains a curvature attribute which is useful only if you couple it with a MovingNGon object.
 class Ray(object):
+
+    """
+    Class representing a ray with its origin and its direction. Handles moves.
+    It keeps track of the distance it travelled, the number of iterations that it took to get here, and manages its own step size.
+    It contains a curvature attribute which is useful only if you couple it with a MovingNGon object.
+    """
 
     ## @brief Constructor
     ## @param o The origin point of this ray, where it will start its travel.
@@ -19,6 +22,11 @@ class Ray(object):
         self.distance  = 0.0
         self.count     = 0
         self.curvature = 0.0
+
+    
+    def reset(self):
+        pass
+    
 
     def makeCopy(self):
         r = Ray(self.origin, self.direction, self.stepSize)
@@ -66,10 +74,10 @@ class Ray(object):
             self.stepSize = s
 
     ## @brief Acts like the move method, but doesn't modify the values of travelledDistance() and getCount()
-    def forceStep(self):
+    def forceStep(self, t):
         newPoint = (
-            self.origin[0] + self.stepSize * self.direction[0], 
-            self.origin[1] + self.stepSize * self.direction[1])
+            self.origin[0] + t * self.direction[0], 
+            self.origin[1] + t * self.direction[1])
         
         self.origin = newPoint
 
