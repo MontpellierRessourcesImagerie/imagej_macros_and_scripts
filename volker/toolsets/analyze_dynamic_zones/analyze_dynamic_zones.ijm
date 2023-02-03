@@ -172,13 +172,18 @@ function plotTotalIntensityOverTime() {
 function plotOverTime(tableName) {
     name = Roi.getName;
     parts = split(name, "-");
-    label = parseInt(parts[0])
-    Plot.create("Plot of "+tableName+" Label=" + label , "x", label);
-    Plot.add("Connected Circles", Table.getColumn(label, tableName));
-    Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
+    label = parseInt(parts[0]);
+    deltaT = Stack.getFrameInterval(); 
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
     data = Table.getColumn(label, tableName);
     smoothedData = smoothArray(data);
     X = Array.getSequence(smoothedData.length);
+    for (i = 0; i < X.length; i++) {
+        X[i] = X[i] * deltaT;
+    }
+    Plot.create("Plot of "+tableName+" Label=" + label , "t ["+tUnit+"]", label);
+    Plot.add("Connected Circles", X, Table.getColumn(label, tableName));
+    Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
     Fit.doFit(FUNCTION_TO_FIT, X, smoothedData);
     Y = newArray(X.length);
     for(i=0; i<X.length; i++) {
