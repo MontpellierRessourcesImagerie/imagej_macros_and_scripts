@@ -344,7 +344,17 @@ class MovingNGon(object):
 
     
     def subdivide(self, idx, nbPts):
+        """
+        Subdivides the edge between the points C{idx} and C{idx+1} by adding C{nbPts} equally spaced points in between.
+        The direction vectors are equally interpolated.
 
+        @type  idx: int
+        @param idx: An index in the points array. The edge that it forms with the point C{idx+1} is the target.
+        @type  nbPts: int
+        @param nbPts: How many points should be inserted on the targeted edge.
+
+        @rtype: void
+        """
         ptLeft = self.points[idx].getOrigin()
         ptRight = self.points[nextRotate(idx, len(self.points))].getOrigin()
 
@@ -389,8 +399,8 @@ class MovingNGon(object):
 
         @type  idx: int
         @param idx: Index of the point after which new points must be inserted.
-        @type  nbPoints: int
-        @param nbPoints: Number of points to be inserted after C{points[idx]}.
+        @type  nbPts: int
+        @param nbPts: Number of points to be inserted after C{points[idx]}.
 
         @rtype: list((float, float))
         @return: A list containing the new points to add after C{points[idx]}.
@@ -478,20 +488,6 @@ class MovingNGon(object):
         return nvPts
 
     
-    def interpolatePointInPlace(self, idx, nbPts):
-        newCoords = self.interpolatePoint(idx, nbPts)
-        nvPts = []
-
-        for c in newCoords:
-            p = self.points[idx].makeCopy()
-            p.setOrigin(c)
-            nvPts.append(p)
-
-        self.points = self.points[:idx+1] + nvPts + self.points[idx+1:]
-        self.updateNormals()
-        self.processCurvature()
-
-    
     def makeStats(self):
         """
         Function creating a collection of statistics about the current MovingNGon.
@@ -544,6 +540,12 @@ class MovingNGon(object):
 
     
     def normalizedCurvatures(self):
+        """
+        Builds a list representing the normalized curvature of this polygon's points.
+        Values are guaranteed to reach -1 or 1 (division by the maximal value of absolute curvatures).
+
+        @rtype: list(float)
+        """
         l = [abs(c.getCurvature()) for c in self.points]
         m = max(l)
         return [li.getCurvature() / m for li in self.points]

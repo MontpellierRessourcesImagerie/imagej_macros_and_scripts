@@ -285,10 +285,7 @@ def drawID(canvas, xPos, yPos, width, height, idTxt, fontSize=25):
         xDraw = 10
 
     if yPos - fontSize - 10 <= 0:
-        yDraw = yPos + height + 10
-
-    if yPos - 10 <= 0:
-        yDraw = 10
+        yDraw = yPos + height + fontSize + 10
 
     clr = proc.get(int(xDraw), int(yDraw))
     clr = int(255 - clr)
@@ -296,7 +293,6 @@ def drawID(canvas, xPos, yPos, width, height, idTxt, fontSize=25):
     proc.setAntialiasedText(True)
     proc.setFontSize(fontSize)
     proc.drawString(idTxt, int(xDraw), int(yDraw))
-
 
 
 
@@ -322,10 +318,16 @@ def segmentYeasts(rm, imIn, batch=False):
     @return: In this tuple, the boolean is the execution status (success or fail) and the string is the reason why the execution failed. (or "DONE." on success.)
     """
 
-    # 1. Extracting images
-    chunks = imIn.crop(rm.getRoisAsArray(), "stack")
-    calib  = imIn.getCalibration()
+    # 0. Checking that the image is calibrated.
+    calib = imIn.getCalibration()
+    unit  = calib.getUnit()
 
+    if unit.lower() in ["pixel", "pixels", "px", "pxl"]:
+        IJ.log("{0} is not calibrated. Abort.".format(imIn.getTitle()))
+        return
+
+    # 1. Extracting images
+    chunks  = imIn.crop(rm.getRoisAsArray(), "stack")
     control = ImagePlus("Control", ByteProcessor(imIn.getWidth(), imIn.getHeight()))
     control.getProcessor().set(0)
 
