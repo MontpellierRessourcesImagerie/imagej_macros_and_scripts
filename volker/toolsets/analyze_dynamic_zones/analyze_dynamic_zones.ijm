@@ -221,6 +221,33 @@ function plotAndReportCrossCorrelation(displayPlot) {
     selectImage(dependentPlotTitle);
 }
 
+function reportCrossCorrelation() {
+    title = getTitle();
+    Stack.getDimensions(width, height, channels, slices, frames);
+    frame = Stack.getFrameInterval();
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    max = Math.floor(frames / 2);
+    name = Roi.getName;
+    parts = split(name, "-");
+    label = parseInt(parts[0]);
+    deltaT = Stack.getFrameInterval(); 
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    dependentSeries = Table.getColumn(label, DYNAMIC_TABLE);
+    
+    Table.create("tmp cc");
+    
+    independentSeries = newArray(frames);
+    for (i = 0; i < frames; i++) {
+        Stack.setFrame(i+1);
+        independentSeries[i] = getValue("Mean");
+    }
+    Stack.setFrame(0);
+    Table.setColumn("Y2", dependentSeries);
+    Table.setColumn("Mean", independentSeries);
+    
+    run("cross correlation", "plot=None plot_0=None table=[tmp cc] column=Y2 column_0=Mean max.="+max+" frame="+frame+" time="+tUnit+" title=["+title+"]");
+}
+
 function analyzeDynamicZonesInImage() {
     assertStackIsMovie();
     LUTFolder = getDir("luts");
@@ -253,8 +280,8 @@ function analyzeDynamicZonesInImage() {
     countTimesTouchedByTensin(tensinImageID);
     reportDynamicTouchedUntouched(TOUCHED_THRESHOLD);
     selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
-    setBatchMode("exit and display");
     batchPlotAndReportCrossCorrelation(tensinImageID);
+    setBatchMode("exit and display");
     
 /**    
     run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
@@ -306,9 +333,8 @@ function batchPlotAndReportCrossCorrelation(imageID) {
     for (i = 0; i < count; i++) {
         selectImage(imageID);
         roiManager("select", i);
-        plotAndReportCrossCorrelation(false);
-        close();
-        close();
+        reportCrossCorrelation();
+        close("tmp cc");
         minCC = Table.get("min.", i, "cross-correlation results");
         lagMinCC = Table.get("lag of min.", i, "cross-correlation results");
         maxCC = Table.get("max.", i, "cross-correlation results");
