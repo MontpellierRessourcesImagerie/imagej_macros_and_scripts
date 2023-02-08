@@ -42,6 +42,7 @@ class CrossCorrelographView:
             tableIsOpen = True
         if not tableIsOpen:
             table = ResultsTable()
+        table.show(title)
         minCorrelation, lagOfMinCorrelation = self.model.getMinCorrelationAndLag()
         maxCorrelation, lagOfMaxCorrelation = self.model.getMaxCorrelationAndLag()
         table.incrementCounter()
@@ -52,7 +53,9 @@ class CrossCorrelographView:
         table.addValue("lag of max.", lagOfMaxCorrelation)
         table.show(title)
         table.updateResults()
-    
+        table = ResultsTable.getResultsTable("Results")
+        table.updateResults();
+        
     
     def showPlot(self):
         X = [lag * self.model.frameInterval for lag in range(-self.model.maxLag, self.model.maxLag+1)]
