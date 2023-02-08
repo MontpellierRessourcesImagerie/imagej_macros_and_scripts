@@ -1,10 +1,12 @@
 from __future__ import division
 import math
 from org.apache.commons.math3.stat.correlation import PearsonsCorrelation
-from  ij.gui import Plot
-from ij.gui import GenericDialog
-from ij.measure import ResultsTable
 from ij import IJ
+from ij import WindowManager
+from ij.gui import Plot
+from ij.gui import GenericDialog
+import ij.gui.PlotWindow
+from ij.measure import ResultsTable
 
 
 def main():
@@ -28,6 +30,8 @@ class CrossCorrelographView:
         self.table = "Plot Values"
         self.dependentSeriesColumn = "Y2"
         self.independentSeriesColumn = "Mean" 
+        self.plotDependentSeries = "None"
+        self.plotIndependentSeries = "None"
         
         
     def report(self):
@@ -59,26 +63,40 @@ class CrossCorrelographView:
 
     
     def showDialog(self):
+        plotWindowTitles = ["None"] + self.getPlotWindowTitles()
         gd = GenericDialog("Cross-Correlograph Options")
+        gd.addChoice("Plot of dependent series: ", plotWindowTitles, self.plotDependentSeries)
+        gd.addChoice("Plot of independent series: ", plotWindowTitles, self.plotIndependentSeries)
         gd.addStringField("Table: ", self.table)
         gd.addStringField("Column of dependent series: ", self.dependentSeriesColumn)
         gd.addStringField("Column of independent series: ", self.independentSeriesColumn)
         gd.addNumericField("Max. lag (in nr. of data points):", self.model.maxLag);
+        gd.addNumericField("Frame interval: " , self.model.frameInterval)
+        gd.addStringField("time unit: ", self.model.timeUnit) 
         gd.addStringField("Title: ", self.title)
         gd.addCheckbox("Display plot", self.shallShowPlot)
         gd.showDialog()
         if gd.wasCanceled():
             return False
+        self.plotDependentSeries = gd.getNextChoice()
+        self.plotIndependentSeries = gd.getNextChoice()
         self.table = gd.getNextString()
         self.dependentSeriesColumn = gd.getNextString()
         self.independentSeriesColumn = gd.getNextString()
         self.model.maxLag = int(gd.getNextNumber())
+        self.model.frameInterval = gd.getNextNumber()
+        self.model.frameUnit = gd.getNextString()
         self.title = gd.getNextString()
         self.shallShowPlot = gd.getNextBoolean()
         
-        table = ResultsTable.getResultsTable(self.table)
-        self.getModel().dependentSeries = table.getColumn(self.dependentSeriesColumn);
-        self.getModel().independentSeries = table.getColumn(self.independentSeriesColumn);
+        if not self.plotDependentSeries == "None":
+            self.getModel().dependentSeries = list(WindowManager.getWindow(self.plotDependentSeries).getYValues())
+            self.getModel().independentSeries = list(WindowManager.getWindow(self.plotIndependentSeries).getYValues())
+            
+        else:
+            table = ResultsTable.getResultsTable(self.table)
+            self.getModel().dependentSeries = table.getColumn(self.dependentSeriesColumn);
+            self.getModel().independentSeries = table.getColumn(self.independentSeriesColumn);
         
         return True
         
@@ -86,8 +104,19 @@ class CrossCorrelographView:
     def getModel(self):
         return self.model
 
-
-
+    def getPlotWindowTitles(self) :
+        return [window.getTitle() for window in self.getPlotWindows()]
+    
+    def getPlotWindows(self):
+        imageTitles = WindowManager.getImageTitles()
+        plots = []
+        for title in imageTitles:
+            window = WindowManager.getWindow(title)
+            if isinstance(window, ij.gui.PlotWindow):
+                plots.append(window)
+        return plots
+        
+    
 class CrossCorrelograph:
 
 

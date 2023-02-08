@@ -21,9 +21,9 @@ var RELATIVE_CONST_THRESHOLD = 0.4;
 var USE_RELATIVE_CONST_THRESHOLD = true;
 var GRADIENT_FILTER_RADIUS_XY = 1;
 var GRADIENT_FILTER_RADIUS_Z = 3;
-var BORDER_SIZE = 10;   // in pixel
+var BORDER_SIZE = 30;   // in pixel
 var DOG_LARGE_RADIUS = 15;
-var SHOW_CONSTANT = false;
+var SHOW_CONSTANT = true;
 var LUTS = getList("LUTs");
 var LUT = LUTS[25];
 var SMOOTHING_RADIUS = 2;
@@ -138,6 +138,14 @@ macro "Classify plot [f12]" {
     print(class);
 }
 
+macro "Plot Cross Correlation by lag (f9) Action Tool - C000T4b12c" {
+    plotAndReportCrossCorrelation(true);
+}
+
+macro "Plot Cross Correlation by lag [f9]" {
+    plotAndReportCrossCorrelation(true);
+}
+
 function registerFrames() {
     if (REGISTRATION_METHOD=="stack reg") {
         run("multi stack reg");
@@ -194,6 +202,25 @@ function plotOverTime(tableName) {
     Plot.show();
 }
 
+function plotAndReportCrossCorrelation(displayPlot) {
+    imageID = getImageID();
+    title = getTitle();
+    Stack.getDimensions(width, height, channels, slices, frames);
+    max = Math.floor(frames / 2);
+    frame = Stack.getFrameInterval();
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    plotOverTime(DYNAMIC_TABLE);        
+    dependentPlotTitle = getTitle();
+    selectImage(imageID);
+    run("Plot Z-axis Profile");
+    independentPlotTitle = getTitle();
+    displayFlag = "";
+    if (displayPlot) displayFlag = " display";
+    run("cross correlation", "plot=["+dependentPlotTitle+"] plot_0=["+independentPlotTitle+"] max.="+max+" frame="+frame+" time="+tUnit+" title="+title+displayFlag);
+    selectImage(independentPlotTitle);
+    selectImage(dependentPlotTitle);
+}
+
 function analyzeDynamicZonesInImage() {
     assertStackIsMovie();
     LUTFolder = getDir("luts");
@@ -225,6 +252,10 @@ function analyzeDynamicZonesInImage() {
     tensinImageID = getImageID();
     countTimesTouchedByTensin(tensinImageID);
     reportDynamicTouchedUntouched(TOUCHED_THRESHOLD);
+    selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
+    setBatchMode("exit and display");
+    batchPlotAndReportCrossCorrelation(tensinImageID);
+    
 /**    
     run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
     count = roiManager("count");
@@ -235,7 +266,6 @@ function analyzeDynamicZonesInImage() {
     
 
 */    
-    setBatchMode("exit and display");
 }
 
 function reportDynamicTouchedUntouched(threshold) {
@@ -268,6 +298,33 @@ function reportDynamicTouchedUntouched(threshold) {
     Table.setColumn("fraction untouched", untouchedPercent);
     Table.setColumn("fraction touched", touchedPercent);
     Table.update;
+}
+
+function batchPlotAndReportCrossCorrelation(imageID) {
+    count = roiManager("count");
+    startTime = getTime();
+    for (i = 0; i < count; i++) {
+        selectImage(imageID);
+        roiManager("select", i);
+        plotAndReportCrossCorrelation(false);
+        close();
+        close();
+        minCC = Table.get("min.", i, "cross-correlation results");
+        lagMinCC = Table.get("lag of min.", i, "cross-correlation results");
+        maxCC = Table.get("max.", i, "cross-correlation results");
+        lagMaxCC = Table.get("lag of max.", i, "cross-correlation results");
+        setResult("min. cc", i, minCC);
+        setResult("lag of min. cc", i, lagMinCC);
+        setResult("max. cc", i, maxCC);
+        setResult("lag of max. cc", i, lagMaxCC);
+        updateResults();
+    }
+    roiManager("deselect");
+    run("Select None");
+    updateResults();
+    endTime = getTime();
+    deltaTime = (endTime - startTime) / (1000 * 60);
+    print("cross correlation calculations took " + deltaTime + " minutes.");
 }
 
 function countTimesTouchedByTensin(imageID) {
@@ -322,6 +379,7 @@ function assertStackIsMovie() {
 }
 
 function initAnalysis() {
+    run("Options...", "iterations=1 count=1");
     run("ROI Manager...");
     roiManager("reset");
     run("Grays");
@@ -571,4 +629,21 @@ function convolve(array, kernel, borderHandling) {
         resultArray[i] = sum;
     }
     return resultArray;
+}
+
+function getPlotTitles() {
+    imageTitles = getList("image.titles");
+    Array.print(imageTitles);
+    currentImageID = getImageID();
+    plots = newArray(0);
+    for (i = 0; i < imageTitles.length; i++) {
+        title = imageTitles[i];
+        selectImage(title);
+        type = getInfo("window.type");
+        if (type == "Plot") {
+            plots = Array.concat(plots, title);
+        }
+    }
+    selectImage(currentImageID);
+    return plots;
 }
