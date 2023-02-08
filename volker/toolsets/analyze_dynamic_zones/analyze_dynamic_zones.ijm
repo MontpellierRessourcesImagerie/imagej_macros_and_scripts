@@ -217,8 +217,6 @@ function plotAndReportCrossCorrelation(displayPlot) {
     displayFlag = "";
     if (displayPlot) displayFlag = " display";
     run("cross correlation", "plot=["+dependentPlotTitle+"] plot_0=["+independentPlotTitle+"] max.="+max+" frame="+frame+" time="+tUnit+" title="+title+displayFlag);
-    selectImage(independentPlotTitle);
-    selectImage(dependentPlotTitle);
 }
 
 function reportCrossCorrelation() {
@@ -282,17 +280,14 @@ function analyzeDynamicZonesInImage() {
     selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
     batchPlotAndReportCrossCorrelation(tensinImageID);
     setBatchMode("exit and display");
-    
-/**    
-    run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
-    count = roiManager("count");
-    if (count>0) {
-        run("From ROI Manager");
-        run("Labels...", "color=white font=12 show use draw");
-    }
-    
-
-*/    
+    run("Merge Channels...", "c2=C"+TENSIN_CHANNEL+"-"+inputImageTitle+" c4=C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle+" c5="+labelImageTitle+" create");
+    Stack.setChannel(1);
+    run("Green"); 
+    roiManager("UseNames", "true");
+    roiManager("Show None");
+    roiManager("Show All");
+    roiManager("Show All without labels");
+    roiManager("Show All with labels");
 }
 
 function reportDynamicTouchedUntouched(threshold) {
@@ -345,6 +340,7 @@ function batchPlotAndReportCrossCorrelation(imageID) {
         setResult("lag of max. cc", i, lagMaxCC);
         updateResults();
     }
+    close("cross-correlation results");
     roiManager("deselect");
     run("Select None");
     updateResults();
