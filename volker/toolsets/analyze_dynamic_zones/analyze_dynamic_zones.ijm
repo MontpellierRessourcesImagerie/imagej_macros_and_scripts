@@ -8,7 +8,10 @@
 */
 
 var FOCAL_ADHESIONS_CHANNEL = 2;
+var THRESHOLDING_METHOD = "Otsu"
+var THRESHOLDING_METHODS = getList("threshold.methods");
 var TENSIN_CHANNEL = 1;
+var THRESHOLDING_METHOD_TENSIN = "Moments";
 var FUNCTION_TO_FIT = "Gamma Variate";
 var REGISTRATION_METHODS = newArray("stack reg", "sift");
 var REGISTRATION_METHOD = REGISTRATION_METHODS[0];
@@ -74,8 +77,10 @@ macro "Analyze dynamic zones in image [F5]" {
 
 macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.create("Analyze Dynamic Zones Options");
-    Dialog.addNumber("focal adhesions channel: ", FOCAL_ADHESIONS_CHANNEL);
-    Dialog.addNumber("tensin channel: ", TENSIN_CHANNEL);
+    Dialog.addNumber("Focal adhesions channel: ", FOCAL_ADHESIONS_CHANNEL);
+    Dialog.addChoice("Auto-thresholding method", THRESHOLDING_METHODS, THRESHOLDING_METHOD);
+    Dialog.addNumber("Tensin channel: ", TENSIN_CHANNEL);
+    Dialog.addChoice("Tensin auto-thresholding method", THRESHOLDING_METHODS, THRESHOLDING_METHOD_TENSIN);
     Dialog.addChoice("Dynamic: ", DYNAMICS, DYNAMIC);
     Dialog.addNumber("Dynamic threshold: ", CONST_THRESHOLD);
     Dialog.addCheckbox("Use relative threshold", USE_RELATIVE_CONST_THRESHOLD);
@@ -90,7 +95,9 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.show();
     
     FOCAL_ADHESIONS_CHANNEL = Dialog.getNumber();
+    THRESHOLDING_METHOD = Dialog.getChoice();
     TENSIN_CHANNEL = Dialog.getNumber();
+    THRESHOLDING_METHOD_TENSIN = Dialog.getChoice();
     DYNAMIC = Dialog.getChoice();
     CONST_THRESHOLD = Dialog.getNumber();
     USE_RELATIVE_CONST_THRESHOLD = Dialog.getCheckbox();
@@ -263,6 +270,7 @@ function analyzeDynamicZonesInImage() {
     dogImageTitle = getTitle();
     
     segmentActiveZones();
+    close(dogImageTitle);
     
     labelImageID = getImageID();
     labelImageTitle = getTitle();
@@ -280,7 +288,7 @@ function analyzeDynamicZonesInImage() {
     selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
     batchPlotAndReportCrossCorrelation(tensinImageID);
     setBatchMode("exit and display");
-    run("Merge Channels...", "c2=C"+TENSIN_CHANNEL+"-"+inputImageTitle+" c4=C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle+" c5="+labelImageTitle+" create");
+    run("Merge Channels...", "c2=[C"+TENSIN_CHANNEL+"-"+inputImageTitle+"] c4=[C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle+"] c5=["+labelImageTitle+"] create");
     Stack.setChannel(1);
     run("Green"); 
     roiManager("UseNames", "true");
@@ -353,8 +361,8 @@ function countTimesTouchedByTensin(imageID) {
     selectImage(imageID);    
     run("Duplicate...", "duplicate");
     run("Subtract Background...", "rolling="+ROLLING_BALL_RADIUS+" stack");
-    setAutoThreshold("Moments dark stack");
-    run("Convert to Mask", "method=Moments background=Dark");    
+    setAutoThreshold(THRESHOLDING_METHOD_TENSIN + " dark stack");
+    run("Convert to Mask", "method=" + THRESHOLDING_METHOD_TENSIN + " background=Dark");    
     run("Clear Results");
     roiManager("deselect");
     roiManager("measure");
@@ -570,14 +578,15 @@ function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
 function segmentActiveZones() {
     run("Morphological Filters (3D)", "operation=Gradient element=Cube x-radius="+GRADIENT_FILTER_RADIUS_XY+" y-radius="+GRADIENT_FILTER_RADIUS_XY+" z-radius="+GRADIENT_FILTER_RADIUS_Z);
     gradientImageTitle = getTitle();
-    run("Convert to Mask", "method=Otsu background=Dark");
+    setAutoThreshold(THRESHOLDING_METHOD + " dark stack");
+    setOption("BlackBackground", false);
+    run("Convert to Mask", "method=" + THRESHOLDING_METHOD + " background=Dark");
     removeXYBorderVoxels();
     run("Fill Holes", "stack");
     run("Connected Components Labeling", "connectivity=6 type=[16 bits]");
     run(LUT);
     labelImageID = getImageID();
     labelImageTitle = getTitle();
-    close(dogImageTitle);
     close(gradientImageTitle);    
 }
 
