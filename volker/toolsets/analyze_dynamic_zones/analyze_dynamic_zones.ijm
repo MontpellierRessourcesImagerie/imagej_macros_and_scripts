@@ -35,6 +35,8 @@ var MIN_PROMINENCE = 5;
 var ROLLING_BALL_RADIUS = 50;
 var TOUCHED_THRESHOLD = 1;
 var CLASSES = newArray("decreasing", "n", "constant", "u", "increasing");
+var CACLULATE_CROSS_CORRELATION = false;
+var SMOOTHING_RADIUS = 3;
 
 var DEBUG = false;
 if (LUT!="Random") LUT = "glasbey on dark";
@@ -90,6 +92,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.addNumber("Gradient filter z-radius: ", GRADIENT_FILTER_RADIUS_Z);
     Dialog.addNumber("Border size: ", BORDER_SIZE);
     Dialog.addCheckbox("Show constant zones", SHOW_CONSTANT);
+    Dialog.addCheckbox("Calculate cross-correlation", CACLULATE_CROSS_CORRELATION);
+    Dialog.addNumber("smoothing radius for cc: ", SMOOTHING_RADIUS);
     Dialog.addChoice("LUT for zones", LUTS, LUT);
     
     Dialog.show();
@@ -107,6 +111,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     GRADIENT_FILTER_RADIUS_Z = Dialog.getNumber();
     BORDER_SIZE = Dialog.getNumber();
     SHOW_CONSTANT = Dialog.getCheckbox();
+    CACLULATE_CROSS_CORRELATION = Dialog.getCheckbox();
+    SMOOTHING_RADIUS = Dialog.getNumber();
     LUT = Dialog.getChoice();
     
     for (i = 0; i < DYNAMICS.length; i++) {
@@ -223,7 +229,7 @@ function plotAndReportCrossCorrelation(displayPlot) {
     independentPlotTitle = getTitle();
     displayFlag = "";
     if (displayPlot) displayFlag = " display";
-    run("cross correlation", "plot=["+dependentPlotTitle+"] plot_0=["+independentPlotTitle+"] max.="+max+" frame="+frame+" time="+tUnit+" title="+title+displayFlag);
+    run("cross correlation", "plot=["+dependentPlotTitle+"] plot_0=["+independentPlotTitle+"] max.="+max+" smoothing="+SMOOTHING_RADIUS+" frame="+frame+" time="+tUnit+" title="+title+displayFlag);
 }
 
 function reportCrossCorrelation() {
@@ -286,7 +292,9 @@ function analyzeDynamicZonesInImage() {
     countTimesTouchedByTensin(tensinImageID);
     reportDynamicTouchedUntouched(TOUCHED_THRESHOLD);
     selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
-    batchPlotAndReportCrossCorrelation(tensinImageID);
+    if (CACLULATE_CROSS_CORRELATION) {
+        batchPlotAndReportCrossCorrelation(tensinImageID);
+    }
     setBatchMode("exit and display");
     run("Merge Channels...", "c2=[C"+TENSIN_CHANNEL+"-"+inputImageTitle+"] c4=[C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle+"] c5=["+labelImageTitle+"] create");
     Stack.setChannel(1);

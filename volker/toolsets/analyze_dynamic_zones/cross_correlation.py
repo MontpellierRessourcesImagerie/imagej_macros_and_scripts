@@ -18,7 +18,7 @@ def main():
     if correlograph.getView().shallShowPlot:
         correlograph.getView().showPlot()
     correlograph.getView().report()
-    
+
     
 class CrossCorrelographView:
 
@@ -73,6 +73,7 @@ class CrossCorrelographView:
         gd.addStringField("Table: ", self.table)
         gd.addStringField("Column of dependent series: ", self.dependentSeriesColumn)
         gd.addStringField("Column of independent series: ", self.independentSeriesColumn)
+        gd.addNumericField("Smoothing radius: ", self.model.smoothingRadius)
         gd.addNumericField("Max. lag (in nr. of data points):", self.model.maxLag);
         gd.addNumericField("Frame interval: " , self.model.frameInterval)
         gd.addStringField("time unit: ", self.model.timeUnit) 
@@ -86,6 +87,7 @@ class CrossCorrelographView:
         self.table = gd.getNextString()
         self.dependentSeriesColumn = gd.getNextString()
         self.independentSeriesColumn = gd.getNextString()
+        self.model.smoothingRadius = int(gd.getNextNumber())
         self.model.maxLag = int(gd.getNextNumber())
         self.model.frameInterval = gd.getNextNumber()
         self.model.frameUnit = gd.getNextString()
@@ -129,6 +131,7 @@ class CrossCorrelograph:
         self.maxLag = 23
         self.crossCorrelationByLag = []
         self.frameInterval = 60.05
+        self.smoothingRadius = 3
         self.timeUnit = "s"
         self.view = None
        
@@ -139,6 +142,14 @@ class CrossCorrelograph:
         X = [lag * self.frameInterval for lag in range(-self.maxLag, self.maxLag+1)]
         minLag = X[minIndex]
         return minCorrelation, minLag
+
+
+    def setSmoothingRadius(self, radius):
+        self.smoothingRadius = radius
+
+                
+    def getSmoothingRadius(self):
+        return self.smoothingradius
 
 
     def getMaxCorrelationAndLag(self):
@@ -158,6 +169,10 @@ class CrossCorrelograph:
     def calculateCrossCorrelation(self):
             a = self.dependentSeries
             b = self.independentSeries
+            if self.smoothingRadius > 0:
+                convolutionFilter = ConvolutionFilter1D()
+                a = convolutionFilter.smooth(self.dependentSeries, self.smoothingRadius)
+                b = convolutionFilter.smooth(self.independentSeries, self.smoothingRadius)
             maxLag = self.maxLag
             correlator = PearsonsCorrelation()
             lags = range(-maxLag, maxLag+1)
@@ -181,4 +196,44 @@ class CrossCorrelograph:
             self.crossCorrelationByLag = xCorr
 
 
+class ConvolutionFilter1D:
+
+
+    def __init__(self):
+        self.setKernel(self.getMeanKernel(3))
+
+        
+    def setKernel(self, aKernel):
+        if len(aKernel) % 2 == 0:
+            raise ValueError("The size of the kernel needs to be odd but the kernel size is: " + len(kernel))
+        self.kernel = aKernel
+        
+        
+    def getMeanKernel(self, radius):
+        n = 2 * radius + 1
+        kernel = [1 / n] * n
+        return kernel
+
+
+    def convolve(self, data):  
+        kernel = self.kernel
+        kernelCenterIndex = int(math.floor(len(kernel) / 2))
+        resultArray = [0]*len(data)
+        for index, value in enumerate(data):
+            sum = 0
+            for kernelIndex, factor in enumerate(kernel):
+                currentIndex = index - kernelCenterIndex + kernelIndex
+                currentValue = value
+                if currentIndex > -1 and currentIndex < len(data):
+                    currentValue = data[currentIndex]
+                sum = sum  + (currentValue * factor)
+            resultArray[index] = sum
+        return resultArray
+    
+    
+    def smooth(self, data, radius):
+        self.setKernel(self.getMeanKernel(radius))
+        result = self.convolve(data)
+        return result
+    
 main()
