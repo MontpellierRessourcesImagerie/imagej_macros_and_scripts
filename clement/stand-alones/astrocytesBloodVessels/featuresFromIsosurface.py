@@ -1,6 +1,7 @@
 import os
 import sys
 import random
+import json
 import numpy as np
 import pymeshlab
 from scipy.spatial import KDTree, Delaunay
@@ -8,6 +9,81 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from multiprocessing import Pool
 from functools import partial
+
+
+def main():
+    measures = {}
+
+    state = {
+        'outputDirectory': "/home/benedetti/Bureau/7-isosurface/",
+        'target': "/home/benedetti/Bureau/export/",
+        'exports': {
+            'shrunk': True,
+            'smooth': True,
+            'flat': True,
+            'sphere': True,
+            'cleaned': True
+        },
+        'current': None,
+        'blenderPath': "/home/benedetti/Bureau/blender-3.4.1-linux-x64/blender",
+        'blenderScript': "/home/benedetti/Bureau/generateBlenderFile.py",
+        'produced': [],
+        'success': [],
+        'fails': []
+    }
+
+    path  = state['target']
+    batch = os.path.isdir(path)
+    
+    if not os.path.isfile(path) and not batch:
+        print("ERROR. The provided path doesn't correspond to anything.")
+        return -1
+
+    if batch:
+        queue = [os.path.join(path, f) for f in sorted(os.listdir(path)) if os.path.isfile(os.path.join(path, f)) and f.lower().endswith('.wrl')]
+    else:
+        queue = [path]
+    
+    for filePath in queue:
+        state['current'] = filePath
+
+        try:
+            extractMeasures(measures, state)
+            state['success'].append(state['current'])
+        except:
+            print(f"{state['current']} skipped due to an error.")
+            state['fails'].append(state['current'])
+        
+        createVerificationFile(state)
+        state['produced'].clear()
+    
+    csvPath = os.path.join(state['outputDirectory'], "result.csv")
+    print(f"Exporting CSV to: {csvPath}")
+    dicoToCSV(measures, csvPath)
+
+    print("")
+    print(" ----------------------------------------------------------------------")
+    print(" |                          SUCCESS                                   |")
+    print(" ----------------------------------------------------------------------")
+    for s in state['success']:
+        print(f" | - {s}")
+    print(" ----------------------------------------------------------------------")
+    print(" |                          FAILS                                     |")
+    print(" ----------------------------------------------------------------------")
+    for f in state['fails']:
+        print(f" | - {f}")
+    print(" ----------------------------------------------------------------------")
+    print("")
+
+    print("DONE.")
+
+    return 0
+
+
+def createVerificationFile(state):
+    jsonParams = json.dumps(state).replace('"', '#')
+    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- '{jsonParams}'"
+    os.system(commandLine)
 
 
 def isSmall(e):
@@ -479,100 +555,113 @@ def createPlot(graph, mapping, measures, name):
     plt.close()
 
 
-def extractMeasures(measures):
+def extractMeasures(measures, state):
 
-    ###  TEMPORARY  ###
+    exportName = os.path.basename(state['current']).split('.')[0]
 
-    workingDir = "/home/benedetti/Bureau/7-isosurface/" # Export directory
-    meshFilePath = "/home/benedetti/Bureau/testing-set/non-connex-obj.wrl" # Mesh path
-
-    ###################
-
-    print(f"Importing {meshFilePath}")
-
-    print("    | Opening the mesh(es) on which we are going to work.")
+    print(f"= = = = = = Importing '{exportName}' = = = = = =")
     ms = pymeshlab.MeshSet()
-    ms.load_new_mesh(meshFilePath)
-    ms.save_current_mesh(os.path.join(workingDir, "before.obj"))
+    ms.load_new_mesh(state['current'])
 
-    # - - Splitting connex components must be done here - -
+    nbBefore = len(ms)
+    ms.apply_filter("generate_splitting_by_connected_components")
+    nbAfter  = len(ms)
+    chunks = [ms[i] for i in range(nbBefore, nbAfter)]
 
-    print(f"    | Currently {len(ms)} mesh(es) loaded.")
+    print(f"    | = = = = = = Currently {nbAfter - nbBefore} mesh loaded. = = = = = =")
 
-    print("    | Centering the mesh at the center of the world")
-    centered = geometryToOrigin(ms.current_mesh())
-    ms.add_mesh(centered)
-    ms.save_current_mesh(os.path.join(workingDir, "centered.obj"))
-    print(ms.apply_filter("generate_splitting_by_connected_components"))
+    for iC, chunk in enumerate(chunks):
+        produced = {
+            'center': None,
+            'cleaned': None
+        }
+        print(f"    | Processing mesh {iC+1}/{nbAfter - nbBefore}.")
+        measures.setdefault('islands', []).append(nbAfter - nbBefore)
+
+        measures.setdefault('source', []).append(exportName)
+        measures.setdefault('rank', []).append(iC+1)
+
+        print("        | Centering the mesh at the center of the world.")
+        centered = geometryToOrigin(chunk)
+        ms.add_mesh(centered)
+        ms.apply_filter("meshing_merge_close_vertices")
+        expNameCenter = os.path.join(state['outputDirectory'], f"1-centered-{exportName}-{str(iC+1).zfill(2)}.obj")
+        ms.save_current_mesh(expNameCenter)
+        produced['center'] = expNameCenter
     
-    print("    | Building a graph giving, for each index of vertex, the indices of its neighbors vertices.")
-    graph = buildNeighborhoodGraph(centered)
+        print("        | Building a graph giving, for each index of vertex, the indices of its neighbors vertices.")
+        graph = buildNeighborhoodGraph(ms.current_mesh())
 
-    print("    | Shrinking the mesh along its vertices' normals.")
-    shrunk = shrink(centered)
-    ms.add_mesh(shrunk)
-    ms.save_current_mesh(os.path.join(workingDir, "shrunk.obj"))
+        print("        | Shrinking the mesh along its vertices' normals.")
+        shrunk = shrink(ms.current_mesh())
+        ms.add_mesh(shrunk)
+        ms.save_current_mesh(os.path.join(state['outputDirectory'], f"2-shrunk-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-    print("    | Smoothing the mesh by interpolation each vertex with its neighbors.")
-    smooth = averageSmoothing(shrunk, graph)
-    ms.add_mesh(smooth)
-    ms.save_current_mesh(os.path.join(workingDir, "smooth.obj"))
+        print("        | Smoothing the mesh by interpolation each vertex with its neighbors.")
+        smooth = averageSmoothing(shrunk, graph)
+        ms.add_mesh(smooth)
+        ms.save_current_mesh(os.path.join(state['outputDirectory'], f"3-smooth-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-    print("    | Create a rough version of a 0-thickness mesh.")
-    flat = flatten(smooth, smooth, graph)
+        print("        | Create a rough version of a 0-thickness mesh.")
+        flat = flatten(smooth, smooth, graph)
+        ms.add_mesh(flat)
+        ms.save_current_mesh(os.path.join(state['outputDirectory'], f"4-flattened-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-    print("    | Building a sphere projection of our rough flatenned version.")
-    radius, sphere = sphereProject(flat)
-    measures.setdefault('radius', []).append(radius)
-    
-    print("    | Removing points projected at the same place on the sphere (corresponding to failed borders)")
-    ms.add_mesh(sphere)
-    ms.apply_filter("meshing_cut_along_crease_edges")
-    ms.apply_filter("meshing_remove_connected_component_by_face_number")
-    ms.save_current_mesh(os.path.join(workingDir, "sphere.obj"))
+        print("        | Building a sphere projection of our rough flatenned version.")
+        radius, sphere = sphereProject(flat)
+        measures.setdefault('radius', []).append(radius)
+        
+        print("        | Removing points projected at the same place on the sphere (corresponding to failed borders)")
+        ms.add_mesh(sphere)
+        ms.apply_filter("meshing_cut_along_crease_edges")
+        ms.apply_filter("meshing_remove_connected_component_by_face_number")
+        ms.save_current_mesh(os.path.join(state['outputDirectory'], f"5-sphere-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-    print("    | Removing the vertices on the rough version corresponding to the one removed at the previous step.")
-    cleaned = compare(flat, sphere, ms.current_mesh())
-    ms.add_mesh(cleaned)
+        print("        | Removing the vertices on the rough version corresponding to the one removed at the previous step.")
+        cleaned = compare(flat, sphere, ms.current_mesh())
+        ms.add_mesh(cleaned)
 
-    print("    | Cleaning the correct version of the surface.")
-    ms.apply_filter("meshing_close_holes")
-    ms.apply_filter("meshing_snap_mismatched_borders")
-    ms.apply_filter("meshing_repair_non_manifold_vertices")
-    ms.apply_filter("meshing_merge_close_vertices")
-    ms.apply_filter("meshing_remove_duplicate_faces")
-    ms.save_current_mesh(os.path.join(workingDir, "cleaned.obj"))
+        print("        | Cleaning the correct version of the surface.")
+        ms.apply_filter("meshing_close_holes")
+        ms.apply_filter("meshing_snap_mismatched_borders")
+        ms.apply_filter("meshing_repair_non_manifold_vertices")
+        ms.apply_filter("meshing_merge_close_vertices")
+        ms.apply_filter("meshing_remove_duplicate_faces")
+        expCleanPath = os.path.join(state['outputDirectory'], f"6-cleaned-{exportName}-{str(iC+1).zfill(2)}.obj")
+        ms.save_current_mesh(expCleanPath)
+        produced['cleaned'] = expCleanPath
 
-    print("    | Finding all loops of vertices being on borders")
-    graph     = buildNeighborhoodGraph(ms.current_mesh())
-    partGraph = buildParticipationGraph(ms.current_mesh())
-    borders   = findBorders(ms.current_mesh(), graph, partGraph)
+        print("        | Finding all loops of vertices being on borders")
+        graph     = buildNeighborhoodGraph(ms.current_mesh())
+        partGraph = buildParticipationGraph(ms.current_mesh())
+        borders   = findBorders(ms.current_mesh(), graph, partGraph)
 
-    print("    | The perimeter is the border with the biggest length")
-    idBorderPerim, perimeter = processPerimeter(ms.current_mesh(), borders)
-    measures.setdefault('perimeter', []).append(perimeter)
+        print("        | The perimeter is the border with the biggest length")
+        idBorderPerim, perimeter = processPerimeter(ms.current_mesh(), borders)
+        measures.setdefault('perimeter', []).append(perimeter)
 
-    print("    | Processing the number of holes and the area of the surface.")
-    measures.setdefault('nbHoles', []).append(len(borders)-1)
-    measures.setdefault('area', []).append(processArea(ms.current_mesh()))
+        print("        | Processing the number of holes and the area of the surface.")
+        measures.setdefault('nbHoles', []).append(len(borders)-1)
+        measures.setdefault('area', []).append(processArea(ms.current_mesh()))
 
-    print("    | Determining the Axis Aligned measures.")
-    bb = makeAABB(ms.current_mesh())
-    measures.setdefault('aa_width', []).append(bb[0][1] - bb[0][0])
-    measures.setdefault('aa_height', []).append(bb[1][1] - bb[1][0])
-    measures.setdefault('aa_depth', []).append(bb[2][1] - bb[2][0])
+        print("        | Determining the Axis Aligned measures.")
+        bb = makeAABB(ms.current_mesh())
+        measures.setdefault('aa_width', []).append(bb[0][1] - bb[0][0])
+        measures.setdefault('aa_height', []).append(bb[1][1] - bb[1][0])
+        measures.setdefault('aa_depth', []).append(bb[2][1] - bb[2][0])
 
-    print("    | Building geodesic distance to the closest border.")
-    distances = distanceToBorder(ms.current_mesh(), graph, borders)
-    
-    print("    | Max number of connected components reached during decimation caracterizes the sprawlingness of the surface.")
-    measures.setdefault('maxCompos', []).append(decimate(distances, graph))
+        print("        | Building geodesic distance to the closest border.")
+        distances = distanceToBorder(ms.current_mesh(), graph, borders)
+        
+        print("        | Max number of connected components reached during decimation caracterizes the sprawlingness of the surface.")
+        measures.setdefault('maxCompos', []).append(decimate(distances, graph))
 
-    print("    | Building convex hull from cylindrical projection.")
-    axis = detectAxisBloodVessel(ms.current_mesh(), samples=10, radius=radius)
+        # print("    | Building convex hull from cylindrical projection.")
+        # axis = detectAxisBloodVessel(ms.current_mesh(), samples=10, radius=radius)
 
-    measures.setdefault('iters', 0)
-    measures['iters'] += 1
+        measures.setdefault('iters', 0)
+        measures['iters'] += 1
+        state['produced'].append(produced)
 
 
 def dicoToCSV(dico, outpath):
@@ -594,29 +683,4 @@ def dicoToCSV(dico, outpath):
     f.close()
 
 
-def main():
-    measures = {}
-    extractMeasures(measures)
-    dicoToCSV(measures, "/home/benedetti/Bureau/output.csv")
-    return 0
-
-    # Currently working on...
-    if len(sys.argv) < 2:
-        print("The path to a file or a directory is required")
-    else:
-        path = sys.argv[1]
-        batch = os.path.isdir(path)
-        
-        if not os.path.isfile(path) and not batch:
-            print("ERROR. The provided path doesn't correspond to anything.")
-        else:
-            measures = main()
-            pprint(measures)
-
-
 main()
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-# mapping   = generateMappingForImage(ms.current_mesh(), (500, 500))
-# createPlot(graph, mapping, distances)
