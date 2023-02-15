@@ -26,7 +26,7 @@ def main():
         },
         'current': None,
         'blenderPath': "/home/benedetti/Bureau/blender-3.4.1-linux-x64/blender",
-        'blenderScript': "/home/benedetti/Bureau/generateBlenderFile.py",
+        'blenderScript': "/home/benedetti/Documents/imagej_macros_and_scripts/clement/stand-alones/astrocytesBloodVessels/generateBlenderFile.py",
         'produced': [],
         'success': [],
         'fails': []
@@ -82,7 +82,7 @@ def main():
 
 def createVerificationFile(state):
     jsonParams = json.dumps(state).replace('"', '#')
-    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- '{jsonParams}'"
+    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
     os.system(commandLine)
 
 
