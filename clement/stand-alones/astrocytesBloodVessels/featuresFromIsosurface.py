@@ -14,24 +14,27 @@ from functools import partial
 def main():
     measures = {}
 
+    # State used all along the execution.
     state = {
-        'outputDirectory': "/home/benedetti/Bureau/7-isosurface/",
-        'target': "/home/benedetti/Bureau/export/",
+        'outputDirectory': "/home/benedetti/Documents/projects/7-isosurface/produced",
+        'target': "/home/benedetti/Documents/projects/7-isosurface/testing-set/t_015.wrl",
         'exports': {
             'shrunk': True,
             'smooth': True,
             'flat': True,
             'sphere': True,
-            'cleaned': True
+            'cleaned': True,
+            'geodesic': True
         },
         'current': None,
-        'blenderPath': "/home/benedetti/Bureau/blender-3.4.1-linux-x64/blender",
-        'blenderScript': "/home/benedetti/Documents/imagej_macros_and_scripts/clement/stand-alones/astrocytesBloodVessels/generateBlenderFile.py",
+        'blenderPath': "/home/benedetti/blender",
+        'blenderScript': "/home/benedetti/Documents/projects/7-isosurface/astrocytesBloodVessels/generateBlenderFile.py",
         'produced': [],
         'success': [],
         'fails': []
     }
 
+    # Determining if the provided path is a directory (batch mode) or a file (one shot).
     path  = state['target']
     batch = os.path.isdir(path)
     
@@ -44,14 +47,16 @@ def main():
     else:
         queue = [path]
     
+    # For each file containing meshes:
     for filePath in queue:
         state['current'] = filePath
 
         try:
             extractMeasures(measures, state)
             state['success'].append(state['current'])
-        except:
+        except Exception as err:
             print(f"{state['current']} skipped due to an error.")
+            print(err)
             state['fails'].append(state['current'])
         
         createVerificationFile(state)
@@ -81,6 +86,7 @@ def main():
 
 
 def createVerificationFile(state):
+    """Launches an instance of Blender and runs a script on the embedded Python. It builds a verification scene from the surface."""
     jsonParams = json.dumps(state).replace('"', '#')
     commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
     os.system(commandLine)
@@ -109,7 +115,7 @@ def geometryToOrigin(mesh):
 
 
 def shrink(mesh, shrinkingFactor=0.18):
-    """Shrink a mesh along its vertices' normals"""
+    """Shrinks a mesh along its vertices' normals"""
     
     normals  = np.array([normalize(n) for n in mesh.vertex_normal_matrix()])
     vertices = mesh.vertex_matrix()
@@ -350,6 +356,7 @@ def makeAABB(mesh):
 
 
 def processIntersection(vertices, faces, intersections, ray):
+    """Processes the number of intersections between a ginven ray and a mesh."""
     count = 0
     index, direction, origin = ray
 
@@ -491,6 +498,7 @@ def findBorders(mesh, graph, participation):
 
 
 def browseFromVertex(vertex, distances, graph, marking):
+    """Propagation algorithm reaching all vertices from a seed vertex."""
     queue = [vertex]
 
     while len(queue) > 0:
@@ -503,6 +511,7 @@ def browseFromVertex(vertex, distances, graph, marking):
 
 
 def decimate(dst, graph):
+    """Iteratively decreases the chamfer distance to determine the regularity of the shape. Bigger numbers mean less regularity."""
     distances = dst.copy()
     maxCount = 0
 
@@ -573,7 +582,8 @@ def extractMeasures(measures, state):
     for iC, chunk in enumerate(chunks):
         produced = {
             'center': None,
-            'cleaned': None
+            'cleaned': None,
+            'json': None
         }
         print(f"    | Processing mesh {iC+1}/{nbAfter - nbBefore}.")
         measures.setdefault('islands', []).append(nbAfter - nbBefore)
@@ -652,6 +662,12 @@ def extractMeasures(measures, state):
 
         print("        | Building geodesic distance to the closest border.")
         distances = distanceToBorder(ms.current_mesh(), graph, borders)
+        distancesDict = {'geodesic': [int(i) for i in distances]}
+        geoPath = os.path.join(state['outputDirectory'], f"7-geodesic-{exportName}-{str(iC+1).zfill(2)}.json")
+        produced['json'] = geoPath
+        f = open(geoPath, 'w')
+        json.dump(distancesDict, f)
+        f.close()
         
         print("        | Max number of connected components reached during decimation caracterizes the sprawlingness of the surface.")
         measures.setdefault('maxCompos', []).append(decimate(distances, graph))
