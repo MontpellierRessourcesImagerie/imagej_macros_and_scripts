@@ -4,42 +4,51 @@ import random
 import json
 import numpy as np
 import pymeshlab
+import subprocess
 from scipy.spatial import KDTree, Delaunay
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from multiprocessing import Pool
 from functools import partial
 
+# State used all along the execution.
+state = {
+    'outputDirectory': "/home/benedetti/Documents/projects/7-isosurface/produced",
+    'target': "/home/benedetti/Documents/projects/7-isosurface/testing-set",
+    'exports': {
+        'shrunk': True,
+        'smooth': True,
+        'flat': True,
+        'sphere': True,
+        'cleaned': True,
+        'geodesic': True
+    },
+    'current': None,
+    'blenderPath': "/home/benedetti/blender",
+    'blenderScript': "/home/benedetti/Documents/projects/7-isosurface/astrocytesBloodVessels/generateBlenderFile.py",
+    'produced': [],
+    'success': [],
+    'fails': [],
+    'operation': ""
+}
+
+sys.stdout = open(os.path.join(state['outputDirectory'], "logs.txt"), 'w')
+
+def setState(s):
+    global state
+    state['operation'] = s
+    print(s)
+
 
 def main():
     measures = {}
-
-    # State used all along the execution.
-    state = {
-        'outputDirectory': "/home/benedetti/Documents/projects/7-isosurface/produced",
-        'target': "/home/benedetti/Documents/projects/7-isosurface/testing-set/t_015.wrl",
-        'exports': {
-            'shrunk': True,
-            'smooth': True,
-            'flat': True,
-            'sphere': True,
-            'cleaned': True,
-            'geodesic': True
-        },
-        'current': None,
-        'blenderPath': "/home/benedetti/blender",
-        'blenderScript': "/home/benedetti/Documents/projects/7-isosurface/astrocytesBloodVessels/generateBlenderFile.py",
-        'produced': [],
-        'success': [],
-        'fails': []
-    }
 
     # Determining if the provided path is a directory (batch mode) or a file (one shot).
     path  = state['target']
     batch = os.path.isdir(path)
     
     if not os.path.isfile(path) and not batch:
-        print("ERROR. The provided path doesn't correspond to anything.")
+        setState("ERROR. The provided path doesn't correspond to anything.")
         return -1
 
     if batch:
@@ -52,44 +61,49 @@ def main():
         state['current'] = filePath
 
         try:
-            extractMeasures(measures, state)
+            extractMeasures(measures)
             state['success'].append(state['current'])
         except Exception as err:
-            print(f"{state['current']} skipped due to an error.")
-            print(err)
+            setState(f"{state['current']} skipped due to an error.")
+            setState(str(err))
             state['fails'].append(state['current'])
         
-        createVerificationFile(state)
+        createVerificationFile()
         state['produced'].clear()
     
     csvPath = os.path.join(state['outputDirectory'], "result.csv")
-    print(f"Exporting CSV to: {csvPath}")
+    setState(f"Exporting CSV to: {csvPath}")
     dicoToCSV(measures, csvPath)
 
-    print("")
-    print(" ----------------------------------------------------------------------")
-    print(" |                          SUCCESS                                   |")
-    print(" ----------------------------------------------------------------------")
+    sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
+    sys.stderr.write(" |                                    SUCCESS                                          |\n")
+    sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
+    sys.stderr.write(" |\n")
     for s in state['success']:
-        print(f" | - {s}")
-    print(" ----------------------------------------------------------------------")
-    print(" |                          FAILS                                     |")
-    print(" ----------------------------------------------------------------------")
+        sys.stderr.write(f" | - {s}\n")
+    sys.stderr.write(" |\n")
+    sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
+    sys.stderr.write(" |                                    FAILS                                            |\n")
+    sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
+    sys.stderr.write(" |\n")
     for f in state['fails']:
-        print(f" | - {f}")
-    print(" ----------------------------------------------------------------------")
-    print("")
+        sys.stderr.write(f" | - {f}\n")
+    sys.stderr.write(" |\n")
+    sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
+    sys.stderr.write("\n")
 
-    print("DONE.")
+    sys.stderr.write("DONE.\n")
 
     return 0
 
 
-def createVerificationFile(state):
+def createVerificationFile():
     """Launches an instance of Blender and runs a script on the embedded Python. It builds a verification scene from the surface."""
     jsonParams = json.dumps(state).replace('"', '#')
-    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
-    os.system(commandLine)
+    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\" > {os.path.devnull}"
+    setState(f"        | Command: <{commandLine}>")
+    # os.system(commandLine)
+    subprocess.run(commandLine, shell=True)
 
 
 def isSmall(e):
@@ -167,26 +181,6 @@ def averageSmoothing(mesh, graph):
     return pymeshlab.Mesh(vertex_matrix=newVerts, face_matrix=faces)
 
 
-# resolution: (width,  height)
-def generateMappingForImage(mesh, resolution):
-    """Associates each vertex of a mesh to some pixel coordinates in an image of the specified resolution."""
-
-    vertices = mesh.vertex_matrix()
-    mapping  = np.zeros((len(vertices), 2))
-
-    for i, v in enumerate(vertices):
-        rho   = np.linalg.norm(v)
-        theta = np.arccos(v[2] / rho) # [0, pi]
-        phi   = np.arctan2(v[1], v[0]) # ]-pi, pi]
-
-        column = int((theta / np.pi) * resolution[0])
-        line   = int(((phi + np.pi) / (2 * np.pi)) * resolution[1])
-
-        mapping[i] = (column, line)
-    
-    return mapping
-
-
 def distanceToBorder(mesh, graph, borders):
     """Associates to each vertex the shortest geodesic distance between it and the border."""
 
@@ -227,7 +221,6 @@ def sphereProject(mesh, radius=-1):
                 m = n
                 i = idx
         radius = m + 0.5
-
 
     # Sphere projection
     for i, (v, n) in enumerate(zip(vertices, normals)):
@@ -564,11 +557,12 @@ def createPlot(graph, mapping, measures, name):
     plt.close()
 
 
-def extractMeasures(measures, state):
+def extractMeasures(measures):
 
     exportName = os.path.basename(state['current']).split('.')[0]
 
-    print(f"= = = = = = Importing '{exportName}' = = = = = =")
+    setState(f"= = = = = = Importing '{exportName}' = = = = = =")
+    sys.stderr.write(f"= = = = = = Importing '{exportName}' = = = = = =\n")
     ms = pymeshlab.MeshSet()
     ms.load_new_mesh(state['current'])
 
@@ -577,7 +571,7 @@ def extractMeasures(measures, state):
     nbAfter  = len(ms)
     chunks = [ms[i] for i in range(nbBefore, nbAfter)]
 
-    print(f"    | = = = = = = Currently {nbAfter - nbBefore} mesh loaded. = = = = = =")
+    setState(f"    | = = = = = = Currently {nbAfter - nbBefore} mesh loaded. = = = = = =")
 
     for iC, chunk in enumerate(chunks):
         produced = {
@@ -585,13 +579,13 @@ def extractMeasures(measures, state):
             'cleaned': None,
             'json': None
         }
-        print(f"    | Processing mesh {iC+1}/{nbAfter - nbBefore}.")
+        setState(f"    | Processing mesh {iC+1}/{nbAfter - nbBefore}.")
         measures.setdefault('islands', []).append(nbAfter - nbBefore)
 
         measures.setdefault('source', []).append(exportName)
         measures.setdefault('rank', []).append(iC+1)
 
-        print("        | Centering the mesh at the center of the world.")
+        setState("        | Centering the mesh at the center of the world.")
         centered = geometryToOrigin(chunk)
         ms.add_mesh(centered)
         ms.apply_filter("meshing_merge_close_vertices")
@@ -599,40 +593,40 @@ def extractMeasures(measures, state):
         ms.save_current_mesh(expNameCenter)
         produced['center'] = expNameCenter
     
-        print("        | Building a graph giving, for each index of vertex, the indices of its neighbors vertices.")
+        setState("        | Building a graph giving, for each index of vertex, the indices of its neighbors vertices.")
         graph = buildNeighborhoodGraph(ms.current_mesh())
 
-        print("        | Shrinking the mesh along its vertices' normals.")
+        setState("        | Shrinking the mesh along its vertices' normals.")
         shrunk = shrink(ms.current_mesh())
         ms.add_mesh(shrunk)
         ms.save_current_mesh(os.path.join(state['outputDirectory'], f"2-shrunk-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-        print("        | Smoothing the mesh by interpolation each vertex with its neighbors.")
+        setState("        | Smoothing the mesh by interpolation each vertex with its neighbors.")
         smooth = averageSmoothing(shrunk, graph)
         ms.add_mesh(smooth)
         ms.save_current_mesh(os.path.join(state['outputDirectory'], f"3-smooth-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-        print("        | Create a rough version of a 0-thickness mesh.")
+        setState("        | Create a rough version of a 0-thickness mesh.")
         flat = flatten(smooth, smooth, graph)
         ms.add_mesh(flat)
         ms.save_current_mesh(os.path.join(state['outputDirectory'], f"4-flattened-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-        print("        | Building a sphere projection of our rough flatenned version.")
+        setState("        | Building a sphere projection of our rough flatenned version.")
         radius, sphere = sphereProject(flat)
         measures.setdefault('radius', []).append(radius)
         
-        print("        | Removing points projected at the same place on the sphere (corresponding to failed borders)")
+        setState("        | Removing points projected at the same place on the sphere (corresponding to failed borders)")
         ms.add_mesh(sphere)
         ms.apply_filter("meshing_cut_along_crease_edges")
         ms.apply_filter("meshing_remove_connected_component_by_face_number")
         ms.save_current_mesh(os.path.join(state['outputDirectory'], f"5-sphere-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
-        print("        | Removing the vertices on the rough version corresponding to the one removed at the previous step.")
+        setState("        | Removing the vertices on the rough version corresponding to the one removed at the previous step.")
         cleaned = compare(flat, sphere, ms.current_mesh())
         ms.add_mesh(cleaned)
 
-        print("        | Cleaning the correct version of the surface.")
-        ms.apply_filter("meshing_close_holes")
+        setState("        | Cleaning the correct version of the surface.")
+        ms.apply_filter("meshing_close_holes", maxholesize=20)
         ms.apply_filter("meshing_snap_mismatched_borders")
         ms.apply_filter("meshing_repair_non_manifold_vertices")
         ms.apply_filter("meshing_merge_close_vertices")
@@ -641,26 +635,26 @@ def extractMeasures(measures, state):
         ms.save_current_mesh(expCleanPath)
         produced['cleaned'] = expCleanPath
 
-        print("        | Finding all loops of vertices being on borders")
+        setState("        | Finding all loops of vertices being on borders")
         graph     = buildNeighborhoodGraph(ms.current_mesh())
         partGraph = buildParticipationGraph(ms.current_mesh())
         borders   = findBorders(ms.current_mesh(), graph, partGraph)
 
-        print("        | The perimeter is the border with the biggest length")
+        setState("        | The perimeter is the border with the biggest length")
         idBorderPerim, perimeter = processPerimeter(ms.current_mesh(), borders)
         measures.setdefault('perimeter', []).append(perimeter)
 
-        print("        | Processing the number of holes and the area of the surface.")
+        setState("        | Processing the number of holes and the area of the surface.")
         measures.setdefault('nbHoles', []).append(len(borders)-1)
         measures.setdefault('area', []).append(processArea(ms.current_mesh()))
 
-        print("        | Determining the Axis Aligned measures.")
+        setState("        | Determining the Axis Aligned measures.")
         bb = makeAABB(ms.current_mesh())
         measures.setdefault('aa_width', []).append(bb[0][1] - bb[0][0])
         measures.setdefault('aa_height', []).append(bb[1][1] - bb[1][0])
         measures.setdefault('aa_depth', []).append(bb[2][1] - bb[2][0])
 
-        print("        | Building geodesic distance to the closest border.")
+        setState("        | Building geodesic distance to the closest border.")
         distances = distanceToBorder(ms.current_mesh(), graph, borders)
         distancesDict = {'geodesic': [int(i) for i in distances]}
         geoPath = os.path.join(state['outputDirectory'], f"7-geodesic-{exportName}-{str(iC+1).zfill(2)}.json")
@@ -669,7 +663,7 @@ def extractMeasures(measures, state):
         json.dump(distancesDict, f)
         f.close()
         
-        print("        | Max number of connected components reached during decimation caracterizes the sprawlingness of the surface.")
+        setState("        | Max number of connected components reached during decimation caracterizes the sprawlingness of the surface.")
         measures.setdefault('maxCompos', []).append(decimate(distances, graph))
 
         # print("    | Building convex hull from cylindrical projection.")
