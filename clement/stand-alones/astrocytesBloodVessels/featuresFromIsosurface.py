@@ -60,13 +60,13 @@ def main():
     for filePath in queue:
         state['current'] = filePath
 
-        try:
-            extractMeasures(measures)
-            state['success'].append(state['current'])
-        except Exception as err:
-            setState(f"{state['current']} skipped due to an error.")
-            setState(str(err))
-            state['fails'].append(state['current'])
+        # try:
+        extractMeasures(measures)
+        state['success'].append(state['current'])
+        # except Exception as err:
+        #     setState(f"{state['current']} skipped due to an error.")
+        #     setState(str(err))
+        #     state['fails'].append(state['current'])
         
         createVerificationFile()
         state['produced'].clear()
@@ -101,6 +101,7 @@ def createVerificationFile():
     """Launches an instance of Blender and runs a script on the embedded Python. It builds a verification scene from the surface."""
     jsonParams = json.dumps(state).replace('"', '#')
     commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\" > {os.path.devnull}"
+    # commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
     setState(f"        | Command: <{commandLine}>")
     # os.system(commandLine)
     subprocess.run(commandLine, shell=True)
@@ -609,10 +610,13 @@ def extractMeasures(measures):
         setState("        | Create a rough version of a 0-thickness mesh.")
         flat = flatten(smooth, smooth, graph)
         ms.add_mesh(flat)
+        ms.apply_filter("meshing_repair_non_manifold_edges")
+        ms.apply_filter("meshing_repair_non_manifold_vertices")
+        flat = ms.current_mesh()
         ms.save_current_mesh(os.path.join(state['outputDirectory'], f"4-flattened-{exportName}-{str(iC+1).zfill(2)}.obj"))
 
         setState("        | Building a sphere projection of our rough flatenned version.")
-        radius, sphere = sphereProject(flat)
+        radius, sphere = sphereProject(ms.current_mesh())
         measures.setdefault('radius', []).append(radius)
         
         setState("        | Removing points projected at the same place on the sphere (corresponding to failed borders)")
