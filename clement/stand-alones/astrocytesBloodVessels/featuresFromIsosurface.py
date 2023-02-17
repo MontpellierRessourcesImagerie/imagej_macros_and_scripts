@@ -60,13 +60,13 @@ def main():
     for filePath in queue:
         state['current'] = filePath
 
-        # try:
-        extractMeasures(measures)
-        state['success'].append(state['current'])
-        # except Exception as err:
-        #     setState(f"{state['current']} skipped due to an error.")
-        #     setState(str(err))
-        #     state['fails'].append(state['current'])
+        try:
+            extractMeasures(measures)
+            state['success'].append(state['current'])
+        except Exception as err:
+            setState(f"{state['current']} skipped due to an error.")
+            setState(str(err))
+            state['fails'].append(state['current'])
         
         createVerificationFile()
         state['produced'].clear()
