@@ -100,7 +100,7 @@ def main():
 def createVerificationFile():
     """Launches an instance of Blender and runs a script on the embedded Python. It builds a verification scene from the surface."""
     jsonParams = json.dumps(state).replace('"', '#')
-    commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\" > {os.path.devnull}"
+    commandLine = f"\"{state['blenderPath']}\" --background --python {state['blenderScript']} -- \"{jsonParams}\" > {os.path.devnull}"
     # commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
     setState(f"        | Command: <{commandLine}>")
     # os.system(commandLine)
