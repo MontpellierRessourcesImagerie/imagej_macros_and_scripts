@@ -76,14 +76,14 @@ def main():
     dicoToCSV(measures, csvPath)
 
     sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
-    sys.stderr.write(" |                                    SUCCESS                                          |\n")
+    sys.stderr.write(f" |                            SUCCESS ({str(len(state['success'])).zfill(2)}/{str(len(queue)).zfill(2)})                                          |\n")
     sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
     sys.stderr.write(" |\n")
     for s in state['success']:
         sys.stderr.write(f" | - {s}\n")
     sys.stderr.write(" |\n")
     sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
-    sys.stderr.write(" |                                    FAILS                                            |\n")
+    sys.stderr.write(f" |                                    FAILS ({str(len(state['fails'])).zfill(2)}/{str(len(queue)).zfill(2)})                                    |\n")
     sys.stderr.write(" ---------------------------------------------------------------------------------------\n")
     sys.stderr.write(" |\n")
     for f in state['fails']:
@@ -100,10 +100,8 @@ def main():
 def createVerificationFile():
     """Launches an instance of Blender and runs a script on the embedded Python. It builds a verification scene from the surface."""
     jsonParams = json.dumps(state).replace('"', '#')
-    commandLine = f"\"{state['blenderPath']}\" --background --python {state['blenderScript']} -- \"{jsonParams}\" > {os.path.devnull}"
-    # commandLine = f"{state['blenderPath']} --background --python {state['blenderScript']} -- \"{jsonParams}\""
+    commandLine = f"\"{state['blenderPath']}\" --background --python \"{state['blenderScript']}\" -- \"{jsonParams}\" > {os.path.devnull}"
     setState(f"        | Command: <{commandLine}>")
-    # os.system(commandLine)
     subprocess.run(commandLine, shell=True)
 
 
