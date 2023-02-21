@@ -1,5 +1,5 @@
 run("Bio-Formats Macro Extensions");
-ROOT_PATH = "/media/baecker/Jade LEIBA Im7/work/";
+ROOT_PATH = "/media/baecker/Jade LEIBA Im7/work/recup_jade/";
 OUT_PATH = "/media/baecker/Jade LEIBA Im7/out/";
 
 dirs = getFileList(ROOT_PATH);
@@ -17,9 +17,9 @@ for (i = 0; i < dirs.length; i++) {
         Ext.getMetadataValue("Image name", name);
         Ext.getMetadataValue("Timestamp for Z= 0, C= 0, T= 0", ts);
         print(i, image, name, date, time, ts);
-        if (!File.exists(ROOT_PATH + name)) File.makeDirectory(ROOT_PATH + name);
+        if (!File.exists(OUT_PATH + name)) File.makeDirectory(OUT_PATH + name);
         print(dir + image);
-        print(OUT_PATH + name + image);
+        print(OUT_PATH + "/" + name + "/" + image);
         File.copy(dir + image, OUT_PATH + "/" + name + "/" + image);
     }
 }
