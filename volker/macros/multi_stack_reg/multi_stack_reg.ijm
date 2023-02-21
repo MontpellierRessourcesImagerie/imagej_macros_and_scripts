@@ -79,7 +79,7 @@ function getTransormationFilePath() {
 function mergeChannels(title, channels) {
      mergeOptions = "";
      for (c = 1; c <= channels; c++) {
-        mergeOptions = mergeOptions + "c" + c + "=C"+c+"-"+title + " ";
+        mergeOptions = mergeOptions + "c" + c + "=[C"+c+"-"+title + "] ";
     }
     mergeOptions = mergeOptions + "create";
     run("Merge Channels...", mergeOptions);

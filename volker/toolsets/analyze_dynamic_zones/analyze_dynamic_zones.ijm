@@ -7,6 +7,11 @@
   **
 */
 
+var FOCAL_ADHESIONS_CHANNEL = 2;
+var THRESHOLDING_METHOD = "Otsu"
+var THRESHOLDING_METHODS = getList("threshold.methods");
+var TENSIN_CHANNEL = 1;
+var THRESHOLDING_METHOD_TENSIN = "Moments";
 var FUNCTION_TO_FIT = "Gamma Variate";
 var REGISTRATION_METHODS = newArray("stack reg", "sift");
 var REGISTRATION_METHOD = REGISTRATION_METHODS[0];
@@ -19,13 +24,20 @@ var RELATIVE_CONST_THRESHOLD = 0.4;
 var USE_RELATIVE_CONST_THRESHOLD = true;
 var GRADIENT_FILTER_RADIUS_XY = 1;
 var GRADIENT_FILTER_RADIUS_Z = 3;
-var BORDER_SIZE = 10;   // in pixel
+var BORDER_SIZE = 30;   // in pixel
 var DOG_LARGE_RADIUS = 15;
-var SHOW_CONSTANT = false;
+var SHOW_CONSTANT = true;
 var LUTS = getList("LUTs");
 var LUT = LUTS[25];
 var SMOOTHING_RADIUS = 2;
 var MIDDLE_THRESHOLD_FACTOR = 1;
+var MIN_PROMINENCE = 5;
+var ROLLING_BALL_RADIUS = 50;
+var TOUCHED_THRESHOLD = 1;
+var CLASSES = newArray("decreasing", "n", "constant", "u", "increasing");
+var CACLULATE_CROSS_CORRELATION = false;
+var SMOOTHING_RADIUS = 3;
+
 var DEBUG = false;
 if (LUT!="Random") LUT = "glasbey on dark";
 
@@ -67,6 +79,10 @@ macro "Analyze dynamic zones in image [F5]" {
 
 macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.create("Analyze Dynamic Zones Options");
+    Dialog.addNumber("Focal adhesions channel: ", FOCAL_ADHESIONS_CHANNEL);
+    Dialog.addChoice("Auto-thresholding method", THRESHOLDING_METHODS, THRESHOLDING_METHOD);
+    Dialog.addNumber("Tensin channel: ", TENSIN_CHANNEL);
+    Dialog.addChoice("Tensin auto-thresholding method", THRESHOLDING_METHODS, THRESHOLDING_METHOD_TENSIN);
     Dialog.addChoice("Dynamic: ", DYNAMICS, DYNAMIC);
     Dialog.addNumber("Dynamic threshold: ", CONST_THRESHOLD);
     Dialog.addCheckbox("Use relative threshold", USE_RELATIVE_CONST_THRESHOLD);
@@ -76,10 +92,16 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     Dialog.addNumber("Gradient filter z-radius: ", GRADIENT_FILTER_RADIUS_Z);
     Dialog.addNumber("Border size: ", BORDER_SIZE);
     Dialog.addCheckbox("Show constant zones", SHOW_CONSTANT);
+    Dialog.addCheckbox("Calculate cross-correlation", CACLULATE_CROSS_CORRELATION);
+    Dialog.addNumber("smoothing radius for cc: ", SMOOTHING_RADIUS);
     Dialog.addChoice("LUT for zones", LUTS, LUT);
     
     Dialog.show();
     
+    FOCAL_ADHESIONS_CHANNEL = Dialog.getNumber();
+    THRESHOLDING_METHOD = Dialog.getChoice();
+    TENSIN_CHANNEL = Dialog.getNumber();
+    THRESHOLDING_METHOD_TENSIN = Dialog.getChoice();
     DYNAMIC = Dialog.getChoice();
     CONST_THRESHOLD = Dialog.getNumber();
     USE_RELATIVE_CONST_THRESHOLD = Dialog.getCheckbox();
@@ -89,6 +111,8 @@ macro "Analyze dynamic zones in image (F5) Action Tool Options" {
     GRADIENT_FILTER_RADIUS_Z = Dialog.getNumber();
     BORDER_SIZE = Dialog.getNumber();
     SHOW_CONSTANT = Dialog.getCheckbox();
+    CACLULATE_CROSS_CORRELATION = Dialog.getCheckbox();
+    SMOOTHING_RADIUS = Dialog.getNumber();
     LUT = Dialog.getChoice();
     
     for (i = 0; i < DYNAMICS.length; i++) {
@@ -106,25 +130,33 @@ macro "Plot total intensity over time [f6]" {
 }
 
 macro "Plot area over time (f7) Action Tool - C000T4b12p" {
-    plotAreaOverTime()
+    plotAreaOverTime();
 }
 
 macro "Plot area over time [f7]" {
-    plotAreaOverTime()
+    plotAreaOverTime();
 }
 
 macro "Plot mean intensity over time (f8) Action Tool - C000T4b12m" {
-    plotMeanIntensityOverTime()
+    plotMeanIntensityOverTime();
 }
 
 macro "Plot mean intensity over time [f8]" {
-    plotMeanIntensityOverTime()
+    plotMeanIntensityOverTime();
 }
 
 macro "Classify plot [f12]" {
     Plot.getValues(xpoints, ypoints);
     class = classifyData(ypoints);
     print(class);
+}
+
+macro "Plot Cross Correlation by lag (f9) Action Tool - C000T4b12c" {
+    plotAndReportCrossCorrelation(true);
+}
+
+macro "Plot Cross Correlation by lag [f9]" {
+    plotAndReportCrossCorrelation(true);
 }
 
 function registerFrames() {
@@ -161,13 +193,18 @@ function plotTotalIntensityOverTime() {
 function plotOverTime(tableName) {
     name = Roi.getName;
     parts = split(name, "-");
-    label = parseInt(parts[0])
-    Plot.create("Plot of "+tableName+" Label=" + label , "x", label);
-    Plot.add("Connected Circles", Table.getColumn(label, tableName));
-    Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
+    label = parseInt(parts[0]);
+    deltaT = Stack.getFrameInterval(); 
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
     data = Table.getColumn(label, tableName);
     smoothedData = smoothArray(data);
     X = Array.getSequence(smoothedData.length);
+    for (i = 0; i < X.length; i++) {
+        X[i] = X[i] * deltaT;
+    }
+    Plot.create("Plot of "+tableName+" Label=" + label , "t ["+tUnit+"]", label);
+    Plot.add("Connected Circles", X, Table.getColumn(label, tableName));
+    Plot.setStyle(0, "blue,#a0a0ff,1.0,Connected Circles");
     Fit.doFit(FUNCTION_TO_FIT, X, smoothedData);
     Y = newArray(X.length);
     for(i=0; i<X.length; i++) {
@@ -178,6 +215,50 @@ function plotOverTime(tableName) {
     Plot.show();
 }
 
+function plotAndReportCrossCorrelation(displayPlot) {
+    imageID = getImageID();
+    title = getTitle();
+    Stack.getDimensions(width, height, channels, slices, frames);
+    max = Math.floor(frames / 2);
+    frame = Stack.getFrameInterval();
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    plotOverTime(DYNAMIC_TABLE);        
+    dependentPlotTitle = getTitle();
+    selectImage(imageID);
+    run("Plot Z-axis Profile");
+    independentPlotTitle = getTitle();
+    displayFlag = "";
+    if (displayPlot) displayFlag = " display";
+    run("cross correlation", "plot=["+dependentPlotTitle+"] plot_0=["+independentPlotTitle+"] max.="+max+" smoothing="+SMOOTHING_RADIUS+" frame="+frame+" time="+tUnit+" title="+title+displayFlag);
+}
+
+function reportCrossCorrelation() {
+    title = getTitle();
+    Stack.getDimensions(width, height, channels, slices, frames);
+    frame = Stack.getFrameInterval();
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    max = Math.floor(frames / 2);
+    name = Roi.getName;
+    parts = split(name, "-");
+    label = parseInt(parts[0]);
+    deltaT = Stack.getFrameInterval(); 
+    Stack.getUnits(xUnit, yUnit, zUnit, tUnit, vUnit);
+    dependentSeries = Table.getColumn(label, DYNAMIC_TABLE);
+    
+    Table.create("tmp cc");
+    
+    independentSeries = newArray(frames);
+    for (i = 0; i < frames; i++) {
+        Stack.setFrame(i+1);
+        independentSeries[i] = getValue("Mean");
+    }
+    Stack.setFrame(0);
+    Table.setColumn("Y2", dependentSeries);
+    Table.setColumn("Mean", independentSeries);
+    
+    run("cross correlation", "plot=None plot_0=None table=[tmp cc] column=Y2 column_0=Mean max.="+max+" frame="+frame+" time="+tUnit+" title=["+title+"]");
+}
+
 function analyzeDynamicZonesInImage() {
     assertStackIsMovie();
     LUTFolder = getDir("luts");
@@ -185,31 +266,147 @@ function analyzeDynamicZonesInImage() {
     inputImageID = getImageID();
     inputImageTitle = getTitle();
     initAnalysis();
-    setBatchMode("hide");
+    setBatchMode(true);
+    run("Split Channels");
+    selectImage("C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle);
+    focalAdhesionsImageID = getImageID(); 
     run("Properties...", "slices="+frames+" frames="+slices); 
     
     removeBackground();
     dogImageTitle = getTitle();
     
     segmentActiveZones();
+    close(dogImageTitle);
     
     labelImageID = getImageID();
     labelImageTitle = getTitle();
     run("Properties...", "slices="+slices+" frames="+frames); 
     
-    lastLabel = measureDynamic(frames, labelImageTitle, labelImageID, inputImageID);
+    lastLabel = measureDynamic(frames, labelImageTitle, labelImageID, focalAdhesionsImageID);
     selectImage(labelImageID);
     
     classifyActiveZones(lastLabel);
     
-    run("Merge Channels...", "c1=["+labelImageTitle+"] c4=["+inputImageTitle+"] create");
-    count = roiManager("count");
-    if (count>0) {
-        run("From ROI Manager");
-        run("Labels...", "color=white font=12 show use draw");
+    selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
+    tensinImageID = getImageID();
+    countTimesTouchedByTensin(tensinImageID);
+    reportDynamicTouchedUntouched(TOUCHED_THRESHOLD);
+    selectImage("C"+TENSIN_CHANNEL+"-"+inputImageTitle);
+    if (CACLULATE_CROSS_CORRELATION) {
+        batchPlotAndReportCrossCorrelation(tensinImageID);
     }
-    
     setBatchMode("exit and display");
+    run("Merge Channels...", "c2=[C"+TENSIN_CHANNEL+"-"+inputImageTitle+"] c4=[C"+FOCAL_ADHESIONS_CHANNEL+"-"+inputImageTitle+"] c5=["+labelImageTitle+"] create");
+    Stack.setChannel(1);
+    run("Green"); 
+    roiManager("UseNames", "true");
+    roiManager("Show None");
+    roiManager("Show All");
+    roiManager("Show All without labels");
+    roiManager("Show All with labels");
+}
+
+function reportDynamicTouchedUntouched(threshold) {
+    untouched = newArray(5);
+    touched = newArray(5);
+    tableName = "dynamic touched/untouched";
+    tableHandle = "[" + tableName + "]";
+    Table.create(tableName);
+    for (i = 0; i < CLASSES.length; i++) {
+        Table.set("class", i, CLASSES[i]);
+    }
+    for (i = 0; i < nResults; i++) {
+        class = getResult("class", i);
+        contacts = getResult("Nr. of tensin contacts", i);
+        if (contacts >= threshold) {
+            touched[class] = touched[class] + 1;
+        } else {
+            untouched[class] = untouched[class] + 1;
+        }
+    }
+    touchedPercent = newArray(5);
+    untouchedPercent = newArray(5);
+    for (i = 0; i < touched.length; i++) {
+        touchedPercent[i] = touched[i] / (touched[i] + untouched[i]);
+        untouchedPercent[i] = untouched[i] / (touched[i] + untouched[i]);
+    }
+
+    Table.setColumn("untouched (< "+threshold+")", untouched);
+    Table.setColumn("touched (>= "+threshold+")", touched);
+    Table.setColumn("fraction untouched", untouchedPercent);
+    Table.setColumn("fraction touched", touchedPercent);
+    Table.update;
+}
+
+function batchPlotAndReportCrossCorrelation(imageID) {
+    count = roiManager("count");
+    startTime = getTime();
+    for (i = 0; i < count; i++) {
+        selectImage(imageID);
+        roiManager("select", i);
+        reportCrossCorrelation();
+        close("tmp cc");
+        minCC = Table.get("min.", i, "cross-correlation results");
+        lagMinCC = Table.get("lag of min.", i, "cross-correlation results");
+        maxCC = Table.get("max.", i, "cross-correlation results");
+        lagMaxCC = Table.get("lag of max.", i, "cross-correlation results");
+        setResult("min. cc", i, minCC);
+        setResult("lag of min. cc", i, lagMinCC);
+        setResult("max. cc", i, maxCC);
+        setResult("lag of max. cc", i, lagMaxCC);
+        updateResults();
+    }
+    close("cross-correlation results");
+    roiManager("deselect");
+    run("Select None");
+    updateResults();
+    endTime = getTime();
+    deltaTime = (endTime - startTime) / (1000 * 60);
+    print("cross correlation calculations took " + deltaTime + " minutes.");
+}
+
+function countTimesTouchedByTensin(imageID) {
+    selectImage(imageID);    
+    run("Duplicate...", "duplicate");
+    run("Subtract Background...", "rolling="+ROLLING_BALL_RADIUS+" stack");
+    setAutoThreshold(THRESHOLDING_METHOD_TENSIN + " dark stack");
+    run("Convert to Mask", "method=" + THRESHOLDING_METHOD_TENSIN + " background=Dark");    
+    run("Clear Results");
+    roiManager("deselect");
+    roiManager("measure");
+    count = roiManager("count");
+    for (i = 0; i < count; i++) {
+        roiManager("select", i);
+        run("Plot Z-axis Profile");
+        Plot.getValues(xpoints, ypoints);
+        maxima = Array.findMaxima(ypoints, MIN_PROMINENCE);
+        close();
+        setResult("Nr. of tensin contacts", i, maxima.length);
+        label = getResultString("Label", i);
+        class = getClassFromLabel(label);
+        setResult("class", i, class);
+    }
+    close();
+}
+
+function getClassFromLabel(label) {
+    class = -1;
+    if (indexOf(label, "- decreasing") >= 0) {
+        class = 0;
+    }
+    if (indexOf(label, "- n") >= 0) {
+        class = 1;
+    }
+    if (indexOf(label, "- constant") >= 0) {
+        class = 2;
+    }
+    if (indexOf(label, "- u" ) >= 0) {
+        class = 3;
+    }
+    if (indexOf(label, "- i" ) >= 0) {
+        class = 4;
+    }
+    return class;
 }
 
 function assertStackIsMovie() {
@@ -220,6 +417,7 @@ function assertStackIsMovie() {
 }
 
 function initAnalysis() {
+    run("Options...", "iterations=1 count=1");
     run("ROI Manager...");
     roiManager("reset");
     run("Grays");
@@ -388,14 +586,15 @@ function measureDynamic(frames, labelImageTitle, labelImageID, inputImageID) {
 function segmentActiveZones() {
     run("Morphological Filters (3D)", "operation=Gradient element=Cube x-radius="+GRADIENT_FILTER_RADIUS_XY+" y-radius="+GRADIENT_FILTER_RADIUS_XY+" z-radius="+GRADIENT_FILTER_RADIUS_Z);
     gradientImageTitle = getTitle();
-    run("Convert to Mask", "method=Otsu background=Dark");
+    setAutoThreshold(THRESHOLDING_METHOD + " dark stack");
+    setOption("BlackBackground", false);
+    run("Convert to Mask", "method=" + THRESHOLDING_METHOD + " background=Dark");
     removeXYBorderVoxels();
     run("Fill Holes", "stack");
     run("Connected Components Labeling", "connectivity=6 type=[16 bits]");
     run(LUT);
     labelImageID = getImageID();
     labelImageTitle = getTitle();
-    close(dogImageTitle);
     close(gradientImageTitle);    
 }
 
@@ -469,4 +668,21 @@ function convolve(array, kernel, borderHandling) {
         resultArray[i] = sum;
     }
     return resultArray;
+}
+
+function getPlotTitles() {
+    imageTitles = getList("image.titles");
+    Array.print(imageTitles);
+    currentImageID = getImageID();
+    plots = newArray(0);
+    for (i = 0; i < imageTitles.length; i++) {
+        title = imageTitles[i];
+        selectImage(title);
+        type = getInfo("window.type");
+        if (type == "Plot") {
+            plots = Array.concat(plots, title);
+        }
+    }
+    selectImage(currentImageID);
+    return plots;
 }
