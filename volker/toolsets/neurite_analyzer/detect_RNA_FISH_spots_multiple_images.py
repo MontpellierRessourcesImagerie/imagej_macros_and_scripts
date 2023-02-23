@@ -18,15 +18,42 @@ import bigfish.detection as detection
 
 from tkinter import filedialog, Tk
 
-RNA_FISH_SPOTS_CHANNEL = '561'
-VOXEL_SIZE = 1
-SPOT_RADIUS = 1.2
+IS_3D = True
+RNA_FISH_SPOTS_CHANNEL = "w2Texas Red"
+VOXEL_SIZE_XY = 65
+VOXEL_SIZE_Z = 300
+SPOT_RADIUS_XY = 500
+SPOT_RADIUS_Z = 1200
 ALPHA = 0.7
 BETA = 1
 GAMMA = 5
-MAX_SPOTS_FOR_DECOMPOSITION = 1000000
+MAX_SPOTS_FOR_DECOMPOSITION = 1
 
 def main():
+    batchDetectSpotsInFolder()
+   
+   
+def batchDetectSpotsInFolder():
+    """
+    Apply the spot detection to all images of the spot-channel in a given folder.
+    
+    Returns
+    -------
+    None.
+
+    """
+    print("Big-FISH version: {0}".format(bigfish.__version__))
+    folder = getFolderFromUser()
+    files = getFilesForChannel(folder, RNA_FISH_SPOTS_CHANNEL)
+    for file in files:
+        rna = stack.read_image(file)
+        print("processing files {}".format(file))
+        spots, threshold = detectSpots(rna)
+        outPath = file.split(".")[0]+".txt"
+        np.savetxt(outPath, spots, delimiter =", ")
+
+
+def batchDetectSpotsInAllSubfolders():
     """
     Apply the spot detection to all images of the spot-channel in all subfolders of the selected root-folder.
 
@@ -49,8 +76,9 @@ def main():
         for file, image, spot in zip(files, images, spots):
             if spot.shape[0] < MAX_SPOTS_FOR_DECOMPOSITION:
                 spots, dense_regions, reference_spot = decomposeSpots(image, spot)
-                outPath = file.split(".")[0]+".txt"
-                np.savetxt(outPath, spot, delimiter =", ")
+            outPath = file.split(".")[0]+".txt"
+            np.savetxt(outPath, spot, delimiter =", ")
+   
             
 def detectSpots(rna):
     """
@@ -70,16 +98,22 @@ def detectSpots(rna):
 
     """
     spots, threshold = detection.detect_spots(
-    images=rna, 
-    return_threshold=True, 
-    voxel_size=(VOXEL_SIZE, VOXEL_SIZE),  
-    spot_radius=(SPOT_RADIUS, SPOT_RADIUS)) 
-    for roi in spots:
-        print("detected spots")
-        print("\r shape: {0}".format(roi.shape))
-        print("\r dtype: {0}".format(roi.dtype))
-        print("\r threshold: {0}".format(threshold))
+                                                images = rna, 
+                                                return_threshold = True, 
+                                                voxel_size = getVoxelSize(),  
+                                                spot_radius = getSpotRadius()
+                                             ) 
+    print("detected spots")
+    if type(rna) is list:
+        for roi in spots:
+            print("\r shape: {0}".format(roi.shape))
+            print("\r dtype: {0}".format(roi.dtype))            
+    else:
+        print("\r shape: {0}".format(spots.shape))
+        print("\r dtype: {0}".format(spots.dtype))            
+    print("\r threshold: {0}".format(threshold))
     return spots, threshold
+
 
 def decomposeSpots(rna, spots):
     """
@@ -105,8 +139,8 @@ def decomposeSpots(rna, spots):
     spots_post_decomposition, dense_regions, reference_spot = detection.decompose_dense(
     image = rna, 
     spots = spots, 
-    voxel_size = (VOXEL_SIZE, VOXEL_SIZE), 
-    spot_radius = (SPOT_RADIUS, SPOT_RADIUS), 
+    voxel_size = getVoxelSize(), 
+    spot_radius = getSpotRadius(), 
     alpha = ALPHA,  # alpha impacts the number of spots per candidate region
     beta = BETA,  # beta impacts the number of candidate regions to decompose
     gamma = GAMMA)  # gamma the filtering step to denoise the image
@@ -116,6 +150,7 @@ def decomposeSpots(rna, spots):
     print("detected spots after decomposition")
     print("\r shape: {0}".format(spots_post_decomposition.shape))
     return spots_post_decomposition, dense_regions, reference_spot
+
 
 def getFilesForChannel(folder, channel):
     """
@@ -137,6 +172,7 @@ def getFilesForChannel(folder, channel):
     files = glob.glob(folder+"/"+"*"+channel+"*")    
     return files
     
+    
 def getFolderFromUser():
     """
     Open a file-dialog and let the user select the root-folder of the project.
@@ -152,6 +188,7 @@ def getFolderFromUser():
     root.attributes('-topmost', True) 
     rootFolder = filedialog.askdirectory() 
     return rootFolder
+    
     
 def getMatchingSubfoldersIn(rootFolder, text):
     """
@@ -175,6 +212,21 @@ def getMatchingSubfoldersIn(rootFolder, text):
                               and text in aPath]
     return subfoldersOfRootFolder
     
+
+def getVoxelSize():
+    if IS_3D:
+        return (VOXEL_SIZE_Z, VOXEL_SIZE_XY, VOXEL_SIZE_XY)
+    else:
+        return (VOXEL_SIZE_XY, VOXEL_SIZE_XY)
+        
+
+def getSpotRadius():
+    if IS_3D:
+        return (SPOT_RADIUS_Z, SPOT_RADIUS_XY, SPOT_RADIUS_XY)
+    else:
+        return (SPOT_RADIUS_XY, SPOT_RADIUS_XY)
+
+
 if __name__ == '__main__':
     sys.exit(main()) 
 

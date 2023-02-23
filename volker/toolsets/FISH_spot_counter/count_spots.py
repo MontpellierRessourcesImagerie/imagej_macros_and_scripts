@@ -87,6 +87,7 @@ class SpotCounter:
         path = self.image.getOriginalFileInfo().directory + "/control"
         if not os.path.exists(path):
             os.makedirs(path) 
+        IJ.run(self.image, "32-bit", "");
         IJ.run(self.image, "Merge Channels...", "c1=[{labelsTitle}] c4=[{imageTitle}] create".format(labelsTitle = self.labels.getTitle(), imageTitle = self.image.getTitle()))
         mergedImage = IJ.getImage()
         IJ.saveAsTiff(mergedImage, path + "/" + self.labels.getTitle())
