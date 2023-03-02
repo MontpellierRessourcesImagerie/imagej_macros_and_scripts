@@ -13,8 +13,8 @@ from functools import partial
 
 # State used all along the execution.
 state = {
-    'outputDirectory': "/home/benedetti/Documents/projects/7-isosurface/produced",
-    'target': "/home/benedetti/Documents/projects/7-isosurface/testing-set",
+    'outputDirectory': "/home/benedetti/Bureau/output-meshes",
+    'target': "/home/benedetti/Bureau/inputs-meshes",
     'exports': {
         'shrunk': True,
         'smooth': True,
@@ -433,7 +433,7 @@ def processArea(mesh):
 
     vertices = mesh.vertex_matrix()
     faces    = mesh.face_matrix()
-    return sum([np.linalg.norm(np.cross(vertices[face[1]] - vertices[face[0]], vertices[face[2]] - vertices[face[0]])) / 2.0 for face in faces])
+    return sum([np.linalg.norm(np.cross(vertices[face[1]] - vertices[face[0]], vertices[face[2]] - vertices[face[0]])) for face in faces]) / 2.0
 
 
 def processPerimeter(mesh, borders):
