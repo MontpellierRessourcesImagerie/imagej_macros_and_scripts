@@ -894,8 +894,8 @@ class Well(object):
                 self.saveImage(imp, outputPath + name)
             if exportComposite:
                 self.createComposite(
-                    channelImps, title[:6] + "-" + title[13:], calibration, outputPath
-                )
+                    channelImps, name+"-comp", calibration, outputPath
+		)
             else:
                 for im in channelImps:
                     im.close()
