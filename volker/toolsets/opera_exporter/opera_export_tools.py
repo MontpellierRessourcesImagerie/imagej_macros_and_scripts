@@ -971,13 +971,10 @@ class Well(object):
                 channelImps.append(imp)
                 # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
-            
-            title = removeComponentFromName(self.images[0].getURL(), ['f', 'p']) + "-compo"
 
             if exportComposite:
-                # title[:6] + "-" + title[13:]
                 self.createComposite(
-                    channelImps, title, calibration, outputPath 
+                    channelImps, name+"-compo", calibration, outputPath 
                 )
             else:
                 for im in channelImps:
