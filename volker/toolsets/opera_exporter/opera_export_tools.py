@@ -969,9 +969,7 @@ class Well(object):
                 imp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
 
                 channelImps.append(imp)
-                # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
-
             if exportComposite:
                 self.createComposite(
                     channelImps, name+"-compo", calibration, outputPath 
