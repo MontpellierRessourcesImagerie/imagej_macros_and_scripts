@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from ij import IJ
+from ij import IJ, CompositeImage
 import os
 import re
 import sys
@@ -9,7 +9,7 @@ import time
 from itertools import islice
 from datetime import datetime
 from ij.macro import Interpreter
-from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator
+from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator, Concatenator
 from ij.process import ImageConverter
 from ij.measure import ResultsTable
 import unittest
@@ -29,6 +29,7 @@ _PROJECTION_MOSAIC_CHANNEL_FOLDER = "/projectionMosaicChannel/"
 _WORK_FOLDER = "/work/"
 _OUT_FOLDER = "/out/"
 _FLATFIELD_FOLDER = "/flatfield/"
+_REGEX_IMAGE_URL = re.compile("(r[0-9]{2,8})?(c[0-9]{2,8})?(f[0-9]{2,8})?(p[0-9]{2,8})?(-)?(ch[0-9]{1,8})?(sk[0-9]{1,8})?(fk[0-9]{1,8})?(fl[0-9]{1,8})?(\..+)?")
 
 
 def main(args):
@@ -36,7 +37,6 @@ def main(args):
         print("Entering main")
     exporter = OperaExporter(args)
     exporter.launch()
-
 
 def getArgumentParser():
     parser = argparse.ArgumentParser(
@@ -90,6 +90,47 @@ def splitIntoChunksOfSize(aString, chunkLength):
         for y in range(chunkLength, len(aString) + chunkLength, chunkLength)
     ]
     return res
+
+
+def prefix(name):
+    only_alpha = ""
+    for c in name:
+        if ord(c) >= 97 and ord(c) <= 122:
+            only_alpha += c
+        else:
+            return only_alpha
+
+
+def removeComponentFromName(name, compos):
+    """
+    The name of an image is composed of several elements (channel, time, field, slice, ...)
+    This functions takes a name and removes some of the components from the name
+
+    'compos' is an array that can contain the values: ['r', 'c', 'f', 'p', 'ch', 'sk', 'fk', 'fl']
+    All elements contained will be removed.
+
+    'name' is the original name
+    """
+    global _REGEX_IMAGE_URL
+    res = _REGEX_IMAGE_URL.match(name)
+    compos = set(compos)
+
+    if res is None:
+        print("Pattern not found in name")
+        return "untitled.tiff"
+    
+    groups = res.groups()
+    buffer = ""
+
+    for i, g in enumerate(groups):
+        if g is None:
+            continue
+        p = prefix(g)
+        if p in compos:
+            continue
+        buffer += g
+
+    return "untitled.tiff" if buffer == "" else buffer
 
 
 def transformCoordinates(xPos, yPos):
@@ -387,9 +428,10 @@ class OperaExporter(object):
         return self.wellsToExport
 
     def prepareCalculationOfStitching(self, well):
-        self.names, self.newNames = well.createTileConfig(
+        images, self.names, self.newNames = well.createTileConfig(
             self.sliceForStitching, 0, self.channel
         )
+
         if self.stitchOnMIP:
             IJ.log("Create MIP to calculate Stitching")
             well.createMIPFromInputImages(
@@ -402,6 +444,7 @@ class OperaExporter(object):
                 self.experiment.getWorkFolder(),
                 self.names,
                 self.newNames,
+                images
             )
 
     def calculateStitching(self, well):
@@ -465,7 +508,7 @@ class OperaExporter(object):
     def createRGBChannelSnapshots(self, well):
         channelList = list(self.channelRGB)
         for index, channelFlag in enumerate(channelList, start=0):
-            IJ.log("Create channel snapshot for channel" + str(index + 1))
+            IJ.log("Create channel snapshot for channel " + str(index + 1))
             if channelFlag == "1":
                 if self.projectionMosaic:
                     well.convertToRGB(
@@ -506,21 +549,20 @@ class OperaExporter(object):
                 self.calculateStitching(well)
                 statusTable.setValue("Stitching Calculated", i, "V")
                 statusTable.show("Execution Status")
-
+                
                 if self.zStackFields:
                     self.createStack(well)
                     statusTable.setValue("Z-Stack Created", i, "V")
                     statusTable.show("Execution Status")
-
+                
                 if self.projectionFields:
                     self.createMIP(well)
                     statusTable.setValue("MIPs Created", i, "V")
                     statusTable.show("Execution Status")
-
                 self.applyStitching(well)
                 statusTable.setValue("Stitching Applied", i, "V")
                 statusTable.show("Execution Status")
-
+                
                 if self.projectionMosaicRGB:
                     self.createRGBOverlaySnapshot(well)
                     statusTable.setValue("RGB Mosaic Created", i, "V")
@@ -581,9 +623,29 @@ class Well(object):
         self.row = row
         self.column = col
         self.imageData = imageData
-        self.images = None
         self.experiment = experiment
         self.plate = plate
+        self.images = [self.experiment.getImage(data.attrib["id"]) for data in self.imageData]
+
+        dims = self.getDimensions()
+        # Images are sorted according to their stack in the XML
+        self.calibration = {
+            'x': self.images[0].getPixelWidth()*1000000,
+            'y': self.images[0].getPixelHeight()*1000000, 
+            'z': abs(self.images[0].getZ() - self.images[1].getZ())*1000000 if dims[2] > 1 else self.images[0].getPixelWidth()*1000000,
+            'unit': "um"
+        }
+
+    def applyCalibration(self, imp):
+        calib = imp.getCalibration()
+        calib.setXUnit(self.calibration['unit'])
+        calib.setYUnit(self.calibration['unit'])
+        calib.setZUnit(self.calibration['unit'])
+        IJ.run(imp, "Properties...", "pixel_width={0} pixel_height={1} voxel_depth={2}".format(
+            str(self.calibration['x']),
+            str(self.calibration['y']),
+            str(self.calibration['z'])
+        ))
 
     def getID(self):
         return self.id
@@ -601,10 +663,6 @@ class Well(object):
         return self.experiment.getOptions()
 
     def getImages(self):
-        if not self.images:
-            self.images = []
-            for data in self.imageData:
-                self.images.append(self.experiment.getImage(data.attrib["id"]))
         return self.images
 
     def getFields(self):
@@ -653,6 +711,7 @@ class Well(object):
             raise FileNotFoundException("OpenImage > File " + filePath + " not found !")
 
         IJ.open(filePath)
+        return IJ.getImage()
 
     def saveImage(self, image, filePath):
         if IO_DEBUG:
@@ -662,19 +721,35 @@ class Well(object):
             raise FileNotFoundException(
                 "SaveImage > Directory " + directoryPath + " not found !"
             )
-
+        self.applyCalibration(image)
         IJ.save(image, filePath)
 
-    def copyImages(self, srcPath, dstPath, srcNames, dstNames):
+    def copyImages(self, srcPath, dstPath, srcNames, dstNames, instances=None):
         failed = False
-        for srcName, dstName in zip(srcNames, dstNames):
+        
+        if instances is None:
+            references = [None for i in range(len(dstPath))]
+        else:
+            references = instances
+
+        for srcName, dstName, ref in zip(srcNames, dstNames, references):
             if IO_DEBUG:
                 print("Copying image file" + srcPath + os.sep + srcName)
             if not self.checkIfPathExists(srcPath + os.sep + srcName):
                 raise FileNotFoundException(
                     "CopyImages > File " + srcPath + os.sep + srcName + " not found !"
                 )
-            shutil.copy(srcPath + os.sep + srcName, dstPath + os.sep + dstName)
+            
+            fullPath = os.path.join(dstPath, dstName)
+            shutil.copy(srcPath + os.sep + srcName, fullPath)
+            
+            if (ref is None) or (not os.path.isfile(fullPath)):
+                continue
+
+            img = IJ.openImage(fullPath)
+            self.applyCalibration(img)
+            IJ.save(img, fullPath)
+            img.close()
 
     def moveFile(self, srcPath, dstPath, srcName, dstName):
         if IO_DEBUG:
@@ -730,7 +805,7 @@ class Well(object):
         ]
         names = [image.getURL() for image in images]
 
-        newNames = [str(names.index(name) + 1).zfill(2) + ".tif" for name in names]
+        newNames = [str(names.index(name) + 1).zfill(8) + ".tif" for name in names]
         xCoords, yCoords = transformCoordinates(xCoords, yCoords)
         with open(tileConfPath, "w") as f:
             f.write("# Define the number of dimensions we are working on\n")
@@ -739,7 +814,7 @@ class Well(object):
             f.write("# Define the image coordinates\n")
             for name, x, y in zip(newNames, xCoords, yCoords):
                 f.write(name + ";" + " ; (" + str(x) + "," + str(y) + ")" + "\n")
-        return names, newNames
+        return images, names, newNames
 
     def getFusionMethod(self):
         fusionMethod = self.getOptions().fusion_method
@@ -842,7 +917,7 @@ class Well(object):
         path = self.experiment.getWorkFolder()
         if newNames is None:
             nbFiles = len(os.listdir(path))
-            newNames = [str(i + 1).zfill(2) + ".tif" for i in range(nbFiles - 1)]
+            newNames = [str(i + 1).zfill(8) + ".tif" for i in range(nbFiles - 1)]
 
         self.runCorrection(channel, newNames)
 
@@ -852,11 +927,12 @@ class Well(object):
 
     def applyStichingOnEachZ(self, nSlices, t, c):
         imps = []
+        
         for z in range(1, nSlices + 1):
             images = self.getImagesForZPosTimeAndChannel(z, t, c)
             names, newNames = self.copyImagesToWorkFolder(images)
-            self.openImage(self.experiment.getWorkFolder() + newNames[0])
-            imp = IJ.getImage()
+            imp = self.openImage(self.experiment.getWorkFolder() + newNames[0])
+            # imp = IJ.getImage()
             calibration = imp.getCalibration()
             imp.close()
             self.executeStitching(c, newNames)
@@ -864,10 +940,12 @@ class Well(object):
             imps.append(imp)
             title = images[0].getURLWithoutField()
             self.deleteFile(self.experiment.getWorkFolder(), newNames)
-        name = title[:6] + title[9:]
+        
+        name = removeComponentFromName(title, ['p']) # title[:6] + title[9:]
         IJ.log("Creating Z-Stack of mosaic : " + name)
         imp = ImagesToStack.run(imps)
         imp.setCalibration(calibration)
+
         return imp, name, calibration
 
     def applyStitching(self, outputPath, exportComposite=False):
@@ -891,10 +969,15 @@ class Well(object):
                 imp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
 
                 channelImps.append(imp)
+                # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
+            
+            title = removeComponentFromName(self.images[0].getURL(), ['f', 'p'])
+
             if exportComposite:
+                # title[:6] + "-" + title[13:]
                 self.createComposite(
-                    channelImps, title[:6] + "-" + title[13:], calibration, outputPath
+                    channelImps, title, calibration, outputPath 
                 )
             else:
                 for im in channelImps:
@@ -917,25 +1000,27 @@ class Well(object):
                 title = self.createMIPFromInputImages(
                     dims, c, self.experiment.getWorkFolder()
                 )
-                self.openImage(self.experiment.getWorkFolder() + "01.tif")
-                imp = IJ.getImage()
-                calibration = imp.getCalibration()
-                imp.close()
+                # self.openImage(self.experiment.getWorkFolder() + "00000001.tif")
+                # imp = IJ.getImage()
+                # calibration = imp.getCalibration()
+                # imp.close()
                 self.executeStitching(channel=c)
                 imp = IJ.getImage()
-                imp.setCalibration(calibration)
+                self.applyCalibration(imp)
                 IJ.run(imp, self.getOptions().colours[c - 1], "")
-                name = title[:6] + "-" + title[13:]
+                name = removeComponentFromName(title, ['f', 'p']) # title[:6] + "-" + title[13:]
                 minDisplay, maxDisplay = (
                     self.getOptions().min_max_display[c - 1][0],
                     self.getOptions().min_max_display[c - 1][1],
                 )
                 imp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                 channelImps.append(imp)
+                # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
             if self.getOptions().projectionMosaicComposite:
+                newName = removeComponentFromName(title, ['f', 'p', 'ch'])
                 self.createComposite(
-                    channelImps, title[:6] + "-" + title[16:], calibration, outputPath
+                    channelImps, newName, calibration, outputPath
                 )
             else:
                 for im in channelImps:
@@ -947,20 +1032,22 @@ class Well(object):
         composite = RGBStackMerge().mergeHyperstacks(channels, False)
         composite.setCalibration(calibration)
         IJ.log("+ Composite: " + name)
+        # self.applyCalibration(composite)
         self.saveImage(composite, targetPath + name)
         composite.close()
 
     def doSubtractBackground(self, names):
         path = self.experiment.getWorkFolder()
         for name in names:
-            self.openImage(path + "/" + name)
-            imp = IJ.getImage()
+            imp = self.openImage(path + "/" + name)
+            # imp = IJ.getImage()
             self.findAndSubtractBackground(
                 self.getOptions().subtract_background_radius,
                 self.getOptions().subtract_background_offset,
                 self.getOptions().subtract_background_iterations,
                 self.getOptions().subtract_background_skip,
             )
+            # self.applyCalibration()
             self.saveImage(imp, path + "/" + name)
             imp.close()
 
@@ -1042,8 +1129,8 @@ class Well(object):
         radius = self.getOptions().rollingball
         path = self.experiment.getWorkFolder()
         for name in names:
-            self.openImage(path + "/" + name)
-            imp = IJ.getImage()
+            imp = self.openImage(path + "/" + name)
+            # imp = IJ.getImage()
             IJ.run(imp, "Subtract Background...", "rolling=" + str(radius))
             self.saveImage(imp, path + "/" + name)
             imp.close()
@@ -1056,8 +1143,8 @@ class Well(object):
         maxs = []
         means = []
         for name in names:
-            self.openImage(path + "/" + name)
-            imp = IJ.getImage()
+            imp = self.openImage(path + "/" + name)
+            # imp = IJ.getImage()
             mins.append(imp.getStatistics().min)
             maxs.append(imp.getStatistics().max)
             means.append(imp.getStatistics().mean)
@@ -1065,8 +1152,8 @@ class Well(object):
         globalMean = max(means)
         i = 0
         for name in names:
-            self.openImage(path + "/" + name)
-            imp = IJ.getImage()
+            imp = self.openImage(path + "/" + name)
+            # imp = IJ.getImage()
             IJ.run(imp, "Subtract...", "value=" + str(mins[i]))
             IJ.run(imp, "32-bit", "")
             IJ.run(imp, "Divide...", "value=" + str(maxs[i] - mins[i]))
@@ -1083,10 +1170,10 @@ class Well(object):
     def doIndexFlatFieldCorrection(self, names, chan):
         path = this.experiment.getWorkFolder()
         for name in names:
-            self.openImage(path + "/" + name)
-            imp1 = IJ.getImage()
-            self.openImage(self.experiment.getFlatfieldFolder() + str(chan) + ".tiff")
-            imp2 = IJ.getImage()
+            imp1 = self.openImage(path + "/" + name)
+            # imp1 = IJ.getImage()
+            imp2 = self.openImage(self.experiment.getFlatfieldFolder() + str(chan) + ".tiff")
+            # imp2 = IJ.getImage()
             imp3 = ImageCalculator.run(imp1, imp2, "Subtract create")
             self.saveImage(imp3, path + "/" + name)
             imp1.close()
@@ -1097,8 +1184,8 @@ class Well(object):
         path = this.experiment.getWorkFolder()
         radius = self.experiment.getOptions().pseudoflatfield
         for name in names:
-            self.openImage(path + "/" + name)
-            imp = IJ.getImage()
+            imp = self.openImage(path + "/" + name)
+            # imp = IJ.getImage()
             IJ.run("Pseudo flat field correction", "blurring=" + str(radius) + " hide")
             self.saveImage(imp, path + "/" + name)
             imp.close()
@@ -1112,6 +1199,7 @@ class Well(object):
         path = self.experiment.getPath()
         rgbStackMerge = RGBStackMerge()
         fields = self.getFields()
+        
         for t in range(0, timePoints):
             for f in range(0, len(fields)):
                 channelImps = []
@@ -1120,14 +1208,14 @@ class Well(object):
                     for z in range(1, slices + 1):
                         images = self.getImagesForZPosTimeAndChannel(z, t, c)
                         image = images[f].getURL()
-                        self.openImage(path + "/" + image)
-                        imp = IJ.getImage()
+                        imp = self.openImage(path + "/" + image)
+                        # imp = IJ.getImage()
+                        self.applyCalibration(imp)
                         imps.append(imp)
-                        calibration = imp.getCalibration()
+                    
                     imp = ImagesToStack.run(imps)
-                    imp.setCalibration(calibration)
                     IJ.run(imp, self.getOptions().colours[c - 1], "")
-                    name = image[:9] + image[12:]
+                    name = removeComponentFromName(image, ['p']) # image[:9] + image[12:]
                     IJ.log("Creating Z-Stack of image : " + name)
                     minDisplay, maxDisplay = (
                         self.getOptions().min_max_display[c - 1][0],
@@ -1135,10 +1223,14 @@ class Well(object):
                     )
                     imp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                     channelImps.append(imp)
+                    # self.applyCalibration(imp)
                     self.saveImage(imp, outputPath + name)
+                
                 if self.getOptions().zStackFieldsComposite:
+                    newName = removeComponentFromName(name, ['ch'])
+                    calibration = imp.getCalibration()
                     self.createComposite(
-                        channelImps, name[:10] + name[13:], calibration, outputPath
+                        channelImps, newName, calibration, outputPath # name[:10] + name[13:]
                     )
                 else:
                     for im in channelImps:
@@ -1163,16 +1255,17 @@ class Well(object):
                     imps = []
                     title = ""
                     for image in images:
-                        self.openImage(path + "/" + image.getURL())
+                        imp = self.openImage(path + "/" + image.getURL())
                         title = image.getURL()
-                        imp = IJ.getImage()
-                        calibration = imp.getCalibration()
+                        # imp = IJ.getImage()
+                        self.applyCalibration(imp)
                         IJ.run(imp, self.getOptions().colours[c - 1], "")
                         imps.append(imp)
                     if title:
                         imp = ImagesToStack.run(imps)
-                        imp.setCalibration(calibration)
-                        name = title[:9] + title[12:]
+                        self.applyCalibration(imp)
+                        calibration = imp.getCalibration()
+                        name = removeComponentFromName(title, ['p']) # title[:9] + title[12:]
                         IJ.log("Creating Projection of image : " + name)
                         projImp = ZProjector.run(imp, "max")
                         url = outputPath + name
@@ -1182,13 +1275,17 @@ class Well(object):
                         )
                         projImp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                         channelImps.append(projImp)
+                        projImp.setCalibration(calibration)
+                        # self.applyCalibration(projImp)
                         self.saveImage(projImp, url)
                         imp.close()
                         projImp.close()
+
                 if self.getOptions().projectionFieldsComposite:
+                    newName = removeComponentFromName(title, ['p', 'ch'])
                     self.createComposite(
                         channelImps,
-                        title[:9] + title[12:13] + title[16:],
+                        newName,
                         calibration,
                         outputPath,
                     )
@@ -1214,18 +1311,20 @@ class Well(object):
                 imps = []
                 title = ""
                 for image in images:
-                    self.openImage(path + "/" + image.getURL())
+                    imp = self.openImage(path + "/" + image.getURL())
                     title = image.getURL()
-                    imp = IJ.getImage()
+                    # imp = IJ.getImage()
                     calibration = imp.getCalibration()
                     imps.append(imp)
                 if title:
                     imp = ImagesToStack.run(imps)
                     imp.setCalibration(calibration)
+                    self.applyCalibration(imp)
                     projImp = ZProjector.run(imp, "max")
+                    self.applyCalibration(projImp)
                     IJ.log("--")
                     IJ.log("In  URL = " + title)
-                    url = outputPath + str(index + 1).zfill(2) + ".tif"
+                    url = outputPath + str(index + 1).zfill(8) + ".tif"
                     IJ.log("Out URL = " + url)
                     minDisplay, maxDisplay = (
                         self.getOptions().min_max_display[channel - 1][0],
@@ -1296,8 +1395,8 @@ class Well(object):
                 channelMin = self.getOptions().min_max_display[channelNumber - 1][0]
                 channelMax = self.getOptions().min_max_display[channelNumber - 1][1]
             IJ.log(url + " - Min=" + str(channelMin) + ", Max=" + str(channelMax))
-            self.openImage(inputPath + url)
-            imp = IJ.getImage()
+            imp = self.openImage(inputPath + url)
+            # imp = IJ.getImage()
             imp.getProcessor().setMinAndMax(channelMin, channelMax)
             options = options + "c" + str(index + 1) + "=" + url + " "
         if channelExport == "All":
@@ -1305,7 +1404,7 @@ class Well(object):
             composite = IJ.getImage()
             IJ.run("RGB Color", "")
             imp = IJ.getImage()
-            aFile = outputPath + imagesURL[0][:7] + imagesURL[0][10:]
+            aFile = os.path.join(outputPath, removeComponentFromName(imagesURL[0], ['ch'])) # + imagesURL[0][:7] + imagesURL[0][10:]
             composite.close()
         else:
             imp = IJ.getImage()
@@ -1331,17 +1430,19 @@ class Well(object):
             image.getURLWithoutField() for image in images if image.getChannel() == 1
         ]
         if self.getOptions().stack:
-            urlsChannel1 = [url[:6] + url[9:] for url in urlsChannel1]
+            urlsChannel1 = [removeComponentFromName(url, ['p']) for url in urlsChannel1] # url[:6] + url[9:]
             urlsChannel1 = set(urlsChannel1)
         toBeDeleted = []
         for url in urlsChannel1:
-            images = []
-            self.openImage(self.experiment.getOutFolder() + url)
-            imp = IJ.getImage()
+            # images = []
+            imp = self.openImage(self.experiment.getOutFolder() + url)
+            # imp = IJ.getImage()
             toBeDeleted.append(self.experiment.getOutFolder() + url)
-            images.append(url)
+            # images.append(url)
+            images = [url]
             for c in range(2, channels + 1):
                 newURL = url.replace("ch1", "ch" + str(c))
+                # IJ.open(self.experiment.getOutFolder() + newURL)
                 self.openImage(self.experiment.getOutFolder() + newURL)
                 toBeDeleted.append(self.experiment.getOutFolder() + newURL)
                 images.append(newURL)
@@ -1359,13 +1460,13 @@ class Well(object):
     def mipImages(self, images, outputPath):
         imps = []
         for url in images:
-            channel = int(url.split("ch")[1].split("sk")[0])
+            channel = int(os.path.basename(url).split("ch")[1].split("sk")[0])
             title = url.split("/")[-1]
 
-            self.openImage(url)
+            imp = self.openImage(url)
 
             print("Step A")
-            imp = IJ.getImage()
+            # imp = IJ.getImage()
             print("Step B")
             calibration = imp.getCalibration()
             print("Step C")
@@ -1383,10 +1484,12 @@ class Well(object):
             imps.append(projImp)
             imp.close()
             # projImp.close()
-
+        
         if self.getOptions().projectionMosaicComposite:
+            # title[:6] + "-" + title[11:]
+            newTitle = removeComponentFromName(title, ['ch'])
             self.createComposite(
-                imps, title[:6] + "-" + title[11:], calibration, outputPath
+                imps, newTitle, calibration, outputPath
             )
         else:
             for im in imps:
@@ -1407,9 +1510,9 @@ class Well(object):
         allImages = self.getImages()
         image1 = allImages[0]
         url = image1.getURL()
-        strippedURL = url[:6] + url[9:]
-        strippedURL = strippedURL[:6] + strippedURL[9:]
-        strippedURL = strippedURL[:7] + strippedURL[10:]
+        strippedURL = removeComponentFromName(url, ['f', 'p', 'ch']) # url[:6] + url[9:]
+        # strippedURL = strippedURL[:6] + strippedURL[9:] # ['p']
+        # strippedURL = strippedURL[:7] + strippedURL[10:]
         return strippedURL
 
     def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
@@ -1427,15 +1530,33 @@ class Well(object):
         srcPath = self.experiment.getPath()
         path = self.experiment.getWorkFolder()
         names = [image.getURL() for image in images]
-        newNames = [str(names.index(name) + 1).zfill(2) + ".tif" for name in names]
+        newNames = [str(names.index(name) + 1).zfill(8) + ".tif" for name in names]
 
-        self.copyImages(srcPath, path, names, newNames)
+        self.copyImages(srcPath, path, names, newNames, images)
+
+        # for idx, dest in enumerate(newNames):
+        #     fullPath = os.path.join(path, dest)
+        #     if not os.path.isfile(fullPath):
+        #         continue
+
+        #     img = IJ.openImage(fullPath)
+        #     dim = str(self.images[idx].getPixelWidth()*1000000)
+        #     IJ.run(img, "Properties...", "pixel_width={0} pixel_height={0} voxel_depth=1.0000".format(dim))
+        #     calib = img.getCalibration()
+        #     calib.setXUnit("um")
+        #     calib.setYUnit("um")
+        #     calib.setZUnit("pixel")
+        #     IJ.save(img, fullPath)
+        #     img.close()
+
         return names, newNames
 
     def emptyWorkFolder(self):
         shutil.rmtree(self.experiment.getWorkFolder())
 
     def runGridCollectionStitching(self):
+        options = self.getOptions()
+
         parameters = (
             "type=[Positions from file] "
             + "order=[Defined by TileConfiguration] "
@@ -1444,10 +1565,28 @@ class Well(object):
             + "] "
             + "layout_file=TileConfiguration.txt "
             + "fusion_method=[Linear Blending] "
-            + "regression_threshold=0.30 "
-            + "max/avg_displacement_threshold=2.50 "
-            + "absolute_displacement_threshold=3.50 "
+            + "regression_threshold="
+            + str(options.regression_threshold)
+            + " max/avg_displacement_threshold="
+            + str(options.displacement_threshold)
+            + " absolute_displacement_threshold="
+            + str(options.abs_displacement_threshold)
+            + " "
         )
+
+        # parameters = (
+        #     "type=[Positions from file] "
+        #     + "order=[Defined by TileConfiguration] "
+        #     + "directory=["
+        #     + self.experiment.getWorkFolder()
+        #     + "] "
+        #     + "layout_file=TileConfiguration.txt "
+        #     + "fusion_method=[Linear Blending] "
+        #     + "regression_threshold=0.30 "
+        #     + "max/avg_displacement_threshold=2.50 "
+        #     + "absolute_displacement_threshold=3.50 "
+        # )
+        
         # if self.getOptions().computeOverlap:
         #    parameters = parameters + "compute_overlap "
         parameters = (
@@ -1456,6 +1595,7 @@ class Well(object):
             + "computation_parameters=[Save computation time (but use more RAM)] "
             + "image_output=[Fuse and display] "
         )
+        
         IJ.run("Grid/Collection stitching", parameters)
 
     def createHyperstack(self):
@@ -1479,8 +1619,8 @@ class Well(object):
         yCoords = [int(round(image.getY() / float(pixelWidth))) for image in images]
         xCoords, yCoords = transformCoordinates(xCoords, yCoords)
         for image, x, y in zip(images, xCoords, yCoords):
-            self.openImage(image.getFolder() + os.path.sep + image.getURL())
-            imp = IJ.getImage()
+            imp = self.openImage(image.getFolder() + os.path.sep + image.getURL())
+            # imp = IJ.getImage()
             IJ.run(imp, "Copy", "")
             mosaic.setPosition(image.getChannel(), image.getPlane(), image.getTime())
             mosaic.paste(x, y, "Copy")
@@ -1708,7 +1848,7 @@ class Image(object):
 
     def getURLWithoutField(self):
         url = self.getURL()
-        res = url[:6] + url[9:]
+        res = removeComponentFromName(url, ['f']) # url[:6] + url[9:]
         return res
 
     def __str__(self):
@@ -2176,8 +2316,39 @@ class OperaExporterTest(unittest.TestCase):
         self.assertEquals(len(exporter.getWells()), 1)
 
 
+class RemoveComponentsFromNameTest(unittest.TestCase):
+    
+    baseName = None
+
+    def setUp(self):
+        unittest.TestCase.setUp(self)
+        self.baseName = "r01c02f103p25-ch1sk1fk1fl2.tiff"
+
+    def testBadNaming(self):
+        res = removeComponentFromName("azertyuiop", ['f'])
+        self.assertEquals(res, "untitled.tiff")
+        res = removeComponentFromName("", ['f'])
+        self.assertEquals(res, "untitled.tiff")
+
+    def testRemove(self):
+        f = removeComponentFromName(self.baseName, ['f'])
+        self.assertEquals(f, "r01c02p25-ch1sk1fk1fl2.tiff")
+        p = removeComponentFromName(self.baseName, ['p'])
+        self.assertEquals(p, "r01c02f103-ch1sk1fk1fl2.tiff")
+        n = removeComponentFromName(self.baseName, ['f', 'p', 'r', 'c', 'ch', 'sk', 'fk', 'fl'])
+        self.assertEquals(n, "-.tiff")
+        
+    def testInvalidRequest(self):
+        res = removeComponentFromName(self.baseName, 'd')
+        self.assertEquals(res, self.baseName)
+
+
 def suite():
     suite = unittest.TestSuite()
+
+    suite.addTest(RemoveComponentsFromNameTest("testInvalidRequest"))
+    suite.addTest(RemoveComponentsFromNameTest("testRemove"))
+    suite.addTest(RemoveComponentsFromNameTest("testBadNaming"))
 
     suite.addTest(SplitIntoChunksOfSizeTest("testSplitIntoChunksOfSize"))
     suite.addTest(TransformCoordinatesTest("testTransformCoordinates"))
