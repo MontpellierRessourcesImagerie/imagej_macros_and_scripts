@@ -972,7 +972,7 @@ class Well(object):
                 # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
             
-            title = removeComponentFromName(self.images[0].getURL(), ['f', 'p'])
+            title = removeComponentFromName(self.images[0].getURL(), ['f', 'p']) + "-compo"
 
             if exportComposite:
                 # title[:6] + "-" + title[13:]
