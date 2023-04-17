@@ -28,6 +28,7 @@ function main() {
     for (i = 0; i < list1.length; i++) {
         mipTitle = list1[i];
         open(joinPath(redMIPDir, mipTitle));
+        IJ.log("Currently checking: " + getTitle());
         run("Enhance Contrast", "saturated=0.35");
 
         //Demander si le focus est OK. Si non, demande l'image où faire le focus, puis fait un MIP -3 +3 de cette nouvelle image et la sauvegarde
@@ -53,14 +54,16 @@ function main() {
         parts = split(greenSuffix, ".");
         greenChannelName = parts[0];
 
-        rawTitle = replace(rawTitle, redChannelName, greenChannelName);
-        open(joinPath(rawDir, rawTitle));
-        mipProjectAroundFocus(slice);
-
-        mipTitle = replace(mipTitle, redChannelName, greenChannelName);
         greenMIPDir = replace(redMIPDir, redChannelName, greenChannelName);
-        save(joinPath(greenMIPDir, mipTitle));
 
+        if (File.isDirectory(greenMIPDir)) {
+            rawTitle = replace(rawTitle, redChannelName, greenChannelName);
+            open(joinPath(rawDir, rawTitle));
+            mipProjectAroundFocus(slice);
+
+            mipTitle = replace(mipTitle, redChannelName, greenChannelName);
+            save(joinPath(greenMIPDir, mipTitle));
+        }
         run("Close All"); 
     }
 }

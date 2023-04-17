@@ -12,8 +12,6 @@ from inra.ijpb.label.select import LabelSizeFiltering, RelationalOperator
 from inra.ijpb.morphology import Strel
 from ij.plugin import ImageCalculator
 
-# TODO [ ] Appliquer un flou median de 2 pixels retire des défauts de détection.
-
 def seekSpots(image, tolerance=0.01, sigmas=[3, 5, 7], cellSize=40, maxSpotSize=250):
 	"""
 	This function produces:

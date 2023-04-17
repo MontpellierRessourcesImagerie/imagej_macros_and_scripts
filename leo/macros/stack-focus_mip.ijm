@@ -18,14 +18,15 @@ outputDirectoryGreen = joinPath(dir2, splittedGrn[0]);
 IJ.log("Exporting red to: " + outputDirectoryRed);
 IJ.log("Exporting green to: " + outputDirectoryGreen);
 
-list = filterRedChannelImages(getFileList(dir1));
+//////////////////////////////////////////////////////////////////////////////
 
+list = filterRedChannelImages(getFileList(dir1));
 setBatchMode(true);
 mipTwoChannels(dir1, list);
-
 setBatchMode(false);
+IJ.log("DONE.");
 
-//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 // Joins a new element to a path, considering that the first part doesn't necessarily ends with the path separator.
 function joinPath(parent, leaf) {
@@ -36,12 +37,13 @@ function joinPath(parent, leaf) {
     }
 }
 
-function mipTwoChannels(dir, fileList){ 
+function mipTwoChannels(dir, fileList) { 
     File.makeDirectory(outputDirectoryRed);
     File.makeDirectory(outputDirectoryGreen);
     
     for (i = 0 ; i < fileList.length ; i++) {
         open(joinPath(dir, fileList[i]));
+        IJ.log("Processing: " + getTitle() + " (" + getImageID() + ")");
         m = getFocusedSliceNumber();
         mipProjectAroundFocus(m);
         save(joinPath(outputDirectoryRed, "MIP_" + fileList[i]));
@@ -53,21 +55,24 @@ function mipTwoChannels(dir, fileList){
         greenChannelName = parts[0];
         
         greenFile = replace(fileList[i], redChannelName, greenChannelName);
+        
         if (!File.exists(joinPath(dir, greenFile))) {
             run("Close All");
             continue;
         }
+        
         open(joinPath(dir, greenFile));
         mipProjectAroundFocus(m);
         save(joinPath(outputDirectoryGreen, "MIP_" + greenFile));
         
         run("Close All");
     }
-
+    
     outputFileList = getFileList(outputDirectoryGreen);
 
     if(outputFileList.length == 0) {
-        File.delete(outputDirectoryGreen);
+        d = File.delete(outputDirectoryGreen);
+        if (d) { IJ.log("\"" + outputDirectoryGreen + "\"" + " deleted."); }
     }
 }
 
@@ -81,12 +86,11 @@ function filterRedChannelImages(list) {
     newList = newArray(0);
     for (i = 0 ; i < list.length ; i++) {
         file = list[i];
-        IJ.log(file);
-        IJ.log(redSuffix);
         if (endsWith(toLowerCase(file), toLowerCase(redSuffix))) {
             newList = Array.concat(newList, file);
         }
     }
+    IJ.log(newList.length + " files found.");
     return newList;
 }
 
