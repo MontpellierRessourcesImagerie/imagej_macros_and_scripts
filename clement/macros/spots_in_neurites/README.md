@@ -32,3 +32,15 @@ Files to pick from dl4mic:
 
 Common sources of errors:
     - The file extension varies from a file to another and doesn't match the one provided in the settings (that problem is quite often observed on Windows users, where file extension is hidden and can't see that a mix of ".tif" and ".TIF" is present.)
+
+# Manual install
+
+1. Download and unzip the folder https://dev.mri.cnrs.fr/attachments/download/2962/spotsInNeurites.zip
+2. Move this folder (not just its content) in the Fiji's folder (it should be named Fiji.app).
+3. Aller récupérer le fichier "clement/toolsets/assemblage_audrey/Spots in neurites.ijm" et le placer dans "macro/toolsets" de Fiji.
+4. Prendre le dossier "clement/macros/spots_in_neurites" et le placer dans "plugins" de Fiji.
+5. Dans les macros de Léo, aller récupérer "stack-focus_mip.ijm" et "verif_mip.ijm" et les placer dans le dossier "spots_in_neurites" de l'étape d'avant.
+6. Prendre le dossier "clement/packages/spotsInNeurites" et le placer dans "jars/Lib" du dossier de Fiji. Le dossier "Lib" peut ne pas exister, il faut le créer.
+7. Récupérer les plugins ComDet et Find_focused_slices, et les mettre dans le dossier de plugins d'ImageJ.
+8. Si ce n'est pas encore fait, il faut installer miniconda. Faire une copie des fichiers de miniconda au cas où on fail l'installation.
+9. Créer l'environnement avec le bon fichier yml en utilisant la commande: "conda env create -f environment.yml".
