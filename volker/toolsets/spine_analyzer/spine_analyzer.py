@@ -50,6 +50,7 @@ def segmentObjectInRegion(image, roi):
 def addEmptyChannel(image):
     """Add a new, empty channel to the image and restore the original position.
     """
+    image.setDisplayMode(IJ.COMPOSITE);
     width, height, nChannels, nSlices, nFrames  = image.getDimensions()
     currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
     image.setPosition(nChannels, currentZ, currentT)
