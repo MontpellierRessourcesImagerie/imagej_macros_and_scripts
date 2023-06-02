@@ -1,13 +1,19 @@
+import sys
 from ij import IJ
 from ij import ImagePlus
 from ij.plugin import Duplicator;
 from ij.process import ImageStatistics
+from ij.process import Blitter
+from ij.plugin import LutLoader
+from ij.process import LUT 
+from ij.gui import  WaitForUserDialog
+from ij.gui import Roi
 from inra.ijpb.label import LabelImages
 
 
 THRESHOLDING_METHOD = "Default"
-LUT = "glasbey on dark"
-
+LOOKUP_TABLE_NAME = "glasbey on dark"
+LOOKUP_TABLE = LUT(LutLoader.getLut( "glasbey on dark" ), 0, 255);
 
 def main():
     inputImage = IJ.getImage()
@@ -15,11 +21,11 @@ def main():
     spineChannel = inputImage.getProp("spine-channel")
     if spineChannel and currentC == int(spineChannel):
         IJ.error("Please run the segmentation on a greyscale channel!")
-        IJ.exit()
+        sys.exit()
     roi = inputImage.getRoi();
     if not roi:
         IJ.error("Please draw a ROI around a spine!")
-        IJ.exit()
+        sys.exit()
     spineImage = segmentObjectInRegion(inputImage, roi)
     addSpine(inputImage, spineImage)
     spineImage.close()
@@ -44,8 +50,9 @@ def segmentObjectInRegion(image, roi):
 def addEmptyChannel(image):
     """Add a new, empty channel to the image and restore the original position.
     """
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
     width, height, nChannels, nSlices, nFrames  = image.getDimensions()
+    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
+    image.setPosition(nChannels, currentZ, currentT)
     IJ.run(image, "Add Slice", "add=channel")
     image.setPosition(currentC, currentZ, currentT)
     return nChannels + 1
@@ -63,23 +70,25 @@ def addSpine(image, spineImage):
     else:
         channel = int(spineChannel)
         image.setC(channel)
-        label = image.getStatistics(ImageStatistics.max) + 1
+        stats = image.getStatistics(ImageStatistics.MIN_MAX)
+        label = stats.max + 1
     copyStackTo(image, spineImage, channel, currentT, label)
 
 
 def copyStackTo(image, stack, channel, frame, label):
     """Copy the stack into the given channel and frame of image. The slices of the stack are copied with a transparent zero.
     """
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
     LabelImages.replaceLabels(stack, [255], label)
-    for sliceNumber in range(1, stack.getStack().size+1):
-        image.setPosition(channel, sliceNumber, frame)
-        stack.setPosition(sliceNumber)
-        stack.copy()
-        image.paste(0, 0, "Transparent2")
-    image.setDisplayRange(0, label)
-    IJ.run(image, LUT, "");
-    Stack.setPosition(startChannel, startSlice, startFrame);
+    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
+    width, height, nChannels, nSlices, nFrames = image.getDimensions()
+    offset = ((currentT-1) * nChannels*nSlices) + channel;
+    for sliceNumber in range(1, stack.getStack().size()+1):
+        image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, Blitter.COPY_ZERO_TRANSPARENT)
+    image.setC(channel)
+    image.getChannelProcessor().setLut(LOOKUP_TABLE)
+    image.getChannelProcessor().setMinAndMax(0, label)
+    image.setPosition(currentC, currentZ, currentT)
+    image.updateAndDraw()
     
     
 main()
