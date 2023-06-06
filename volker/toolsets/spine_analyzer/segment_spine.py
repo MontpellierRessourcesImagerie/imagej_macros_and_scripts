@@ -37,23 +37,38 @@
 ################################################################################################
 
 import sys
+import os
 from ij import IJ
+from ij import Prefs
 from ij import ImagePlus
-from ij.plugin import Duplicator;
+from ij.plugin import Duplicator
 from ij.process import ImageStatistics
 from ij.process import Blitter
+from ij.process import AutoThresholder
 from ij.plugin import LutLoader
 from ij.process import LUT 
 from ij.gui import  WaitForUserDialog
 from ij.gui import Roi
+from ij.gui import GenericDialog
 from inra.ijpb.label import LabelImages
 
 
 THRESHOLDING_METHOD = "Default"
+THRESHOLDING_METHODS = AutoThresholder.getMethods()
 LOOKUP_TABLE_NAME = "glasbey on dark"
-LOOKUP_TABLE = LUT(LutLoader.getLut( "glasbey on dark" ), 0, 255);
+LOOKUP_TABLE_NAMES = IJ.getLuts()
+SAVE_OPTIONS = True
+
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer";
+
+LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
 
 def main():
+    optionsOnly = Prefs.get("mri.options.only", False)
+    if  not showDialog():
+        return
+    if optionsOnly=="true":
+        return
     inputImage = IJ.getImage()
     currentC, currentZ, currentT = (inputImage.getC(), inputImage.getZ(), inputImage.getT())
     spineChannel = inputImage.getProp("spine-channel")
@@ -112,6 +127,7 @@ def addSpine(image, spineImage):
         stats = image.getStatistics(ImageStatistics.MIN_MAX)
         label = stats.max + 1
     copyStackTo(image, spineImage, channel, currentT, label)
+    image.setPosition(currentC, currentZ, currentT);
 
 
 def copyStackTo(image, stack, channel, frame, label):
@@ -128,8 +144,68 @@ def copyStackTo(image, stack, channel, frame, label):
     image.getChannelProcessor().setMinAndMax(0, label)
     image.setPosition(currentC, currentZ, currentT)
     image.updateAndDraw()
+   
+
+def showDialog():
+    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS
+    
+    if  os.path.exists(getOptionsPath()):
+        loadOptions()
+    gd = GenericDialog("Segment Spine Options"); 
+    gd.addChoice("Auto-Thresholding Method: ", THRESHOLDING_METHODS, THRESHOLDING_METHOD)
+    gd.addChoice("Lookup Table: ", LOOKUP_TABLE_NAMES, LOOKUP_TABLE_NAME)
+    gd.addCheckbox("Save Options", SAVE_OPTIONS)
+    gd.addHelp(URL)
+    gd.showDialog()
+    if gd.wasCanceled():
+        return False
+    THRESHOLDING_METHOD = gd.getNextChoice()
+    LOOKUP_TABLE_NAME = gd.getNextChoice()
+    SAVE_OPTIONS = gd.getNextBoolean()
+    LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
+    if SAVE_OPTIONS:
+        saveOptions()
+    return True
     
     
+def getOptionsPath():
+    pluginsPath = IJ.getDirectory("plugins");
+    optionsPath = pluginsPath + "Spine-Analyzer/sass-options.txt";
+    return optionsPath;
+
+
+def getOptionsString():
+    optionsString = ""
+    optionsString = optionsString + "auto-thresholding=" + THRESHOLDING_METHOD;
+    optionsString = optionsString + " lookup=" + LOOKUP_TABLE_NAME
+    return optionsString
+
+
+def saveOptions():
+    optionsString = getOptionsString()
+    optionsPath = getOptionsPath()
+    IJ.saveString(optionsString, getOptionsPath())
+    
+    
+def loadOptions(): 
+    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME
+    
+    optionsPath = getOptionsPath()
+    optionsString = IJ.openAsString(optionsPath)
+    optionsString = optionsString.replace("\n", "")
+    options = optionsString.split(" ")
+    for option in options:
+        parts = option.split("=")
+        key = parts[0]
+        value = ""
+        if "=" in option:
+            value = parts[1]
+        if key=="auto-thresholding":
+            THRESHOLDING_METHOD = value
+        if key=="lookup":
+            LOOKUP_TABLE_NAME = value
+    
+
 main()
 
 
