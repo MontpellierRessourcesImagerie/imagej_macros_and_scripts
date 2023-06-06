@@ -64,7 +64,8 @@ URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_script
 LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
 
 def main():
-    optionsOnly = Prefs.get("mri.options.only", False)
+    optionsOnly = Prefs.get("mri.options.only", "false")
+    print(optionsOnly)
     if  not showDialog():
         return
     if optionsOnly=="true":
@@ -176,8 +177,9 @@ def getOptionsPath():
 
 def getOptionsString():
     optionsString = ""
-    optionsString = optionsString + "auto-thresholding=" + THRESHOLDING_METHOD;
-    optionsString = optionsString + " lookup=" + LOOKUP_TABLE_NAME
+    lutName = LOOKUP_TABLE_NAME.replace(" ", "_");
+    optionsString = optionsString + "auto-thresholding="+ THRESHOLDING_METHOD
+    optionsString = optionsString + " lookup="+ lutName 
     return optionsString
 
 
@@ -204,6 +206,7 @@ def loadOptions():
             THRESHOLDING_METHOD = value
         if key=="lookup":
             LOOKUP_TABLE_NAME = value
+            LOOKUP_TABLE_NAME = LOOKUP_TABLE_NAME.replace("_", " ")
     
 
 main()

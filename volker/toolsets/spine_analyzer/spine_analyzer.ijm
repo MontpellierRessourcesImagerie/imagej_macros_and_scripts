@@ -1,99 +1,90 @@
-var LUT = "glasbey on dark";
-var THRESHOLDING_METHOD = "Default";
-Stack.getPosition(channel, slice, frame);
-spineChannel = Property.get("spine-channel");
-if (spineChannel != "" && channel == parseInt(spineChannel)) {
-    exit("Please run the segmentation on a greyscale channel!");
-}
-imageID = getImageID();
-spineID = segment3DObjectInRegion();
-addSpine(spineID, imageID);
-selectImage(spineID);
-close();
+/**
+ * 
+ *  spine_analyzer.ijm
+ * 
+ *  Tools to measure the density and volume of dendritic spines.
+ * 
+ *  (c) 2023 INSERM
+ * 
+ *  written by Volker Baecker at the MRI-Center for Image Analysis (MRI-CIA - https://www.mri.cnrs.fr/en/data-analysis.html)
+ * 
+ *  segment_spine.py is free software under the MIT license.
+ *  
+ *  MIT License
+ * 
+ *  Copyright (c) 2023 INSERM
+ * 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ * 
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ * 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *  
+*/
 
-function segment3DObjectInRegion() {
-    setBatchMode(true);
-    Stack.getPosition(channel, slice, frame);
-    run("Select None");
-    run("Duplicate...", "duplicate channels="+channel+" frames="+frame);
-    run("Restore Selection");
-    run("Clear Outside", "stack");
-    setAutoThreshold(THRESHOLDING_METHOD + " dark no-reset stack");
-    run("Convert to Mask", "method="+THRESHOLDING_METHOD+" background=Dark black");
-    mask = getImageID();
-    run("Connected Components Labeling", "connectivity=6 type=[8 bits]");
-    labels = getImageID();
-    run("Keep Largest Label");
-    id = getImageID();
-    selectImage(mask);
-    close();
-    selectImage(labels);
-    close();
-    setBatchMode("exit and display");
-    return id;
+var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer";
+
+
+macro "Spine Analyzer Help Action Tool - CfffL00e0Cd86Df0CfffL01f1L02f2L03f3L0444Cea9D54Cd87D64Cea9L7494Cd87Da4CfcbDb4CfffLc4f4L0545Cc64D55Cc53L65a5Cd86Db5CfffLc5f5L0646Cd87D56Cc53L66a6Cd87Db6CfffLc6f6L0747CfedD57Cc53L67a7CfdcDb7CfffLc7f7CfdcD08CfffL1858Cea9D68Cc53L7898CebaDa8CfffLb8f8Cd75D09CfffL1959CfedD69Cc53L7989Cc64D99CfffLa9f9Ce98D0aCfffL1a6aCc53L7a8aCd86D9aCfffLaafaL0b6bCd75D7bCc53D8bCea9D9bCfffLabfbL0c6cCd75D7cCc53D8cCea9D9cCfffLacfcL0d6dCc53L7d8dCd87D9dCfffLadfdL0e5eCfdcD6eCc53L7e8eCd86D9eCfffLaefeCc54L0f6fCc53L7f9fCc54Lafff" {
+    run('URL...', 'url='+_URL);
 }
 
-function addSpine(spineID, imageID) {
-    id = imageID;
-    selectImage(imageID);
-    Stack.getPosition(currentChannel, currentSlice, frame);
-    channel = Property.get("spine-channel");
-    if (channel=="") {
-        channel = addEmptyChannel(imageID);
-        Property.set("spine-channel", channel);
-        id = getImageID();
-        label = 1;
+
+macro "Segment Spine (f5) Action Tool - C000T4b12s" {
+    runSegmentSpine();
+}
+
+
+macro "Segment Spine (f5) Action Tool Options" {
+    showSegmentSpineOptions();
+}
+
+
+macro "Segment Spine [F5]" {
+    runSegmentSpine();
+}
+
+
+function runSegmentSpine() {
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathSegmentSpine())) {
+        options = loadOptions(getOptionsPathSegmentSpine());
+        run("segment spine", options);
     } else {
-        Stack.setChannel(channel);
-        getStatistics(area, mean, min, label);
-        label++;
-    }
-    copyStackTo(id, spineID, channel, frame, label);
+        run("segment spine");
+    }  
 }
 
 
-function addEmptyChannel(imageID) {
-    selectImage(imageID);
-    Stack.getDimensions(width, height, channels, slices, frames);        
-    Stack.getPosition(channel, slice, frame);
-    title = getTitle();
-    run("Split Channels");
-    run("Duplicate...", "duplicate");
-    run("Select All");
-    run("Clear", "stack");
-    run("Select None");
-    rename("C" + (channels+1) + "-" + title);
-    mergeOptions = "";
-    for (c = 1; c <= (channels+1); c++) {
-        mergeOptions = mergeOptions + "c"+c+"=[C" + c + "-" + title +"] "; 
-    }
-    run("Merge Channels...", mergeOptions);
-    Stack.setPosition(channel, slice, frame);
-    return channels + 1;
+function showSegmentSpineOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("segment spine");
+    call("ij.Prefs.set", "mri.options.only", "false");  
 }
 
 
-function copyStackTo(imageID, stackID, channel, frame, label) {
-    setPasteMode("Transparent-zero");
-    selectImage(imageID);
-    Stack.getPosition(startChannel, startSlice, startFrame);
-    Stack.setPosition(channel, 1, frame);
-    setBatchMode(true);
-    selectImage(stackID);
-    run("Replace/Remove Label(s)", "label(s)=255 final="+label);
-    lastSlice = nSlices;
-    for (s = 1; s <= lastSlice; s++) {
-        selectImage(stackID);
-        Stack.setSlice(s);
-        run("Select All");
-        run("Copy");
-        selectImage(imageID);
-        Stack.setSlice(s);
-        run("Paste");
-    }
-    selectImage(imageID);
-    setMinAndMax(0, label);
-    run(LUT);
-    Stack.setPosition(startChannel, startSlice, startFrame);
-    setBatchMode("exit and display");
+function getOptionsPathSegmentSpine() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Spine-Analyzer/sass-options.txt";
+    return optionsPath;
+}    
+
+
+function loadOptions(path) {
+    optionsString = File.openAsString(path);
+    optionsString = replace(optionsString, "\n", "");
+    return optionsString;  
 }
+
