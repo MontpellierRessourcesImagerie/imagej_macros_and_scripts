@@ -65,7 +65,6 @@ LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
 
 def main():
     optionsOnly = Prefs.get("mri.options.only", "false")
-    print(optionsOnly)
     if  not showDialog():
         return
     if optionsOnly=="true":
@@ -91,7 +90,7 @@ def segmentObjectInRegion(image, roi):
     """
     currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
     image.killRoi()
-    maskImage = Duplicator().run(image, currentC, currentC, 0, image.getNSlices()-1, currentT, currentT)
+    maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
     for z in range(1, maskImage.getNSlices()+1):
         maskImage.getStack().getProcessor(z).fillOutside(roi)
     IJ.setAutoThreshold(maskImage, THRESHOLDING_METHOD + " dark stack");
@@ -142,7 +141,7 @@ def copyStackTo(image, stack, channel, frame, label):
         image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, Blitter.COPY_ZERO_TRANSPARENT)
     image.setC(channel)
     image.getChannelProcessor().setLut(LOOKUP_TABLE)
-    image.getChannelProcessor().setMinAndMax(0, label)
+    IJ.resetMinAndMax(image);    
     image.setPosition(currentC, currentZ, currentT)
     image.updateAndDraw()
    
