@@ -40,17 +40,9 @@ import sys
 import os
 from ij import IJ
 from ij import Prefs
-from ij import ImagePlus
-from ij.plugin import Duplicator
-from ij.process import ImageStatistics
-from ij.process import Blitter
 from ij.process import AutoThresholder
-from ij.plugin import LutLoader
-from ij.process import LUT 
-from ij.gui import  WaitForUserDialog
-from ij.gui import Roi
 from ij.gui import GenericDialog
-from inra.ijpb.label import LabelImages
+from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
 THRESHOLDING_METHOD = "Default"
@@ -61,7 +53,6 @@ SAVE_OPTIONS = True
 
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer";
 
-LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
 
 def main():
     optionsOnly = Prefs.get("mri.options.only", "false")
@@ -70,82 +61,20 @@ def main():
     if optionsOnly=="true":
         return
     inputImage = IJ.getImage()
-    currentC, currentZ, currentT = (inputImage.getC(), inputImage.getZ(), inputImage.getT())
-    spineChannel = inputImage.getProp("spine-channel")
-    if spineChannel and currentC == int(spineChannel):
+    currentC = inputImage.getC()
+    segmentation = InstanceSegmentation(inputImage)    
+    spineChannel = segmentation.getLabelChannelIndex()
+    if spineChannel and currentC == spineChannel:
         IJ.error("Please run the segmentation on a greyscale channel!")
         sys.exit()
     roi = inputImage.getRoi();
     if not roi:
         IJ.error("Please draw a ROI around a spine!")
         sys.exit()
-    spineImage = segmentObjectInRegion(inputImage, roi)
-    addSpine(inputImage, spineImage)
-    spineImage.close()
+    segmentation.setThresholdingMethod(THRESHOLDING_METHOD)
+    segmentation.setLUT(LOOKUP_TABLE_NAME)
+    segmentation.addFromAutoThresholdInRoi(roi)
 
-
-def segmentObjectInRegion(image, roi):
-    """Segment the largest 3D object in the region given by the roi. 
-    Each slice is cleared outside of the 2D roi before the thresholding is done.
-    """
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
-    image.killRoi()
-    maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
-    for z in range(1, maskImage.getNSlices()+1):
-        maskImage.getStack().getProcessor(z).fillOutside(roi)
-    IJ.setAutoThreshold(maskImage, THRESHOLDING_METHOD + " dark stack");
-    IJ.run(maskImage, "Convert to Mask", "method="+THRESHOLDING_METHOD+" background=Dark black")
-    labelsImage = LabelImages.regionComponentsLabeling(maskImage, 255, 6, 8)
-    labelsImage = LabelImages.keepLargestLabel(labelsImage)
-    return labelsImage
-
-
-def addEmptyChannel(image):
-    """Add a new, empty channel to the image and restore the original position.
-    """
-    image.setDisplayMode(IJ.COMPOSITE);
-    width, height, nChannels, nSlices, nFrames  = image.getDimensions()
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
-    image.setPosition(nChannels, currentZ, currentT)
-    IJ.run(image, "Add Slice", "add=channel")
-    image.setPosition(currentC, currentZ, currentT)
-    return nChannels + 1
-
-
-def addSpine(image, spineImage):
-    """Add the spine from the spineImage to the spine-channel of image. The new spine will have the next available index.
-    """
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
-    spineChannel = image.getProp("spine-channel")
-    if not spineChannel:
-        channel = addEmptyChannel(image)
-        image.setProp("spine-channel", channel)
-        label = 1
-    else:
-        channel = int(spineChannel)
-        image.setC(channel)
-        stats = image.getStatistics(ImageStatistics.MIN_MAX)
-        label = stats.max + 1
-    LabelImages.replaceLabels(spineImage, [255], label)
-    copyStackTo(image, spineImage, channel, currentT, LOOKUP_TABLE)
-    image.setPosition(currentC, currentZ, currentT);
-
-
-def copyStackTo(image, stack, channel, frame, lut=None):
-    """Copy the stack into the given channel and frame of image. The slices of the stack are copied with a transparent zero.
-    """
-    currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
-    width, height, nChannels, nSlices, nFrames = image.getDimensions()
-    offset = ((currentT-1) * nChannels*nSlices) + channel;
-    for sliceNumber in range(1, stack.getStack().size()+1):
-        image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, Blitter.COPY_ZERO_TRANSPARENT)
-    image.setC(channel)
-    if lut:
-        image.getChannelProcessor().setLut(lut)
-    IJ.resetMinAndMax(image);    
-    image.setPosition(currentC, currentZ, currentT)
-    image.updateAndDraw()
-   
 
 def showDialog():
     global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS
@@ -163,7 +92,6 @@ def showDialog():
     THRESHOLDING_METHOD = gd.getNextChoice()
     LOOKUP_TABLE_NAME = gd.getNextChoice()
     SAVE_OPTIONS = gd.getNextBoolean()
-    LOOKUP_TABLE = LUT(LutLoader.getLut( LOOKUP_TABLE_NAME ), 0, 255);
     if SAVE_OPTIONS:
         saveOptions()
     return True
