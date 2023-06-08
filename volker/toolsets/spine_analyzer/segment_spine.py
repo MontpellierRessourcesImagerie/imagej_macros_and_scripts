@@ -126,21 +126,22 @@ def addSpine(image, spineImage):
         image.setC(channel)
         stats = image.getStatistics(ImageStatistics.MIN_MAX)
         label = stats.max + 1
-    copyStackTo(image, spineImage, channel, currentT, label)
+    LabelImages.replaceLabels(spineImage, [255], label)
+    copyStackTo(image, spineImage, channel, currentT, LOOKUP_TABLE)
     image.setPosition(currentC, currentZ, currentT);
 
 
-def copyStackTo(image, stack, channel, frame, label):
+def copyStackTo(image, stack, channel, frame, lut=None):
     """Copy the stack into the given channel and frame of image. The slices of the stack are copied with a transparent zero.
     """
-    LabelImages.replaceLabels(stack, [255], label)
     currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
     width, height, nChannels, nSlices, nFrames = image.getDimensions()
     offset = ((currentT-1) * nChannels*nSlices) + channel;
     for sliceNumber in range(1, stack.getStack().size()+1):
         image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, Blitter.COPY_ZERO_TRANSPARENT)
     image.setC(channel)
-    image.getChannelProcessor().setLut(LOOKUP_TABLE)
+    if lut:
+        image.getChannelProcessor().setLut(lut)
     IJ.resetMinAndMax(image);    
     image.setPosition(currentC, currentZ, currentT)
     image.updateAndDraw()
