@@ -35,12 +35,15 @@
 ################################################################################################
 
 from ij import IJ
+from ij import ImagePlus
+from ij.gui import NewImage
 from ij.process import LUT 
 from ij.plugin import LutLoader
 from ij.process import ImageStatistics
+from ij.plugin import Duplicator
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.label import LabelImages
-
+from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
 
 class InstanceSegmentation:
@@ -74,7 +77,15 @@ class InstanceSegmentation:
             self.nextLabel = stats.max + 1
         image.setPosition(currentC, currentZ, currentT)
         
+    
+    def getLabelAt(self, x, y, z, frame):
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        image.setPosition( self.labelChannelIndex, z, frame)
+        label = image.getProcessor().get(x ,y)
+        image.setPosition(currentC, currentZ, currentT)    
+        return label
         
+                
     def addFromMask(self, mask):
         """Add the biggest connected object in the mask as a an object to the segmentation with the next unused label.
         """
@@ -90,6 +101,21 @@ class InstanceSegmentation:
         mask = HyperstackUtils.segmentObjectInRegion(self.image, roi)
         self.addFromMask(mask)
         
+    
+    def replaceLabel(self, x, y, z, frame, newLabel):
+        print(z)
+        labels = Duplicator().run(self.image, self.labelChannelIndex, self.labelChannelIndex, 1, self.image.getNSlices(), frame, frame)
+        width, height, nChannels, nSlices, nFrames = labels.getDimensions()
+        label = labels.getStack().getVoxel(x, y, z)     
+        seedImage = NewImage.createShortImage("seed", width, height, nSlices, NewImage.FILL_BLACK)
+        seedImage.getStack().setVoxel(x, y, z, 65535)
+        reconstructor = GeodesicReconstruction3DHybrid0Gray16(6)
+        isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
+        isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
+        LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
+        HyperstackUtils.copyStackTo(self.image, isolatedLabelImage,  self.labelChannelIndex, frame, lut=self.lut)
+    
+    
     
     def setLUT(self, lutName):
         """Set the lookup-table.
