@@ -45,6 +45,7 @@ from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.label import LabelImages
 from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
+from ij.gui import WaitForUserDialog
 
 class InstanceSegmentation:
     """An instance segmentation of the individual objects in an image, represented by labels in an additional channel.
@@ -52,6 +53,7 @@ class InstanceSegmentation:
     
     DEFAULT_LUT_NAME = "glasbey on dark"
     DEFAULT_THRESHOLDING_METHOD = "Default"
+    
     
     def __init__(self, image):
         """Create a new instance segmentation for the given image. If the image already has a label-channel it is used for the
@@ -103,18 +105,24 @@ class InstanceSegmentation:
         
     
     def replaceLabel(self, x, y, z, frame, newLabel):
-        print(z)
+        """Replace a label in a frame by another label. Also allows to delete a label by setting it to zero.
+        """
+        overwrite = (newLabel == 0)
         labels = Duplicator().run(self.image, self.labelChannelIndex, self.labelChannelIndex, 1, self.image.getNSlices(), frame, frame)
         width, height, nChannels, nSlices, nFrames = labels.getDimensions()
-        label = labels.getStack().getVoxel(x, y, z)     
-        seedImage = NewImage.createShortImage("seed", width, height, nSlices, NewImage.FILL_BLACK)
-        seedImage.getStack().setVoxel(x, y, z, 65535)
-        reconstructor = GeodesicReconstruction3DHybrid0Gray16(6)
-        isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
-        isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
-        LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
-        HyperstackUtils.copyStackTo(self.image, isolatedLabelImage,  self.labelChannelIndex, frame, lut=self.lut)
-    
+        label = int(labels.getStack().getVoxel(x, y, z))     
+        if not overwrite:
+            seedImage = NewImage.createShortImage("seed", width, height, nSlices, NewImage.FILL_BLACK)
+            seedImage.getStack().setVoxel(x, y, z, 65535)
+            reconstructor = GeodesicReconstruction3DHybrid0Gray16(6)
+            isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
+            isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
+            isolatedLabelImage.show()
+            WaitForUserDialog("ok").show()
+            LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
+            label = isolatedLabelImage
+        LabelImages.replaceLabels(labels, [label], newLabel)
+        HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite)
     
     
     def setLUT(self, lutName):
@@ -131,5 +139,7 @@ class InstanceSegmentation:
 
 
     def getLabelChannelIndex(self):
-       return self.labelChannelIndex
+        """Answer the (one based) index of the channel containing the labels"
+        """
+        return self.labelChannelIndex
     

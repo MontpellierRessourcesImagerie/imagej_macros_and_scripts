@@ -57,14 +57,17 @@ class HyperstackUtils:
     
     
     @staticmethod
-    def copyStackTo(image, stack, channel, frame, lut=None):
+    def copyStackTo(image, stack, channel, frame, lut=None, overwrite=False):
         """Copy the stack into the given channel and frame of image. The slices of the stack are copied with a transparent zero.
         """
         currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
         width, height, nChannels, nSlices, nFrames = image.getDimensions()
-        offset = ((currentT-1) * nChannels*nSlices) + channel;
+        offset = ((currentT-1) * nChannels*nSlices) + channel
+        pasteMethod = Blitter.COPY_ZERO_TRANSPARENT
+        if overwrite:
+            pasteMethod = Blitter.COPY
         for sliceNumber in range(1, stack.getStack().size()+1):
-            image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, Blitter.COPY_ZERO_TRANSPARENT)
+            image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, pasteMethod)
         image.setC(channel)
         if lut:
             image.getChannelProcessor().setLut(lut)
