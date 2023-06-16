@@ -1,3 +1,6 @@
+from ij.gui import Overlay
+
+
 class Dendrites:
     """Dendrites are represented as line rois in the overlay of the image.
     The spines are part of the segmentation"""
@@ -8,10 +11,10 @@ class Dendrites:
         """
         self.segmentation = segmentation
         self.image = segmentation.image
-        self.overlay = image.getOverlay()
+        self.overlay = self.image.getOverlay()
         if not self.overlay:
             self.overlay = Overlay()
-            image.setOverlay(overlay)
+            self.image.setOverlay(self.overlay)
             
     
     def add(self, roi, frame):

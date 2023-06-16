@@ -11,6 +11,7 @@ def main():
     currentC, currentZ, currentT = image.getC(), image.getZ(), image.getT()
     dendrites = Dendrites(spines)
     dendrites.add(roi, currentT)
-
+    image.killRoi()
+    
 
 main()
