@@ -45,7 +45,6 @@ from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.label import LabelImages
 from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
-from ij.gui import WaitForUserDialog
 
 class InstanceSegmentation:
     """An instance segmentation of the individual objects in an image, represented by labels in an additional channel.
@@ -117,10 +116,8 @@ class InstanceSegmentation:
             reconstructor = GeodesicReconstruction3DHybrid0Gray16(6)
             isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
             isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
-            isolatedLabelImage.show()
-            WaitForUserDialog("ok").show()
             LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
-            label = isolatedLabelImage
+            labels = isolatedLabelImage
         LabelImages.replaceLabels(labels, [label], newLabel)
         HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite)
     
