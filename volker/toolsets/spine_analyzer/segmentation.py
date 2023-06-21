@@ -110,6 +110,9 @@ class InstanceSegmentation:
         labels = Duplicator().run(self.image, self.labelChannelIndex, self.labelChannelIndex, 1, self.image.getNSlices(), frame, frame)
         width, height, nChannels, nSlices, nFrames = labels.getDimensions()
         label = int(labels.getStack().getVoxel(x, y, z))     
+        if label == 0:
+            IJ.log("Refusing to replace label 0!")
+            return
         if not overwrite:
             seedImage = NewImage.createShortImage("seed", width, height, nSlices, NewImage.FILL_BLACK)
             seedImage.getStack().setVoxel(x, y, z, 65535)
@@ -117,10 +120,11 @@ class InstanceSegmentation:
             isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
             isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
             LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
-            labels = isolatedLabelImage
-        LabelImages.replaceLabels(labels, [label], newLabel)
-        HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite)
-    
+            HyperstackUtils.copyStackTo(self.image, isolatedLabelImage,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite)
+        else:
+            LabelImages.replaceLabels(labels, [label], 0)
+            HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite) 
+       
     
     def setLUT(self, lutName):
         """Set the lookup-table.

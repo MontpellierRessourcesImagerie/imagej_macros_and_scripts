@@ -23,3 +23,41 @@ class Dendrites:
         """
         roi.setPosition(0, 0, frame)
         self.overlay.add(roi)
+        
+"""
+'''Track dendrites'''
+
+from ij import IJ
+
+max_dist = 20
+
+
+image = IJ.getImage()
+width, height, nChannels, nSlices, nFrames = image.getDimensions()
+overlay = image.getOverlay()
+rois = overlay.toArray()
+
+minT = 999999999
+maxT = -999999999
+for i in range(0, len(rois)):
+    roi = rois[i]
+    print(roi)
+    t = roi.getTPosition()
+    if t > maxT:
+        maxT = t
+    if t < minT:
+        minT = t
+    roi.setGroup(i+1)
+
+    
+dendritesByTime = [[] for x in range(0, nFrames)]
+
+for i in range(0, len(rois)):
+    roi = rois[i]
+    t = roi.getTPosition()
+    x = roi.getBounds().getCenterX()
+    y = roi.getBounds().getCenterY()
+    dendritesByTime[t-1].append((roi, (x, y)))
+    
+print(dendritesByTime)
+"""

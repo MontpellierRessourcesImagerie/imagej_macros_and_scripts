@@ -45,6 +45,7 @@ from ij.gui import GenericDialog
 from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
+SPINE_SEGMENTATION_CHANNEL = 1
 THRESHOLDING_METHOD = "Default"
 THRESHOLDING_METHODS = AutoThresholder.getMethods()
 LOOKUP_TABLE_NAME = "glasbey on dark"
@@ -62,6 +63,10 @@ def main():
         return
     inputImage = IJ.getImage()
     currentC = inputImage.getC()
+    originalC = currentC
+    if SPINE_SEGMENTATION_CHANNEL > 0:
+        inputImage.setC(SPINE_SEGMENTATION_CHANNEL)
+        currentC = SPINE_SEGMENTATION_CHANNEL
     segmentation = InstanceSegmentation(inputImage)    
     spineChannel = segmentation.getLabelChannelIndex()
     if spineChannel and currentC == spineChannel:
@@ -74,14 +79,18 @@ def main():
     segmentation.setThresholdingMethod(THRESHOLDING_METHOD)
     segmentation.setLUT(LOOKUP_TABLE_NAME)
     segmentation.addFromAutoThresholdInRoi(roi)
+    inputImage.setC(spineChannel)
+    inputImage.setDisplayRange(0, 255)
+    inputImage.setC(originalC)
+    inputImage.updateAndDraw()
 
 
 def showDialog():
-    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS
-    
+    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Segment Spine Options"); 
+    gd.addNumericField("Spine Segmetation Channel (0 for active): ", SPINE_SEGMENTATION_CHANNEL)
     gd.addChoice("Auto-Thresholding Method: ", THRESHOLDING_METHODS, THRESHOLDING_METHOD)
     gd.addChoice("Lookup Table: ", LOOKUP_TABLE_NAMES, LOOKUP_TABLE_NAME)
     gd.addCheckbox("Save Options", SAVE_OPTIONS)
@@ -89,6 +98,7 @@ def showDialog():
     gd.showDialog()
     if gd.wasCanceled():
         return False
+    SPINE_SEGMENTATION_CHANNEL = int(gd.getNextNumber())
     THRESHOLDING_METHOD = gd.getNextChoice()
     LOOKUP_TABLE_NAME = gd.getNextChoice()
     SAVE_OPTIONS = gd.getNextBoolean()
@@ -106,7 +116,8 @@ def getOptionsPath():
 def getOptionsString():
     optionsString = ""
     lutName = LOOKUP_TABLE_NAME.replace(" ", "_");
-    optionsString = optionsString + "auto-thresholding="+ THRESHOLDING_METHOD
+    optionsString = optionsString + "spine=" + str(SPINE_SEGMENTATION_CHANNEL)
+    optionsString = optionsString + " auto-thresholding="+ THRESHOLDING_METHOD
     optionsString = optionsString + " lookup="+ lutName 
     return optionsString
 
@@ -118,7 +129,7 @@ def saveOptions():
     
     
 def loadOptions(): 
-    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME
+    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL
     
     optionsPath = getOptionsPath()
     optionsString = IJ.openAsString(optionsPath)
@@ -135,6 +146,8 @@ def loadOptions():
         if key=="lookup":
             LOOKUP_TABLE_NAME = value
             LOOKUP_TABLE_NAME = LOOKUP_TABLE_NAME.replace("_", " ")
+        if key=="spine":
+            SPINE_SEGMENTATION_CHANNEL = int(value)
     
 
 main()

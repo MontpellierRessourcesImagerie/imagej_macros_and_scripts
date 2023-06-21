@@ -14,9 +14,15 @@ def main():
     image.killRoi()
     
     image = IJ.getImage()
+    originalC = image.getC()
     segmentation = InstanceSegmentation(image)
+    spineChannel = segmentation.getLabelChannelIndex()
     segmentation.replaceLabel(X, Y, Z, FRAME, NEW_LABEL)
-
+    image.setC(spineChannel)
+    image.setDisplayRange(0, 255)
+    image.setC(originalC)
+    image.updateAndDraw()
+    
 
 def showDialog():
     global X, Y, Z, FRAME, NEW_LABEL
