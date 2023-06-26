@@ -61,11 +61,9 @@ class Dendrites:
         colorNames = list(Colors.getColors())
         colorNames.remove(u'Black')
         colors = [Colors.decode(name) for name in colorNames]
-        
         overlay = self.image.getOverlay()
         rois = overlay.toArray()
         for index, roi in enumerate(rois):
-            print(index, roi)
             roi.setStrokeColor(colors[roi.getGroup() % len(colors)]);
         
    
@@ -85,8 +83,7 @@ class Dendrites:
             if t < minT:
                 minT = t
         
-        dendritesByTime = [[] for x in range(0, nFrames)]
-        
+        dendritesByTime = [[] for x in range(0, nFrames)]        
         for i in range(0, len(rois)):
             t = rois[i].getTPosition()
             dendritesByTime[t-1].append(Dendrite(rois[i]))
@@ -101,25 +98,32 @@ class Dendrite:
     def __init__(self, roi):
        self.roi = roi
        self.track = 0
-       
+     
+         
     def getFrame(self):
        return self.roi.getTPosition
-        
+       
+         
     def getCenter(self):
        return (self.roi.getBounds().getCenterX(), self.roi.getBounds().getCenterY())
+        
         
     def getTrack(self):
         return self.track
        
+       
     def isOnTrack(self):
         return not self.track == 0
-        
+       
+         
     def addToTrack(self, trackNr):
         self.track = trackNr
         self.roi.setGroup(trackNr)
         
+        
     def resetTrack(self):
         self.track = 0
+       
        
     def distanceTo(self, other):
         pixelWidth = self.roi.getImage().getCalibration().pixelWidth;

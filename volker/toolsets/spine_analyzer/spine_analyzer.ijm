@@ -90,6 +90,33 @@ macro "Add Dendrite [F6]" {
     runAddDendrite();
 }
 
+
+macro "Track Dendrites (f7) Action Tool - C111D2bD49D62D7bDadDb7DbdDd7CfffD19D44D4cD68D76Db5DbbC666D38D54D5bD6aD6eD74D7eDa6Da9C444D41D53D55D6cD8eD9bDa7DacDc6Dc8CcccD15D1bD27D3aD43D56D5eD61D87D96Dd6DdcC333D22D23D24D2aD33D37D3bD4bD52D63D64D65D66D98D99D9aDc7Dd8Dd9C999D13D14D29D5aD6bDcbDe8De9C555D34D51D6dD7cD9eDa8DaeCeeeD12D21D2cD3cD46D47D7dD8cDb9DbcDceDe7C333D25D39D42D45D48D97Db6DbaDccDdaC888D31D5dD73D7aD88D89DcdC555D26D32D35D57D58DaaDbeDc9CdddD4aD59D5cD72D8dDb8DeaCbbbD1aD36D67D75D8aD8bD9cD9dDabC666DcaDdb" {
+    runTrackDendrites();    
+}
+
+
+macro "Track Dendrites [F7]" {
+    runTrackDendrites(); 
+}
+
+
+macro "Track Dendrites (f7) Action Tool Options" {
+    showTrackDendritesOptions();
+}
+
+
+function runTrackDendrites() {
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathTrackDendrites())) {
+        options = loadOptions(getOptionsPathTrackDendrites());
+        run("track dendrites", options);
+    } else {
+        run("dendrites dendrites");
+    }      
+}
+
+
 function runAddDendrite() {
     run("add dendrite");
 }
@@ -121,6 +148,13 @@ function showSegmentSpineOptions() {
 }
 
 
+function showTrackDendritesOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("track dendrites");
+    call("ij.Prefs.set", "mri.options.only", "false");  
+}
+
+
 function pickLabel(x, y, sllice, frame) {
     labelChannel = Property.get("mricia-label-channel");
     if (labelChannel=="") exit("No label channel found!");
@@ -137,6 +171,13 @@ function getOptionsPathSegmentSpine() {
     optionsPath = pluginsPath + "Spine-Analyzer/sass-options.txt";
     return optionsPath;
 }    
+
+
+function getOptionsPathTrackDendrites() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Spine-Analyzer/satd-options.txt";
+    return optionsPath;
+}
 
 
 function loadOptions(path) {
