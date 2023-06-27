@@ -30,14 +30,23 @@ class Dendrites:
         
         
     def setMaxDistanceForTracking(self, maxDist):
+        """Set the max. distance in physical units that a dendrite can have 
+        moved between two frames.
+        """
         self.maxDistanceForTracking = maxDist
         
         
     def getMaxDistanceForTracking(self):
+        """Get the max. distance in physical units that a dendrite can have 
+        moved between two frames.
+        """
         return self.maxDistanceForTracking
         
         
     def track(self):
+        """Track the dendrites. The dendrites in each frame will be assigned to groups. Each group represents a 
+        dendrite over time. Each group will be displayed in a different color.
+        """
         dendritesByTime = self.getByTime()
         for dendrites in dendritesByTime:
             for dendrite in dendrites:
