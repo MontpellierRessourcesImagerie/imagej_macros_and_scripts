@@ -30,9 +30,9 @@ var _WELLS_NAMES = newArray(0);
 var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
 
-var _ASSEMBLING_BASE = newArray("Stitching", "Sampled");
+var _ASSEMBLING_BASE = newArray("Stitching", "Montage");
 var _PADDING = 0;
-var _ASSEMBLING = false; // true: Image are sampled and must be assembled || false: Image must be stitched
+var _MONTAGE = false; // true: Image are sampled and must be assembled || false: Image must be stitched
 var _STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
 var _STITCH_ON_PROJECTION = false;
 var _ZSLICE = 0;
@@ -169,9 +169,9 @@ function getOptions(){
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
-	// Assembling random samples options
+	// Making a montage of randomly sampled fields
 	options += " --padding=" + _PADDING;
-	if (_ASSEMBLING) options += " --assembling";
+	if (_MONTAGE) options += " --montage";
 	//Export Options
 	if(_EXPORT_Z_STACK_FIELDS) options = options+ " --zStackFields";
 	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ " --zStackFieldsComposite";
@@ -274,7 +274,7 @@ function setCorrectionOptions(){
 
 function addStitchingBaseDialog(channelNames) {
 	// What is the form of images
-	Dialog.addMessage("Assembling", 14);
+	Dialog.addMessage("Montage", 14);
 	Dialog.addRadioButtonGroup("", _ASSEMBLING_BASE, 1, 2, _ASSEMBLING_BASE[0]);
 	Dialog.addNumber("Padding", _PADDING);
 
@@ -291,7 +291,7 @@ function addStitchingBaseDialog(channelNames) {
 }
 
 function getStitchingBaseDialog(channelNames){
-	_ASSEMBLING = (Dialog.getRadioButton() == _ASSEMBLING_BASE[1]);
+	_MONTAGE = (Dialog.getRadioButton() == _ASSEMBLING_BASE[1]);
 	_PADDING    = Dialog.getNumber();
 
 	stitchingBase = Dialog.getRadioButton();

@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from ij import IJ, CompositeImage, ImagePlus
+from ij import IJ, CompositeImage
 import os
 import re
 import sys
@@ -9,13 +9,13 @@ import time
 from itertools import islice
 from datetime import datetime
 from ij.macro import Interpreter
-from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator, Concatenator, MontageMaker, CompositeConverter
+from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator, Concatenator, MontageMaker
 from ij.process import ImageConverter
 from ij.measure import ResultsTable
 import unittest
 import math
 
-DEBUG = True
+DEBUG = False
 IO_DEBUG = False
 
 _CUSTOM_OUTPUT_PATH = ""
@@ -188,16 +188,16 @@ def populateParserBase(parser):
         help="use the z-projection to calculate the stitching",
     )
     parser.add_argument(
-        "--assembling",
+        "--montage",
         default=False,
         action="store_true",
-        help="make a mosaique of images instead of stitching",
+        help="make a montage of images instead of stitching",
     )
     parser.add_argument(
         "--padding",
         default=0,
         type=int,
-        help="the gap left between two images on the final mosaique",
+        help="the gap left between two images on the final montage",
     )
     return parser
 
@@ -433,7 +433,7 @@ class OperaExporter(object):
         self.customOutput = self.options.customOutput
         
         self.padding = self.options.padding # padding between randomly sampled images
-        self.assembling = self.options.assembling
+        self.montage = self.options.montage
 
         print(
             "Custom Output Status : "
@@ -478,7 +478,7 @@ class OperaExporter(object):
         IJ.log("Create projection Fields")
         well.createMIP(self.dims, self.experiment.getProjectionsFolder())
 
-    def makeMontage(self, well, size):
+    def makeMontage(self, well, size, statusTable):
         well.makeMontage(
             size,
             self.experiment.getZStackMosaicFolder(),
@@ -489,7 +489,8 @@ class OperaExporter(object):
             self.padding,
             self.zStackMosaic,
             self.projectionMosaic,
-            self.projectionMosaicRGB
+            self.projectionMosaicRGB,
+            statusTable
         )
 
     def applyStitching(self, well):
@@ -614,7 +615,7 @@ class OperaExporter(object):
 
         return (height, width)
 
-    def assemblingProcedure(self, i, well, statusTable):
+    def montageProcedure(self, i, well, statusTable):
         height, width = self.estimateGridSize(well)
         statusTable.setValue("Montage Size Calculated", i, "V")
         statusTable.show("Execution Status")
@@ -629,7 +630,12 @@ class OperaExporter(object):
             statusTable.setValue("MIPs Created", i, "V")
             statusTable.show("Execution Status")
         
-        self.makeMontage(well, (height, width))
+        self.makeMontage(well, (height, width), statusTable)
+        
+        statusTable.setValue("Z-Stack Montage", i, "V")
+        statusTable.show("Execution Status")
+        statusTable.setValue("Projection Montage", i, "V")
+        statusTable.show("Execution Status")
 
     def launch(self):
         IJ.log("Starting Treatment")
@@ -638,8 +644,8 @@ class OperaExporter(object):
         for i, well in enumerate(self.wellsToExport):
             statusTable.setValue("Wells", i, str(well))
             try:
-                if self.assembling:
-                    self.assemblingProcedure(i, well, statusTable)
+                if self.montage:
+                    self.montageProcedure(i, well, statusTable)
                 else:
                     self.stitchingProcedure(i, well, statusTable)
             except FileNotFoundException:
@@ -712,7 +718,7 @@ class Well(object):
         for i in fieldsOfSlice:
             print("  - " + i.getURL())
 
-    def makeMontage(self, size, targetFolderStack, targetFolderProjection, makeCompositeStack, makeCompositeProj, dims, padding, zstackmosaic, projectionmosaic, projectionMosaicRGB):
+    def makeMontage(self, size, targetFolderStack, targetFolderProjection, makeCompositeStack, makeCompositeProj, dims, padding, zstackmosaic, projectionmosaic, projectionMosaicRGB, statusTable):
         if DEBUG:
             print("ENTERING makeMontage (from Well)")
         
@@ -722,7 +728,7 @@ class Well(object):
         path       = self.experiment.getPath() # Path to the folder containing raw images
         fields     = self.getFields()
         
-        for t in range(0, timePoints):
+        for t in range(timePoints):
             channelImps  = [] # Container for stacks of montages (one per channel)
             channelProjs = [] # Container for projections of montages (one per channel)
             for c in range(1, channels + 1):
@@ -750,6 +756,7 @@ class Well(object):
                 IJ.run(stacked, self.getOptions().colours[c - 1], "") # Applying LUT according to settings
                 name = removeComponentFromName(fieldsOfSlice[0].getURL(), ['p'])
                 IJ.log("Creating Z-Stack of image : " + name)
+                
                 minDisplay, maxDisplay = (
                     self.getOptions().min_max_display[c - 1][0],
                     self.getOptions().min_max_display[c - 1][1],
@@ -757,6 +764,7 @@ class Well(object):
                 stacked.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                 channelImps.append(stacked)
                 if zstackmosaic: # If we have to export the z-stack of the mosaic
+                    print("Created z-stack of montage for: " + name)
                     self.saveImage(stacked, os.path.join(targetFolderStack, name))
                 
                 projected = ZProjector.run(stacked, "max")
@@ -766,8 +774,9 @@ class Well(object):
                 channelProjs.append(projected)
                 if projectionmosaic:
                     projName = removeComponentFromName(name, ['p'])
+                    print("Created projection of montage for: " + projName)
                     self.saveImage(projected, os.path.join(targetFolderProjection, projName))
-                
+
                 if projectionMosaicRGB:
                     IJ.run(projected, "RGB Color", "")
                     self.saveImage(projected, os.path.join(targetFolderProjection, "rgb-"+projName))
@@ -791,6 +800,9 @@ class Well(object):
             else:
                 for im in channelProjs:
                     im.close()
+                    
+            IJ.run("Collect Garbage", "")
+            
 
     def applyCalibration(self, imp):
         calib = imp.getCalibration()
