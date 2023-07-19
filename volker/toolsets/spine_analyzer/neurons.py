@@ -2,6 +2,7 @@ import math
 from ij.gui import Overlay
 from ij.plugin import Colors
 from java.awt import Color
+from java.util import UUID
 
 
 class Dendrites:
@@ -22,11 +23,14 @@ class Dendrites:
             
     
     def add(self, roi, frame):
-        """Add a new dendrite from a line roi. The dendrite created from a line roi on a z-position
+        """Add a new  dendrite from a line roi. The dendrite created from a line roi on a z-position
         will be considered as being the same on each z-slice (like a wall).
         """
+        roi = roi.clone()
         roi.setPosition(0, 0, frame)
+        roi.setName(UUID.randomUUID().toString())
         self.overlay.add(roi)
+       
         
         
     def setMaxDistanceForTracking(self, maxDist):
@@ -103,14 +107,15 @@ class Dendrites:
 
 class Dendrite:
     "A dendrite has spines and can belong to a track."
-     
+
+          
     def __init__(self, roi):
        self.roi = roi
-       self.track = 0
+       self.spines = []
      
          
     def getFrame(self):
-       return self.roi.getTPosition
+       return self.roi.getTPosition()
        
          
     def getCenter(self):
@@ -118,20 +123,19 @@ class Dendrite:
         
         
     def getTrack(self):
-        return self.track
+        return self.roi.getGroup()
        
        
     def isOnTrack(self):
-        return not self.track == 0
+        return not self.getTrack() == 0
        
          
     def addToTrack(self, trackNr):
-        self.track = trackNr
         self.roi.setGroup(trackNr)
         
         
     def resetTrack(self):
-        self.track = 0
+        self.roi.setGroup(0)
        
        
     def distanceTo(self, other):

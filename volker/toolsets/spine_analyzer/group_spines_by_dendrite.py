@@ -32,6 +32,7 @@ def main():
     image.setCalibration(cal)
 
 
+
 def distance(dendrite, centroid):
     points = dendrite.getContainedPoints()
     minDist = sys.maxsize
@@ -42,5 +43,7 @@ def distance(dendrite, centroid):
         if dist < minDist:
             minDist = dist
     return minDist
+
+
 
 main()

@@ -112,7 +112,7 @@ function runTrackDendrites() {
         options = loadOptions(getOptionsPathTrackDendrites());
         run("track dendrites", options);
     } else {
-        run("dendrites dendrites");
+        run("track dendrites");
     }      
 }
 
