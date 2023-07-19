@@ -30,10 +30,14 @@ var _WELLS_NAMES = newArray(0);
 var _WELLS_NAMES_FILE = "wellNames.txt"
 var _EXPORT_ALL = true;
 
+var _ASSEMBLING_BASE = newArray("Stitching", "Montage");
+var _PADDING = 0;
+var _MONTAGE = false; // true: Image are sampled and must be assembled || false: Image must be stitched
 var _STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
 var _STITCH_ON_PROJECTION = false;
 var _ZSLICE = 0;
-var _CHANNEL = 1; //Starts at 1
+var _CHANNEL = 1; // Starts at 1
+var _RANDOM_SAMPLED = false; // In case the wells were randomly sampled at different positions, and no stitching is required.
 
 var _EXPORT_Z_STACK_FIELDS = true;
 var _EXPORT_Z_STACK_FIELDS_COMPOSITE = false;
@@ -165,7 +169,9 @@ function getOptions(){
 	options = options + " --slice=" + _ZSLICE;
 	options = options + " --channel=" + _CHANNEL;
 	if (_STITCH_ON_PROJECTION) options = options + " --stitchOnMIP";
-	
+	// Making a montage of randomly sampled fields
+	options += " --padding=" + _PADDING;
+	if (_MONTAGE) options += " --montage";
 	//Export Options
 	if(_EXPORT_Z_STACK_FIELDS) options = options+ " --zStackFields";
 	if(_EXPORT_Z_STACK_FIELDS_COMPOSITE) options = options+ " --zStackFieldsComposite";
@@ -266,14 +272,18 @@ function setCorrectionOptions(){
 	getCorrectionDialog();
 }
 
-function addStitchingBaseDialog(channelNames){
+function addStitchingBaseDialog(channelNames) {
+	// What is the form of images
+	Dialog.addMessage("Montage", 14);
+	Dialog.addRadioButtonGroup("", _ASSEMBLING_BASE, 1, 2, _ASSEMBLING_BASE[0]);
+	Dialog.addNumber("Padding", _PADDING);
+
 	//Requires channelNames Array
-	_STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
-	Dialog.addMessage("Base for stitching",14);
-	
+	// _STITCHING_BASE = newArray("Z-Slice","Max Intensity Projection");
+	Dialog.addMessage("Base for stitching", 14);
 	sopState = _STITCHING_BASE[0];
 	if(_STITCH_ON_PROJECTION){	sopState = _STITCHING_BASE[1];}
-	Dialog.addRadioButtonGroup("", _STITCHING_BASE, 1, 2, sopState);	
+	Dialog.addRadioButtonGroup("", _STITCHING_BASE, 1, 2, sopState);
 	
 	Dialog.addNumber("z-slice for stitching (0 for middle slice)", _ZSLICE);
 
@@ -281,12 +291,17 @@ function addStitchingBaseDialog(channelNames){
 }
 
 function getStitchingBaseDialog(channelNames){
+	_MONTAGE = (Dialog.getRadioButton() == _ASSEMBLING_BASE[1]);
+	_PADDING    = Dialog.getNumber();
+
 	stitchingBase = Dialog.getRadioButton();
-	if(stitchingBase == _STITCHING_BASE[1]){
-		_STITCH_ON_PROJECTION = true;
-	}else{
-		_STITCH_ON_PROJECTION = false;
-	}
+	_STITCH_ON_PROJECTION = (stitchingBase == _STITCHING_BASE[1]);
+
+	// if(stitchingBase == _STITCHING_BASE[1]){
+	// 	_STITCH_ON_PROJECTION = true;
+	// }else{
+	// 	_STITCH_ON_PROJECTION = false;
+	// }
 	
 	_ZSLICE = Dialog.getNumber();
 	

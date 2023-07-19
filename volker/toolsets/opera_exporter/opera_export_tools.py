@@ -9,10 +9,11 @@ import time
 from itertools import islice
 from datetime import datetime
 from ij.macro import Interpreter
-from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator, Concatenator
+from ij.plugin import ImagesToStack, ZProjector, RGBStackMerge, ImageCalculator, Concatenator, MontageMaker
 from ij.process import ImageConverter
 from ij.measure import ResultsTable
 import unittest
+import math
 
 DEBUG = False
 IO_DEBUG = False
@@ -36,6 +37,8 @@ def main(args):
     if DEBUG:
         print("Entering main")
     exporter = OperaExporter(args)
+    if DEBUG:
+        print("Launching procedure")
     exporter.launch()
 
 def getArgumentParser():
@@ -183,6 +186,18 @@ def populateParserBase(parser):
         default=False,
         action="store_true",
         help="use the z-projection to calculate the stitching",
+    )
+    parser.add_argument(
+        "--montage",
+        default=False,
+        action="store_true",
+        help="make a montage of images instead of stitching",
+    )
+    parser.add_argument(
+        "--padding",
+        default=0,
+        type=int,
+        help="the gap left between two images on the final montage",
     )
     return parser
 
@@ -416,6 +431,9 @@ class OperaExporter(object):
         self.channelRGB = self.options.channelRGB
 
         self.customOutput = self.options.customOutput
+        
+        self.padding = self.options.padding # padding between randomly sampled images
+        self.montage = self.options.montage
 
         print(
             "Custom Output Status : "
@@ -460,18 +478,33 @@ class OperaExporter(object):
         IJ.log("Create projection Fields")
         well.createMIP(self.dims, self.experiment.getProjectionsFolder())
 
+    def makeMontage(self, well, size, statusTable):
+        well.makeMontage(
+            size,
+            self.experiment.getZStackMosaicFolder(),
+            self.experiment.getProjectionMosaicFolder(),
+            self.options.zStackMosaicComposite,
+            self.options.projectionMosaicComposite,
+            self.dims,
+            self.padding,
+            self.zStackMosaic,
+            self.projectionMosaic,
+            self.projectionMosaicRGB,
+            statusTable
+        )
+
     def applyStitching(self, well):
         if self.zStackMosaic:
             IJ.log("Applying Stitching on each Z")
             well.applyStitching(
                 self.experiment.getZStackMosaicFolder(),
-                self.options.zStackMosaicComposite,
+                self.options.zStackMosaicComposite
             )
             if self.projectionMosaic:
                 IJ.log("Projecting Mosaic")
                 well.projectMosaic(
                     self.experiment.getZStackMosaicFolder(),
-                    self.experiment.getProjectionMosaicFolder(),
+                    self.experiment.getProjectionMosaicFolder()
                 )
         else:
             if self.projectionMosaic:
@@ -538,6 +571,72 @@ class OperaExporter(object):
     def getOptions(self):
         return self.options
 
+    def stitchingProcedure(self, i, well, statusTable):
+        self.prepareCalculationOfStitching(well)
+        self.calculateStitching(well)
+        statusTable.setValue("Stitching Calculated", i, "V")
+        statusTable.show("Execution Status")
+        
+        if self.zStackFields:
+            self.createStack(well)
+            statusTable.setValue("Z-Stack Created", i, "V")
+            statusTable.show("Execution Status")
+        
+        if self.projectionFields:
+            self.createMIP(well)
+            statusTable.setValue("MIPs Created", i, "V")
+            statusTable.show("Execution Status")
+        
+        self.applyStitching(well)
+        statusTable.setValue("Stitching Applied", i, "V")
+        statusTable.show("Execution Status")
+        
+        if self.projectionMosaicRGB:
+            self.createRGBOverlaySnapshot(well)
+            statusTable.setValue("RGB Mosaic Created", i, "V")
+            statusTable.show("Execution Status")
+        self.createRGBChannelSnapshots(well)
+        self.renameOutputs(well)
+        statusTable.setValue("Images Renamed", i, "V")
+        statusTable.show("Execution Status")
+    
+    def estimateGridSize(self, well):
+        """
+        Inspects the number of fields available in the well, and tries to place them as close as possible from a square.
+        Some slots of the grid may remain empty.
+        """
+        N      = len(well.getFields())
+        srn    = math.sqrt(N)
+        height = math.floor(srn)
+        width  = math.ceil(srn)
+
+        if height * width < N:
+            height += 1
+
+        return (height, width)
+
+    def montageProcedure(self, i, well, statusTable):
+        height, width = self.estimateGridSize(well)
+        statusTable.setValue("Montage Size Calculated", i, "V")
+        statusTable.show("Execution Status")
+        
+        if self.zStackFields:
+            self.createStack(well)
+            statusTable.setValue("Z-Stack Created", i, "V")
+            statusTable.show("Execution Status")
+
+        if self.projectionFields:
+            self.createMIP(well)
+            statusTable.setValue("MIPs Created", i, "V")
+            statusTable.show("Execution Status")
+        
+        self.makeMontage(well, (height, width), statusTable)
+        
+        statusTable.setValue("Z-Stack Montage", i, "V")
+        statusTable.show("Execution Status")
+        statusTable.setValue("Projection Montage", i, "V")
+        statusTable.show("Execution Status")
+
     def launch(self):
         IJ.log("Starting Treatment")
         statusTable = ResultsTable()
@@ -545,35 +644,13 @@ class OperaExporter(object):
         for i, well in enumerate(self.wellsToExport):
             statusTable.setValue("Wells", i, str(well))
             try:
-                self.prepareCalculationOfStitching(well)
-                self.calculateStitching(well)
-                statusTable.setValue("Stitching Calculated", i, "V")
-                statusTable.show("Execution Status")
-                
-                if self.zStackFields:
-                    self.createStack(well)
-                    statusTable.setValue("Z-Stack Created", i, "V")
-                    statusTable.show("Execution Status")
-                
-                if self.projectionFields:
-                    self.createMIP(well)
-                    statusTable.setValue("MIPs Created", i, "V")
-                    statusTable.show("Execution Status")
-                self.applyStitching(well)
-                statusTable.setValue("Stitching Applied", i, "V")
-                statusTable.show("Execution Status")
-                
-                if self.projectionMosaicRGB:
-                    self.createRGBOverlaySnapshot(well)
-                    statusTable.setValue("RGB Mosaic Created", i, "V")
-                    statusTable.show("Execution Status")
-                self.createRGBChannelSnapshots(well)
-                self.renameOutputs(well)
-                statusTable.setValue("Images Renamed", i, "V")
-                statusTable.show("Execution Status")
-
+                if self.montage:
+                    self.montageProcedure(i, well, statusTable)
+                else:
+                    self.stitchingProcedure(i, well, statusTable)
             except FileNotFoundException:
                 print("FILE ACCESS PROBLEM: at " + str(well))
+            
             IJ.run("Close All", "")
             IJ.run("Collect Garbage", "")
 
@@ -635,6 +712,97 @@ class Well(object):
             'z': abs(self.images[0].getZ() - self.images[1].getZ())*1000000 if dims[2] > 1 else self.images[0].getPixelWidth()*1000000,
             'unit': "um"
         }
+
+    def printUsedSlices(self, fieldsOfSlice):
+        print("The following tiles are detected for as a slice:")
+        for i in fieldsOfSlice:
+            print("  - " + i.getURL())
+
+    def makeMontage(self, size, targetFolderStack, targetFolderProjection, makeCompositeStack, makeCompositeProj, dims, padding, zstackmosaic, projectionmosaic, projectionMosaicRGB, statusTable):
+        if DEBUG:
+            print("ENTERING makeMontage (from Well)")
+        
+        slices     = dims[2]
+        timePoints = dims[3]
+        channels   = dims[4]
+        path       = self.experiment.getPath() # Path to the folder containing raw images
+        fields     = self.getFields()
+        
+        for t in range(timePoints):
+            channelImps  = [] # Container for stacks of montages (one per channel)
+            channelProjs = [] # Container for projections of montages (one per channel)
+            for c in range(1, channels + 1):
+                imps = [] # Container for the slices we will build the a stack from.
+                for z in range(1, slices + 1):
+                    # All the fields for one time point, one height and one channel.
+                    fieldsOfSlice = self.getImagesForZPosTimeAndChannel(z, t, c)
+                    self.printUsedSlices(fieldsOfSlice)
+                    imagesPath = [os.path.join(path, img.getURL()) for img in fieldsOfSlice]
+                    imagesObjs = [self.openImage(imPath) for imPath in imagesPath]
+                    for imp in imagesObjs:
+                        self.applyCalibration(imp)
+                    # The plugin building montages only accepts stacks as input, so we have to go through this extra step:
+                    result = ImagesToStack.run(imagesObjs)
+                    for imp in imagesObjs:
+                        imp.close()
+                    # Montage of all the fields for one time point, one height and one channel.
+                    montage = MontageMaker().makeMontage2(result, int(size[0]), int(size[1]), 1.0, 1, len(imagesObjs), 1, padding, False)
+                    result.close()
+                    imps.append(montage)
+                
+                stacked = ImagesToStack.run(imps)
+                for img in imps:
+                    img.close()
+                IJ.run(stacked, self.getOptions().colours[c - 1], "") # Applying LUT according to settings
+                name = removeComponentFromName(fieldsOfSlice[0].getURL(), ['p'])
+                IJ.log("Creating Z-Stack of image : " + name)
+                
+                minDisplay, maxDisplay = (
+                    self.getOptions().min_max_display[c - 1][0],
+                    self.getOptions().min_max_display[c - 1][1],
+                )
+                stacked.getProcessor().setMinAndMax(minDisplay, maxDisplay)
+                channelImps.append(stacked)
+                if zstackmosaic: # If we have to export the z-stack of the mosaic
+                    print("Created z-stack of montage for: " + name)
+                    self.saveImage(stacked, os.path.join(targetFolderStack, name))
+                
+                projected = ZProjector.run(stacked, "max")
+                calibration = stacked.getCalibration()
+                stacked.close()
+                
+                channelProjs.append(projected)
+                if projectionmosaic:
+                    projName = removeComponentFromName(name, ['p'])
+                    print("Created projection of montage for: " + projName)
+                    self.saveImage(projected, os.path.join(targetFolderProjection, projName))
+
+                if projectionMosaicRGB:
+                    IJ.run(projected, "RGB Color", "")
+                    self.saveImage(projected, os.path.join(targetFolderProjection, "rgb-"+projName))
+
+                projected.close()
+
+            if makeCompositeStack:
+                newName = removeComponentFromName(name, ['ch', 'p'])    
+                self.createComposite(
+                    channelImps, newName, calibration, targetFolderStack
+                )
+            else:
+                for im in channelImps:
+                    im.close()
+
+            if makeCompositeProj:
+                newName = removeComponentFromName(name, ['ch', 'p'])
+                self.createComposite(
+                    channelProjs, newName, calibration, targetFolderProjection
+                )
+            else:
+                for im in channelProjs:
+                    im.close()
+                    
+            IJ.run("Collect Garbage", "")
+            
 
     def applyCalibration(self, imp):
         calib = imp.getCalibration()
@@ -1024,7 +1192,7 @@ class Well(object):
             print("LEAVING applyStitchingProjection")
 
     def createComposite(self, channels, name, calibration, targetPath):
-        composite = RGBStackMerge().mergeHyperstacks(channels, False)
+        composite = RGBStackMerge().mergeHyperstacks(channels, False) if (len(channels) > 1) else channels[0]
         composite.setCalibration(calibration)
         IJ.log("+ Composite: " + name)
         # self.applyCalibration(composite)
@@ -1192,7 +1360,7 @@ class Well(object):
         timePoints = dims[3]
         channels = dims[4]
         path = self.experiment.getPath()
-        rgbStackMerge = RGBStackMerge()
+        rgbStackMerge = RGBStackMerge() # Never used !?!?
         fields = self.getFields()
         
         for t in range(0, timePoints):
@@ -1211,6 +1379,7 @@ class Well(object):
                     imp = ImagesToStack.run(imps)
                     IJ.run(imp, self.getOptions().colours[c - 1], "")
                     name = removeComponentFromName(image, ['p']) # image[:9] + image[12:]
+                    print("Name: "+name)
                     IJ.log("Creating Z-Stack of image : " + name)
                     minDisplay, maxDisplay = (
                         self.getOptions().min_max_display[c - 1][0],
