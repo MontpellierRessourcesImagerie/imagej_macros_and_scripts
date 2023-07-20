@@ -1,9 +1,10 @@
 import math
-from ij.gui import Overlay
-from ij.plugin import Colors
 from java.awt import Color
 from java.util import UUID
-
+from ij.gui import Overlay
+from ij.plugin import Colors
+from ij.measure import Calibration
+from inra.ijpb.measure.region3d import Centroid3D
 
 class Dendrites:
     """Dendrites are represented as line rois in the overlay of the image.
@@ -20,8 +21,9 @@ class Dendrites:
         if not self.overlay:
             self.overlay = Overlay()
             self.image.setOverlay(self.overlay)
+        self.readSpinesFromImageMetadata()
+        
             
-    
     def add(self, roi, frame):
         """Add a new  dendrite from a line roi. The dendrite created from a line roi on a z-position
         will be considered as being the same on each z-slice (like a wall).
@@ -31,7 +33,6 @@ class Dendrites:
         roi.setName(UUID.randomUUID().toString())
         self.overlay.add(roi)
        
-        
         
     def setMaxDistanceForTracking(self, maxDist):
         """Set the max. distance in physical units that a dendrite can have 
@@ -78,7 +79,23 @@ class Dendrites:
         rois = overlay.toArray()
         for index, roi in enumerate(rois):
             roi.setStrokeColor(colors[roi.getGroup() % len(colors)]);
+    
+    
+    def getDendrites(self):
+        rois = self.image.getOverlay().toArray()
+        dendrites = [Dendrite(roi) for roi in rois]
+        for dendrite in dendrites:
+            spines = self.getSpinesFor(dendrite)
+            dendrite.addSpines(spines)
+        return dendrites
         
+        
+    
+    def getSpinesFor(self, dendrite):
+        spineMapping = self.getSpineMapping()
+        return spineMapping[dendrite.getID())
+    
+   
    
     def getByTime(self):
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
@@ -103,17 +120,75 @@ class Dendrites:
 
         return dendritesByTime       
        
-                             
+    
+    def getSpineMapping(self):
+        spinesString = image.getProp("mricia-dendrites")
+        if not spinesString:
+            return None
+        return self.readSpinesFromString(spinesString)
 
+
+    def readSpinesFromString(self, spinesString):
+        spineMapping = {}
+        if spinesString and len(spinesString) > 1:
+            spinesString = spinesString.split(':')[1].strip()
+            spineStrings = spinesString.split(';')
+            for spineString in spineStrings:
+                parts = spineString.split('=')
+                dendriteID = parts[0].strip()
+                listString = parts[1].strip()
+                spineLabels = [int(id) for id in listString.split(',')]
+                spines = [Spine(label, self.image) for label in spineLabels]
+                spineMapping[dendriteID] = spines
+         return spineMapping       
+
+
+    def writeSpinesToImageMetadata(self):
+        pass
+    
+    
+    def attachSpinesToclosestDendrite(self):
+        cal = sel.image.getCalibration()
+        tmpCal = Calibration()
+        self.image.setCalibration(tmpCal)
+        analyzer = Centroid3D()
+        
+        measurements = analyzer.analyzeRegions(image)
+        
+        print(measurements.values())
+        
+        overlay = image.getOverlay()
+        dendrites = overlay.toArray()
+        
+        for label, centroid in measurements.items():
+            minDist = sys.maxsize
+            closestDendrite = None
+            for dendrite in dendrites:
+                dist = distance(dendrite, centroid)
+                if dist < minDist:
+                    minDist = dist
+                    closestDendrite = dendrite
+            print(label, closestDendrite.getGroup(), minDist)        
+        self.image.setCalibration(cal)
+    
+    
+    def addSpineToDendrite(label, roi):
+        dendriteID = roi.getName()
+        
+    
 class Dendrite:
     "A dendrite has spines and can belong to a track."
 
           
     def __init__(self, roi):
        self.roi = roi
-       self.spines = []
+       self.spines = {}
      
-         
+    
+    def getID(self):
+       return self.roi.getName()
+    
+    
     def getFrame(self):
        return self.roi.getTPosition()
        
@@ -150,3 +225,32 @@ class Dendrite:
         dy = y1 - y2
         d = math.sqrt((dx * dx) + (dy * dy))
         return d
+        
+    
+    def addSpine(self, aSpine):
+        self.spines[aSpine.label] = aSpine
+            
+    
+    def addSpines(self, spines):
+        for spine in spines:
+            self.addSpine(spine)
+            
+    
+class Spine:
+    """A dendritic spines is a tiny protrusions from a dendrite, 
+    which forms functional contacts with neighboring axons of other neurons.
+    A spine has a label, and a label mask"""
+    
+    def __init__(self, label, image):
+        self.label = label
+        self.image = image
+        
+        
+    def __eq__(self, aSpine):
+        if isinstance(aSpine, Spine):
+            return (self.label, self.image) == (aSpine.label, aSpine.image)
+        return NotImplemented
+           
+    
+    def __hash__(self):
+        return (hash(self.label) ^ hash(self.image))

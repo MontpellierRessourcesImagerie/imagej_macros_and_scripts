@@ -81,12 +81,27 @@ class InstanceSegmentation:
     
     def getLabelAt(self, x, y, z, frame):
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
-        image.setPosition( self.labelChannelIndex, z, frame)
-        label = image.getProcessor().get(x ,y)
-        image.setPosition(currentC, currentZ, currentT)    
+        self.image.setPosition( self.labelChannelIndex, z, frame)
+        label = self.image.getProcessor().get(x ,y)
+        self.image.setPosition(currentC, currentZ, currentT)    
         return label
         
-                
+    
+    def getLabels(self):
+        labels = {}
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        width, height, nChannels, nSlices, nFrames = labels.getDimensions()
+        for t in range(1, nFrames+1):
+            self.image.setPosition(self.labelChannelIndex, currentZ, t)
+            histo = self.image.getStatistics().histogram16[1:]
+            currentLabels = [index+1 for (index, count) in enumerate(histo) if count>0]
+            for label in currentLables:
+                labels.update((label, ))
+        self.image.setPosition(currentC, currentZ, currentT)    
+        labels = list(labels)
+        return labels
+    
+    
     def addFromMask(self, mask):
         """Add the biggest connected object in the mask as a an object to the segmentation with the next unused label.
         """
@@ -144,3 +159,8 @@ class InstanceSegmentation:
         """
         return self.labelChannelIndex
     
+
+    def getCopyOfLabelsChannel(self):
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        self.image.killRoi()
+        maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
