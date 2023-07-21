@@ -58,7 +58,8 @@ class HyperstackUtils:
     
     @staticmethod
     def copyStackTo(image, stack, channel, frame, lut=None, overwrite=False):
-        """Copy the stack into the given channel and frame of image. The slices of the stack are copied with a transparent zero.
+        """Copy the stack into the given channel and frame of image. 
+        The slices of the stack are copied with a transparent zero if overwrite is false.
         """
         currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
         width, height, nChannels, nSlices, nFrames = image.getDimensions()

@@ -88,14 +88,16 @@ class InstanceSegmentation:
         
     
     def getLabels(self):
-        labels = {}
+        """Answer a list of the labels in the segmentation.
+        """
+        labels = set({})
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
-        width, height, nChannels, nSlices, nFrames = labels.getDimensions()
+        width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
         for t in range(1, nFrames+1):
             self.image.setPosition(self.labelChannelIndex, currentZ, t)
             histo = self.image.getStatistics().histogram16[1:]
             currentLabels = [index+1 for (index, count) in enumerate(histo) if count>0]
-            for label in currentLables:
+            for label in currentLabels:
                 labels.update((label, ))
         self.image.setPosition(currentC, currentZ, currentT)    
         labels = list(labels)
@@ -162,5 +164,10 @@ class InstanceSegmentation:
 
     def getCopyOfLabelsChannel(self):
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        roi = image.getRoi()
         self.image.killRoi()
-        maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
+        labels = Duplicator().run(image, self.getLabelChannelIndex(), self.getLabelChannelIndex(), 1, image.getNSlices(), currentT, currentT) # currentT?
+        self.image.setPosition(currentC, currentZ, currentT)    
+        if roi:
+            image.setRoi(roi)
+        return labels

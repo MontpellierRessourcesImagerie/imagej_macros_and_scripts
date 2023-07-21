@@ -6,6 +6,8 @@ from ij.plugin import Colors
 from ij.measure import Calibration
 from inra.ijpb.measure.region3d import Centroid3D
 
+
+
 class Dendrites:
     """Dendrites are represented as line rois in the overlay of the image.
     The spines are part of the segmentation"""
