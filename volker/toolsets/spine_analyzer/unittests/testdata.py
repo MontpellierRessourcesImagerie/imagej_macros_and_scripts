@@ -24,6 +24,7 @@ def createTestCuboid(x, y, z, w, h):
         return image
         
         
+        
 def createTestParticlesAndRoi():
     image = NewImage.createShortImage ("test hyperstack", 256, 256, 3, NewImage.FILL_BLACK)
     hyperStack = HyperStackConverter.toHyperStack(image, 1, 3, 1)  

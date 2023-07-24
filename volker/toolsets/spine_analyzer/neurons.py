@@ -91,13 +91,11 @@ class Dendrites:
             dendrite.addSpines(spines)
         return dendrites
         
-        
     
     def getSpinesFor(self, dendrite):
         spineMapping = self.getSpineMapping()
-        return spineMapping[dendrite.getID())
+        return spineMapping[dendrite.getID()]
     
-   
    
     def getByTime(self):
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
@@ -142,7 +140,7 @@ class Dendrites:
                 spineLabels = [int(id) for id in listString.split(',')]
                 spines = [Spine(label, self.image) for label in spineLabels]
                 spineMapping[dendriteID] = spines
-         return spineMapping       
+        return spineMapping       
 
 
     def writeSpinesToImageMetadata(self):
@@ -176,6 +174,11 @@ class Dendrites:
     
     def addSpineToDendrite(label, roi):
         dendriteID = roi.getName()
+        
+    
+    def readSpinesFromImageMetadata(self):
+        pass
+        
         
     
 class Dendrite:

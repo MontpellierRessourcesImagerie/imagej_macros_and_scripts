@@ -6,7 +6,7 @@ from ij.process import LUT
 from ij.plugin import LutLoader
 from inra.ijpb.label import LabelImages
 from fr.cnrs.mri.cialib.unittests.testdata import createTestHyperStack, createTestCuboid, createTestParticlesAndRoi
-   
+
     
 class AddEmptyChannelTest(unittest.TestCase):
 
@@ -144,5 +144,9 @@ def suite():
     
     return suite
 
-runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
-runner.run(suite())
+def main(): 
+    runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
+    runner.run(suite())
+
+if __name__ == "__main__":
+    main()

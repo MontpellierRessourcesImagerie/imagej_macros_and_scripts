@@ -37,6 +37,7 @@
 from ij import IJ
 from ij import ImagePlus
 from ij.gui import NewImage
+from ij.gui import WaitForUserDialog
 from ij.process import LUT 
 from ij.plugin import LutLoader
 from ij.process import ImageStatistics
@@ -137,10 +138,10 @@ class InstanceSegmentation:
             isolatedLabelStack = reconstructor.applyTo(seedImage.getStack(), labels.getStack())
             isolatedLabelImage = ImagePlus("isolated label", isolatedLabelStack)
             LabelImages.replaceLabels(isolatedLabelImage, [label], newLabel)
-            HyperstackUtils.copyStackTo(self.image, isolatedLabelImage,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite)
+            HyperstackUtils.copyStackTo(self.image, isolatedLabelImage,  self.labelChannelIndex, frame, lut=self.lut, overwrite=False)
         else:
             LabelImages.replaceLabels(labels, [label], 0)
-            HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=overwrite) 
+            HyperstackUtils.copyStackTo(self.image, labels,  self.labelChannelIndex, frame, lut=self.lut, overwrite=True) 
        
     
     def setLUT(self, lutName):
@@ -163,11 +164,13 @@ class InstanceSegmentation:
     
 
     def getCopyOfLabelsChannel(self):
+        """Answer a copy of the labels for the current frame.
+        """
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
-        roi = image.getRoi()
+        roi = self.image.getRoi()
         self.image.killRoi()
-        labels = Duplicator().run(image, self.getLabelChannelIndex(), self.getLabelChannelIndex(), 1, image.getNSlices(), currentT, currentT) # currentT?
+        labels = Duplicator().run(self.image, self.getLabelChannelIndex(), self.getLabelChannelIndex(), 1, self.image.getNSlices(), currentT, currentT) # currentT?
         self.image.setPosition(currentC, currentZ, currentT)    
         if roi:
-            image.setRoi(roi)
+            self.image.setRoi(roi)
         return labels
