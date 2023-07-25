@@ -63,7 +63,7 @@ class HyperstackUtils:
         """
         currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
         width, height, nChannels, nSlices, nFrames = image.getDimensions()
-        offset = ((currentT-1) * nChannels*nSlices) + channel
+        offset = ((frame-1) * nChannels*nSlices) + channel
         pasteMethod = Blitter.COPY_ZERO_TRANSPARENT
         if overwrite:
             pasteMethod = Blitter.COPY

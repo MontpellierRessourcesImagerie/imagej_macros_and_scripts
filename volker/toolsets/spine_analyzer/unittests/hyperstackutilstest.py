@@ -5,8 +5,11 @@ from ij import IJ
 from ij.process import LUT 
 from ij.plugin import LutLoader
 from inra.ijpb.label import LabelImages
-from fr.cnrs.mri.cialib.unittests.testdata import createTestHyperStack, createTestCuboid, createTestParticlesAndRoi
+from fr.cnrs.mri.cialib.unittests.testdata import createTestHyperStack
+from fr.cnrs.mri.cialib.unittests.testdata import createTestCuboid*
+from fr.cnrs.mri.cialib.unittests.testdata import createTestParticlesAndRoi
 
+    
     
 class AddEmptyChannelTest(unittest.TestCase):
 
@@ -21,7 +24,6 @@ class AddEmptyChannelTest(unittest.TestCase):
         unittest.TestCase.tearDown(self)
         IJ.run("Close All");
         
-    
     
     def testAddToHyperstack(self):
         width, height, nChannels, nSlices, nFrames = self.stack.getDimensions()
@@ -144,9 +146,13 @@ def suite():
     
     return suite
 
+
+
 def main(): 
     runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
     runner.run(suite())
+
+
 
 if __name__ == "__main__":
     main()

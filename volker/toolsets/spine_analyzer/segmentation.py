@@ -174,3 +174,12 @@ class InstanceSegmentation:
         if roi:
             self.image.setRoi(roi)
         return labels
+        
+        
+    def show(self):
+        """Display the segmentation, by displaying the image that contains the channel with the labels."""
+        self.image.show()
+        
+        
+    def trackLabels(self):
+        pass

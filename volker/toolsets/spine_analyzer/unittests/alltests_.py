@@ -11,11 +11,12 @@ suites.append(unittest.defaultTestLoader.loadTestsFromModule(neuronstest))
 
 
 print(suites)
-
+allTests = unittest.TestSuite()
 def main(): 
     runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
     for suite in suites:
-        runner.run(suite)
+        allTests.addTests(suite)
+    runner.run(allTests)
 
 
 

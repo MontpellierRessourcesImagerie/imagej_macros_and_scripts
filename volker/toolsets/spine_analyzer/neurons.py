@@ -94,6 +94,8 @@ class Dendrites:
     
     def getSpinesFor(self, dendrite):
         spineMapping = self.getSpineMapping()
+        if not spineMapping:
+            return None
         return spineMapping[dendrite.getID()]
     
    
@@ -122,7 +124,7 @@ class Dendrites:
        
     
     def getSpineMapping(self):
-        spinesString = image.getProp("mricia-dendrites")
+        spinesString = self.image.getProp("mricia-dendrites")
         if not spinesString:
             return None
         return self.readSpinesFromString(spinesString)
@@ -147,8 +149,8 @@ class Dendrites:
         pass
     
     
-    def attachSpinesToclosestDendrite(self):
-        cal = sel.image.getCalibration()
+    def attachSpinesToClosestDendrite(self):
+        cal = self.image.getCalibration()
         tmpCal = Calibration()
         self.image.setCalibration(tmpCal)
         analyzer = Centroid3D()
@@ -237,6 +239,8 @@ class Dendrite:
             
     
     def addSpines(self, spines):
+        if not spines:
+            return
         for spine in spines:
             self.addSpine(spine)
             
