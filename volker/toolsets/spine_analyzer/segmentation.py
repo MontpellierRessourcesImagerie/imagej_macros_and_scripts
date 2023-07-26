@@ -38,12 +38,14 @@ from ij import IJ
 from ij import ImagePlus
 from ij.gui import NewImage
 from ij.gui import WaitForUserDialog
-from ij.process import LUT 
+from ij.measure import Calibration
 from ij.plugin import LutLoader
-from ij.process import ImageStatistics
 from ij.plugin import Duplicator
+from ij.process import LUT 
+from ij.process import ImageStatistics
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.label import LabelImages
+from inra.ijpb.measure.region3d import Centroid3D
 from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
 
@@ -51,14 +53,16 @@ class InstanceSegmentation:
     """An instance segmentation of the individual objects in an image, represented by labels in an additional channel.
     """
     
-    DEFAULT_LUT_NAME = "glasbey on dark"
+    DEFAULT_LUT_NAME = "glasbey_on_dark"
     DEFAULT_THRESHOLDING_METHOD = "Default"
+    MAX_DISTANCE = 15
     
     
     def __init__(self, image):
         """Create a new instance segmentation for the given image. If the image already has a label-channel it is used for the
         instance segmentation, otherwise an empty label-channel is added to the image.
         """
+        self.maxDistance = self.MAX_DISTANCE
         self.setLUT(self.DEFAULT_LUT_NAME)
         self.setThresholdingMethod(self.DEFAULT_THRESHOLDING_METHOD)
         self.image = image
@@ -79,6 +83,14 @@ class InstanceSegmentation:
             self.nextLabel = stats.max + 1
         image.setPosition(currentC, currentZ, currentT)
         
+        
+    def getMaxDistance(self):
+        return self.maxDistance
+        
+        
+    def setMaxDistance(self, distance):
+        self.maxDistance = distance
+    
     
     def getLabelAt(self, x, y, z, frame):
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
@@ -182,4 +194,39 @@ class InstanceSegmentation:
         
         
     def trackLabels(self):
-        pass
+        width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        self.image.setT(nFrames)
+        cal = self.image.getCalibration()
+        tmpCal = Calibration()
+        self.image.setCalibration(tmpCal)
+        analyzer = Centroid3D()
+        
+        for frame in range(2, nFrames):
+            imp = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame, frame);    
+            measurementsCurrent = analyzer.analyzeRegions(imp)
+            if len(measurementsCurrent.values()) < 1:
+                continue
+            imp2 = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame-1, frame-1);            
+            measurementsPrevious = analyzer.analyzeRegions(imp2)
+            closestLabels = {}
+            maxDistance = self.getMaxDistance()
+            for label in measurementsCurrent.keySet():
+                point = measurementsCurrent.get(label)
+                minDist = 9999999999999
+                closestLabel = -1
+                for otherLabel in measurementsPrevious.keySet():
+                    otherPoint = measurementsPrevious.get(otherLabel)
+                    dist = point.distance(otherPoint)
+                    if dist < maxDistance and dist < minDist:
+                        minDist = dist
+                        closestLabel = otherLabel
+                if closestLabel > -1:
+                    closestLabels[label] = closestLabel
+            for oldLabel, newLabel in closestLabels.items():
+                LabelImages.replaceLabels(imp, [oldLabel], newLabel)
+            HyperstackUtils.copyStackTo(self.image, imp, nChannels, frame)
+        self.image.setCalibration(cal)
+        self.image.setDisplayRange(0, 255)
+        self.image.setPosition(currentC, currentZ, currentT)    
+        self.image.updateAndDraw()

@@ -1,3 +1,4 @@
+import sys
 import math
 from java.awt import Color
 from java.util import UUID
@@ -155,25 +156,23 @@ class Dendrites:
         self.image.setCalibration(tmpCal)
         analyzer = Centroid3D()
         
-        measurements = analyzer.analyzeRegions(image)
+        measurements = analyzer.analyzeRegions(self.image)
         
-        print(measurements.values())
-        
-        overlay = image.getOverlay()
-        dendrites = overlay.toArray()
+        dendrites = self.getDendrites()
         
         for label, centroid in measurements.items():
             minDist = sys.maxsize
             closestDendrite = None
             for dendrite in dendrites:
-                dist = distance(dendrite, centroid)
+                dist = dendrite.distanceToPoint(centroid)
                 if dist < minDist:
                     minDist = dist
                     closestDendrite = dendrite
-            print(label, closestDendrite.getGroup(), minDist)        
+            print(label, closestDendrite.getTrack(), minDist)        
         self.image.setCalibration(cal)
     
-    
+ 
+ 
     def addSpineToDendrite(label, roi):
         dendriteID = roi.getName()
         
@@ -232,6 +231,18 @@ class Dendrite:
         dy = y1 - y2
         d = math.sqrt((dx * dx) + (dy * dy))
         return d
+        
+    
+    def distanceToPoint(self, aPoint):
+        points = self.roi.getContainedPoints()
+        minDist = sys.maxsize
+        for point in points:
+            dx = point.getX() - aPoint.getX()
+            dy = point.getY() - aPoint.getY()
+            dist = math.sqrt((dx * dx) + (dy * dy))
+            if dist < minDist:
+                minDist = dist
+        return minDist
         
     
     def addSpine(self, aSpine):

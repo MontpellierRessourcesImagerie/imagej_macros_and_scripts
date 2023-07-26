@@ -133,12 +133,13 @@ class DendriteGenerator:
         width, height, nChannels, nSlices, nFrames = image.getDimensions()
         lut = LUT(LutLoader.getLut( "glasbey on dark" ), 0, 255)
         image.setC(nChannels)
+        nextNewLabel = 1
         for frame in range(1, nFrames + 1):
             imp = Duplicator().run(image, nChannels, nChannels, 1, nSlices, frame, frame);
             labeled = BinaryImages.componentsLabeling(imp, 6, 16)
             labels = LabelImages.findAllLabels(labeled)
-            newLabels = random.sample(range(1,100), len(labels))
             for index, label in enumerate(labels):
-                LabelImages.replaceLabels(labeled, [label], newLabels[index])
-            HyperstackUtils.copyStackTo(image, labeled, nChannels, frame, lut=lut)
+                LabelImages.replaceLabels(labeled, [label], nextNewLabel)
+                nextNewLabel = nextNewLabel + 1
+            HyperstackUtils.copyStackTo(image, labeled, nChannels, frame, lut=lut, overwrite=True)
             

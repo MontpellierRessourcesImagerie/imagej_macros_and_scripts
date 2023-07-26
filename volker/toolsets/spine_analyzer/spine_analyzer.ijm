@@ -106,6 +106,32 @@ macro "Track Dendrites (f7) Action Tool Options" {
 }
 
 
+macro "Track Spines (f8) Action Tool - C000D17D18D19D26D27D28D29D36D39D49D4bD4cD4dD4eD59D5bD5eD69D6aD6bD6eD6fD7fD8fD9eD9fDaeDbeCf60D11D21D22D23D31D32D33D34D35D41D42D43D51DaaDbaDbbDbcDcaDcbDccDcdDceDdaDdbDdcDea" {
+    runTrackSpines();
+}
+
+
+macro "Track Spines [F8]" {
+    runTrackSpines(); 
+}
+
+
+macro "Track Spines (f8) Action Tool Options" {
+    showTrackSpinesOptions();
+}
+
+
+function runTrackSpines() {
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathTrackSpines())) {
+        options = loadOptions(getOptionsPathTrackSpines());
+        run("track spines", options);
+    } else {
+        run("track spines");
+    }      
+}
+
+
 function runTrackDendrites() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathTrackDendrites())) {
@@ -155,6 +181,13 @@ function showTrackDendritesOptions() {
 }
 
 
+function showTrackSpinesOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("track spines");
+    call("ij.Prefs.set", "mri.options.only", "false"); 
+}
+
+
 function pickLabel(x, y, sllice, frame) {
     labelChannel = Property.get("mricia-label-channel");
     if (labelChannel=="") exit("No label channel found!");
@@ -176,6 +209,13 @@ function getOptionsPathSegmentSpine() {
 function getOptionsPathTrackDendrites() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Spine-Analyzer/satd-options.txt";
+    return optionsPath;
+}
+
+
+function getOptionsPathTrackSpines() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Spine-Analyzer/sats-options.txt";
     return optionsPath;
 }
 

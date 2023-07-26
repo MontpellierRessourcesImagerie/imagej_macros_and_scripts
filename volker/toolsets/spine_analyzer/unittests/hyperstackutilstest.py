@@ -6,7 +6,7 @@ from ij.process import LUT
 from ij.plugin import LutLoader
 from inra.ijpb.label import LabelImages
 from fr.cnrs.mri.cialib.unittests.testdata import createTestHyperStack
-from fr.cnrs.mri.cialib.unittests.testdata import createTestCuboid*
+from fr.cnrs.mri.cialib.unittests.testdata import createTestCuboid
 from fr.cnrs.mri.cialib.unittests.testdata import createTestParticlesAndRoi
 
     

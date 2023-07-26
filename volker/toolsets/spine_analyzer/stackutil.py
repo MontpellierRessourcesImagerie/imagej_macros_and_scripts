@@ -42,7 +42,6 @@ from inra.ijpb.label import LabelImages
 class HyperstackUtils:
     """ A collection of utility methods for working with 5D-images (Hyperstacks)
     """
-    
     @staticmethod
     def addEmptyChannel(image):
         """Add a new, empty channel to the image and restore the original position.
