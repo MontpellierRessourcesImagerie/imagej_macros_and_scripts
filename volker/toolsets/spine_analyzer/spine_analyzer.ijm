@@ -36,6 +36,9 @@
 
 var _URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer";
 var _SELECTED_LABEL = 0;
+var _REPLACE_LABEL_MODES = newArray("selected label", "next label");
+var _REPLACE_LABEL_MODE = _REPLACE_LABEL_MODES[0];
+
 
 macro "Spine Analyzer Help Action Tool - CfffL00e0Cd86Df0CfffL01f1L02f2L03f3L0444Cea9D54Cd87D64Cea9L7494Cd87Da4CfcbDb4CfffLc4f4L0545Cc64D55Cc53L65a5Cd86Db5CfffLc5f5L0646Cd87D56Cc53L66a6Cd87Db6CfffLc6f6L0747CfedD57Cc53L67a7CfdcDb7CfffLc7f7CfdcD08CfffL1858Cea9D68Cc53L7898CebaDa8CfffLb8f8Cd75D09CfffL1959CfedD69Cc53L7989Cc64D99CfffLa9f9Ce98D0aCfffL1a6aCc53L7a8aCd86D9aCfffLaafaL0b6bCd75D7bCc53D8bCea9D9bCfffLabfbL0c6cCd75D7cCc53D8cCea9D9cCfffLacfcL0d6dCc53L7d8dCd87D9dCfffLadfdL0e5eCfdcD6eCc53L7e8eCd86D9eCfffLaefeCc54L0f6fCc53L7f9fCc54Lafff" {
     run('URL...', 'url='+_URL);
@@ -79,12 +82,17 @@ macro "Replace Label Tool - C000D25D51D61D76D86Da4Db5Dc6Dc8Dd6Dd7Dd8De8De9CeeeD0
 
 
 macro "Replace Label Tool Options" {
+    Dialog.create("Replace Label Tool Options");
+    Dialog.addRadioButtonGroup("Replace Label Mode: ", _REPLACE_LABEL_MODES, 1, 2, _REPLACE_LABEL_MODE);
+    Dialog.show();
+    _REPLACE_LABEL_MODE = Dialog.getRadioButton();
 }
 
 
 macro "Add Dendrite (f6) Action Tool - C000D4aD50D60D75D78D86D87D97C888D0bD3bD79D88DdaC444D1aD1bD5aDeaCdddD39D58D71D72D84Da9C222D59D61D62Da8CbbbD4bD53D65D6aC666D76D85Db9CfffD19D1cD5bD66D89D95De8DebC111D3aD63D69Db8Dc9Dd9C999D0aD49D70D73D98DfaC555D2bD68D77Da7De9CeeeD29D41D54D67Da6C333D2aD51D64D74CcccDb7DcaDd8Df9C777D40D52D96Dc8" {
     runAddDendrite();
 }
+
 
 macro "Add Dendrite [F6]" {
     runAddDendrite();
@@ -152,7 +160,11 @@ function runReplaceLabel() {
     Stack.getPosition(channel, slice, frame);
     getCursorLoc(x, y, z, flags);
      
-    run("replace label", "x=" + x + " y=" + y + " z=" + (slice-1) + " frame=" + frame + " new=" + _SELECTED_LABEL);    
+    label =  _SELECTED_LABEL;
+    if (_REPLACE_LABEL_MODE == "next label") {
+        label = getNextLabel();
+    }
+    run("replace label", "x=" + x + " y=" + y + " z=" + (slice-1) + " frame=" + frame + " new=" + label);    
 }
 
 
@@ -226,3 +238,12 @@ function loadOptions(path) {
     return optionsString;  
 }
 
+
+function getNextLabel() {
+    Stack.getPosition(channel, slice, frame) 
+    getDimensions(width, height, channels, slices, frames);
+    Stack.setChannel(channels);
+    getStatistics(area, mean, min, max);
+    Stack.setPosition(channel, slice, frame);
+    return max + 1;
+}

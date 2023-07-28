@@ -21,10 +21,11 @@ class Dendrites:
         self.image = segmentation.image
         self.overlay = self.image.getOverlay()
         self.maxDistanceForTracking = 10
+        self.spineMapping = {}
         if not self.overlay:
             self.overlay = Overlay()
             self.image.setOverlay(self.overlay)
-        self.readSpinesFromImageMetadata()
+        self.readDendritesFromMetadata()
         
             
     def add(self, roi, frame):
@@ -35,7 +36,8 @@ class Dendrites:
         roi.setPosition(0, 0, frame)
         roi.setName(UUID.randomUUID().toString())
         self.overlay.add(roi)
-       
+        self.spineMapping[roi.getName()] = []
+        
         
     def setMaxDistanceForTracking(self, maxDist):
         """Set the max. distance in physical units that a dendrite can have 
@@ -75,6 +77,8 @@ class Dendrites:
         
         
     def colorTracks(self):
+        """Color the dendrites according to the track they belong to.
+        """
         colorNames = list(Colors.getColors())
         colorNames.remove(u'Black')
         colors = [Colors.decode(name) for name in colorNames]
@@ -85,6 +89,8 @@ class Dendrites:
     
     
     def getDendrites(self):
+        """Answer the dendrites as a list of Dendrite objects.
+        """
         rois = self.image.getOverlay().toArray()
         dendrites = [Dendrite(roi) for roi in rois]
         for dendrite in dendrites:
@@ -97,10 +103,15 @@ class Dendrites:
         spineMapping = self.getSpineMapping()
         if not spineMapping:
             return None
-        return spineMapping[dendrite.getID()]
+        if dendrite.getID() in spineMapping:
+            return spineMapping[dendrite.getID()]
+        else:
+            return []
     
    
     def getByTime(self):
+        """Answer an array containing a list of dendrites for each frame.
+        """
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
         overlay = self.image.getOverlay()
         rois = overlay.toArray()
@@ -123,18 +134,28 @@ class Dendrites:
 
         return dendritesByTime       
        
-    
+       
     def getSpineMapping(self):
+        return self.spineMapping
+        
+    
+    def readDendritesFromMetadata(self):
+        """Read the string defining the mapping of spines to dendrites from the image props
+        and answer a dictionary with the dendrite ids as keys and lists of spines as values.
+        """
         spinesString = self.image.getProp("mricia-dendrites")
         if not spinesString:
             return None
-        return self.readSpinesFromString(spinesString)
+        self.spineMapping = self.readDendritesFromString(spinesString)
 
 
-    def readSpinesFromString(self, spinesString):
+    def readDendritesFromString(self, spinesString):
+        """Read the dendrites from a string of the form
+               'dendriteID1=spineLabel1,spineLabel2,...;dendriteID2=spineLabel1,spineLabel2,...;...'
+        """
         spineMapping = {}
         if spinesString and len(spinesString) > 1:
-            spinesString = spinesString.split(':')[1].strip()
+            spinesString = spinesString.strip()
             spineStrings = spinesString.split(';')
             for spineString in spineStrings:
                 parts = spineString.split('=')
@@ -146,9 +167,27 @@ class Dendrites:
         return spineMapping       
 
 
-    def writeSpinesToImageMetadata(self):
+    def writeDendritesToImageMetadata(self):
         pass
     
+
+    def writeSpineMapping(self, spineMapping):
+        spineMappingString = self.createSpineMappingString(spineMapping)
+        self.segmentatio.image.setProp("mricia-dendrites", spineMappingString)
+            
+    
+    def createSpineMappingString(self, spineMapping):
+        result = ""
+        for key, values in spineMapping.items():
+            result = result + key + "="
+            for valueIndex, value in enumerate(values):
+                result = result + str(value)
+                if valueIndex < len(values) - 1:
+                    result = result + ","
+            if not key == spineMapping.keys()[-1]:
+                result = result + ";"
+        return result                
+                
     
     def attachSpinesToClosestDendrite(self):
         cal = self.image.getCalibration()
@@ -164,21 +203,13 @@ class Dendrites:
             minDist = sys.maxsize
             closestDendrite = None
             for dendrite in dendrites:
-                dist = dendrite.distanceToPoint(centroid)
-                if dist < minDist:
-                    minDist = dist
+                distance = dendrite.distanceToPoint(centroid)
+                if distance < minDist:
+                    minDist = distance
                     closestDendrite = dendrite
-            print(label, closestDendrite.getTrack(), minDist)        
+            if closestDendrite:
+                closestDendrite.addSpine(label, self.image)
         self.image.setCalibration(cal)
-    
- 
- 
-    def addSpineToDendrite(label, roi):
-        dendriteID = roi.getName()
-        
-    
-    def readSpinesFromImageMetadata(self):
-        pass
         
         
     
@@ -247,7 +278,8 @@ class Dendrite:
     
     def addSpine(self, aSpine):
         self.spines[aSpine.label] = aSpine
-            
+        self.saveToMetadata()
+        
     
     def addSpines(self, spines):
         if not spines:
@@ -255,6 +287,13 @@ class Dendrite:
         for spine in spines:
             self.addSpine(spine)
             
+    
+    def saveToMetadata(self):
+        pass
+            
+    def readFromMetadata(self):        
+        pass   
+    
     
 class Spine:
     """A dendritic spines is a tiny protrusions from a dendrite, 
