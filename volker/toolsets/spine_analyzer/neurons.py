@@ -208,7 +208,7 @@ class Dendrites:
                     minDist = distance
                     closestDendrite = dendrite
             if closestDendrite:
-                closestDendrite.addSpine(label, self.image)
+                closestDendrite.addSpine(Spine(label,  self.image))
         self.image.setCalibration(cal)
         
         
@@ -288,6 +288,11 @@ class Dendrite:
             self.addSpine(spine)
             
     
+    
+    def getSpines(self):
+        return self.spines
+        
+        
     def saveToMetadata(self):
         pass
             

@@ -135,9 +135,21 @@ class DendritesTest(unittest.TestCase):
     def testCreateSpineMappingString(self):
         spineMapping = {'5634-2252': [1, 2, 3], '1226-2562': [4, 5], '8373-1212': [1, 2]}
         string = self.dendrites.createSpineMappingString(spineMapping)
-        #@todo
+        self.assertTrue('5634-2252=1,2,3' in string)
+        self.assertTrue('1226-2562=4,5' in string)
+        self.assertTrue('8373-1212=1,2' in string)
      
      
+    def testAttachSpinesToClosestDendrite(self):
+        self.addDendrites() 
+        self.dendrites.track()
+        self.dendrites.attachSpinesToClosestDendrite()
+        mapping = self.dendrites.getSpineMapping()
+        print(mapping)
+        dendrites = self.dendrites.getDendrites()
+        for dendrite in dendrites:
+            print(dendrite.getSpines())
+        
      
 def suite():
     suite = unittest.TestSuite()
@@ -151,7 +163,8 @@ def suite():
     suite.addTest(DendritesTest('testGetSpinesFor'))
     suite.addTest(DendritesTest('testGetDendrites'))
     suite.addTest(DendritesTest('testCreateSpineMappingString'))
-   
+    suite.addTest(DendritesTest('testAttachSpinesToClosestDendrite'))
+    
     return suite
 
 
