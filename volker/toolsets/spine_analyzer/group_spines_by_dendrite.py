@@ -15,8 +15,6 @@ def main():
     analyzer = Centroid3D()
     measurements = analyzer.analyzeRegions(image)
     
-    print(measurements.values())
-    
     overlay = image.getOverlay()
     dendrites = overlay.toArray()
     

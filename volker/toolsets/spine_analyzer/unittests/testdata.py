@@ -20,7 +20,6 @@ def createTestHyperStack():
         return hyperStack
         
 
-
 def createTestCuboid(x, y, z, w, h):
         image = NewImage.createShortImage ("test hyperstack", 256, 256, 3, NewImage.FILL_BLACK)
         image = HyperStackConverter.toHyperStack(image, 1, 3, 1)  
@@ -77,9 +76,16 @@ class DendriteGenerator:
     Z_STARTS = [1, 2]
     
 
+    def __init__(self):
+        self.next()
+    
+    
     def next(self):
+        self.counter = 0
         segmentation = self.createImageWithEmptySegmentation(self.WIDTH, self.HEIGHT, 
                                                         self.CHANNELS, self.SLICES, self.FRAMES)   
+        self.image = segmentation.image
+        self.rois = None                                                        
         rois = self.getROIs()
         self.drawDendritesFromSegmentedLineRois(segmentation, rois)
         self.labelSpines(segmentation)
@@ -88,10 +94,15 @@ class DendriteGenerator:
         
         
     def getROIs(self):
-        rois = []
-        for xpoints, ypoints in zip(self.ROIS_X, self.ROIS_Y):    
-            rois.append(PolygonRoi(xpoints, ypoints, Roi.POLYLINE))
-        return rois
+        if not self.rois:
+            self.rois = []
+            for xpoints, ypoints in zip(self.ROIS_X, self.ROIS_Y):    
+                roi = PolygonRoi(xpoints, ypoints, Roi.POLYLINE)
+                roi.setName(str(self.counter))
+                roi.setImage(self.image)
+                self.rois.append(roi)
+                self.counter = self.counter + 1
+        return self.rois
         
     
     def createImageWithEmptySegmentation(self, width, height, channels, slices, frames):
@@ -108,8 +119,9 @@ class DendriteGenerator:
             
             
     def drawDendriteFromSegmentedLineRoi(self, segmentation, roi, zStart, zDepth):
-        segmentation.image.setRoi(roi);
-        coords = zip(roi.getPolygon().xpoints, roi.getPolygon().ypoints)    
+        aRoi = roi.clone()
+        segmentation.image.setRoi(aRoi);
+        coords = zip(aRoi.getPolygon().xpoints, aRoi.getPolygon().ypoints)    
         segmentation.image.setColor(Color.white)    
         processor = segmentation.image.getProcessor()    
         offsetX = 0
