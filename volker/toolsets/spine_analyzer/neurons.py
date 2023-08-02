@@ -26,18 +26,17 @@ class Dendrites:
             self.overlay = Overlay()
             self.image.setOverlay(self.overlay)
         self.isReading = False
-        self.readDendritesFromMetadata()
+        self.readFromMetadata()
         
             
-    def addElement(self, dendrite, frame):
+    def addElement(self, dendrite):
         """Add a new  dendrite from a line roi. The dendrite created from a line roi on a z-position
         will be considered as being the same on each z-slice (like a wall).
         """
-        dendrite.setFrame(frame)
         self.overlay.add(dendrite.roi)
         self.elements[dendrite.getID()] = dendrite
         dendrite.setParent(self)
-        self.writeDendritesToImageMetadata()
+        self.writeToImageMetadata()
         
         
     def setMaxDistanceForTracking(self, maxDist):
@@ -70,6 +69,8 @@ class Dendrites:
                    dendrite.addToTrack(currentTrack)
                    currentTrack = currentTrack + 1                   
                 dists = [dendrite.distanceTo(other) for other in dendritesByTime[time-1]]
+                if not dists:
+                    continue
                 indexClosest = dists.index(min(dists))
                 minDist = dists[indexClosest]
                 if minDist < self.maxDistanceForTracking:
@@ -112,7 +113,7 @@ class Dendrites:
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()              
         dendritesByTime = [[] for x in range(0, nFrames)]        
         for element in self.elements.values():
-            t = element.roi.getTPosition()
+            t = element.getFrame()
             dendritesByTime[t-1].append(element)
         return dendritesByTime       
        
@@ -121,51 +122,47 @@ class Dendrites:
         return self.elements.values()
         
     
-    def readDendritesFromMetadata(self):
+    def readFromMetadata(self):
         """Read the string defining the mapping of spines to dendrites from the image props
         and answer a dictionary with the dendrite ids as keys and lists of spines as values.
         """
         self.isReading = True
-        spinesString = self.image.getProp("mricia-dendrites")
-        if not spinesString:
+        stringRepresentation = self.image.getProp("mricia-dendrites")
+        if not stringRepresentation:
             self.isReading = False
             return None
-        self.elements = self.readDendritesFromString(spinesString)
+        self.readFromString(stringRepresentation)
         self.isReading = False
 
 
-    def readDendritesFromString(self, spinesString):
+    def readFromString(self, stringRepresentation):
         """Read the dendrites from a string of the form
                'dendriteID1=spineLabel1,spineLabel2,...;dendriteID2=spineLabel1,spineLabel2,...;...'
         """
-        dendrites = {}
-        if spinesString and len(spinesString) > 1:
-            spinesString = spinesString.strip()
-            spineStrings = spinesString.split(';')
-            for spineString in spineStrings:
-                parts = spineString.split('=')
+        self.elements = {}
+        if stringRepresentation and len(stringRepresentation) > 1:
+            stringRepresentation = stringRepresentation.strip()
+            dendriteStrings = stringRepresentation.split(';')
+            for dendriteString in dendriteStrings:
+                parts = dendriteString.split('=')
                 dendriteID = parts[0].strip()
+                dendrite = Dendrite(self.getROIWithName(dendriteID), id=dendriteID)
+                self.addElement(dendrite)
                 listString = parts[1].strip()
-                spineLabels = [int(id) for id in listString.split(',')]
-                spines = [Spine(label, self.image) for label in spineLabels]
-                dendrite =  Dendrite(self.getROIWithName(dendriteID))
-                dendrite.addSpines(spines)
-                dendrites[dendriteID] = dendrite
-        return dendrites       
+                if listString:
+                    spineLabels = [int(id) for id in listString.split(',')]
+                    spines = [Spine(label, self.image) for label in spineLabels]
+                    dendrite.addSpines(spines)
 
 
-    def writeDendritesToImageMetadata(self):
+    def writeToImageMetadata(self):
         if self.isReading:
             return
-        self.writeSpineMapping(self.elements)
+        stringRepresentation = self.createStringRepresentation(self.elements)
+        self.segmentation.image.setProp("mricia-dendrites", stringRepresentation)
 
-
-    def writeSpineMapping(self, spineMapping):
-        spineMappingString = self.createSpineMappingString(spineMapping)
-        self.segmentation.image.setProp("mricia-dendrites", spineMappingString)
-            
     
-    def createSpineMappingString(self, spineMapping):
+    def createStringRepresentation(self, spineMapping):
         result = ""
         for key, dendrite in spineMapping.items():
             result = result + key + "="
@@ -206,15 +203,17 @@ class Dendrites:
         self.image.setPosition(currentC, currentZ, currentT)
         
         
+        
 class Dendrite:
     "A dendrite has spines and can belong to a track."
 
           
-    def __init__(self, roi):
-       image = roi.getImage()
+    def __init__(self, roi, id=None):
+       self.image = roi.getImage()
        self.roi = roi.clone()
-       self.roi.setImage(image)
-       self.roi.setName(UUID.randomUUID().toString())
+       self.roi.setImage(self.image)
+       if id is None:
+            self.roi.setName(UUID.randomUUID().toString())
        self.spines = {}
        self.parent = None
      
@@ -256,7 +255,7 @@ class Dendrite:
        
        
     def distanceTo(self, other):
-        pixelWidth = self.roi.getImage().getCalibration().pixelWidth;
+        pixelWidth = self.image.getCalibration().pixelWidth;
         x1, y1 = self.getCenter()
         x2, y2 = other.getCenter()
         x1 = x1 * pixelWidth
@@ -300,8 +299,8 @@ class Dendrite:
     def saveToMetadata(self):
         if not self.parent:
             return
-        self.parent.writeDendritesToImageMetadata()
-            
+        self.parent.writeToImageMetadata()
+        
             
     def nrOfSpines(self):
         return len(self.spines.keys())

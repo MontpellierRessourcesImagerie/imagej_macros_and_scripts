@@ -119,15 +119,16 @@ class DendriteGenerator:
             
             
     def drawDendriteFromSegmentedLineRoi(self, segmentation, roi, zStart, zDepth):
-        aRoi = roi.clone()
-        segmentation.image.setRoi(aRoi);
-        coords = zip(aRoi.getPolygon().xpoints, aRoi.getPolygon().ypoints)    
+        coords = zip(roi.getPolygon().xpoints, roi.getPolygon().ypoints)    
         segmentation.image.setColor(Color.white)    
         processor = segmentation.image.getProcessor()    
         offsetX = 0
         offsetY = 0
         for t in range(1, self.FRAMES):
             segmentation.image.setT(t)
+            aRoi = roi.clone()
+            aRoi.setPosition(0, 0, t)
+            segmentation.image.setRoi(aRoi);
             for z in range(zStart, zDepth + 1):
                 segmentation.image.setZ(z)
                 for index, coord in enumerate(coords):

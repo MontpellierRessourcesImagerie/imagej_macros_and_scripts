@@ -226,7 +226,7 @@ class InstanceSegmentation:
             for oldLabel, newLabel in closestLabels.items():
                 LabelImages.replaceLabels(imp, [oldLabel], newLabel)
             HyperstackUtils.copyStackTo(self.image, imp, nChannels, frame)
+        self.image.setPosition(currentC, currentZ, currentT)
         self.image.setCalibration(cal)
-        self.image.setDisplayRange(0, 255)
-        self.image.setPosition(currentC, currentZ, currentT)    
+        self.image.setDisplayRange(0, 255)            
         self.image.updateAndDraw()

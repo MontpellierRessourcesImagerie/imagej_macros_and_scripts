@@ -129,6 +129,21 @@ macro "Track Spines (f8) Action Tool Options" {
 }
 
 
+macro "Attach Spines (f9) Action Tool - C222D0aD0bD1dDf3Df4CeeeD3dC777D19D28D29D37D46D55D64D6cD73D7bD8aD99Da8Db7C555D2aD3cD4eD6eDc1De1CfffD6fDa0CcccD08D4dDe3De4C444D0cD39D3eD48D57D66D75D7dD84D8cD93D9bDa2DaaDb9Dc8Dd1Dd7De6CeeeD91Dd2Dd5De0CbbbD17D1aD26D2dD35D44D53D5bD5dD5fD62D6aD71D79D88D97Da6Db0Db5Dd0C666D2bD6dD7cD8bD92D9aDa1Da9Db8Dc7Dd6De2Df2Df5CdddD2cD2fD49D4bD58D67D76D7eD85D8dD94D9cDa3DabDbaDc9Dd8De7Df1Df6C333D18D27D2eD36D45D4cD54D5cD5eD63D6bD72D7aD89D98Da7Db1Db6C999D0dD1cD1eD3aD3fD4fD81D82Dc0Dc5Dc6C666D09D38D3bD47D56D65D74D83De5CdddD1bDb2" {
+    runAttachSpines();    
+}
+
+
+macro "Attach Spines [F9]" {
+    runAttachSpines();    
+}
+
+
+function runAttachSpines() {
+    run("attach spines");
+}
+
+
 function runTrackSpines() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     if (File.exists(getOptionsPathTrackSpines())) {
