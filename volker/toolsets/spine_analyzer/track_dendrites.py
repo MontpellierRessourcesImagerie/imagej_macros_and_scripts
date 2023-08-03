@@ -20,7 +20,7 @@ def main():
     image = IJ.getImage()
     segmentation = InstanceSegmentation(image)
     dendrites = Dendrites(segmentation)
-    dendrites.setMaxDistanceForTracking(10)
+    dendrites.setMaxDistanceForTracking(MAX_DISTANCE)
     dendrites.track()
 
 
@@ -73,7 +73,7 @@ def loadOptions():
         value = ""
         if "=" in option:
             value = parts[1]
-        if key=="max":
+        if key=="max.":
             MAX_DISTANCE = float(value)
             
 

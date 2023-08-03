@@ -19,6 +19,7 @@ for frame in range(1, nFrames+1):
         roi.setPosition(0, 0, frame)
         dendrites.addElement(Dendrite(roi))    
   
+dendrites.readFromMetadata()
 dendrites.track()
 
 # dendrites.attachSpinesToClosestDendrite()

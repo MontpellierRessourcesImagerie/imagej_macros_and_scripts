@@ -29,11 +29,12 @@ class Dendrites:
         self.readFromMetadata()
         
             
-    def addElement(self, dendrite):
+    def addElement(self, dendrite, addRoi=True):
         """Add a new  dendrite from a line roi. The dendrite created from a line roi on a z-position
         will be considered as being the same on each z-slice (like a wall).
         """
-        self.overlay.add(dendrite.roi)
+        if addRoi:
+            self.overlay.add(dendrite.roi)
         self.elements[dendrite.getID()] = dendrite
         dendrite.setParent(self)
         self.writeToImageMetadata()
@@ -61,7 +62,6 @@ class Dendrites:
         for dendrites in dendritesByTime:
             for dendrite in dendrites:
                 dendrite.resetTrack()
-                
         currentTrack = 1
         for time, dendrites in zip(reversed(range(len(dendritesByTime))), list(reversed(dendritesByTime))):
             for dendrite in dendrites:     
@@ -76,6 +76,7 @@ class Dendrites:
                 if minDist < self.maxDistanceForTracking:
                    dendritesByTime[time-1][indexClosest].addToTrack(dendrite.getTrack())
         self.colorTracks()
+        self.image.updateAndDraw()
         
         
     def colorTracks(self):
@@ -98,6 +99,7 @@ class Dendrites:
         for aRoi in rois:
             if aRoi.getName() == name:
                 roi = aRoi
+        roi.setImage(self.image)
         return roi
         
     
@@ -147,7 +149,7 @@ class Dendrites:
                 parts = dendriteString.split('=')
                 dendriteID = parts[0].strip()
                 dendrite = Dendrite(self.getROIWithName(dendriteID), id=dendriteID)
-                self.addElement(dendrite)
+                self.addElement(dendrite, addRoi=False)
                 listString = parts[1].strip()
                 if listString:
                     spineLabels = [int(id) for id in listString.split(',')]
@@ -205,15 +207,23 @@ class Dendrites:
         
         
 class Dendrite:
-    "A dendrite has spines and can belong to a track."
+    """A dendrite has spines and can belong to a track. Dendrites on the same track are the same
+    dendrite at different timepoints."""
 
           
     def __init__(self, roi, id=None):
+       """When a dendrite is created without an id, the roi will be cloned and an id will be created. 
+       Otherwise the roi object is directly used, so that the roi is the same object as the one in the 
+       overlay, when the dendrites are re-created from the text in the metadata.
+       """
        self.image = roi.getImage()
-       self.roi = roi.clone()
-       self.roi.setImage(self.image)
        if id is None:
+            self.roi = roi.clone()
             self.roi.setName(UUID.randomUUID().toString())
+       else:
+            self.roi = roi
+            self.roi.setName(id)
+       self.roi.setImage(self.image)
        self.spines = {}
        self.parent = None
      
@@ -255,7 +265,7 @@ class Dendrite:
        
        
     def distanceTo(self, other):
-        pixelWidth = self.image.getCalibration().pixelWidth;
+        pixelWidth = self.image.getCalibration().pixelWidth
         x1, y1 = self.getCenter()
         x2, y2 = other.getCenter()
         x1 = x1 * pixelWidth
