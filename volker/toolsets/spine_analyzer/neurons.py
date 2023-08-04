@@ -205,7 +205,52 @@ class Dendrites:
         self.image.setPosition(currentC, currentZ, currentT)
         
         
+    def measure(self):
+        headersSpines = ["dendrite", "spine", "frame", "spine volume", "spine intensity", "signal volume", "signal intensity"]
+        spineMeasures = []
+        dendritesByTime = self.getByTime()
+        for frame, dendrite in enumerate(dendritesByTime):
+            for spine in dendrite.getSpines().values():
+                measures = []
+                measures.append(dendrite.getTrack())
+                measures.append(spine.getLabel())
+                measures.append(frame)
         
+        headersDendrites = ["dendrite", "frame", "length", "nr. of spines", "spine density"]
+        """
+        from ij import IJ
+        from fr.cnrs.mri.cialib.neurons import Dendrites
+        from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
+        
+        image = IJ.getImage()
+        width, height, nChannels, nSlices, nFrames = image.getDimensions()
+        currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
+        segmentation = InstanceSegmentation(image)
+        dendrites = Dendrites(segmentation)
+        
+        labels = segmentation.getLabels()
+        measurements = {}
+        
+        labelChannel = segmentation.getLabelChannelIndex()
+        for channel in range(1, nChannels + 1):
+            if channel == labelChannel:
+                continue
+            measurements[channel] = {}
+            for label in labels:
+                frames = {}
+                for frame in range(1, nFrames + 1):
+                    frames[frame] = []
+                measurements[channel][frame] = frames
+               
+        for channel in range(1, nChannels + 1):
+            if channel == labelChannel:
+                continue
+            for frame in range(1, nFrames + 1):
+                
+                measurements[channel][frame] = segmentation.measureLabelsForChannelAndFrame(channel, frame)
+                
+        print(measurements)    
+        """
 class Dendrite:
     """A dendrite has spines and can belong to a track. Dendrites on the same track are the same
     dendrite at different timepoints."""

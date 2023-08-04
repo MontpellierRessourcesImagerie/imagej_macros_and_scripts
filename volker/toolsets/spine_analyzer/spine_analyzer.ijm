@@ -139,6 +139,21 @@ macro "Attach Spines [F9]" {
 }
 
 
+macro "Measure (f10) Action Tool - C000D22D23D27D28D2cD2dD32D33D37D38D3cD3dD42D43D47D48D4cD4dD52D53D57D58D5cD5dD62D63D67D68D6cD6dD72D73D77D78D7cD7dD87D88D8cD8dD97D98D9cD9dDa7Da8Db7Db8Dc7Dc8Dd7Dd8C333D24D2bD34D44D54D64D74DacDadDe7De8CcccD36D46D56D66D76D86D96Da6Db6Dc6Dd6C666DabCcccDe6De9C444D3bD4bD5bD6bD7bD8bD9bCbbbD26D29D39D49D59D69D79D89D99Da9Db9Dc9Dd9" {
+    runMeasure();    
+}
+
+
+macro "Measure [F10]" {
+    runMeasure();
+}
+
+
+function runMeasure() {
+    run("measure spines");    
+}
+
+
 function runAttachSpines() {
     run("attach spines");
 }

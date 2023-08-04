@@ -45,6 +45,7 @@ from ij.process import LUT
 from ij.process import ImageStatistics
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.label import LabelImages
+from inra.ijpb.measure import IntensityMeasures
 from inra.ijpb.measure.region3d import Centroid3D
 from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
@@ -175,17 +176,27 @@ class InstanceSegmentation:
         return self.labelChannelIndex
     
 
-    def getCopyOfLabelsChannel(self):
+    def getCopyOfLabelsChannel(self, frame=None):
         """Answer a copy of the labels for the current frame.
+        """
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        if not frame:
+            frame = currentT
+        labels = self.getCopyOfChannelAndFrame(self.getLabelChannelIndex(), frame)
+        return labels
+        
+        
+    def getCopyOfChannelAndFrame(self, channel, frame):
+        """Answer a copy of the given frame of the given channel.
         """
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
         roi = self.image.getRoi()
         self.image.killRoi()
-        labels = Duplicator().run(self.image, self.getLabelChannelIndex(), self.getLabelChannelIndex(), 1, self.image.getNSlices(), currentT, currentT) # currentT?
+        frame = Duplicator().run(self.image, channel, channel, 1, self.image.getNSlices(), frame, frame) 
         self.image.setPosition(currentC, currentZ, currentT)    
         if roi:
             self.image.setRoi(roi)
-        return labels
+        return frame
         
         
     def show(self):
@@ -194,6 +205,9 @@ class InstanceSegmentation:
         
         
     def trackLabels(self):
+        """Change the labels on the next frame to the values of the closest labels on the current
+        frame if the distance is close enough.
+        """
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
         self.image.setT(nFrames)
@@ -230,3 +244,33 @@ class InstanceSegmentation:
         self.image.setCalibration(cal)
         self.image.setDisplayRange(0, 255)            
         self.image.updateAndDraw()
+        
+        
+    def measureLabelsForChannelAndFrame(self, channel, frame):    
+        """ Measure the labels in the given channel and frame. 
+        The channel should be different from the channel containing the labels.
+        Answers a list of tupels of the values
+        (label, nrOfVoxels, volume, intDen, meanInt, min, max, mode, kurtosis, skewness)
+        """
+        print(channel, frame)
+        intensities = self.getCopyOfChannelAndFrame(channel, frame)
+        labelImage = self.getCopyOfLabelsChannel(frame=frame)
+        measures = IntensityMeasures(intensities, labelImage)
+        table =  measures.getNumberOfVoxels()
+        labels = []
+        if table.size() < 1:
+            return []
+        for row in range(0, table.size()):
+            labels.append(int(table.getLabel(row)))
+        nrOfVoxels = measures.getNumberOfVoxels().getColumn("NumberOfVoxels")
+        volume = measures.getVolume().getColumn("Volume")
+        intDen = measures.getSumOfVoxels().getColumn("Voxels Sum")
+        meanInt = measures.getMean().getColumn("Mean")
+        stdDev = measures.getStdDev().getColumn("StdDev")
+        min = measures.getMin().getColumn("Min")
+        max = measures.getMax().getColumn("Max")
+        mode = measures.getMode().getColumn("Mode")
+        kurtosis = measures.getKurtosis().getColumn("Kurtosis")
+        skewness = measures.getSkewness().getColumn("Skewness")
+        results = (zip(labels, nrOfVoxels, volume, intDen, meanInt, min, max, mode, kurtosis, skewness))
+        return results
