@@ -109,6 +109,14 @@ class Dendrites:
         return self.elements[anID]
         
    
+    def getElementByTrackAndFrame(self, aTrack, aFrame):
+        for element in self.elements:
+            for dendrite in self.elements.values:
+                if dendrite.getTrack() == aTrack and dendrite.getFrame() == aFrame:
+                    return dendrite
+        return None
+    
+    
     def getByTime(self):
         """Answer an array containing a list of dendrites for each frame.
         """
@@ -205,32 +213,21 @@ class Dendrites:
         self.image.setPosition(currentC, currentZ, currentT)
         
         
-    def measure(self):
-        headersSpines = ["dendrite", "spine", "frame", "spine volume", "spine intensity", "signal volume", "signal intensity"]
-        spineMeasures = []
-        dendritesByTime = self.getByTime()
-        for frame, dendrite in enumerate(dendritesByTime):
-            for spine in dendrite.getSpines().values():
-                measures = []
-                measures.append(dendrite.getTrack())
-                measures.append(spine.getLabel())
-                measures.append(frame)
-        
-        headersDendrites = ["dendrite", "frame", "length", "nr. of spines", "spine density"]
-        """
-        from ij import IJ
-        from fr.cnrs.mri.cialib.neurons import Dendrites
-        from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
-        
-        image = IJ.getImage()
-        width, height, nChannels, nSlices, nFrames = image.getDimensions()
-        currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
-        segmentation = InstanceSegmentation(image)
-        dendrites = Dendrites(segmentation)
-        
-        labels = segmentation.getLabels()
+    def getMeasurements(self):
+        """Answer the measurements of the spines as a dictonary of the form:
+        {Channel1: {Frame1: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                    Frame2: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  ...
+                    FrameN: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...},
+         Channel2: {Frame1: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  Frame2: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  ...
+                  FrameN: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...}}
+        """                  
+        width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())     
+        labels = self.segmentation.getLabels()
         measurements = {}
-        
         labelChannel = segmentation.getLabelChannelIndex()
         for channel in range(1, nChannels + 1):
             if channel == labelChannel:
@@ -240,17 +237,46 @@ class Dendrites:
                 frames = {}
                 for frame in range(1, nFrames + 1):
                     frames[frame] = []
-                measurements[channel][frame] = frames
-               
+                measurements[channel][frame] = frames               
         for channel in range(1, nChannels + 1):
             if channel == labelChannel:
                 continue
-            for frame in range(1, nFrames + 1):
+            for frame in range(1, nFrames + 1):                
+                measurements[channel][frame] = segmentation.measureLabelsForChannelAndFrame(channel, frame)        
+        self.image.setPosition(currentC, currentZ, currentT)                
+        return measurements
+     
+     
+    def measure(self):
+        measurements = self.getMeasurements()
+        for element in self.elements:
+            for spine in elements.getSpines():
+                values = measurements[channel][element.getFrame()][spine.getLabel()]
+                spine.nrOfPixels = values[0]
+                spine.volume = values[1]
+                spine.resetIntensityMeasurements()
+                for channel in measurements.keys():
+                    values = measurements[channel][element.getFrame()][spine.getLabel()]
+                    intensityMeasurements = IntensityMeasurements(channel)
+                    intensityMeasurements.intDen =  values[2]
+                    intensityMeasurements.meanInt =  values[3]
+                    intensityMeasurements.min =  values[4]
+                    intensityMeasurements.max =  values[5]
+                    intensityMeasurements.stdDev =  values[6]
+                    intensityMeasurements.mode =  values[7]
+                    intensityMeasurements.kurtosis =  values[8]
+                    intensityMeasurements.skewness =  values[9]
+                    spine.addIntensityMeasurements(intensityMeasurements)
+        
                 
-                measurements[channel][frame] = segmentation.measureLabelsForChannelAndFrame(channel, frame)
-                
-        print(measurements)    
-        """
+    def report(self):
+        table = ResultsTable()
+        dendritesByTime = self.getByTime()
+        for frame in dendritesByTime:
+            for dendrite in frame:
+                dendrite.addToReport(table)
+  
+  
 class Dendrite:
     """A dendrite has spines and can belong to a track. Dendrites on the same track are the same
     dendrite at different timepoints."""
@@ -365,7 +391,24 @@ class Dendrite:
         return self.roi
         
         
+    def getSpine(self, aLabel):
+        return self.spines[aLabel]
+       
+       
+    def sortedSpines(self):
+        return sorted(self.spines.items())
     
+    
+    def addToReport(self, table):
+        spines = self.sortedSpines()
+        for spine in spines:
+            table.addRow()
+            table.addValue("Dendrite", self.getTrack())
+            table.addValue("Frame", self.getFrame())
+            spine.addToReport(table)
+        
+        
+        
 class Spine:
     """A dendritic spines is a tiny protrusions from a dendrite, 
     which forms functional contacts with neighboring axons of other neurons.
@@ -375,6 +418,9 @@ class Spine:
     def __init__(self, label, image):
         self.label = label
         self.image = image
+        self.nrOfVoxels = float('NaN')
+        self.volume = float('NaN')
+        self.intensityMeasurement = []
         
         
     def __eq__(self, aSpine):
@@ -389,3 +435,47 @@ class Spine:
         
     def getLabel(self):
         return self.label
+        
+        
+    def resetIntensityMeasurements(self):
+        self.intensityMeasurements = []
+        
+        
+    def addIntensityMeasurement(self, aMeasurement):
+        self.intensityMeasurements.append(aMeasurement)
+        
+        
+    def addtoReport(self, table):
+        table.addValue("Label", self.getLabel())
+        table.addValue("Nr. of Voxels", self.nrOfVoxels)
+        table.addValue("Volume", self.volume)
+        for measurements in self.intensityMeasurements:
+            measurements.addToReport(table)
+        
+        
+ 
+class IntensityMeasurements:
+
+
+    def __init__(self, channel):
+        self.channel = channel
+        self.intDen = float('NaN')
+        self.meanInt = float('NaN')
+        self.stdDev = float('NaN')
+        self.min = float('NaN')
+        self.max = float('NaN')
+        self.mode = float('NaN')
+        self.kurtosis = float('NaN')
+        self.skewness = float('NaN')
+        
+        
+    def addToReport(self, table):
+        table.addValue("IntDen (C" + self.channel + ")", self.intDen)
+        table.addValue("Mean (C" + self.channel + ")", self.meanInt)
+        table.addValue("StdDev (C" + self.channel + ")", self.stdDev)
+        table.addValue("Min (C" + self.channel + ")", self.min)
+        table.addValue("Max (C" + self.channel + ")", self.max)
+        table.addValue("Mode (C" + self.channel + ")", self.mode)
+        table.addValue("Kurtosis" + self.channel + ")", self.kurtosis)
+        table.addValue("Skewness (C" + self.channel + ")", self.skewness)
+        

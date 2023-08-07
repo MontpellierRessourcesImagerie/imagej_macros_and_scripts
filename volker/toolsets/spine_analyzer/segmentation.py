@@ -249,10 +249,10 @@ class InstanceSegmentation:
     def measureLabelsForChannelAndFrame(self, channel, frame):    
         """ Measure the labels in the given channel and frame. 
         The channel should be different from the channel containing the labels.
-        Answers a list of tupels of the values
-        (label, nrOfVoxels, volume, intDen, meanInt, min, max, mode, kurtosis, skewness)
+        Answers a dictonary with labels as keys and tupels of the measurement values
+        {label1: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness)
+         label2: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness)}
         """
-        print(channel, frame)
         intensities = self.getCopyOfChannelAndFrame(channel, frame)
         labelImage = self.getCopyOfLabelsChannel(frame=frame)
         measures = IntensityMeasures(intensities, labelImage)
@@ -272,5 +272,6 @@ class InstanceSegmentation:
         mode = measures.getMode().getColumn("Mode")
         kurtosis = measures.getKurtosis().getColumn("Kurtosis")
         skewness = measures.getSkewness().getColumn("Skewness")
-        results = (zip(labels, nrOfVoxels, volume, intDen, meanInt, min, max, mode, kurtosis, skewness))
+        resultList = (zip(labels, nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness))
+        results = {item[0]: item[1:] for item in resultList}
         return results
