@@ -12,8 +12,10 @@ def main():
     segmentation = InstanceSegmentation(image)
     dendrites = Dendrites(segmentation)
     dendrites.measure()
-    table = dendrites.report()
+    table = dendrites.reportSpines()
     table.show("Spine Measurements")
+    table = dendrites.reportDendrites()
+    table.show("Dendrite Measurements")
     
     
 main()

@@ -1,3 +1,4 @@
+from __future__ import division
 import sys
 import math
 from java.awt import Color
@@ -270,15 +271,27 @@ class Dendrites:
                     spine.addIntensityMeasurements(intensityMeasurements)
         
                 
-    def report(self):
+    def reportSpines(self):
         table = ResultsTable()
         dendritesByTime = self.getByTime()
         for frame in dendritesByTime:
             for dendrite in frame:
                 dendrite.addToReport(table)
+        table.sort("Spine")
         return table
   
 
+    def reportDendrites(self):
+        table = ResultsTable()
+        dendritesByTime = self.getByTime()
+        for frame in dendritesByTime:
+            for dendrite in frame:
+                table.addRow()
+                dendrite.addToSummaryReport(table)
+        table.sort("Dendrite")
+        return table
+        
+        
   
 class Dendrite:
     """A dendrite has spines and can belong to a track. Dendrites on the same track are the same
@@ -300,7 +313,7 @@ class Dendrite:
        self.roi.setImage(self.image)
        self.spines = {}
        self.parent = None
-     
+       
     
     def setParent(self, dendrites):
         self.parent = dendrites
@@ -337,7 +350,18 @@ class Dendrite:
     def resetTrack(self):
         self.roi.setGroup(0)
        
+    
+    def getLength(self):
+        return self.roi.getLength()
        
+    
+    def getSpineDensity(self):
+        length = self.getLength()
+        numberOfSpines = self.getNumberOfSpines()
+        density = numberOfSpines / length
+        return density
+        
+    
     def distanceTo(self, other):
         pixelWidth = self.image.getCalibration().pixelWidth
         x1, y1 = self.getCenter()
@@ -410,7 +434,19 @@ class Dendrite:
             table.addValue("Frame", self.getFrame())
             spine.addToReport(table)
         
+    
+    def addToSummaryReport(self, table):
+        table.addValue("Dendrite", self.getTrack())
+        table.addValue("Frame", self.getFrame())
+        table.addValue("Length", self.getLength())
+        table.addValue("Nr. of spines", self.getNumberOfSpines())
+        table.addValue("Spine density", self.getSpineDensity())
         
+    
+    def getNumberOfSpines(self):
+        return len(self.spines)
+    
+    
         
 class Spine:
     """A dendritic spines is a tiny protrusions from a dendrite, 
@@ -449,7 +485,7 @@ class Spine:
         
         
     def addToReport(self, table):
-        table.addValue("Label", self.getLabel())
+        table.addValue("Spine", self.getLabel())
         table.addValue("Nr. of Voxels", self.nrOfVoxels)
         table.addValue("Volume", self.volume)
         for measurements in self.intensityMeasurements:
@@ -480,6 +516,6 @@ class IntensityMeasurements:
         table.addValue("Min (C" + channel + ")", self.min)
         table.addValue("Max (C" + channel + ")", self.max)
         table.addValue("Mode (C" + channel + ")", self.mode)
-        table.addValue("Kurtosis" + channel + ")", self.kurtosis)
+        table.addValue("Kurtosis (C" + channel + ")", self.kurtosis)
         table.addValue("Skewness (C" + channel + ")", self.skewness)
         
