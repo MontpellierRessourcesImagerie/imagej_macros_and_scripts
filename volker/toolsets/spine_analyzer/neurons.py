@@ -5,6 +5,7 @@ from java.util import UUID
 from ij.gui import Overlay
 from ij.plugin import Colors
 from ij.measure import Calibration
+from ij.measure import ResultsTable
 from inra.ijpb.measure.region3d import Centroid3D
 
 
@@ -228,7 +229,7 @@ class Dendrites:
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())     
         labels = self.segmentation.getLabels()
         measurements = {}
-        labelChannel = segmentation.getLabelChannelIndex()
+        labelChannel = self.segmentation.getLabelChannelIndex()
         for channel in range(1, nChannels + 1):
             if channel == labelChannel:
                 continue
@@ -242,17 +243,17 @@ class Dendrites:
             if channel == labelChannel:
                 continue
             for frame in range(1, nFrames + 1):                
-                measurements[channel][frame] = segmentation.measureLabelsForChannelAndFrame(channel, frame)        
+                measurements[channel][frame] = self.segmentation.measureLabelsForChannelAndFrame(channel, frame)        
         self.image.setPosition(currentC, currentZ, currentT)                
         return measurements
      
      
     def measure(self):
         measurements = self.getMeasurements()
-        for element in self.elements:
-            for spine in elements.getSpines():
-                values = measurements[channel][element.getFrame()][spine.getLabel()]
-                spine.nrOfPixels = values[0]
+        for element in self.elements.values():
+            for spine in element.getSpines().values():
+                values = measurements[measurements.keys()[0]][element.getFrame()][spine.getLabel()]
+                spine.nrOfVoxels = values[0]
                 spine.volume = values[1]
                 spine.resetIntensityMeasurements()
                 for channel in measurements.keys():
@@ -275,7 +276,9 @@ class Dendrites:
         for frame in dendritesByTime:
             for dendrite in frame:
                 dendrite.addToReport(table)
+        return table
   
+
   
 class Dendrite:
     """A dendrite has spines and can belong to a track. Dendrites on the same track are the same
@@ -400,7 +403,7 @@ class Dendrite:
     
     
     def addToReport(self, table):
-        spines = self.sortedSpines()
+        spines = [elem[1] for elem in self.sortedSpines()]
         for spine in spines:
             table.addRow()
             table.addValue("Dendrite", self.getTrack())
@@ -441,11 +444,11 @@ class Spine:
         self.intensityMeasurements = []
         
         
-    def addIntensityMeasurement(self, aMeasurement):
+    def addIntensityMeasurements(self, aMeasurement):
         self.intensityMeasurements.append(aMeasurement)
         
         
-    def addtoReport(self, table):
+    def addToReport(self, table):
         table.addValue("Label", self.getLabel())
         table.addValue("Nr. of Voxels", self.nrOfVoxels)
         table.addValue("Volume", self.volume)
@@ -470,12 +473,13 @@ class IntensityMeasurements:
         
         
     def addToReport(self, table):
-        table.addValue("IntDen (C" + self.channel + ")", self.intDen)
-        table.addValue("Mean (C" + self.channel + ")", self.meanInt)
-        table.addValue("StdDev (C" + self.channel + ")", self.stdDev)
-        table.addValue("Min (C" + self.channel + ")", self.min)
-        table.addValue("Max (C" + self.channel + ")", self.max)
-        table.addValue("Mode (C" + self.channel + ")", self.mode)
-        table.addValue("Kurtosis" + self.channel + ")", self.kurtosis)
-        table.addValue("Skewness (C" + self.channel + ")", self.skewness)
+        channel = str(self.channel)
+        table.addValue("IntDen (C" + channel + ")", self.intDen)
+        table.addValue("Mean (C" + channel + ")", self.meanInt)
+        table.addValue("StdDev (C" + channel + ")", self.stdDev)
+        table.addValue("Min (C" + channel + ")", self.min)
+        table.addValue("Max (C" + channel + ")", self.max)
+        table.addValue("Mode (C" + channel + ")", self.mode)
+        table.addValue("Kurtosis" + channel + ")", self.kurtosis)
+        table.addValue("Skewness (C" + channel + ")", self.skewness)
         
