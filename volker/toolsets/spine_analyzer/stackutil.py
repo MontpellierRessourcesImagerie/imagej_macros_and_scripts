@@ -77,19 +77,30 @@ class HyperstackUtils:
         
         
     @staticmethod
-    def segmentObjectInRegion(image, roi, method="Default"):
+    def segmentObjectInRegion(image, roi, method="Default", firstZ=None, lastZ=None):
         """Segment the largest 3D object in the region given by the roi. 
         Each slice is cleared outside of the 2D roi before the thresholding is done.
         """
         currentC, currentZ, currentT = (image.getC(), image.getZ(), image.getT())
+        startSlice = 1
+        endSlice = image.getNSlices()
+        if firstZ:
+           startSlice = firstZ
+        if lastZ:
+           endSlice = lastZ 
         image.killRoi()
         maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
         for z in range(1, maskImage.getNSlices()+1):
-            maskImage.getStack().getProcessor(z).fillOutside(roi)
+            processor = maskImage.getStack().getProcessor(z)
+            if z >= startSlice and z <= endSlice:
+                processor.fillOutside(roi)
+            else:
+                processor.fill()
         IJ.setAutoThreshold(maskImage, method + " dark stack");
         IJ.run(maskImage, "Convert to Mask", "method="+method+" background=Dark black")
         labelsImage = LabelImages.regionComponentsLabeling(maskImage, 255, 6, 8)
         labelsImage = LabelImages.keepLargestLabel(labelsImage)
         return labelsImage
    
+
     

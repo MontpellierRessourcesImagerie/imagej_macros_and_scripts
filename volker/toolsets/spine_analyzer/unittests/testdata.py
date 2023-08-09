@@ -144,7 +144,7 @@ class DendriteGenerator:
     def labelSpines(self, segmentation):
         image = segmentation.image
         width, height, nChannels, nSlices, nFrames = image.getDimensions()
-        lut = LUT(LutLoader.getLut( "glasbey on dark" ), 0, 255)
+        lut = LUT(LutLoader.getLut( "glasbey_on_dark" ), 0, 255)
         image.setC(nChannels)
         nextNewLabel = 1
         for frame in range(1, nFrames + 1):

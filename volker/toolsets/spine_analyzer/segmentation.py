@@ -126,11 +126,11 @@ class InstanceSegmentation:
         self.nextLabel = self.nextLabel + 1
         
     
-    def addFromAutoThresholdInRoi(self, roi):
+    def addFromAutoThresholdInRoi(self, roi, firstZ=None, lastZ=None):
         """Create a 3D mask in the region of the 2D roi, using the auto-thresholding method.
         Add the biggest object to the segmentation.
         """
-        mask = HyperstackUtils.segmentObjectInRegion(self.image, roi)
+        mask = HyperstackUtils.segmentObjectInRegion(self.image, roi, firstZ=firstZ, lastZ=lastZ)
         self.addFromMask(mask)
         
     

@@ -149,6 +149,50 @@ macro "Measure [F10]" {
 }
 
 
+macro "Set First Slice [&1]" {
+    setFirstSlice();
+}
+
+
+macro "Set Last Slice [&2]" {
+    setLastSlice();
+}
+
+
+macro "Reset Slice Boundaries [&0]" {
+    resetSliceBoundaries();
+}
+
+
+function setFirstSlice() {
+    Stack.getPosition(channel, slice, frame);
+    saveSegmentSpineOption("start", slice)
+    print("first slice set to " + slice);
+}
+
+
+function setLastSlice() {
+    Stack.getPosition(channel, slice, frame);
+    saveSegmentSpineOption("end", slice)
+    print("last slice set to " + slice);
+}
+
+
+function resetSliceBoundaries() {
+    saveSegmentSpineOption("start", 0)
+    saveSegmentSpineOption("end", 0)
+    print("the slice boundaries have been reset");
+}
+
+
+function saveSegmentSpineOption(option, value) {
+    path = getOptionsPathSegmentSpine();
+    optionsString = loadOptions(path);
+    newOptionString = replace(optionsString, option + "=[0-9]+", option+"=" + value);
+    File.saveString(newOptionString, path);
+}
+
+
 function runMeasure() {
     run("measure spines");    
 }

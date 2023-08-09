@@ -50,6 +50,8 @@ THRESHOLDING_METHOD = "Default"
 THRESHOLDING_METHODS = AutoThresholder.getMethods()
 LOOKUP_TABLE_NAME = "glasbey on dark"
 LOOKUP_TABLE_NAMES = IJ.getLuts()
+START_SLICE = 0
+END_SLICE = 0
 SAVE_OPTIONS = True
 
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer";
@@ -78,7 +80,10 @@ def main():
         sys.exit()
     segmentation.setThresholdingMethod(THRESHOLDING_METHOD)
     segmentation.setLUT(LOOKUP_TABLE_NAME)
-    segmentation.addFromAutoThresholdInRoi(roi)
+    if START_SLICE and END_SLICE and END_SLICE>=START_SLICE:
+        segmentation.addFromAutoThresholdInRoi(roi, firstZ=START_SLICE, lastZ=END_SLICE)
+    else:
+        segmentation.addFromAutoThresholdInRoi(roi)
     inputImage.setC(spineChannel)
     inputImage.setDisplayRange(0, 255)
     inputImage.setC(originalC)
@@ -86,13 +91,15 @@ def main():
 
 
 def showDialog():
-    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL
+    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Segment Spine Options"); 
     gd.addNumericField("Spine Segmetation Channel (0 for active): ", SPINE_SEGMENTATION_CHANNEL)
     gd.addChoice("Auto-Thresholding Method: ", THRESHOLDING_METHODS, THRESHOLDING_METHOD)
     gd.addChoice("Lookup Table: ", LOOKUP_TABLE_NAMES, LOOKUP_TABLE_NAME)
+    gd.addNumericField("Start Slice (0 for first): ", START_SLICE)
+    gd.addNumericField("End Slice (0 for last): ", END_SLICE)
     gd.addCheckbox("Save Options", SAVE_OPTIONS)
     gd.addHelp(URL)
     gd.showDialog()
@@ -101,6 +108,8 @@ def showDialog():
     SPINE_SEGMENTATION_CHANNEL = int(gd.getNextNumber())
     THRESHOLDING_METHOD = gd.getNextChoice()
     LOOKUP_TABLE_NAME = gd.getNextChoice()
+    START_SLICE = int(gd.getNextNumber())
+    END_SLICE = int(gd.getNextNumber())
     SAVE_OPTIONS = gd.getNextBoolean()
     if SAVE_OPTIONS:
         saveOptions()
@@ -117,8 +126,10 @@ def getOptionsString():
     optionsString = ""
     lutName = LOOKUP_TABLE_NAME.replace(" ", "_");
     optionsString = optionsString + "spine=" + str(SPINE_SEGMENTATION_CHANNEL)
-    optionsString = optionsString + " auto-thresholding="+ THRESHOLDING_METHOD
-    optionsString = optionsString + " lookup="+ lutName 
+    optionsString = optionsString + " auto-thresholding=" + THRESHOLDING_METHOD
+    optionsString = optionsString + " lookup=" + lutName 
+    optionsString = optionsString + " start=" + str(START_SLICE) 
+    optionsString = optionsString + " end=" + str(END_SLICE) 
     return optionsString
 
 
@@ -129,7 +140,7 @@ def saveOptions():
     
     
 def loadOptions(): 
-    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL
+    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
     
     optionsPath = getOptionsPath()
     optionsString = IJ.openAsString(optionsPath)
@@ -148,6 +159,10 @@ def loadOptions():
             LOOKUP_TABLE_NAME = LOOKUP_TABLE_NAME.replace("_", " ")
         if key=="spine":
             SPINE_SEGMENTATION_CHANNEL = int(value)
+        if key=="start":
+            START_SLICE = int(value)
+        if key=="end":
+            END_SLICE = int(value)
     
 
 main()

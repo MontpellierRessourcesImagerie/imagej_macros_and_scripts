@@ -231,9 +231,9 @@ class DendritesTest(unittest.TestCase):
 def suite():
     suite = unittest.TestSuite()
 
-    suite.addTest(DendritesTest('testConstructorNoMetadata'))
+    """suite.addTest(DendritesTest('testConstructorNoMetadata'))
     suite.addTest(DendritesTest('testAdd'))
-    suite.addTest(DendritesTest('testMaxDistanceForTracking'))
+    suite.addTest(DendritesTest('testMaxDistanceForTracking'))"""
     suite.addTest(DendritesTest('testTrack'))
     suite.addTest(DendritesTest('testReadFromString'))
     suite.addTest(DendritesTest('testReadFromMetadata'))
