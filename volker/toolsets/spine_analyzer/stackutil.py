@@ -1,6 +1,6 @@
 ###############################################################################################
 ##
-## HyperstackUtils.py
+## stackutil.py
 ##
 ## Utility methods for working with 5D-images (Hyperstacks)
 ##
@@ -8,7 +8,7 @@
 ##
 ## written by Volker Baecker at the MRI-Center for Image Analysis (MRI-CIA - https://www.mri.cnrs.fr/en/data-analysis.html)
 ##
-## HyperstackUtils.py is free software under the MIT license.
+## stackutil.py is free software under the MIT license.
 ## 
 ## MIT License
 ##

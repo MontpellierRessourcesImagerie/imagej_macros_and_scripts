@@ -1,14 +1,14 @@
 ###############################################################################################
 ##
-## segmentation.py
+## neurons.py
 ##
-## The module contains classes representing Dendrites and dendritic spines.
+## The module contains classes representing dendrites and dendritic spines.
 ##
 ## (c) 2023 INSERM
 ##
 ## written by Volker Baecker at the MRI-Center for Image Analysis (MRI-CIA - https://www.mri.cnrs.fr/en/data-analysis.html)
 ##
-## segmentation.py is free software under the MIT license.
+## neurons.py is free software under the MIT license.
 ## 
 ## MIT License
 ##
