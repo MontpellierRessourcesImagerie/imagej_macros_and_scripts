@@ -30,6 +30,8 @@ class Updater:
         self.sourceFolder = ""
         
         self.pluginsToolDir = IJ.getDirectory("plugins") + self.folder + "/"
+        if not os.path.exists(self.pluginsToolDir):
+            os.makedirs(self.pluginsToolDir)
         self.toolsetsDir = IJ.getDirectory("macros") +  "toolsets/"
         self.pythonModulesDir = IJ.getDirectory("imagej") + "/jars/Lib/fr/cnrs/mri/cialib/"
         if not os.path.exists(self.pythonModulesDir):
