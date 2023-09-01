@@ -180,7 +180,8 @@ function installOrUpdate() {
     updateUpdater()
     setToolInfo();
     print("Running the updater...");
-    runMacro("mri-updater.ijm");
+    scriptsFolder = getDirectory("imagej" + "scripts");
+    runMacro(scriptsFolder + "mri-updater.py");
     unsetToolInfo();
 }
 

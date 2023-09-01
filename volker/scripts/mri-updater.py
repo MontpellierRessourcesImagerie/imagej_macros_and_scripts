@@ -32,12 +32,15 @@ class Updater:
         self.pluginsToolDir = IJ.getDirectory("plugins") + self.folder + "/"
         self.toolsetsDir = IJ.getDirectory("macros") +  "toolsets/"
         self.pythonModulesDir = IJ.getDirectory("imagej") + "/jars/Lib/fr/cnrs/mri/cialib/"
-        if not os.path.exists(pythonModulesDir):
-            os.makedirs(pythonModulesDir)
+        if not os.path.exists(self.pythonModulesDir):
+            os.makedirs(self.pythonModulesDir)
         
 
     def runUpdate(self):    
         self.tag = self.getTargetVersionFromUser()
+        if not self.tag:
+            IJ.log("No version selected, update canceled...")
+            return
         self.downloadTagFromGithub(self.tag)
         self.installTool()
         IJ.log("Update finished, please restart ImageJ!")
@@ -116,6 +119,7 @@ class Updater:
         gd.addMessage("Installed versions: " + currentVersion)
         gd.addChoice("version: ", tags, self.tag)
         gd.showDialog()
+        if (gd.wasCanceled()) return False;
         self.tag = gd.getNextChoice()
         return self.tag
     
