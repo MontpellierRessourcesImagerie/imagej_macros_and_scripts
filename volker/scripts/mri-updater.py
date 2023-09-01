@@ -119,7 +119,8 @@ class Updater:
         gd.addMessage("Installed versions: " + currentVersion)
         gd.addChoice("version: ", tags, self.tag)
         gd.showDialog()
-        if (gd.wasCanceled()) return False;
+        if gd.wasCanceled():
+            return False
         self.tag = gd.getNextChoice()
         return self.tag
     
