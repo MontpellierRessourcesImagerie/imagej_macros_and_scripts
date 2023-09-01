@@ -180,7 +180,7 @@ function installOrUpdate() {
     updateUpdater()
     setToolInfo();
     print("Running the updater...");
-    scriptsFolder = getDirectory("imagej" + "scripts");
+    scriptsFolder = getDirectory("imagej") + "scripts/";
     runMacro(scriptsFolder + "mri-updater.py");
     unsetToolInfo();
 }
@@ -202,7 +202,7 @@ function unsetToolInfo() {
 
 function updateUpdater() {
     updaterContent = File.openUrlAsString("https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/volker/scripts/mri-updater.py");
-    scriptsFolder = getDirectory("imagej" + "scripts");
+    scriptsFolder = getDirectory("imagej") + "scripts/";
     File.saveString(updaterContent, scriptsFolder + "mri-updater.py");
 }
 

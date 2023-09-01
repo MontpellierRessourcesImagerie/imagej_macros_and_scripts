@@ -116,7 +116,7 @@ class Updater:
         tags = self.getTags()
         self.tag = tags[0]
         gd = GenericDialog("Spine Analyzer - Install or Update")
-        gd.addMessage("Installed versions: " + currentVersion)
+        gd.addMessage("Installed versions: " + str(currentVersion))
         gd.addChoice("version: ", tags, self.tag)
         gd.showDialog()
         if gd.wasCanceled():
