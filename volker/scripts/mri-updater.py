@@ -32,6 +32,8 @@ class Updater:
         self.pluginsToolDir = IJ.getDirectory("plugins") + self.folder + "/"
         self.toolsetsDir = IJ.getDirectory("macros") +  "toolsets/"
         self.pythonModulesDir = IJ.getDirectory("imagej") + "/jars/Lib/fr/cnrs/mri/cialib/"
+        if not os.path.exists(pythonModulesDir):
+            os.makedirs(pythonModulesDir)
         
 
     def runUpdate(self):    
@@ -50,7 +52,7 @@ class Updater:
                 shutil.copy(file, self.toolsetsDir)
                 continue
             if self.isModule(file):     
-                IJ.log("writing python module " + file + " to " + self.pluginsToolDir);
+                IJ.log("writing python module " + file + " to " + self.pythonModulesDir);
                 shutil.copy(file, self.pythonModulesDir)
                 continue
             IJ.log("writing file " + file + " to " + self.pluginsToolDir);
