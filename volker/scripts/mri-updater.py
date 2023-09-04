@@ -13,12 +13,12 @@ class Updater:
     def __init__(self):
         self.tool = "spine_analyzer" 
         self.folder = "Spine-Analyzer"
-        self.author = "volker
+        self.author = "volker"
         self.libPath = IJ.getDirectory("imagej") + "/jars/Lib/"
         self.pythonModulesPath = 'fr/cnrs/mri/cialib/'
         self.tag = None
         
-	self.readPreferences()       
+        self.readPreferences()          
             
         self.host = "https://github.com/"
         self.baseUrl = "MontpellierRessourcesImagerie/imagej_macros_and_scripts/"
@@ -34,8 +34,8 @@ class Updater:
         
         if not os.path.exists(self.pluginsToolDir):
             os.makedirs(self.pluginsToolDir)
-        if not os.path.exists(self.libPath + self.pythonModulesDir):
-            os.makedirs(self.libPath + self.pythonModulesDir)
+        if not os.path.exists(self.libPath + self.pythonModulesPath):
+            os.makedirs(self.libPath + self.pythonModulesPath)
         moduleFolders = self.pythonModulesPath.split("/")
         currentPath = self.libPath
         for folder in moduleFolders:
@@ -68,8 +68,8 @@ class Updater:
                 shutil.copy(file, self.toolsetsDir)
                 continue
             if self.isModule(file):     
-                IJ.log("writing python module " + file + " to " + self.pythonModulesDir);
-                shutil.copy(file, self.pythonModulesDir)
+                IJ.log("writing python module " + file + " to " + self.libPath + self.pythonModulesPath);
+                shutil.copy(file, self.libPath + self.pythonModulesPath)
                 continue
             IJ.log("writing file " + file + " to " + self.pluginsToolDir);
             shutil.copy(file, self.pluginsToolDir)
@@ -127,8 +127,11 @@ class Updater:
     def getTargetVersionFromUser(self):
         currentVersion = self.getCurrentVersion()
         tags = self.getTags()
+        if len(tags) < 1:
+            IJ.log("No versions found")
+            return False
         self.tag = tags[0]
-        gd = GenericDialog("Spine Analyzer - Install or Update")
+        gd = GenericDialog(self.tool + " - Install or Update")
         gd.addMessage("Installed versions: " + str(currentVersion))
         gd.addChoice("version: ", tags, self.tag)
         gd.showDialog()
@@ -156,7 +159,7 @@ class Updater:
             answer = IJ.openUrlAsString(url)
             if not answer.startswith("<Error"):
                 tagsWithTool.append(tag)
-        return tagsWithTool;
+        return tagsWithTool
     
         
     def readPreferences(self):
