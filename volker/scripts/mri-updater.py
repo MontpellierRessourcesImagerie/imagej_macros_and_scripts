@@ -45,10 +45,16 @@ class Updater:
             return
         self.downloadTagFromGithub(self.tag)
         self.installTool()
+        self.writeVersionInfo()
         IJ.log("Update finished, please restart ImageJ!")
         IJ.showMessage("Update finished, please restart ImageJ!")
     
         
+    def writeVersionInfo(self):
+        with open(self.pluginsToolDir + "version.txt", 'w') as file:
+            file.write(self.tag)
+    
+    
     def installTool(self):
         files = [self.sourceFolder + f for f in os.listdir(self.sourceFolder ) if os.path.isfile(self.sourceFolder+f)]
         for file in files:
