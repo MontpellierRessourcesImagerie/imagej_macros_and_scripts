@@ -11,14 +11,15 @@ class Updater:
 
 
     def __init__(self):
-        self.tool = "width_profile_tools" 
-        self.folder = "Width-Profile-Tools"
-        self.author = "volker"
-        self.pythonModulesPath = IJ.getDirectory("imagej") + '/jars/Lib/fr/cnrs/mri/cialib/'
+        self.tool = "spine_analyzer" 
+        self.folder = "Spine-Analyzer"
+        self.author = "volker
+        self.libPath = IJ.getDirectory("imagej") + "/jars/Lib/"
+        self.pythonModulesPath = 'fr/cnrs/mri/cialib/'
         self.tag = None
         
-        self.readPreferences()
-        
+	self.readPreferences()       
+            
         self.host = "https://github.com/"
         self.baseUrl = "MontpellierRessourcesImagerie/imagej_macros_and_scripts/"
         repositoryUrl = self.host + self.baseUrl 
@@ -27,15 +28,19 @@ class Updater:
         self.tagsUrl = repositoryUrl + "tags"
         self.archiveUrl = repositoryUrl + 'archive/refs/tags/'
         self.downloadBaseUrl = repositoryUrl + "/releases/tag/"
-        self.sourceFolder = ""
+        self.sourceFolder = ""        
+        self.pluginsToolDir = IJ.getDirectory("plugins") + self.folder + "/"        
+        self.toolsetsDir = IJ.getDirectory("macros") +  "toolsets/"
         
-        self.pluginsToolDir = IJ.getDirectory("plugins") + self.folder + "/"
         if not os.path.exists(self.pluginsToolDir):
             os.makedirs(self.pluginsToolDir)
-        self.toolsetsDir = IJ.getDirectory("macros") +  "toolsets/"
-        self.pythonModulesDir = IJ.getDirectory("imagej") + "/jars/Lib/fr/cnrs/mri/cialib/"
-        if not os.path.exists(self.pythonModulesDir):
-            os.makedirs(self.pythonModulesDir)
+        if not os.path.exists(self.libPath + self.pythonModulesDir):
+            os.makedirs(self.libPath + self.pythonModulesDir)
+        moduleFolders = self.pythonModulesPath.split("/")
+        currentPath = self.libPath
+        for folder in moduleFolders:
+            currentPath =  currentPath + "/" + folder
+            open(currentPath + "/__init__.py", 'a').close()
         
 
     def runUpdate(self):    
