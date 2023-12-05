@@ -227,7 +227,59 @@ class DendritesTest(unittest.TestCase):
         self.assertEquals(0, d2.nrOfSpines())
      
          
-     
+    def testGetMeasurements(self):
+        """Answer the measurements of the spines as a dictonary of the form:
+        {Channel1: {Frame1: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                    Frame2: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  ...
+                    FrameN: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...},
+         Channel2: {Frame1: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  Frame2: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...
+                  ...
+                  FrameN: {label: (nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness), ...}}
+        """ 
+        self.addDendrites() 
+        self.dendrites.track()
+        self.segmentation.trackLabels()
+        self.dendrites.attachSpinesToClosestDendrite()
+        measurements = self.dendrites.getMeasurements()
+        self.assertTrue(measurements[1][1][1][0] > 0)
+        self.assertEquals(measurements[1][1][1][0], measurements[1][1][1][1])
+        
+        
+    def testMeasure(self):
+        self.addDendrites() 
+        self.dendrites.track()
+        self.segmentation.trackLabels()
+        self.dendrites.attachSpinesToClosestDendrite()
+        self.dendrites.measure()
+        spines = self.dendrites.elements.values()[0].getSpines()
+        self.assertEquals(0, spines.values()[0].intensityMeasurements[0].intDen)
+        
+        
+    def testReportSpines(self):
+        self.addDendrites() 
+        self.dendrites.track()
+        self.segmentation.trackLabels()
+        self.dendrites.attachSpinesToClosestDendrite()
+        self.dendrites.measure()
+        table = self.dendrites.reportSpines()
+        spines = table.getColumn("Spine")
+        self.assertTrue(len(spines) > 1)
+        
+        
+    def testReportDendrites(self):
+        self.addDendrites() 
+        self.dendrites.track()
+        self.segmentation.trackLabels()
+        self.dendrites.attachSpinesToClosestDendrite()
+        self.dendrites.measure()
+        table = self.dendrites.reportDendrites()
+        dendrites = table.getColumn("Dendrite")
+        self.assertTrue(len(dendrites) > 1)
+        
+       
+       
 def suite():
     suite = unittest.TestSuite()
 
@@ -242,6 +294,10 @@ def suite():
     suite.addTest(DendritesTest('testCreateStringRepresentation'))
     suite.addTest(DendritesTest('testAttachSpinesToClosestDendrite'))
     suite.addTest(DendritesTest('testAddElement'))
+    suite.addTest(DendritesTest('testGetMeasurements'))
+    suite.addTest(DendritesTest('testMeasure'))
+    suite.addTest(DendritesTest('testReportSpines'))
+    suite.addTest(DendritesTest('testReportDendrites'))
     return suite
 
 

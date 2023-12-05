@@ -1,4 +1,4 @@
-var _MEAN1 = 10;
++var _MEAN1 = 10;
 var _MEAN2 = 30;
 var _STD_DEV1 = 2;
 var _STD_DEV2 = 5;

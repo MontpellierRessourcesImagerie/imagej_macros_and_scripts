@@ -91,7 +91,7 @@ def main():
 
 
 def showDialog():
-    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, LOOKUP_TABLE, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
+    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Segment Spine Options"); 

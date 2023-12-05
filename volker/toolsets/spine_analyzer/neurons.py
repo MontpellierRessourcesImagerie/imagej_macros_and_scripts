@@ -314,7 +314,8 @@ class Dendrites:
         for frame in dendritesByTime:
             for dendrite in frame:
                 dendrite.addToReport(table)
-        table.sort("Spine")
+        if "Spine" in table.getHeadings():
+            table.sort("Spine")
         return table
   
 
@@ -325,7 +326,8 @@ class Dendrites:
             for dendrite in frame:
                 table.addRow()
                 dendrite.addToSummaryReport(table)
-        table.sort("Dendrite")
+        if "Spine" in table.getHeadings():
+            table.sort("Dendrite")
         return table
         
         
