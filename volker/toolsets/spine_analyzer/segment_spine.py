@@ -42,6 +42,7 @@ from ij import IJ
 from ij import Prefs
 from ij.process import AutoThresholder
 from ij.gui import GenericDialog
+from ij.util import Tools
 from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
@@ -58,6 +59,7 @@ URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_script
 
 
 def main():
+    fixGlasbeyLUTIssue()
     optionsOnly = Prefs.get("mri.options.only", "false")
     if  not showDialog():
         return
@@ -163,6 +165,12 @@ def loadOptions():
             START_SLICE = int(value)
         if key=="end":
             END_SLICE = int(value)
+    
+
+def fixGlasbeyLUTIssue():
+    lutsFolder = IJ.getDirectory("luts")
+    if not IJ.isWindows() and os.path.exists(lutsFolder + "glasbey.lut") and not os.path.exists(lutsFolder + "Glasbey.lut"):
+        Tools.copyFile(lutsFolder + "glasbey.lut", lutsFolder + "Glasbey.lut")
     
 
 main()
