@@ -40,9 +40,13 @@ from java.awt import Color
 from java.util import UUID
 from ij import IJ
 from ij.gui import Overlay
-from ij.plugin import Colors
+from ij.gui import PolygonRoi
+from ij.gui import Roi
 from ij.measure import Calibration
 from ij.measure import ResultsTable
+from ij.measure import Measurements
+from ij.plugin import Colors
+
 from inra.ijpb.measure.region3d import Centroid3D
 
 
@@ -402,17 +406,37 @@ class Dendrite:
         
     
     def distanceTo(self, other):
-        pixelWidth = self.image.getCalibration().pixelWidth
-        x1, y1 = self.getCenter()
-        x2, y2 = other.getCenter()
-        x1 = x1 * pixelWidth
-        x2 = x2 * pixelWidth
-        y1 = y1 * pixelWidth
-        y2 = y2 * pixelWidth
-        dx = x1 - x2
-        dy = y1 - y2
-        d = math.sqrt((dx * dx) + (dy * dy))
-        return d
+        calibration = self.image.getCalibration()
+        length = max(self.roi.getUncalibratedLength(), other.roi.getUncalibratedLength())
+        length = calibration.getX(length)
+        shape1 = self.roi.getPolygon()
+        shape2 = other.roi.getPolygon()
+        p11x, p11y = shape1.xpoints[0], shape1.ypoints[0]
+        p12x, p12y = shape1.xpoints[-1], shape1.ypoints[-1]
+        p21x, p21y = shape2.xpoints[0], shape2.ypoints[0]
+        p22x, p22y = shape2.xpoints[-1], shape2.ypoints[-1]
+        dist1 = math.sqrt((p11x - p21x)**2 + (p11y - p21y)**2)
+        dist2 = math.sqrt((p11x - p22x)**2 + (p11y - p22y)**2)
+        if dist2<=dist1:
+            xMerged = list(shape2.xpoints)
+            yMerged = list(shape2.ypoints)
+            xMerged.extend(list(shape1.xpoints))
+            yMerged.extend(list(shape1.ypoints))
+        else:    
+            xMerged = list(shape1.xpoints)
+            xMerged.reverse()
+            yMerged = list(shape1.ypoints)
+            yMerged.reverse()
+            xMerged.extend(list(shape2.xpoints))
+            yMerged.extend(list(shape2.ypoints))
+        closedRoi = PolygonRoi(xMerged, yMerged, len(xMerged), Roi.POLYGON)
+        tmpRoi = self.image.getRoi()
+        self.image.setRoi(closedRoi)
+        stats = self.image.getStatistics(Measurements.AREA)
+        area = stats.area
+        dist = area / length
+        self.image.setRoi(tmpRoi)    
+        return dist
         
     
     def distanceToPoint(self, aPoint):
@@ -486,6 +510,16 @@ class Dendrite:
         return len(self.spines)
     
     
+    def __str__(self):
+        spines = self.getSpines()
+        res = "Dendrite(id={}, track={}, frame={}, spines={})".format(self.getID(), self.getTrack(), self.getFrame(), spines)
+        return res
+        
+        
+    def __repr__(self):
+        return self.__str__()
+        
+        
         
 class Spine:
     """A dendritic spines is a tiny protrusions from a dendrite, 
@@ -529,8 +563,17 @@ class Spine:
         table.addValue("Volume", self.volume)
         for measurements in self.intensityMeasurements:
             measurements.addToReport(table)
+    
+    
+    def __str__(self):
+        res = "Spine(label={})".format(self.getLabel())
+        return res
         
         
+    def __repr__(self):
+        return self.__str__()    
+ 
+ 
  
 class IntensityMeasurements:
 

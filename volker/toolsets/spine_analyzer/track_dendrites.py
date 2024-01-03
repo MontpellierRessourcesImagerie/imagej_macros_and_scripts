@@ -13,7 +13,7 @@ SAVE_OPTIONS = True
 
 def main():
     optionsOnly = Prefs.get("mri.options.only", "false")
-    if  not showDialog():
+    if not showDialog():
         return
     if optionsOnly=="true":
         return
