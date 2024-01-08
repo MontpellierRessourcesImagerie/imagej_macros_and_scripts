@@ -9,7 +9,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
  
 #### [Adipocytes Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Adipocytes-Tools)
 
-<img align='right' src="https://camo.githubusercontent.com/22f44aa8689f32c7f146d8fd9de9bd6aef85d0e7/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f3139352f726573756c742e706e67" height='100'/> The Adipocytes Tools help to analyze fat cells in images from histological section.
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/91b8272e-27c8-427a-975f-211b839c8e1d" height='100'/> The Adipocytes Tools help to analyze fat cells in images from histological section.
 
 ####   [MRI_Analyze_Alignment_of_Muscles_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Analyze_Alignment_of_Muscles_Tool)
 
