@@ -210,13 +210,15 @@ class InstanceSegmentation:
         """
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        displayRangeMin = self.image.getDisplayRangeMin()
+        displayRangeMax = self.image.getDisplayRangeMax()
         self.image.setT(nFrames)
         cal = self.image.getCalibration()
         tmpCal = Calibration()
         self.image.setCalibration(tmpCal)
         analyzer = Centroid3D()
-        
-        for frame in range(2, nFrames):
+    
+        for frame in range(2, nFrames+1):
             imp = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame, frame);    
             measurementsCurrent = analyzer.analyzeRegions(imp)
             if len(measurementsCurrent.values()) < 1:
@@ -231,7 +233,8 @@ class InstanceSegmentation:
                 closestLabel = -1
                 for otherLabel in measurementsPrevious.keySet():
                     otherPoint = measurementsPrevious.get(otherLabel)
-                    dist = point.distance(otherPoint)
+                    dist = cal.getX(point.distance(otherPoint)) 
+                    print(dist)
                     if dist < maxDistance and dist < minDist:
                         minDist = dist
                         closestLabel = otherLabel
@@ -242,7 +245,7 @@ class InstanceSegmentation:
             HyperstackUtils.copyStackTo(self.image, imp, nChannels, frame)
         self.image.setPosition(currentC, currentZ, currentT)
         self.image.setCalibration(cal)
-        self.image.setDisplayRange(0, 255)            
+        self.image.setDisplayRange(displayRangeMin, displayRangeMax)            
         self.image.updateAndDraw()
         
         
