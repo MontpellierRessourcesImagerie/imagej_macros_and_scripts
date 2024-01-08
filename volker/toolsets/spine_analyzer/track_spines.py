@@ -6,7 +6,7 @@ from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer"
-MAX_DISTANCE = 15
+MAX_DISTANCE = 3
 SAVE_OPTIONS = True
 
 
@@ -16,10 +16,12 @@ def main():
         return
     if optionsOnly=="true":
         return
+    IJ.log("Starting track spines...")
     image = IJ.getImage()
     segmentation = InstanceSegmentation(image)
     segmentation.setMaxDistance(MAX_DISTANCE)
     segmentation.trackLabels()
+    IJ.log("...track spines finished")
     
     
     

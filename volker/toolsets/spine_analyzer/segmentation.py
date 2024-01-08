@@ -44,6 +44,7 @@ from ij.plugin import Duplicator
 from ij.process import LUT 
 from ij.process import ImageStatistics
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
+from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
 from inra.ijpb.measure.region3d import Centroid3D
@@ -219,14 +220,22 @@ class InstanceSegmentation:
         analyzer = Centroid3D()
     
         for frame in range(2, nFrames+1):
-            imp = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame, frame);    
+            IJ.log("processing frame " + str(frame))
+            imp2 = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame-1, frame-1)
+            measurementsPrevious = analyzer.analyzeRegions(imp2)
+            highestLabel = max(measurementsPrevious.keySet())
+            
+            imp = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame, frame)
             measurementsCurrent = analyzer.analyzeRegions(imp)
             if len(measurementsCurrent.values()) < 1:
                 continue
-            imp2 = Duplicator().run(self.image, nChannels, nChannels, 1, nSlices, frame-1, frame-1);            
-            measurementsPrevious = analyzer.analyzeRegions(imp2)
+            imp = self.resetLabels(imp, highestLabel)
+            measurementsCurrent = analyzer.analyzeRegions(imp)
+            if len(measurementsCurrent.values()) < 1:
+                continue
             closestLabels = {}
             maxDistance = self.getMaxDistance()
+                       
             for label in measurementsCurrent.keySet():
                 point = measurementsCurrent.get(label)
                 minDist = 9999999999999
@@ -234,7 +243,6 @@ class InstanceSegmentation:
                 for otherLabel in measurementsPrevious.keySet():
                     otherPoint = measurementsPrevious.get(otherLabel)
                     dist = cal.getX(point.distance(otherPoint)) 
-                    print(dist)
                     if dist < maxDistance and dist < minDist:
                         minDist = dist
                         closestLabel = otherLabel
@@ -249,6 +257,15 @@ class InstanceSegmentation:
         self.image.updateAndDraw()
         
         
+    def resetLabels(self, image, highestLabelSoFar):
+        IJ.setRawThreshold(image, 1, 65535)
+        IJ.run(image, "Convert to Mask", "background=Dark")
+        components = BinaryImages.componentsLabeling (image, 6, 16)
+        image.close()
+        IJ.run(components, "Macro...", "code=v=(v>0)*(v+"+str(highestLabelSoFar)+") stack");
+        return components
+    
+    
     def measureLabelsForChannelAndFrame(self, channel, frame):    
         """ Measure the labels in the given channel and frame. 
         The channel should be different from the channel containing the labels.
