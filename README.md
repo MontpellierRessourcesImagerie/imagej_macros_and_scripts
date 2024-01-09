@@ -158,7 +158,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/8e6cda73-23c1-486b-9a3a-ebb7989a34d8" height='20'/> The tool allows to open for each image a second image with the same name from another folder. It displays the two images next to each other. It provides navigation through the list of images. 
 ####  [Copy_Random_Data_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Copy_Random_Data_Tool)
 
-<img align='right' src="https://camo.githubusercontent.com/8d5a90660591741a7c6191966976d42cff43c943179cf432882a0ec845bf27f8/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323539332f6f75742e706e67" height='100'/>Randomly copy files from a number of input folders to create a test dataset. 
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/2af9a357-210e-407d-bca7-f33de5406e2d" height='100'/>Randomly copy files from a number of input folders to create a test dataset. 
 ####  [MuVi SPIM_Convert_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MuVi-SPIM_Convert_Tools)
 
 <img align='right' src="https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/sylvain/Macros/MuVi_SPIM_Convert_MIP_Tools/wiki_images/1.montage.PNG" height='100'/> The Muvi-SPIM-Convert_Tools help to convert your hdF5 files comming from a MuVi-SPIM setup. 
