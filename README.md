@@ -106,8 +106,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/3b53cb7a-c255-45a5-bb92-fa3800354cff" height='100'/> Calculate the first derivative of a plot and the zero-crossings of the derivate.
 ####   [Radial Movement Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Radial_Movement_Tool)
 
-<img align='right' src="
-https://dev.mri.cnrs.fr/attachments/download/2562/simulated_faster.gif" height='100'/> The tool takes a results table of tracking data (as created by Trackmate) and calculates the difference of the distances between the start point of the track and a given point c and the end point of the track and c, i.e. how much the particle has moved away from c (negative if it moved towards c).
+<img align='right' src="https://dev.mri.cnrs.fr/attachments/download/2562/simulated_faster.gif" height='100'/> The tool takes a results table of tracking data (as created by Trackmate) and calculates the difference of the distances between the start point of the track and a given point c and the end point of the track and c, i.e. how much the particle has moved away from c (negative if it moved towards c).
 ####   [MRI_Root_Hair_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Root_Hair_Tools)
 
 <img align='right' src="https://camo.githubusercontent.com/f66c0184fed6d7bde076b10551b360cba144d47b/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313834332f636f6e74726f6c2d696d6167652e706e67" height='100'/> The tool allows to measure the diameter of the root and the density of the root hair. 
