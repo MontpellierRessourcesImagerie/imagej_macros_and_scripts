@@ -176,7 +176,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 #### [Discrete_Histogram_Entropy_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Discrete_Histogram_Entropy_Tool)
 
-<img align='right' src="https://camo.githubusercontent.com/216da1acd9d419fa0405d0d2d9817aef62d85ddc/687474703a2f2f63686172742e617069732e676f6f676c652e636f6d2f63686172743f6368743d74782663686c3d482858293d2d25354373756d5f253742693d312537442535452537426e2537446628785f692925354363646f742535436c6f672535436c65667428253742253543667261632537426628785f69292537442537427728785f6929253744253744253543726967687429" height='50'/> The tool calculates the discrete histogram entropy H(X), where w is the width of the i-th histogram bin and f the frequency of the value xi. 
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/ca6f67f3-17f4-471d-b854-0f5c427a575f" height='50'/> The tool calculates the discrete histogram entropy H(X), where w is the width of the i-th histogram bin and f the frequency of the value xi. 
 #### [Distance_Between_Minima_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Distance_Between_Minima_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/0ee4ca81c3c478384212e86d06a0ff033ad46973/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323232342f706c6f742e706e67" height='100'/> The tool measures the mean distance between the minima in the profile plot. 
