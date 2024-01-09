@@ -118,7 +118,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/756e2861-c8d8-48b5-a9ba-62cade8d1c5f" height='100'/> The tool counts the number of co-localized spots in two channels over time. It also exports the intensity of each spot over time.
 #### [Spot_Distances_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spot_Distances_Tool)
 
-<img align='right' src="https://camo.githubusercontent.com/809f00d05e951a3cd74870dead1ff334665eaf8fbe013914a102f40d15a04730/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323434372f6578616d706c655f696d6167652e706e67" height='100'/> The tool detects spots and measures the nearest neighbour distances between the spots in the image.
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/9b930088-9047-4367-bfff-a9ef29194015" height='100'/> The tool detects spots and measures the nearest neighbour distances between the spots in the image.
 #### [Synthetic_Tracking_Data_Generator](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Synthetic_Tracking_Data_Generator)
 
 <img align='right' src="https://camo.githubusercontent.com/bb8a86fbbd836495b855c361a7dfe7ff9fe22488171ae0c7de71c02680d30ca6/68747470733a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323536322f73696d756c617465645f6661737465722e676966" height='100'/> The tool allows to simulate particles moving away from a center, moving towards a center or particles diffusing around a center.
