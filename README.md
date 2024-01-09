@@ -50,9 +50,6 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [MRI_Count_Spot_Populations_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Count_Spot_Populations_Tool)   
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/51929842-b09b-4bc0-bc0e-585542a17bd1" height='100'/> The tool detects and and counts the spots (or blobs) in an image. It has been created for the counting of bacteria colonies in in Petri-dishes. It separates the spots into two populations and counts each population individually. The populations are separated by the area of the spots. The tool uses expectation maximisation clustering from the weka software. 
-#### [Distance_Between_Minima_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Distance_Between_Minima_Tool)
-
-<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/3a385362-8f52-4711-9e3f-d28c14c8548d" height='100'/> The tool measures the mean distance between the minima in the profile plot. 
 ####   [MRI_Create_Synthetic_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Create_Synthetic_Spots_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/4159f06c-52da-4979-af22-d957d6303f63" height='100'/> The tool creates images of 2D-spots for the evaluation and benchmarking of spot detection tools. Two populations of spots with different means and variations of the size can be created in the same image. 
@@ -177,9 +174,10 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 #### [Discrete_Histogram_Entropy_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Discrete_Histogram_Entropy_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/ca6f67f3-17f4-471d-b854-0f5c427a575f" height='50'/> The tool calculates the discrete histogram entropy H(X), where w is the width of the i-th histogram bin and f the frequency of the value xi. 
+
 #### [Distance_Between_Minima_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Distance_Between_Minima_Tool)
 
-<img align='right' src="https://camo.githubusercontent.com/0ee4ca81c3c478384212e86d06a0ff033ad46973/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323232342f706c6f742e706e67" height='100'/> The tool measures the mean distance between the minima in the profile plot. 
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/3a385362-8f52-4711-9e3f-d28c14c8548d" height='100'/> The tool measures the mean distance between the minima in the profile plot. 
 #### [MRI_DoG_Filter](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_DoG_Filter)
 
 <img align='right'  src="https://camo.githubusercontent.com/45ee7567107da46ec5967dea62e16f3505256fe35e5efbd54cc3c81012841114/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323331372f646f672e706e67" height='100'/> The DoG-filter is a bandpass filter. It is calculated as: Gauss_s1(img) - Gauss_s2(img) where img is the input image, Gauss_s1 is a Gaussian-filter with sigma s1 and Gauss_s2 is a Gaussian-filter with sigma s2 (s2>s1). 
