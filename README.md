@@ -61,7 +61,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://dev.mri.cnrs.fr/attachments/download/2640/active_zones.gif" height='100'/> Find and segment zones in which the intensity changes over time. Classify the zones into zones with increasing, decreasing, constant, u-shaped and n-shapes intensity profiles.  
 ####   [MRI_Fibrosis_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool) 
 
-<img align='right' src="https://camo.githubusercontent.com/7571589a6dbdd5b6ee98470e3c269bd353e12ebf/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f313532342f726573756c7430312e706e67" height='100'/> Measure the relative area of sirius red stained fibrosis. The tool uses the colour deconvolution plugin from Gabriel Landini. 
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/020df5c3-4a25-49e6-9268-ffd12463bbaa" height='100'/> Measure the relative area of sirius red stained fibrosis. The tool uses the colour deconvolution plugin from Gabriel Landini. 
 #### [Filament_Morphology_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Filament_Morphology_Tool)
 
 <img align='right' src="https://camo.githubusercontent.com/32d07390b1741f99ff862054ca4f2ec5c73ee63472f8793c3cfdb5a80b4eb4b9/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323337362f696e7075745f696d6167652e706e67" height='100'/> The tool count filaments and measure their areas and forms. It specially measures the geodesic diameter of the objects and its curvature, counts the branches and measures their lengths.
