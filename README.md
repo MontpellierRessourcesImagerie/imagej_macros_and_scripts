@@ -140,8 +140,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 ####   [Wound Healing Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Wound-Healing-Tool) 
 
-<img align='right' src="https://camo.githubusercontent.com/3d2bc865f27ab24e3f5e84bf384b0dfb9a39e48d/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f3332342f776f756e642d6865616c696e672d72657330312e706e67" height='100'/> The MRI Wound Healing Tool can be used to analyze scratch assays. It measures the area of a wound in a cellular tissue on a stack of images representing a time-series. 
-
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/ab37a6d6-c5ff-48b3-a03e-acf82ba1dd55" height='100'/> The MRI Wound Healing Tool can be used to analyze scratch assays. It measures the area of a wound in a cellular tissue on a stack of images representing a time-series. 
 
 ### Workflow and Conversion Toolsets
 
