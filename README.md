@@ -166,8 +166,8 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/586b8153-9d45-4cfe-9ff0-3c2eea73c974" height='20'/> The tools converts images in the .nd format to ImageJ hyperstacks. The user selects an .nd file. An image can consist of multiple positions, frames, z-slices and channels. Each position is converted into an ImageJ hyperstack and written into a subfolder of the folder containing the input image. 
 #### [NDPI export regions](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/NDPI_Export_Regions_Tool)
- 
-<img align='right' src="https://camo.githubusercontent.com/8c6723099eb5741d403866becad3bafed04d1af2/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323237332f6578706f72742d6e6470692d746f6f6c6261722e706e67" height='20'/>The tool exports rectangular regions, defined with the NDP.view 2 software from the highest resolution version of the image and saves them as tif-files.
+
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/7f57278c-f5b2-4ac4-b2b1-3172e0b84981" height='20'/>The tool exports rectangular regions, defined with the NDP.view 2 software from the highest resolution version of the image and saves them as tif-files.
 ####   [MRI_Opera_export_tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools)
 
 <img align='right' src="https://camo.githubusercontent.com/81d858f4172d8c7b34acf9a0f1b78ad3cf6a943f36960e8e2e1c9aee32dcf6ff/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323432342f6f706572615f746f6f6c7365742e706e67" height='20'/> The tool stitches images from the Opera Phenix HCS System. It reads the Index.idx.xml file to pre-arrange the images and then stitches and fuses them using the Grid/Collection stitching-plugin. Images are stitched by plane and channel. Z-stacks and multi-channel images can optionally be created. Projections can also be create.
