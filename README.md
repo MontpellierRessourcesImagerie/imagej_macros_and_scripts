@@ -170,7 +170,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/7f57278c-f5b2-4ac4-b2b1-3172e0b84981" height='20'/>The tool exports rectangular regions, defined with the NDP.view 2 software from the highest resolution version of the image and saves them as tif-files.
 ####   [MRI_Opera_export_tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Opera_export_tools)
 
-<img align='right' src="https://camo.githubusercontent.com/81d858f4172d8c7b34acf9a0f1b78ad3cf6a943f36960e8e2e1c9aee32dcf6ff/687474703a2f2f6465762e6d72692e636e72732e66722f6174746163686d656e74732f646f776e6c6f61642f323432342f6f706572615f746f6f6c7365742e706e67" height='20'/> The tool stitches images from the Opera Phenix HCS System. It reads the Index.idx.xml file to pre-arrange the images and then stitches and fuses them using the Grid/Collection stitching-plugin. Images are stitched by plane and channel. Z-stacks and multi-channel images can optionally be created. Projections can also be create.
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/b53ea89b-7f3f-4c85-810e-0880bdb711aa" height='20'/> The tool stitches images from the Opera Phenix HCS System. It reads the Index.idx.xml file to pre-arrange the images and then stitches and fuses them using the Grid/Collection stitching-plugin. Images are stitched by plane and channel. Z-stacks and multi-channel images can optionally be created. Projections can also be create.
  
 ### Single Plugin Tools
 
