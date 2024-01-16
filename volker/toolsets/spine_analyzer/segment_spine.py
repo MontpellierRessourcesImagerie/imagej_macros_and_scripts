@@ -53,6 +53,7 @@ LOOKUP_TABLE_NAME = "glasbey on dark"
 LOOKUP_TABLE_NAMES = IJ.getLuts()
 START_SLICE = 0
 END_SLICE = 0
+NEXT_LABEL = 0
 SAVE_OPTIONS = True
 
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer";
@@ -71,7 +72,7 @@ def main():
     if SPINE_SEGMENTATION_CHANNEL > 0:
         inputImage.setC(SPINE_SEGMENTATION_CHANNEL)
         currentC = SPINE_SEGMENTATION_CHANNEL
-    segmentation = InstanceSegmentation(inputImage)    
+    segmentation = InstanceSegmentation(inputImage, nextLabel=NEXT_LABEL)    
     spineChannel = segmentation.getLabelChannelIndex()
     if spineChannel and currentC == spineChannel:
         IJ.error("Please run the segmentation on a greyscale channel!")
@@ -93,7 +94,7 @@ def main():
 
 
 def showDialog():
-    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
+    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Segment Spine Options"); 
@@ -102,6 +103,7 @@ def showDialog():
     gd.addChoice("Lookup Table: ", LOOKUP_TABLE_NAMES, LOOKUP_TABLE_NAME)
     gd.addNumericField("Start Slice (0 for first): ", START_SLICE)
     gd.addNumericField("End Slice (0 for last): ", END_SLICE)
+    gd.addNumericField("Label for next spine segmentation (0 for auto): ", NEXT_LABEL)
     gd.addCheckbox("Save Options", SAVE_OPTIONS)
     gd.addHelp(URL)
     gd.showDialog()
@@ -112,6 +114,7 @@ def showDialog():
     LOOKUP_TABLE_NAME = gd.getNextChoice()
     START_SLICE = int(gd.getNextNumber())
     END_SLICE = int(gd.getNextNumber())
+    NEXT_LABEL =  int(gd.getNextNumber())
     SAVE_OPTIONS = gd.getNextBoolean()
     if SAVE_OPTIONS:
         saveOptions()
@@ -132,6 +135,7 @@ def getOptionsString():
     optionsString = optionsString + " lookup=" + lutName 
     optionsString = optionsString + " start=" + str(START_SLICE) 
     optionsString = optionsString + " end=" + str(END_SLICE) 
+    optionsString = optionsString + " label=" + str(NEXT_LABEL) 
     return optionsString
 
 
@@ -142,7 +146,7 @@ def saveOptions():
     
     
 def loadOptions(): 
-    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE
+    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
     
     optionsPath = getOptionsPath()
     optionsString = IJ.openAsString(optionsPath)
@@ -165,6 +169,8 @@ def loadOptions():
             START_SLICE = int(value)
         if key=="end":
             END_SLICE = int(value)
+        if key=="label":
+            NEXT_LABEL = int(value)
     
 
 def fixGlasbeyLUTIssue():

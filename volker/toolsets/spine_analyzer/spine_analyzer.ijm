@@ -169,6 +169,45 @@ macro "Install or Update Action Tool - N66C000D2dD2eD3cD58D59D5aD67D75Db3DbeDc3D
 }
 
 
+macro "Increment Next Label [F2]" {
+    label = incrementNextLabel();
+    print("Next Label will be " + label)
+}
+
+
+macro "Decrement Next Label [F1]" {
+    label = decrementNextLabel();
+    print("Next Label will be " + label)
+}
+
+
+macro "Show Segment Spine Options [F3]" {
+    showSegmentSpineOptions();    
+}
+
+
+function incrementNextLabel() {
+    nextLabel = loadNextLabel();
+    nextLabel = nextLabel + 1;
+    path = getOptionsPathSegmentSpine();
+    optionsString = loadOptions(path);
+    newOptionString = replace(optionsString, "label=[0-9]+", "label=" + nextLabel);
+    File.saveString(newOptionString, path);
+    return nextLabel;
+}
+
+
+function decrementNextLabel() {
+    nextLabel = loadNextLabel();
+    nextLabel = maxOf(1, nextLabel - 1);
+    path = getOptionsPathSegmentSpine();
+    optionsString = loadOptions(path);
+    newOptionString = replace(optionsString, "label=[0-9]+", "label=" + nextLabel);
+    File.saveString(newOptionString, path);
+    return nextLabel;
+}
+
+
 function setFirstSlice() {
     Stack.getPosition(channel, slice, frame);
     saveSegmentSpineOption("start", slice)
@@ -195,6 +234,28 @@ function saveSegmentSpineOption(option, value) {
     optionsString = loadOptions(path);
     newOptionString = replace(optionsString, option + "=[0-9]+", option+"=" + value);
     File.saveString(newOptionString, path);
+}
+
+
+function loadNextLabel() {
+    optionsPath = getOptionsPathSegmentSpine();
+    optionsString = File.openAsString(optionsPath);
+    optionsString = optionsString.replace("\n", "");
+    options = split(optionsString, " ")
+    result = 1;
+    for (i=0; i<options.length; i++) {
+        option = options[i];   
+        parts = split(option, "=");
+        key = parts[0];
+        value = "";
+        if (indexOf(option, "=") > 0) {
+            value = parts[1];
+        }
+        if (key=="label") {
+            result = parseInt(value);
+        }
+    }
+    return result;
 }
 
 

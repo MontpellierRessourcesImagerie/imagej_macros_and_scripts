@@ -60,7 +60,7 @@ class InstanceSegmentation:
     MAX_DISTANCE = 15
     
     
-    def __init__(self, image):
+    def __init__(self, image, nextLabel=0):
         """Create a new instance segmentation for the given image. If the image already has a label-channel it is used for the
         instance segmentation, otherwise an empty label-channel is added to the image.
         """
@@ -83,7 +83,10 @@ class InstanceSegmentation:
             if roi:
                 image.setRoi(roi)
             self.nextLabel = stats.max + 1
+        if nextLabel:
+            self.nextLabel = nextLabel
         image.setPosition(currentC, currentZ, currentT)
+        
         
         
     def getMaxDistance(self):
