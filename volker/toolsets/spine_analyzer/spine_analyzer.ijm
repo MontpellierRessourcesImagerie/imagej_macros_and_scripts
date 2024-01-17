@@ -144,6 +144,11 @@ macro "Measure (f10) Action Tool - C000D22D23D27D28D2cD2dD32D33D37D38D3cD3dD42D4
 }
 
 
+macro "Measure (f10) Action Tool Options" {
+    showMeasureSpinesOptions();
+}
+
+
 macro "Measure [F10]" {
     runMeasure();
 }
@@ -260,7 +265,13 @@ function loadNextLabel() {
 
 
 function runMeasure() {
-    run("measure spines");    
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathMeasureSpines())) {
+        options = loadOptions(getOptionsPathMeasureSpines());
+        run("measure spines", options);
+    } else {
+        run("measure spines");
+    }      
 }
 
 
@@ -340,6 +351,13 @@ function showTrackSpinesOptions() {
 }
 
 
+function showMeasureSpinesOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("measure spines");
+    call("ij.Prefs.set", "mri.options.only", "false");     
+}
+
+
 function pickLabel(x, y, sllice, frame) {
     labelChannel = Property.get("mricia-label-channel");
     if (labelChannel=="") exit("No label channel found!");
@@ -368,6 +386,13 @@ function getOptionsPathTrackDendrites() {
 function getOptionsPathTrackSpines() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Spine-Analyzer/sats-options.txt";
+    return optionsPath;
+}
+
+
+function getOptionsPathMeasureSpines() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Spine-Analyzer/sams-options.txt";
     return optionsPath;
 }
 
