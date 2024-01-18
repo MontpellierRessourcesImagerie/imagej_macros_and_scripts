@@ -5,7 +5,7 @@ from ij.gui import GenericDialog
 from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer"
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer"
 MAX_DISTANCE = 3
 SAVE_OPTIONS = True
 

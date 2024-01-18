@@ -6,7 +6,7 @@ from fr.cnrs.mri.cialib.neurons import Dendrites
 from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer"
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer"
 MAX_DISTANCE = 10
 SAVE_OPTIONS = True
 

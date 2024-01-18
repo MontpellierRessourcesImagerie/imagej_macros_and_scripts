@@ -4,7 +4,7 @@ from fr.cnrs.mri.cialib.neurons import Dendrites
 
 
 
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer"
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer"
 
 
 

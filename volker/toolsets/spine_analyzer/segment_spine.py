@@ -57,7 +57,7 @@ END_SLICE = 0
 NEXT_LABEL = 0
 SAVE_OPTIONS = True
 
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer";
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer";
 
 
 def main():

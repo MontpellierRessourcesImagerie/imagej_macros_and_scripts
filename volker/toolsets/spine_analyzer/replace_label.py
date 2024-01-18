@@ -4,7 +4,7 @@ from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
 X, Y, Z, FRAME, NEW_LABEL = (1, 1, 1, 1, 1)
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine_Analyzer"
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Spine-Analyzer"
 
 
 def main():
