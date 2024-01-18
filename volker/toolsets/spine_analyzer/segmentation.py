@@ -122,20 +122,20 @@ class InstanceSegmentation:
         return labels
     
     
-    def addFromMask(self, mask):
+    def addFromMask(self, mask, startSlice=None, endSlice=None):
         """Add the biggest connected object in the mask as a an object to the segmentation with the next unused label.
         """
         LabelImages.replaceLabels(mask, [255], self.nextLabel)
-        HyperstackUtils.copyStackTo(self.image, mask, self.labelChannelIndex,  self.image.getT(), lut=self.lut)
+        HyperstackUtils.copyStackTo(self.image, mask, self.labelChannelIndex,  self.image.getT(), lut=self.lut, startSlice=startSlice, endSlice=endSlice)
         self.nextLabel = self.nextLabel + 1
         
     
-    def addFromAutoThresholdInRoi(self, roi, firstZ=None, lastZ=None):
+    def addFromAutoThresholdInRoi(self, roi, firstZ=None, lastZ=None, threshold=None):
         """Create a 3D mask in the region of the 2D roi, using the auto-thresholding method.
         Add the biggest object to the segmentation.
         """
-        mask = HyperstackUtils.segmentObjectInRegion(self.image, roi, firstZ=firstZ, lastZ=lastZ)
-        self.addFromMask(mask)
+        mask = HyperstackUtils.segmentObjectInRegion(self.image, roi, firstZ=firstZ, lastZ=lastZ, threshold=threshold)
+        self.addFromMask(mask, startSlice=firstZ, endSlice=lastZ)
         
     
     def replaceLabel(self, x, y, z, frame, newLabel):

@@ -47,6 +47,7 @@ from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
 
 SPINE_SEGMENTATION_CHANNEL = 1
+THRESHOLD = 0
 THRESHOLDING_METHOD = "Default"
 THRESHOLDING_METHODS = AutoThresholder.getMethods()
 LOOKUP_TABLE_NAME = "glasbey on dark"
@@ -83,10 +84,13 @@ def main():
         sys.exit()
     segmentation.setThresholdingMethod(THRESHOLDING_METHOD)
     segmentation.setLUT(LOOKUP_TABLE_NAME)
+    threshold = None
+    if THRESHOLD:
+        threshold = THRESHOLD
     if START_SLICE and END_SLICE and END_SLICE>=START_SLICE:
-        segmentation.addFromAutoThresholdInRoi(roi, firstZ=START_SLICE, lastZ=END_SLICE)
+        segmentation.addFromAutoThresholdInRoi(roi, firstZ=START_SLICE, lastZ=END_SLICE, threshold=threshold)
     else:
-        segmentation.addFromAutoThresholdInRoi(roi)
+        segmentation.addFromAutoThresholdInRoi(roi, threshold=threshold)
     inputImage.setC(spineChannel)
     inputImage.setDisplayRange(0, 255)
     inputImage.setC(originalC)
@@ -94,11 +98,12 @@ def main():
 
 
 def showDialog():
-    global LOOKUP_TABLE_NAME, THRESHOLDING_METHOD, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
+    global LOOKUP_TABLE_NAME, THRESHOLD, THRESHOLDING_METHOD, SAVE_OPTIONS, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Segment Spine Options"); 
     gd.addNumericField("Spine Segmetation Channel (0 for active): ", SPINE_SEGMENTATION_CHANNEL)
+    gd.addNumericField("Threshold (0 for auto): ", THRESHOLD)
     gd.addChoice("Auto-Thresholding Method: ", THRESHOLDING_METHODS, THRESHOLDING_METHOD)
     gd.addChoice("Lookup Table: ", LOOKUP_TABLE_NAMES, LOOKUP_TABLE_NAME)
     gd.addNumericField("Start Slice (0 for first): ", START_SLICE)
@@ -110,6 +115,7 @@ def showDialog():
     if gd.wasCanceled():
         return False
     SPINE_SEGMENTATION_CHANNEL = int(gd.getNextNumber())
+    THRESHOLD = int(gd.getNextNumber())
     THRESHOLDING_METHOD = gd.getNextChoice()
     LOOKUP_TABLE_NAME = gd.getNextChoice()
     START_SLICE = int(gd.getNextNumber())
@@ -131,6 +137,7 @@ def getOptionsString():
     optionsString = ""
     lutName = LOOKUP_TABLE_NAME.replace(" ", "_");
     optionsString = optionsString + "spine=" + str(SPINE_SEGMENTATION_CHANNEL)
+    optionsString = optionsString + " threshold=" + str(THRESHOLD)
     optionsString = optionsString + " auto-thresholding=" + THRESHOLDING_METHOD
     optionsString = optionsString + " lookup=" + lutName 
     optionsString = optionsString + " start=" + str(START_SLICE) 
@@ -146,7 +153,7 @@ def saveOptions():
     
     
 def loadOptions(): 
-    global THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
+    global THRESHOLD, THRESHOLDING_METHOD, LOOKUP_TABLE_NAME, SPINE_SEGMENTATION_CHANNEL, START_SLICE, END_SLICE, NEXT_LABEL
     
     optionsPath = getOptionsPath()
     optionsString = IJ.openAsString(optionsPath)
@@ -158,6 +165,8 @@ def loadOptions():
         value = ""
         if "=" in option:
             value = parts[1]
+        if key=="threshold":
+            THRESHOLD = int(value)
         if key=="auto-thresholding":
             THRESHOLDING_METHOD = value
         if key=="lookup":

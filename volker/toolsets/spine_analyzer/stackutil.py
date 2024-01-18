@@ -34,6 +34,7 @@
 ## 
 ################################################################################################
 from ij import IJ
+from ij import Prefs
 from ij.plugin import Duplicator
 from ij.process import Blitter
 from inra.ijpb.label import LabelImages
@@ -56,7 +57,7 @@ class HyperstackUtils:
     
     
     @staticmethod
-    def copyStackTo(image, stack, channel, frame, lut=None, overwrite=False):
+    def copyStackTo(image, stack, channel, frame, lut=None, overwrite=False, startSlice=None, endSlice=None):
         """Copy the stack into the given channel and frame of image. 
         The slices of the stack are copied with a transparent zero if overwrite is false.
         """
@@ -66,8 +67,20 @@ class HyperstackUtils:
         pasteMethod = Blitter.COPY_ZERO_TRANSPARENT
         if overwrite:
             pasteMethod = Blitter.COPY
-        for sliceNumber in range(1, stack.getStack().size()+1):
-            image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(sliceNumber), 0, 0, pasteMethod)
+        rangeStart = startSlice    
+        if not rangeStart:
+            rangeStart = 1
+        rangeEnd = endSlice
+        if not rangeEnd:
+            rangeEnd = stack.getStack().size()
+        stackSliceNumber = 1
+        print("rangeStart", rangeStart)
+        print("rangeEnd", rangeEnd)
+        for sliceNumber in range(rangeStart, rangeEnd + 1): 
+            print("sliceNumber", sliceNumber)
+            print("stackSliceNumber", stackSliceNumber)
+            image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(stackSliceNumber), 0, 0, pasteMethod)
+            stackSliceNumber = stackSliceNumber + 1
         image.setC(channel)
         if lut:
             image.getChannelProcessor().setLut(lut)
@@ -77,7 +90,7 @@ class HyperstackUtils:
         
         
     @staticmethod
-    def segmentObjectInRegion(image, roi, method="Default", firstZ=None, lastZ=None):
+    def segmentObjectInRegion(image, roi, method="Default", firstZ=None, lastZ=None, threshold=None):
         """Segment the largest 3D object in the region given by the roi. 
         Each slice is cleared outside of the 2D roi before the thresholding is done.
         """
@@ -89,16 +102,19 @@ class HyperstackUtils:
         if lastZ:
            endSlice = lastZ 
         image.killRoi()
-        maskImage = Duplicator().run(image, currentC, currentC, 1, image.getNSlices(), currentT, currentT)
+        maskImage = Duplicator().run(image, currentC, currentC, startSlice, endSlice, currentT, currentT)
         for z in range(1, maskImage.getNSlices()+1):
             processor = maskImage.getStack().getProcessor(z)
-            if z >= startSlice and z <= endSlice:
-                processor.fillOutside(roi)
-            else:
-                processor.fill()
-        IJ.setAutoThreshold(maskImage, method + " dark stack");
-        IJ.run(maskImage, "Convert to Mask", "method="+method+" background=Dark black")
-        labelsImage = LabelImages.regionComponentsLabeling(maskImage, 255, 6, 8)
+            processor.fillOutside(roi)
+        if threshold:
+            print("using threshold value: ", threshold)
+            IJ.setRawThreshold(maskImage, threshold, 65535)
+            IJ.run(maskImage, "Convert to Mask", "background=Dark Black")
+        else:
+            print("using auto-threshold mathod:", method)
+            IJ.setAutoThreshold(maskImage, method + " dark stack");
+            IJ.run(maskImage, "Convert to Mask", "method="+method+" background=Dark black")
+        labelsImage = LabelImages.regionComponentsLabeling(maskImage, 255, 6, 32)
         labelsImage = LabelImages.keepLargestLabel(labelsImage)
         return labelsImage
    
