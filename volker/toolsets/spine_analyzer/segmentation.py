@@ -43,6 +43,7 @@ from ij.plugin import LutLoader
 from ij.plugin import Duplicator
 from ij.process import LUT 
 from ij.process import ImageStatistics
+from ij.process import StackStatistics
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
@@ -64,6 +65,7 @@ class InstanceSegmentation:
         """Create a new instance segmentation for the given image. If the image already has a label-channel it is used for the
         instance segmentation, otherwise an empty label-channel is added to the image.
         """
+        ImagePlus.setDefault16bitRange(15)      # 15 avoids reset when auto-adjust is called on other channels
         self.maxDistance = self.MAX_DISTANCE
         self.setLUT(self.DEFAULT_LUT_NAME)
         self.setThresholdingMethod(self.DEFAULT_THRESHOLDING_METHOD)
@@ -76,19 +78,18 @@ class InstanceSegmentation:
             image.setProp("mricia-label-channel", self.labelChannelIndex)
         else:
             self.labelChannelIndex = int(labelChannel)
-            roi = image.getRoi()
-            image.killRoi()
-            image.setC(self.labelChannelIndex)
-            stats = image.getStatistics(ImageStatistics.MIN_MAX)
-            if roi:
-                image.setRoi(roi)
-            self.nextLabel = stats.max + 1
+            labels = self.getLabels()
+            maxLabel = 0
+            if labels:
+                maxLabel = max(labels)
+            self.nextLabel = maxLabel + 1
+            image.setPosition(self.labelChannelIndex, currentZ, currentT)
+            IJ.run(image, "glasbey on dark", "");
         if nextLabel:
             self.nextLabel = nextLabel
         image.setPosition(currentC, currentZ, currentT)
         
-        
-        
+                
     def getMaxDistance(self):
         return self.maxDistance
         
@@ -109,19 +110,32 @@ class InstanceSegmentation:
         """Answer a list of the labels in the segmentation.
         """
         labels = set({})
-        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
-        for t in range(1, nFrames+1):
-            self.image.setPosition(self.labelChannelIndex, currentZ, t)
-            histo = self.image.getStatistics().histogram16[1:]
+        for t in range(1, nFrames+1):            
+            labelImageForFrame = self.getCopyOfChannelAndFrame(self.labelChannelIndex, t)
+            stats = StackStatistics(labelImageForFrame)
+            histo = stats.histogram16[1:]
             currentLabels = [index+1 for (index, count) in enumerate(histo) if count>0]
             for label in currentLabels:
                 labels.update((label, ))
-        self.image.setPosition(currentC, currentZ, currentT)    
         labels = list(labels)
         return labels
     
     
+    def getMaxLabel(self):
+        """Answer the maximum label in a all frames.
+        """
+        maxLabel = -1
+        width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
+        for t in range(1, nFrames+1):            
+            labelImageForFrame = self.getCopyOfChannelAndFrame(self.labelChannelIndex, t)
+            stats = StackStatistics(labelImageForFrame) 
+            localMaxLabel = stats.max
+            if localMaxLabel > maxLabel:
+                maxLabel = localMaxLabel
+        return maxLabel
+            
+            
     def addFromMask(self, mask, startSlice=None, endSlice=None):
         """Add the biggest connected object in the mask as a an object to the segmentation with the next unused label.
         """
@@ -298,3 +312,13 @@ class InstanceSegmentation:
         resultList = (zip(labels, nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness))
         results = {item[0]: item[1:] for item in resultList}
         return results
+        
+        
+    def adjustDisplayOfLabels(self):
+        """Adjust the display of the channel containing the labels. Set the max. display value to the biggest label"""
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        maxLabel = self.getMaxLabel()
+        self.image.setPosition(self.getLabelChannelIndex(), currentZ, currentT)
+        self.image.setDisplayRange(0, maxLabel)
+        self.image.updateChannelAndDraw()
+        self.image.setPosition(currentC, currentZ, currentT)

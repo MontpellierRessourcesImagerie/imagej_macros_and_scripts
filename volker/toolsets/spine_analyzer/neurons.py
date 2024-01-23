@@ -269,18 +269,12 @@ class Dendrites:
         """                  
         width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
         currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())     
-        labels = self.segmentation.getLabels()
         measurements = {}
         labelChannel = self.segmentation.getLabelChannelIndex()
         for channel in range(1, nChannels + 1):
             if channel == labelChannel:
                 continue
             measurements[channel] = {}
-            for label in labels:
-                frames = {}
-                for frame in range(1, nFrames + 1):
-                    frames[frame] = []
-                measurements[channel][frame] = frames               
         for channel in range(1, nChannels + 1):
             if channel == labelChannel:
                 continue

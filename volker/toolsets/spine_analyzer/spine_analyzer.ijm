@@ -174,6 +174,15 @@ macro "Install or Update Action Tool - N66C000D2dD2eD3cD58D59D5aD67D75Db3DbeDc3D
 }
 
 
+macro "Adjust Spine Display (f12) Action Tool - C000D25D2aD52D5dD82D83D84D85D86D87D88D89D8aD8bD8cD8dD92D93D94D95D96D97D98D99D9aD9bD9cD9dDa2Da3Da4Da5Da6Da7Da8Da9DaaDabDacDadDb3Db4Db5Db6Db7Db8Db9DbaDbbDbcDc4Dc5Dc6Dc7Dc8Dc9DcaDcbDd5Dd6Dd7Dd8Dd9DdaC000D34D43C888D16D19D6eD9eDe6De9C555D17D18D24D2bD4dD7eD8eDbdDd4DdbDe7De8CdddD5eDaeDe5DeaC222D3cDccCaaaD35D3aD53D5cC666D42D71D81Db2CeeeD23D2cD32D3dD44D4bDc2DcdDd3DdcC111D26D29D62D6dC999D61D91C333D27D28D72D7dCcccD15D1aD51Da1C111D3bD4cC333D33Dc3" {
+    runAdjustSpineDisplay();
+}
+
+
+macro "Adust Spine Display [F12]" {
+    runAdjustSpineDisplay();
+}
+
 macro "Increment Next Label [F2]" {
     label = incrementNextLabel();
     print("Next Label will be " + label)
@@ -277,6 +286,11 @@ function runMeasure() {
 
 function runAttachSpines() {
     run("attach spines");
+}
+
+
+function runAdjustSpineDisplay() {
+    run("adjust display of labels");
 }
 
 
