@@ -19,7 +19,7 @@ def main():
     spineChannel = segmentation.getLabelChannelIndex()
     segmentation.replaceLabel(X, Y, Z, FRAME, NEW_LABEL)
     image.setC(spineChannel)
-    image.setDisplayRange(0, 255)
+    image.resetDisplayRange()
     image.setC(originalC)
     image.updateAndDraw()
     

@@ -92,7 +92,7 @@ def main():
     else:
         segmentation.addFromAutoThresholdInRoi(roi, threshold=threshold)
     inputImage.setC(spineChannel)
-    inputImage.setDisplayRange(0, 255)
+    inputImage.resetDisplayRange()
     inputImage.setC(originalC)
     inputImage.updateAndDraw()
 

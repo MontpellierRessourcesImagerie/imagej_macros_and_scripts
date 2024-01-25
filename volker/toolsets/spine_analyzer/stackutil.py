@@ -74,11 +74,7 @@ class HyperstackUtils:
         if not rangeEnd:
             rangeEnd = stack.getStack().size()
         stackSliceNumber = 1
-        print("rangeStart", rangeStart)
-        print("rangeEnd", rangeEnd)
         for sliceNumber in range(rangeStart, rangeEnd + 1): 
-            print("sliceNumber", sliceNumber)
-            print("stackSliceNumber", stackSliceNumber)
             image.getStack().getProcessor(offset + ((sliceNumber-1) * nChannels)).copyBits(stack.getStack().getProcessor(stackSliceNumber), 0, 0, pasteMethod)
             stackSliceNumber = stackSliceNumber + 1
         image.setC(channel)
@@ -107,11 +103,9 @@ class HyperstackUtils:
             processor = maskImage.getStack().getProcessor(z)
             processor.fillOutside(roi)
         if threshold:
-            print("using threshold value: ", threshold)
             IJ.setRawThreshold(maskImage, threshold, 65535)
             IJ.run(maskImage, "Convert to Mask", "background=Dark Black")
         else:
-            print("using auto-threshold mathod:", method)
             IJ.setAutoThreshold(maskImage, method + " dark stack");
             IJ.run(maskImage, "Convert to Mask", "method="+method+" background=Dark black")
         labelsImage = LabelImages.regionComponentsLabeling(maskImage, 255, 6, 32)

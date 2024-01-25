@@ -65,7 +65,6 @@ class InstanceSegmentation:
         """Create a new instance segmentation for the given image. If the image already has a label-channel it is used for the
         instance segmentation, otherwise an empty label-channel is added to the image.
         """
-        ImagePlus.setDefault16bitRange(15)      # 15 avoids reset when auto-adjust is called on other channels
         self.maxDistance = self.MAX_DISTANCE
         self.setLUT(self.DEFAULT_LUT_NAME)
         self.setThresholdingMethod(self.DEFAULT_THRESHOLDING_METHOD)
