@@ -38,6 +38,11 @@
 from ij import IJ
 from fr.cnrs.mri.cialib.segmentation import InstanceSegmentation
 
-image = IJ.getImage()
-segmentation = InstanceSegmentation(image)
-segmentation.adjustDisplayOfLabels()
+
+def main():
+    image = IJ.getImage()
+    segmentation = InstanceSegmentation(image)
+    segmentation.adjustDisplayOfLabels()
+    
+
+main()
