@@ -195,6 +195,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/53c722b6-20b2-414c-a386-b0b03f1d0043" height='20'/> The tool reverses the order of the frames in a hyperstack. 
 
 ### Scripts
+
+### [Segmentation of mitotic spindles](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Segmentation-of-mitotic-spindles)
+<img align='right' src="https://private-user-images.githubusercontent.com/57807075/303701137-530b6958-8b2b-42f5-aed8-2e3e19f2306e.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MDc0OTUwMDEsIm5iZiI6MTcwNzQ5NDcwMSwicGF0aCI6Ii81NzgwNzA3NS8zMDM3MDExMzctNTMwYjY5NTgtOGIyYi00MmY1LWFlZDgtMmUzZTE5ZjIzMDZlLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDAyMDklMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwMjA5VDE2MDUwMVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPThjYTVlOWNmZGZhYTY5MWE3OGIyYTNhM2FjM2U2MzMxOWU4MzY4ZDJmY2VkYmIzYTdlYTIwZDEwOTE1MGZkMDAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.cARniSS6QO-32E569WvWlmFp_t2GZkOUHACPQQfB7rs" height='100'/> Allows to segment a batch of mitotic spindles and extract measurements from a microtubules staining.
 #### [MRI_Spiral_Mosaic_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Spiral_Mosaic_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/6625d979-7a6d-4334-8a12-15e28a8844d2" height='100'/> The tool copies the images in a stack into a new image and places them in a spiral order, i.e. the first image is in the middle, the second right of the first, the third above the second, the fourth left of the third, and so on. 
