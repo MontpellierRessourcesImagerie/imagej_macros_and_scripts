@@ -183,6 +183,7 @@ macro "Adust Spine Display [F12]" {
     runAdjustSpineDisplay();
 }
 
+
 macro "Increment Next Label [F2]" {
     label = incrementNextLabel();
     print("Next Label will be " + label)
@@ -197,6 +198,21 @@ macro "Decrement Next Label [F1]" {
 
 macro "Show Segment Spine Options [F3]" {
     showSegmentSpineOptions();    
+}
+
+
+macro "Find Spine (f11) Action Tool - C000D25D29D33D52D5cD6cD7cD8cD92DabDbaDbbDc5Dc6Dc7Dc8DccDddC888D18D61D81C222D3bD82Da3CcccD19D8bD8dD91Db8Dd8C111D4bDb4CaaaD51D5bDaaC444D17D34D43D71CeeeD14D2bD35D3cD41D4aD53D5dD6bDa4Db2Db6Dc3Dd5C999D15Db5DbcDcbDcdDdcDdeDedDeeC333D26D27D2aD62D72Da2C222D24D42D9cDc9CbbbD23D32D39D6dD7dD93Dd6Dd7C666D16D4cD9bDb9Dc4C888DacDcaC333D28D3aDb3" {
+    findSpine();    
+}
+
+
+macro "Find Spine [F11]" {
+    findSpine();
+}
+
+
+function findSpine() {
+    run("find spine");
 }
 
 

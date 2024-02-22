@@ -34,6 +34,7 @@
 ## 
 ################################################################################################
 
+import math
 from ij import IJ
 from ij import ImagePlus
 from ij.gui import NewImage
@@ -49,6 +50,7 @@ from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
 from inra.ijpb.measure.region3d import Centroid3D
+from inra.ijpb.measure.region2d import BoundingBox
 from inra.ijpb.morphology.geodrec import GeodesicReconstruction3DHybrid0Gray16
 
 
@@ -311,6 +313,28 @@ class InstanceSegmentation:
         resultList = (zip(labels, nrOfVoxels, volume, intDen, meanInt, min, max, stdDev, mode, kurtosis, skewness))
         results = {item[0]: item[1:] for item in resultList}
         return results
+        
+    
+    def findLabel(self, label, startFrame):
+        """Find the first occurence of the given label starting from startFrame
+        """
+        width, height, nChannels, nSlices, nFrames = self.image.getDimensions()
+        currentC, currentZ, currentT = (self.image.getC(), self.image.getZ(), self.image.getT())
+        for i in range(0, nFrames):
+            frame = int((((startFrame-1) + i) % nFrames) + 1)
+            imp = self.getCopyOfLabelsChannel(frame=frame)
+            isolatedLabelImage = LabelImages.keepLabels(imp, [label])
+            centroidX, centroidY, centroidZ = tuple(Centroid3D.centroids(isolatedLabelImage.getStack(), [label])[0])  
+            if math.isnan(centroidX):
+                continue
+            else:
+                zSlice = int(round(centroidZ))
+                self.image.setPosition(currentC, zSlice, frame)
+                labelProcessor = isolatedLabelImage.getStack().getProcessor(zSlice)
+                boundingBox = BoundingBox.boundingBoxes(labelProcessor, [label], None)[0]
+                imageProcessor = self.image.getStack().getProcessor(zSlice)
+                self.image.setRoi(int(boundingBox.getXMin()), int(boundingBox.getYMin()), int(boundingBox.width()), int(boundingBox.height()))
+                break
         
         
     def adjustDisplayOfLabels(self):
