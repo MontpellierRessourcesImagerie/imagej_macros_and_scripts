@@ -67,8 +67,9 @@ class Dendrites:
         if not self.overlay:
             self.overlay = Overlay()
             self.image.setOverlay(self.overlay)
-        self.isReading = False
-        self.readFromMetadata()
+        if self.overlay.size() > 0:
+            self.isReading = False
+            self.readFromMetadata()
         
             
     def addElement(self, dendrite, addRoi=True):
@@ -312,6 +313,8 @@ class Dendrites:
         for channel, frameMeasurements in measurements.items():
             row = 0
             for frame, labelMeasurements in frameMeasurements.items():
+                if isinstance(labelMeasurements, list):
+                    continue
                 for label, values in labelMeasurements.items():
                     if channel == 1:
                         spine = Spine(label, self.image)
