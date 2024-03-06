@@ -201,13 +201,23 @@ macro "Show Segment Spine Options [F3]" {
 }
 
 
-macro "Find Spine (f11) Action Tool - C000D25D29D33D52D5cD6cD7cD8cD92DabDbaDbbDc5Dc6Dc7Dc8DccDddC888D18D61D81C222D3bD82Da3CcccD19D8bD8dD91Db8Dd8C111D4bDb4CaaaD51D5bDaaC444D17D34D43D71CeeeD14D2bD35D3cD41D4aD53D5dD6bDa4Db2Db6Dc3Dd5C999D15Db5DbcDcbDcdDdcDdeDedDeeC333D26D27D2aD62D72Da2C222D24D42D9cDc9CbbbD23D32D39D6dD7dD93Dd6Dd7C666D16D4cD9bDb9Dc4C888DacDcaC333D28D3aDb3" {
-    findSpine();    
+var spineUtilityCommands = newMenu("Spine Utilities Menu Tool", newArray("Find Spine [F11]", "Print Max. Spine"));
+
+
+macro "Spine Utilities Menu Tool - C000Db4Dc3C999D4cD5bD6aDa3Da6C777D25D36D3bD4aD52D59D95D96CfffD15D51D57D58D75D85D8aD93D9bDa8DacDb6Db9DbdDcaDdbC444D45D54Da4Dc4DccCeeeD14D26D62D86D94Dd2Dd4C888D69D87Da9DcbC222D35D3cD4bD53D5aD66D77D88D99Da5DaaDbbCcccD23D32Dc5DcdDdcC888D63D78D9aDb5DbcC555D24D42D46D56D64D65CeeeD2bD3aD41D44D49D68D79D97DddC999D2cD67D76D89D98DabDbaDc2C111D55Db3CbbbD2dD34D3dD43Db2Dd3" {
+    cmd = getArgument();
+    if (cmd == "Find Spine [F11]") findSpine();
+    if (cmd == "Print Max. Spine") printMaxSpine();
 }
 
 
 macro "Find Spine [F11]" {
     findSpine();
+}
+
+
+function printMaxSpine() {
+    run("print max spine label");   
 }
 
 

@@ -328,7 +328,7 @@ class InstanceSegmentation:
             if math.isnan(centroidX):
                 continue
             else:
-                zSlice = int(round(centroidZ))
+                zSlice = int(round(centroidZ)) + 1
                 self.image.setPosition(currentC, zSlice, frame)
                 labelProcessor = isolatedLabelImage.getStack().getProcessor(zSlice)
                 boundingBox = BoundingBox.boundingBoxes(labelProcessor, [label], None)[0]
