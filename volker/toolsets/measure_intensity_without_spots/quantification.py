@@ -1,8 +1,15 @@
+from ij import IJ
 from ij import ImagePlus
+from ij.macro import Variable
 from ij.process import AutoThresholder
 from ij.plugin import ImageCalculator
 from ij.plugin.filter import Binary as BinaryPlugin
 from ij.plugin.filter import ThresholdToSelection
+from inra.ijpb.measure import IntensityMeasures
+from inra.ijpb.binary import BinaryImages
+from inra.ijpb.label import LabelImages
+from inra.ijpb.measure.region2d import IntrinsicVolumesAnalyzer2D
+
 
 
 class Binary:
@@ -45,13 +52,55 @@ class StainingAnalyzer:
         self.nucleiMask = None
         self.spotsMask = None
         self.nucleiWithoutSpotsMask = None
+        self.labels = None
         self.segmentNucleiMethod = None
         self.segmentSpotsMethod = None
-
+        self.neighbors = 4
+        self.bitDepthLabels = 16
+        self.minAreaNucleus = 0
+        self.minAreaNucleusPixel = 0
+        self.setMinAreaNucleus(50)
+        self.results = None
+        
 
     def measure(self):
         self.createNucleiWithoutSpotsMask()
-        #TODO: to be continued
+        components = BinaryImages.componentsLabeling(self.nucleiWithoutSpotsMask,  self.neighbors,  self.bitDepthLabels)
+        self.labels = LabelImages.sizeOpening(components, self.minAreaNucleusPixel)
+        LabelImages.remapLabels(self.labels)
+        IJ.run(self.labels, "Set Label Map", "colormap=[Glasbey (Dark)] background=Black shuffle")
+        analyzer = IntrinsicVolumesAnalyzer2D()
+        self.results = analyzer.computeTable(self.labels)
+        currentChannel = self.image.getC()
+        signalChannelImage = self.getCopyOfSignalChannel()
+        self.image.setC(currentChannel)
+        analyzer = IntensityMeasures(signalChannelImage, self.labels)
+        means = analyzer.getMean().getColumnAsVariables("Mean") 
+        stdDevs = analyzer.getStdDev().getColumnAsVariables("StdDev") 
+        mins = analyzer.getMin().getColumnAsVariables("Min") 
+        maxs = analyzer.getMax().getColumnAsVariables("Max") 
+        medians = analyzer.getMedian().getColumnAsVariables("Median") 
+        modes = analyzer.getMode().getColumnAsVariables("Mode") 
+        skewnesses = analyzer.getSkewness().getColumnAsVariables("Skewness") 
+        kurtosis = analyzer.getKurtosis().getColumnAsVariables("Kurtosis") 
+        self.results.setColumn("Mean", means)
+        self.results.setColumn("StdDev", stdDevs)
+        self.results.setColumn("Min", mins)
+        self.results.setColumn("Max", maxs)
+        self.results.setColumn("Median", medians)
+        self.results.setColumn("Modes", modes)
+        self.results.setColumn("Skewness", skewnesses)
+        self.results.setColumn("Kurtosis", kurtosis)
+        
+    
+    def setMinAreaNucleus(self, minArea):
+        self.minAreaNucleus = minArea
+        self.minAreaNucleusPixel = int(round(self.image.getCalibration().getRawX(minArea)))
+        
+    
+    def getMinAreaNucleus(self):
+        return self.minAreaNucleus
+    
     
     
     def createNucleiMask(self):
@@ -112,15 +161,19 @@ class StainingAnalyzer:
      
     def getDefaultSpotSegmentationMethod(self):
         currentChannel = self.image.getC()
-        self.image.setC(self.signalChannel)
-        processor = self.image.getProcessor().duplicate()
-        image = ImagePlus("tmp image", processor)
+        image = self.getCopyOfSignalChannel()
         method = YenThresholdOnForegroundSegmentation(image, self.nucleiMask)
         self.image.setC(currentChannel)
         return method 
 
 
-
+    def getCopyOfSignalChannel(self):       
+        self.image.setC(self.signalChannel)
+        processor = self.image.getProcessor().duplicate()
+        image = ImagePlus("tmp image", processor)
+        return image
+    
+    
 class NucleiSegmentationMethod(object):
 
 
@@ -172,6 +225,7 @@ class SubtractGaussianAndThresholdSegmentation(NucleiSegmentationMethod):
         mask = resultProcessor.createMask()
         self.resultMask.setProcessor(mask)
         Binary.fillHoles(self.resultMask)
+        
         
         
 class SpotSegmentationMethod(object):
