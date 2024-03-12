@@ -1,5 +1,7 @@
 from ij import IJ
 from ij import ImagePlus
+from ij.gui import ImageRoi
+from ij.gui import Overlay
 from ij.macro import Variable
 from ij.process import AutoThresholder
 from ij.plugin import ImageCalculator
@@ -9,7 +11,7 @@ from inra.ijpb.measure import IntensityMeasures
 from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure.region2d import IntrinsicVolumesAnalyzer2D
-
+from inra.ijpb.label.conncomp import LabelBoundariesLabeling2D
 
 
 class Binary:
@@ -91,7 +93,40 @@ class StainingAnalyzer:
         self.results.setColumn("Modes", modes)
         self.results.setColumn("Skewness", skewnesses)
         self.results.setColumn("Kurtosis", kurtosis)
+    
+    
+    def createOverlayOfResults(self):
+        self.image.setOverlay(None)
+        bounderies = self.getBoundariesOfLabels()
+        roi = ImageRoi(0, 0, bounderies.getProcessor());
+        roi.setZeroTransparent(True)
+        self.addRoiToOverlayOfInputImage(roi)
+        title = self.labels.getTitle()
+        self.labels.show()
+        IJ.run(None, "Draw Labels As Overlay", "label=" + title + " image=" + title + " x-offset=0 y-offset=0");
+        self.labels.hide()
+        overlay = self.labels.getOverlay()
+        self.labels.setOverlay(None)
+        self.image.getOverlay().add(overlay)
+        self.image.updateAndDraw()
         
+    
+    def getBoundariesOfLabels(self):
+        boundaryCreator = LabelBoundariesLabeling2D()
+        res = boundaryCreator.process(self.labels.getProcessor())
+        resImage = ImagePlus("outlines", res.boundaryLabelMap )
+        resImage.setLut(self.labels.getLuts()[0])
+        return resImage
+    
+    
+    def addRoiToOverlayOfInputImage(self, roi):
+        overlay = self.image.getOverlay()
+        if not overlay:
+            overlay = Overlay(roi)
+            self.image.setOverlay(overlay)
+        else:
+            overlay.add(roi)
+    
     
     def setMinAreaNucleus(self, minArea):
         self.minAreaNucleus = minArea
