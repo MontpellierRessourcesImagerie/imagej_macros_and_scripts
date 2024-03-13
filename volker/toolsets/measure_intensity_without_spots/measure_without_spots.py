@@ -8,8 +8,9 @@ from fr.cnrs.mri.cialib.quantification import StainingAnalyzer
 NUCLEI_CHANNEL = 1
 SIGNAL_CHANNEL = 2
 NUCLEUS_MIN_AREA = 50
+SHOW_LABELS = False
 SAVE_OPTIONS = True
-URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots";
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots"
 
 
 def main():
@@ -25,6 +26,8 @@ def main():
     analyzer.measure()
     analyzer.createOverlayOfResults()
     analyzer.results.show("measurements of " + title)
+    if SHOW_LABELS:
+        analyzer.labels.show()
 
 
 def showDialog():
@@ -50,19 +53,45 @@ def showDialog():
     return True
 
 
-
 def getOptionsPath():
     pluginsPath = IJ.getDirectory("plugins");
     optionsPath = pluginsPath + "Measure-Intensity-Without-Spots/mws-options.txt";
     return optionsPath;
     
     
-def loadOptions():
-    pass
+def getOptionsString():
+    optionsString = ""
+    optionsString = optionsString + "nuclei=" + str(NUCLEI_CHANNEL)
+    optionsString = optionsString + " signal=" + str(SIGNAL_CHANNEL)
+    optionsString = optionsString + " min.=" + str(NUCLEUS_MIN_AREA)
+    return optionsString    
     
     
-def saveOptions():  
-    pass
+def loadOptions(): 
+    global NUCLEI_CHANNEL, SIGNAL_CHANNEL, NUCLEUS_MIN_AREA
+    
+    optionsPath = getOptionsPath()
+    optionsString = IJ.openAsString(optionsPath)
+    optionsString = optionsString.replace("\n", "")
+    options = optionsString.split(" ")
+    for option in options:
+        parts = option.split("=")
+        key = parts[0]
+        value = ""
+        if "=" in option:
+            value = parts[1]
+        if key=="nuclei":
+            NUCLEI_CHANNEL = int(value)
+        if key=="signal":
+            SIGNAL_CHANNEL = int(value)
+        if key=="min.":
+            NUCLEUS_MIN_AREA = float(value)
+    
+    
+def saveOptions():
+    optionsString = getOptionsString()
+    optionsPath = getOptionsPath()
+    IJ.saveString(optionsString, getOptionsPath())
     
     
 main()
