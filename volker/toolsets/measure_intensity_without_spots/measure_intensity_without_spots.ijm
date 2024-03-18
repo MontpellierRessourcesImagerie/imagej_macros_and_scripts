@@ -13,27 +13,37 @@ macro "Measure Intensity Without Spots Help Action Tool - C000D0eDf8DfdDfeDffC02
 }
 
 
-macro "Measure Image (f1) Action Tool - C000T4b12m" {
+macro "Remove Background (f1) Action Tool - C000T4b12r" {
+    removeBackground();
+}
+
+
+macro "Remove Background [f1]" {
+    removeBackground();
+}
+
+
+macro "Measure Image (f2) Action Tool - C000T4b12m" {
     measureImage();
 }
 
 
-macro "measure image [F1]" {
+macro "measure image [F2]" {
     measureImage();
 }
 
 
-macro "Measure Image (f1) Action Tool Options" {
+macro "Measure Image (f2) Action Tool Options" {
     showMeasureIntensityOptions();
 }
 
 
-macro "Jump To Selected Label (f2) Action Tool - C000T4b12j" {
+macro "Jump To Selected Label (f3) Action Tool - C000T4b12j" {
     jumpToSelectedLabel();
 }
 
 
-macro "Jump To Selected Label (f2) Action Tool Options" {
+macro "Jump To Selected Label (f3) Action Tool Options" {
     showJumpToSeletedLabelOptions();
 }
 
