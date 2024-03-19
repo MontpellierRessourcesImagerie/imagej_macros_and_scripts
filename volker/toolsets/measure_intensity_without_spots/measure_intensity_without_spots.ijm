@@ -13,43 +13,59 @@ macro "Measure Intensity Without Spots Help Action Tool - C000D0eDf8DfdDfeDffC02
 }
 
 
-macro "Remove Background (f1) Action Tool - C000T4b12r" {
+macro "Convert bioformats wells to tif series (f1) Action Tool - C000T4b12c" {
+    convertWells()
+}
+
+
+macro "Convert bioformats wells to tif series [F1]" {
+    convertWells()
+}
+
+
+macro "Remove Background (f2) Action Tool - C000T4b12r" {
     removeBackground();
 }
 
 
-macro "Remove Background [f1]" {
+macro "Remove Background [f2]" {
     removeBackground();
 }
 
 
-macro "Measure Image (f2) Action Tool - C000T4b12m" {
+macro "Measure Image (f3) Action Tool - C000T4b12m" {
     measureImage();
 }
 
 
-macro "measure image [F2]" {
+macro "measure image [F3]" {
     measureImage();
 }
 
 
-macro "Measure Image (f2) Action Tool Options" {
+macro "Measure Image (f3) Action Tool Options" {
     showMeasureIntensityOptions();
 }
 
 
-macro "Jump To Selected Label (f3) Action Tool - C000T4b12j" {
+macro "Jump To Selected Label (f4) Action Tool - C000T4b12j" {
     jumpToSelectedLabel();
 }
 
 
-macro "Jump To Selected Label (f3) Action Tool Options" {
+macro "Jump To Selected Label (f4) Action Tool Options" {
     showJumpToSeletedLabelOptions();
 }
 
 
-macro "jump to selected label [F2]" {
+macro "jump to selected label [F4]" {
     jumpToSelectedLabel();
+}
+
+
+
+function convertWells() {
+    run("export wells");
 }
 
 
