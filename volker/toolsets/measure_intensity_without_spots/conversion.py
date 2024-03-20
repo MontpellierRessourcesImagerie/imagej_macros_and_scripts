@@ -74,7 +74,7 @@ class BFWellsSeriesToTifStackSeries(object):
                 resultImage.setCalibration(calibration)
                 saver = FileSaver(resultImage)
                 print(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")))
-                saver.saveAsTiffStack(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")))
+                saver.saveAsTiffStack(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")) + ".tif")
                 cStacks = [None]*nrOfChannels
                 for c in range(nrOfChannels):
                     cStacks[c] = ImageStack(width, height)
