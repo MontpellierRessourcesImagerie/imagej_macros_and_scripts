@@ -136,8 +136,7 @@ class StainingAnalyzer:
     def getMinAreaNucleus(self):
         return self.minAreaNucleus
     
-    
-    
+        
     def createNucleiMask(self):
         currentChannel = self.image.getC()
         self.image.setC(self.nucleiChannel)
@@ -235,6 +234,16 @@ class NucleiSegmentationMethod(object):
 class SubtractGaussianAndThresholdSegmentation(NucleiSegmentationMethod):
 
 
+    @classmethod
+    def name(cls):
+        return "subtract Gaussian and threshold"
+    
+    
+    @classmethod
+    def options(cls):
+        return { 1 : {'name': 'sigma', 'defaultValue': 40.86, 'type' : int}}
+    
+    
     def __init__(self, image):
         super(SubtractGaussianAndThresholdSegmentation, self).__init__(image)
         self.setSigma(40.86)

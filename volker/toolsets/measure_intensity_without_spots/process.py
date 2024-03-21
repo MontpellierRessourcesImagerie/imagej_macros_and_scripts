@@ -71,6 +71,7 @@ class TifSeriesIterator(ImageIterator):
             if not ext in extensions: 
                 continue
             images.append(file)
+        images.sort()
         return images
             
     

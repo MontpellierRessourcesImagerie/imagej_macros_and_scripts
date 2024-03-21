@@ -1,6 +1,6 @@
-from loci.plugins.in import ImporterOptions
-from loci.formats import ImageReader
 from ij.io import OpenDialog
+from fr.cnrs.mri.cialib.process import ImageIterator
+from fr.cnrs.mri.cialib.quantification import StainingAnalyzer
 
 
 def main():
@@ -10,23 +10,16 @@ def main():
     inDir = openDialog.getDirectory()
     inFile = openDialog.getFileName()
     
-    reader = ImageReader()
-    reader.setId(inPath)
-    seriesCount = reader.getSeriesCount()
+    iterator = ImageIterator.getInstance(inPath)
     
-    if seriesCount>1:
-        batchProcessSeries(inFile, inDir, inPath, seriesCount)
-    else:
-        batchProcessFiles(inFile, inDir, inPath)
-        
-
-def batchProcessSeries(inFile, inDir, inPath, seriesCount):
-    for s in range(1, seriesCount+1):
-        print(str(s))
-    
-    
-def batchProcessFiles(inFile, inDir, inPath):
-    pass
+    while(iterator.hasNext()):
+        image = iterator.next()
+        title = image.getTitle()
+        analyzer = StainingAnalyzer(image, 1, 2)
+        analyzer.setMinAreaNucleus(50)
+        analyzer.measure()
+        analyzer.createOverlayOfResults()
+        analyzer.results.show("measurements of " + title)
     
 
 main()

@@ -61,6 +61,9 @@ class BFWellsSeriesToTifStackSeries(object):
         cImages = [None]*nrOfChannels
         for c in range(nrOfChannels):
             cImages[c] = [image for i, image in enumerate(images) if i%2==c]
+        for c in range(nrOfChannels):
+            cImages[c].append(images[0])
+        
         for cImageTupel in zip(*cImages):
             title = cImageTupel[0].getTitle()
             calibration = cImageTupel[0].getCalibration()
@@ -72,10 +75,14 @@ class BFWellsSeriesToTifStackSeries(object):
                 imagesC = [ImagePlus(title.replace("C=0", "C=" + str(c)), cStacks[c]) for c in range(nrOfChannels)]
                 resultImage = RGBStackMerge.mergeChannels(imagesC, False)
                 resultImage.setCalibration(calibration)
+                title = lastImageTupel[0].getTitle()
                 saver = FileSaver(resultImage)
                 print(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")))
                 saver.saveAsTiffStack(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")) + ".tif")
                 cStacks = [None]*nrOfChannels
                 for c in range(nrOfChannels):
                     cStacks[c] = ImageStack(width, height)
+                    cStacks[c].addSlice(cImageTupel[c].getProcessor())  
             lastWell = well
+            lastImageTupel = cImageTupel
+           
