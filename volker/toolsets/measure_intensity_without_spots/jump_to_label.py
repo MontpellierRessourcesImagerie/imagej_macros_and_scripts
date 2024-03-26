@@ -18,7 +18,6 @@ def main():
         return
     if optionsOnly=="true":
         return
-    print("Label", LABEL)
     image = IJ.getImage()
     title = image.getTitle()
     overlay = image.getOverlay()

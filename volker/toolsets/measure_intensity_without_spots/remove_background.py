@@ -4,11 +4,15 @@ from ij.plugin import Duplicator
 from ij.plugin import RGBStackMerge
 
 
+SPOTS_CHANNEL = 2
+NUCLEI_CHANNEL = 1
+LAMBDA_FLAT = 0.50
+LAMBDA_DARK = 0.50
+SAVE_OPTIONS = True
+URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots"
+
 def main():
-    SPOTS_CHANNEL = 2
-    NUCLEI_CHANNEL = 1
-    LAMBDA_FLAT = 0.50
-    LAMBDA_DARK = 0.50
+
     image = IJ.getImage()
     width, height, nChannels, nSlices, nFrames = image.getDimensions()
     spotsChannelImage = Duplicator().run(image, SPOTS_CHANNEL, SPOTS_CHANNEL, 1, nSlices, 1, nFrames)

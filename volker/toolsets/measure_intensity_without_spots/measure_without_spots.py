@@ -2,6 +2,7 @@ import os
 from ij import IJ
 from ij import Prefs
 from ij.gui import GenericDialog
+from ij.measure import ResultsTable
 from fr.cnrs.mri.cialib.quantification import StainingAnalyzer
 from fr.cnrs.mri.cialib.quantification import NucleiSegmentationMethod
 
@@ -29,10 +30,13 @@ def main():
     image = IJ.getImage()
     title = image.getTitle()
     analyzer = StainingAnalyzer(image, NUCLEI_CHANNEL, SIGNAL_CHANNEL)
+    table = ResultsTable.getResultsTable("intensity measurements without spots")
+    if table:
+        analyzer.results = table
     analyzer.setMinAreaNucleus(NUCLEUS_MIN_AREA)
     analyzer.measure()
     analyzer.createOverlayOfResults()
-    analyzer.results.show("measurements of " + title)
+    analyzer.results.show("intensity measurements without spots")
     if SHOW_LABELS:
         analyzer.labels.show()
 

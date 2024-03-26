@@ -4,6 +4,9 @@ var NUCLEUS_MIN_AREA = 50;
 var LABEL = 1;
 var NR_OF_ZOOM_OUT = 4;
 var FILE_EXTENSION = "tif";
+var INPUT_FILE_EXTENSION = "htd";
+var CORRECT_BACKGROUND = true;
+
 
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots";
 
@@ -70,6 +73,27 @@ macro "Batch Remove Background (f5) Action Tool - C000T4b12bC000Tcb12r" {
 
 macro "Batch Remove Background [f5]" {
     removeBackground();
+}
+
+
+macro "Batch Measure Images (f6) Action Tool - C000T8b12b" {
+    batchMeasureImages();
+}
+
+
+macro "Batch Measure Images [f6]" {
+    batchMeasureImages();
+}
+
+
+function batchMeasureImages() {
+    baseDir = getDir("Please select the base folder (2 levels above the .htd files)!");
+    batchInputImages = getBatchInputImages(baseDir);
+    for (i = 0; i < batchInputImages.length; i++) {
+        IJ.log("Exporting image " + (i + 1) + " of " + batchInputImages.length)
+        path = batchInputImages[i];
+        run("export wells", "choose=[" + path + "]");
+    }
 }
 
 
@@ -158,7 +182,9 @@ function batchRemoveBackground() {
         for (s = 1; s <= slices; s++) {
             run("Duplicate...", "duplicate slices=" + s);
             baseName = File.getNameWithoutExtension(images[i]);
-            save(outFolder + baseName + "s=" + s + ".tif");
+            part = split(baseName, "#");
+            filename = part[0] + '#' + s;
+            save(outFolder + filename + ".tif");
             close();
         }
         close();
@@ -174,4 +200,47 @@ function filterImages(files) {
         images = Array.concat(images, file);
     }
     return images;
+}
+
+
+function filterHTDFiles(dir, files) {
+    images = newArray(0);
+    for (i = 0; i < files.length; i++) {
+        file = files[i];
+        if (!endsWith(toLowerCase(file), toLowerCase(INPUT_FILE_EXTENSION))) continue;
+        images = Array.concat(images, dir + file);
+    }
+    return images;
+}
+
+
+function filterDirs(dir, files) {
+    dirs = newArray(0);
+    for (i = 0; i < files.length; i++) {
+        file = dir + files[i];
+        if (File.isDirectory(file)) {
+            dirs = Array.concat(dirs, file);
+        }
+    }
+    return dirs;
+}
+
+
+function getBatchInputImages(baseDir) {
+    paths = newArray(0);
+    files = getFileList(baseDir);
+    subdirs = filterDirs(baseDir, files);
+    batchInputImages = newArray(0);
+    for (i = 0; i < subdirs.length; i++) {
+        subdir = subdirs[i];
+        subsubfiles = getFileList(subdir);
+        subsubdirs = filterDirs(subdir, subsubfiles);
+        for (j = 0; j < subsubdirs.length; j++) {
+              subsubdir = subsubdirs[j];          
+              lastLevelfiles = getFileList(subsubdir);
+              htdFiles = filterHTDFiles(subsubdir, lastLevelfiles);
+              batchInputImages = Array.concat(batchInputImages, htdFiles);
+        }            
+    }
+    return batchInputImages;
 }

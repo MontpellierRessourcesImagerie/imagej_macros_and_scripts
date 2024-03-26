@@ -2,7 +2,7 @@ from ij import IJ
 from ij import ImagePlus
 from ij.gui import ImageRoi
 from ij.gui import Overlay
-from ij.macro import Variable
+from ij.measure import ResultsTable
 from ij.process import AutoThresholder
 from ij.plugin import ImageCalculator
 from ij.plugin.filter import Binary as BinaryPlugin
@@ -12,6 +12,7 @@ from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure.region2d import IntrinsicVolumesAnalyzer2D
 from inra.ijpb.label.conncomp import LabelBoundariesLabeling2D
+from fr.cnrs.mri.cialib.metadata import ImageInfo
 
 
 class Binary:
@@ -62,7 +63,7 @@ class StainingAnalyzer:
         self.minAreaNucleus = 0
         self.minAreaNucleusPixel = 0
         self.setMinAreaNucleus(50)
-        self.results = None
+        self.results = ResultsTable()
         
 
     def measure(self):
@@ -72,27 +73,48 @@ class StainingAnalyzer:
         LabelImages.remapLabels(self.labels)
         IJ.run(self.labels, "Set Label Map", "colormap=[Glasbey (Dark)] background=Black shuffle")
         analyzer = IntrinsicVolumesAnalyzer2D()
-        self.results = analyzer.computeTable(self.labels)
+        shapeResults = analyzer.computeTable(self.labels)
         currentChannel = self.image.getC()
         signalChannelImage = self.getCopyOfSignalChannel()
         self.image.setC(currentChannel)
+        originalFileInfo = self.image.getOriginalFileInfo()
+        folder = originalFileInfo.directory
+        filename = originalFileInfo.fileName
+        info = ImageInfo(self.image)
+        well = info.getWell()
+        field = int(info.getField())
         analyzer = IntensityMeasures(signalChannelImage, self.labels)
-        means = analyzer.getMean().getColumnAsVariables("Mean") 
-        stdDevs = analyzer.getStdDev().getColumnAsVariables("StdDev") 
-        mins = analyzer.getMin().getColumnAsVariables("Min") 
-        maxs = analyzer.getMax().getColumnAsVariables("Max") 
-        medians = analyzer.getMedian().getColumnAsVariables("Median") 
-        modes = analyzer.getMode().getColumnAsVariables("Mode") 
-        skewnesses = analyzer.getSkewness().getColumnAsVariables("Skewness") 
-        kurtosis = analyzer.getKurtosis().getColumnAsVariables("Kurtosis") 
-        self.results.setColumn("Mean", means)
-        self.results.setColumn("StdDev", stdDevs)
-        self.results.setColumn("Min", mins)
-        self.results.setColumn("Max", maxs)
-        self.results.setColumn("Median", medians)
-        self.results.setColumn("Modes", modes)
-        self.results.setColumn("Skewness", skewnesses)
-        self.results.setColumn("Kurtosis", kurtosis)
+        means = analyzer.getMean().getColumn("Mean") 
+        labels = [shapeResults.getLabel(i) for i in range(len(means))]
+        areas = shapeResults.getColumn("Area")
+        perimeters = shapeResults.getColumn("Perimeter")
+        eulerNumbers = shapeResults.getColumn("EulerNumber")        
+        stdDevs = analyzer.getStdDev().getColumn("StdDev") 
+        mins = analyzer.getMin().getColumn("Min") 
+        maxs = analyzer.getMax().getColumn("Max") 
+        medians = analyzer.getMedian().getColumn("Median") 
+        modes = analyzer.getMode().getColumn("Mode") 
+        skewnesses = analyzer.getSkewness().getColumn("Skewness") 
+        kurtosis = analyzer.getKurtosis().getColumn("Kurtosis") 
+        for row in range(len(means)):  
+            self.results.addRow()
+            self.results.addValue("Label", labels[row])
+            self.results.addValue("Image", filename)
+            self.results.addValue("Well", well)
+            self.results.addValue("Field", field)
+            self.results.addValue("Area", areas[row])
+            self.results.addValue("Perimeter", perimeters[row])
+            self.results.addValue("EulerNumber", eulerNumbers[row])
+            self.results.addValue("Mean", means[row])
+            self.results.addValue("StdDev", stdDevs[row])
+            self.results.addValue("Min", mins[row])
+            self.results.addValue("Max", maxs[row])
+            self.results.addValue("Median", medians[row])
+            self.results.addValue("Modes", modes[row])
+            self.results.addValue("Skewness", skewnesses[row])
+            self.results.addValue("Kurtosis", kurtosis[row])
+            self.results.addValue("ID", int(labels[row]))
+            self.results.addValue("folder", folder)
     
     
     def createOverlayOfResults(self):

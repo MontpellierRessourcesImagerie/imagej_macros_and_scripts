@@ -1,4 +1,5 @@
 import os
+from fr.cnrs.mri.cialib.metadata import ImageInfo;
 from ij import ImagePlus
 from ij import ImageStack 
 from ij.io import FileSaver
@@ -64,10 +65,11 @@ class BFWellsSeriesToTifStackSeries(object):
         for c in range(nrOfChannels):
             cImages[c].append(images[0])
         
-        for cImageTupel in zip(*cImages):
+        for cImageTupel in zip(*cImages):            
             title = cImageTupel[0].getTitle()
+            imageInfo = ImageInfo(cImageTupel[0])
             calibration = cImageTupel[0].getCalibration()
-            well = title.split("Well ")[1].split(" Field")[0]
+            well = imageInfo.getWell()
             if well == lastWell or lastWell==None: 
                 for c in range(nrOfChannels):
                     cStacks[c].addSlice(cImageTupel[c].getProcessor())             
