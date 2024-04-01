@@ -70,6 +70,11 @@ macro "Remove Background [f2]" {
 }
 
 
+macro "Remove Background (f2) Action Tool Options" {
+    showRemoveBackgroundOptions();
+}
+
+
 macro "Measure Image (f3) Action Tool - C000T4b12m" {
     measureImage();
 }
@@ -170,6 +175,13 @@ function convertWells() {
 }
 
 
+function showRemoveBackgroundOptions() {
+    call("ij.Prefs.set", "mri.options.only", "true");
+    run("remove background");
+    call("ij.Prefs.set", "mri.options.only", "false");  
+}
+
+
 function showMeasureIntensityOptions() {
     call("ij.Prefs.set", "mri.options.only", "true");
     run("measure without spots");
@@ -212,14 +224,22 @@ function loadOptions(path) {
 function jumpToSelectedLabel() {
     call("ij.Prefs.set", "mri.options.only", "false");   
     row = Table.getSelectionStart;
-    col = Table.getColumn("Label"); 
-    label =col[row];
+    label = LABEL
+    if (row > -1) {
+        col = Table.getColumn("Label"); 
+        label =col[row];
+    }
     zoom = NR_OF_ZOOM_OUT;
     pluginsPath = getDirectory("plugins");
     path = pluginsPath + "Measure-Intensity-Without-Spots/jtl-options.txt";
     if (File.exists(path)) {
-        optionsString = File.openAsString(path);    
+        optionsString = File.openAsString(path);   
         parts = split(optionsString, " ");
+        if (row == -1) {
+            parts0 = split(parts[0], "=");
+            labelTxt = parts0[1];
+            label = labelTxt.trim();
+        }
         parts = split(parts[1], "=");
         zoomTxt = parts[1];
         zoom = zoomTxt.trim();

@@ -79,7 +79,7 @@ def loadOptions():
         if "=" in option:
             value = parts[1]
         if key=="label":
-            Label = int(value)
+            LABEL = int(value)
         if key=="zoom":
             NR_OF_ZOOM_OUTS = int(value)
                

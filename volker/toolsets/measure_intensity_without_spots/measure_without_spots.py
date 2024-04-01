@@ -12,6 +12,7 @@ SIGNAL_CHANNEL = 2
 NUCLEUS_MIN_AREA = 50
 SHOW_LABELS = False
 SAVE_OPTIONS = True
+ADDITIONAL_OPTIONS = []
 URL = "https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots"
 
 
@@ -42,13 +43,16 @@ def main():
 
 
 def showDialog():
-    global NUCLEI_CHANNEL, SIGNAL_CHANNEL, NUCLEUS_MIN_AREA, METHODS, METHOD, SAVE_OPTIONS, URL
+    global NUCLEI_CHANNEL, SIGNAL_CHANNEL, NUCLEUS_MIN_AREA, METHODS, METHOD, ADDITIONAL_OPTIONS, SAVE_OPTIONS, URL
     
     cls = NucleiSegmentationMethod
     methodClasses = list(set(cls.__subclasses__()))
+    ADDITIONAL_OPTIONS = []
     for methodClass in methodClasses:
-        print(methodClass.name(), methodClass.options())
-        
+        if methodClass.name() == METHOD:
+            for option in methodClass.options().values():
+                ADDITIONAL_OPTIONS.append(option)
+    print(ADDITIONAL_OPTIONS)    
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Measure Without Spots Options"); 
@@ -56,6 +60,9 @@ def showDialog():
     gd.addNumericField("Signal Channel: ", SIGNAL_CHANNEL)
     gd.addNumericField("Min. Area Nucleus: ", NUCLEUS_MIN_AREA)
     gd.addChoice("Method: ", METHODS, METHOD)
+    for option in ADDITIONAL_OPTIONS:
+        if option['type'] == int or option['type'] == float:
+            gd.addNumericField(option['name'] + ': ' , option['value'])        
     gd.addCheckbox("Save Options", SAVE_OPTIONS)
     gd.addHelp(URL)
     gd.showDialog()
@@ -65,6 +72,9 @@ def showDialog():
     SIGNAL_CHANNEL = int(gd.getNextNumber())
     NUCLEUS_MIN_AREA = float(gd.getNextNumber())
     METHOD = gd.getNextChoice()
+    for option in ADDITIONAL_OPTIONS:
+        if option['type'] == int or option['type'] == float:
+            option['value'] = option['type'](gd.getNextNumber())
     SAVE_OPTIONS = gd.getNextBoolean()
     if SAVE_OPTIONS:
         saveOptions()
@@ -83,11 +93,13 @@ def getOptionsString():
     optionsString = optionsString + " signal=" + str(SIGNAL_CHANNEL)
     optionsString = optionsString + " min.=" + str(NUCLEUS_MIN_AREA)
     optionsString = optionsString + " method.=" + str(METHOD)
+    for option in ADDITIONAL_OPTIONS:
+        optionsString = optionsString + " " + option['name'] + "=" + str(option['value'])
     return optionsString    
     
     
 def loadOptions(): 
-    global NUCLEI_CHANNEL, SIGNAL_CHANNEL, NUCLEUS_MIN_AREA, METHOD
+    global NUCLEI_CHANNEL, SIGNAL_CHANNEL, NUCLEUS_MIN_AREA, METHOD, ADDITIONAL_OPTIONS
     
     optionsPath = getOptionsPath()
     optionsString = IJ.openAsString(optionsPath)
@@ -107,6 +119,9 @@ def loadOptions():
             NUCLEUS_MIN_AREA = float(value)
         if key=="method":
             METHOD = str(value)
+        for additionalOption in ADDITIONAL_OPTIONS:
+            if key==additionalOption['name']:
+                additionalOption['value'] = additionalOption['type'](value)
     
     
 def saveOptions():

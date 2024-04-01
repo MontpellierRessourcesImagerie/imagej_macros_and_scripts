@@ -258,12 +258,12 @@ class SubtractGaussianAndThresholdSegmentation(NucleiSegmentationMethod):
 
     @classmethod
     def name(cls):
-        return "subtract Gaussian and threshold"
+        return "subtract_Gaussian_and_threshold"
     
     
     @classmethod
     def options(cls):
-        return { 1 : {'name': 'sigma', 'defaultValue': 40.86, 'type' : int}}
+        return { 1 : {'name': 'sigma', 'value': 40.86, 'type' : float}}
     
     
     def __init__(self, image):
