@@ -21,9 +21,9 @@ def main():
         return
     if optionsOnly=="true":
         return
-    return
     image = IJ.getImage()
     width, height, nChannels, nSlices, nFrames = image.getDimensions()
+    calibration = image.getCalibration()
     spotsChannelImage = Duplicator().run(image, SIGNAL_CHANNEL, SIGNAL_CHANNEL, 1, nSlices, 1, nFrames)
     spotsChannelImage.show()
     title = spotsChannelImage.getTitle()
@@ -39,6 +39,7 @@ def main():
     correctedSpotsImage.close()
     image.close()
     resultImage.setTitle(title)
+    resultImage.setCalibration(calibration)
     resultImage.show()
     
     

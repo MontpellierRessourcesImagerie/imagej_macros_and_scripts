@@ -78,8 +78,12 @@ class StainingAnalyzer:
         signalChannelImage = self.getCopyOfSignalChannel()
         self.image.setC(currentChannel)
         originalFileInfo = self.image.getOriginalFileInfo()
-        folder = originalFileInfo.directory
-        filename = originalFileInfo.fileName
+        if originalFileInfo:
+            folder = originalFileInfo.directory
+            filename = originalFileInfo.fileName
+        else:
+            folder = ""
+            filename = self.image.getTitle()
         info = ImageInfo(self.image)
         well = info.getWell()
         field = int(info.getField())

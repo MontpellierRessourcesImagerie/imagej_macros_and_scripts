@@ -166,7 +166,13 @@ function batchMeasureImages() {
 
 
 function removeBackground() {   
-    run("remove background");
+    call("ij.Prefs.set", "mri.options.only", "false");   
+    if (File.exists(getOptionsPathRemoveBackground())) {
+        options = loadOptions(getOptionsPathRemoveBackground());
+        run("remove background", options);
+    } else {
+        run("remove background");
+    }      
 }
 
 
@@ -210,6 +216,13 @@ function measureImage() {
 function getOptionsPathMeasureIntensity() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "Measure-Intensity-Without-Spots/mws-options.txt";
+    return optionsPath;
+}
+
+
+function getOptionsPathRemoveBackground() {
+    pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "Measure-Intensity-Without-Spots/rb-options.txt";
     return optionsPath;
 }
 

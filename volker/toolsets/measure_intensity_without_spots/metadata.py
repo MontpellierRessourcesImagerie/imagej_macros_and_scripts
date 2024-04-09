@@ -1,3 +1,6 @@
+import re
+
+
 class ImageInfo:
 
     
@@ -7,8 +10,7 @@ class ImageInfo:
         self.wellStartMarker = "Well "
         self.wellEndMarker = " Field"
         self.extractFieldFromName = True
-        self.fieldStartMarker = "#"
-        self.fieldEndMarker = ".tif"
+        self.fieldStartMarker = "Field \#"
     
     
     def getWell(self):
@@ -37,5 +39,6 @@ class ImageInfo:
             
     def getFieldFromName(self):
         title = self.image.getTitle()
-        field = title.split(self.fieldStartMarker)[1].split(self.fieldEndMarker)[0]
+        exp = re.compile(".*" + self.fieldStartMarker + "([0-9]+)\D+")
+        field = exp.match(title).group(1)
         return field
