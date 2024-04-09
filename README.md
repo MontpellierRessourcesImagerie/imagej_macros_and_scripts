@@ -89,6 +89,10 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Measure_Border_And_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Border_And_Spots_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/c8e40b77-8bb8-4ab0-ae66-9ce884528a83" height='100'/> The tool counts the number of spots (foci) per nucleus and measures the intensity, form, size and position of the spots. It also optionally measures the intensity in the membrane of the nucleus. 
+####   [Measure Intensity Without Spots](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots)
+
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/39aae8aa-b3d5-46a3-9e7b-fba31d19c053" height='100'/> Measure the signal in a channel in areas defined by the stained nuclei in another channel. Remove the bright spots when measuring the signal. 
+
 ####   [MRI Neurite Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/d475988c-e939-4a3d-9fa9-1f213b2bf060" height='100'/> The toolset helps to segment neurites, measure the distances on the neurites to the closest soma, assign each neurite to a soma and to measure the FISH-signal on the neurites.
