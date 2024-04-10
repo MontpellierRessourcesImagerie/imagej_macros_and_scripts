@@ -52,7 +52,6 @@ def showDialog():
         if methodClass.name() == METHOD:
             for option in methodClass.options().values():
                 ADDITIONAL_OPTIONS.append(option)
-    print(ADDITIONAL_OPTIONS)    
     if  os.path.exists(getOptionsPath()):
         loadOptions()
     gd = GenericDialog("Measure Without Spots Options"); 

@@ -78,9 +78,12 @@ class BFWellsSeriesToTifStackSeries(object):
                 resultImage = RGBStackMerge.mergeChannels(imagesC, False)
                 resultImage.setCalibration(calibration)
                 title = lastImageTupel[0].getTitle()
+                if '/' in title:
+                    title = title.split('/')[-1]
                 saver = FileSaver(resultImage)
-                print(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")))
-                saver.saveAsTiffStack(os.path.join(self.getOutputPath(), title.replace(" - C=0", "")) + ".tif")
+                path = os.path.join(self.getOutputPath(), title.replace(" - C=0", "")) + ".tif"                
+                path = path.replace('\\', '/')
+                saver.saveAsTiffStack(path)
                 cStacks = [None]*nrOfChannels
                 for c in range(nrOfChannels):
                     cStacks[c] = ImageStack(width, height)
