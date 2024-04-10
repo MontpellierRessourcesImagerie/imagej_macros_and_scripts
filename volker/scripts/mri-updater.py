@@ -77,7 +77,7 @@ class Updater:
                     
     def isToolset(self, file):
         result = True
-        content = IJ.openUrlAsString("file://" + file)
+        content = IJ.openAsString(file)
         result = result and file.endswith('.ijm')
         result = result and 'macro "' in content
         return result
@@ -85,7 +85,7 @@ class Updater:
         
     def isMacroCommand(self, file):
         result = True
-        content = IJ.openUrlAsString("file://" + file)
+        content = IJ.openAsString(file)
         result = result and file.endswith('.ijm')
         result = result and not 'macro "' in content
         return result
@@ -93,7 +93,7 @@ class Updater:
     
     def isScript(self, file):
         result = True
-        content = IJ.openUrlAsString("file://" + file)
+        content = IJ.openAsString(file)
         result = result and file.endswith('.py')
         result = result and "def main():" in content
         return result
@@ -101,7 +101,7 @@ class Updater:
         
     def isModule(self, file):
         result = True
-        content = IJ.openUrlAsString("file://" + file)
+        content = IJ.openAsString(file)
         result = result and file.endswith('.py')
         result = result and not "def main():" in content
         return result
