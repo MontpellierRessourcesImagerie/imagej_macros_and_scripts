@@ -5,13 +5,14 @@
 _MIN_PEAK_WIDTH     = 10;
 _MAX_PEAK_WIDTH     = 100;
 _EXCLUDE_EDGE_PEAKS = true;
-_OUTPUT_DIRECTORY   = "/home/benedetti/Desktop/peaks/";
+_OUTPUT_DIRECTORY   = "/home/benedetti/Documents/projects/camille-yeasts-peaks/peaks/"; // getDir("home");
 _PRESMOOTH          = -1;
 _CHANNEL            = 2;
 _MIN_PEAKS_DISTANCE = 0.75;
+_MIN_PEAK_AMPLITUDE = 100;
 // Only for batch:
 _RUN_BATCH          = false;
-_INPUT_DIRECTORY    = "/home/benedetti/Desktop/in_peaks/";
+_INPUT_DIRECTORY    = "/home/benedetti/Documents/projects/camille-yeasts-peaks/in_peaks/"; // getDir("home");
 _EXTENSION          = ".tif";
 
 
@@ -19,9 +20,13 @@ _EXTENSION          = ".tif";
 
 
 _PLOT_NAME = "Plot Values";
+_N_COLS_DIAG = 20;
 
 
 // = = = = = = = = = = TOP LEVEL = = = = = = = = = =
+
+ask_settings();
+if (!valid_settings()) { exit; }
 
 if (_RUN_BATCH) {
     run_batch();
@@ -32,6 +37,35 @@ IJ.log(">>> DONE.");
 
 
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+
+function ask_settings() {
+    Dialog.create("Peaks yeasts settings");
+    Dialog.addNumber("Minimum peak width", _MIN_PEAK_WIDTH);
+    Dialog.addNumber("Maximum peak width", _MAX_PEAK_WIDTH);
+    Dialog.addCheckbox("Exclude edge peaks", _EXCLUDE_EDGE_PEAKS);
+    Dialog.addString("Output directory", _OUTPUT_DIRECTORY, _N_COLS_DIAG);
+    Dialog.addNumber("Presmoothing radius", _PRESMOOTH);
+    Dialog.addNumber("Channel", _CHANNEL);
+    Dialog.addNumber("Minimum peak amplitude", _MIN_PEAK_AMPLITUDE);
+    Dialog.addNumber("Minimum peaks distance", _MIN_PEAKS_DISTANCE);
+    Dialog.addMessage("====== Only for batch processing ======");
+    Dialog.addCheckbox("Run batch processing", _RUN_BATCH);
+    Dialog.addString("Input directory", _INPUT_DIRECTORY, _N_COLS_DIAG);
+    Dialog.addString("Extension", _EXTENSION, _N_COLS_DIAG);
+    Dialog.show();
+    _MIN_PEAK_WIDTH     = Dialog.getNumber();
+    _MAX_PEAK_WIDTH     = Dialog.getNumber();
+    _EXCLUDE_EDGE_PEAKS = Dialog.getCheckbox();
+    _OUTPUT_DIRECTORY   = Dialog.getString();
+    _PRESMOOTH          = Dialog.getNumber();
+    _CHANNEL            = Dialog.getNumber();
+    _MIN_PEAK_AMPLITUDE = Dialog.getNumber();
+    _MIN_PEAKS_DISTANCE = Dialog.getNumber();
+    _RUN_BATCH          = Dialog.getCheckbox();
+    _INPUT_DIRECTORY    = Dialog.getString();
+    _EXTENSION          = Dialog.getString();
+}
 
 
 /**
@@ -154,7 +188,18 @@ function lower_bound(roi) {
     getStatistics(area, mean, min, max, std, histogram);
     Roi.selectNone;
     roiManager("Select", roi);
-    return (min + max) / 2;
+    return mean; // (min + max) / 2;
+}
+
+function headings_map(input) {
+    getPixelSize(unit, pixelWidth, pixelHeight);
+    if (input == "X0") { return "Plot-X ("+unit+")"; }
+    if (input == "Y0") { return "Plot-Y (intensity)"; }
+    if (input == "X1") { return "Max-X ("+unit+")"; }
+    if (input == "Y1") { return "Max-Y (intensity)"; }
+    if (input == "X2") { return "Min-X ("+unit+")"; }
+    if (input == "Y2") { return "Min-Y (intensity)"; }
+    return input;
 }
 
 /**
@@ -181,7 +226,8 @@ function concatenate_results(t_name, frame) {
     sort_table(_PLOT_NAME, "X2", followers);
 
     for (c = 0 ; c < nCols ; c++) {
-        heading = headings[c] + "-t" + IJ.pad(disp_fr, 2);
+        h = headings_map(headings[c]);
+        heading = h + "-t" + IJ.pad(disp_fr, 2);
         for (r = 0 ; r < nRows ; r++) {
             v = Table.get(headings[c], r, _PLOT_NAME);
             if (isNaN(v)) { continue; }
@@ -204,7 +250,13 @@ function make_profile(roi, output) {
     for (f = 0 ; f < frames ; f++) {
         Stack.setFrame(f+1);
         roiManager("Select", roi);
-        mpa = 100 ; // lower_bound(roi);
+        mpa = 100;
+        if (_MIN_PEAK_AMPLITUDE > 0.0) {
+            mpa = _MIN_PEAK_AMPLITUDE;
+        }
+        else {
+            mpa = lower_bound(roi);
+        }
         chart_name = prefix + IJ.pad(f+1, 3) + ".png";
         full_path = join(output, chart_name);
         IJ.log("Frame: " + f + "; ROI: " + (roi+1) + "; Min amplitude: " + mpa);
@@ -302,7 +354,7 @@ function valid_items(images) {
     return items;
 }
 
-function validSettings() {
+function valid_settings() {
     if (!File.isDirectory(_OUTPUT_DIRECTORY)) {
         IJ.log("Output directory does not exist. Abort.");
         return false;
@@ -324,7 +376,6 @@ function validSettings() {
 function run_batch() {
     run("Close All");
     run("Collect Garbage");
-    if (!validSettings()) { return; }
     images = get_images();
     pairs = valid_items(images);
     Array.print(images);
