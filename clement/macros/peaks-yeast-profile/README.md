@@ -3,6 +3,7 @@
 ## What is it?
 
 This macro is meant to be used in Fiji (ImageJ) to detect peaks of intensity within yeasts radial profiles.
+To install this macro, you can place it (the ".ijm" file) in the "plugins" folder of your Fiji.
 
 **Requirements:**
 - BAR (https://imagej.net/plugins/bar)

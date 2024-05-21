@@ -7,18 +7,18 @@
 
 // = = = = = = = = USER'S SETTINGS = = = = = = = =
 
-_MIN_PEAK_WIDTH     = 10;
-_MAX_PEAK_WIDTH     = 100;
-_EXCLUDE_EDGE_PEAKS = true;
-_OUTPUT_DIRECTORY   = getDir("home");
-_PRESMOOTH          = -1;
-_CHANNEL            = 2;
-_MIN_PEAKS_DISTANCE = 0.75;
-_MIN_PEAK_AMPLITUDE = 100;
+var _MIN_PEAK_WIDTH     = 10;
+var _MAX_PEAK_WIDTH     = 100;
+var _EXCLUDE_EDGE_PEAKS = true;
+var _OUTPUT_DIRECTORY   = getDir("home");
+var _PRESMOOTH          = -1;
+var _CHANNEL            = 2;
+var _MIN_PEAKS_DISTANCE = 0.75;
+var _MIN_PEAK_AMPLITUDE = 100;
 // --> Only for batch:
-_RUN_BATCH          = false;
-_INPUT_DIRECTORY    = getDir("home");
-_EXTENSION          = ".tif";
+var _RUN_BATCH          = false;
+var _INPUT_DIRECTORY    = getDir("home");
+var _EXTENSION          = ".tif";
 
 
 // = = = = = = = = = = CONSTANTS = = = = = = = = = =
