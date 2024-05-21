@@ -1,18 +1,23 @@
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+// 
 // CNRS-MRI-CIA:MIIY#1989
+// https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/peaks-yeast-profile
+//
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 // = = = = = = = = USER'S SETTINGS = = = = = = = =
 
 _MIN_PEAK_WIDTH     = 10;
 _MAX_PEAK_WIDTH     = 100;
 _EXCLUDE_EDGE_PEAKS = true;
-_OUTPUT_DIRECTORY   = "/home/benedetti/Documents/projects/camille-yeasts-peaks/peaks/"; // getDir("home");
+_OUTPUT_DIRECTORY   = getDir("home");
 _PRESMOOTH          = -1;
 _CHANNEL            = 2;
 _MIN_PEAKS_DISTANCE = 0.75;
 _MIN_PEAK_AMPLITUDE = 100;
-// Only for batch:
+// --> Only for batch:
 _RUN_BATCH          = false;
-_INPUT_DIRECTORY    = "/home/benedetti/Documents/projects/camille-yeasts-peaks/in_peaks/"; // getDir("home");
+_INPUT_DIRECTORY    = getDir("home");
 _EXTENSION          = ".tif";
 
 
@@ -38,7 +43,12 @@ IJ.log(">>> DONE.");
 
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
-
+/**
+ * Opens a regular dialog to ask the user for every setting referenced in the "USER'S SETTINGS" section.
+ * The settings are stored in global variables but are not written in a file, so they are lost after the execution.
+ * This function is not responsible for the validity of the settings.
+ * Each parameter is described in the README file in the same folder as this script.
+ */
 function ask_settings() {
     Dialog.create("Peaks yeasts settings");
     Dialog.addNumber("Minimum peak width", _MIN_PEAK_WIDTH);
@@ -81,11 +91,12 @@ function join(p1, p2) {
 }
 
 /**
- * On out images, only one channel is used for the analysis.
- * This function duplicates the channel of interest in a new image.
+ * Only one channel is used for the analysis.
+ * This function extracts the channel of interest as an independent new image.
  * The original image is closed after the operation.
  * The new image is renamed after the original image.
  * Works on the active image.
+ * If the active image is single-channel, the function does nothing.
  */
 function get_channel() {
     getDimensions(width, height, channels, slices, frames);
@@ -102,7 +113,7 @@ function get_channel() {
 }
 
 /**
- * Renames all the ROIs in the RoiManager with a padded number, corresponding to their rank.
+ * Renames all the ROIs in the RoiManager with a padded number corresponding to their rank, starting from 001.
  * Works on the active RoiManager.
  * The content of the ROI manager is saved in a zip file in the output directory.
  */
@@ -121,6 +132,7 @@ function rename_rois(output) {
  * Creates the MIP for all the frames of a given hyperstack.
  * The original image is closed after the operation.
  * Works on the active image.
+ * The resulting image has the same dimensions as the original image but only one slice.
  */
 function make_mip() {
     imIn = getImageID();
@@ -136,6 +148,7 @@ function make_mip() {
 /**
  * Registers the frames on themselves to align each instance of yeast along the time axis.
  * StackReg is destructive, it modifies the original image.
+ * A given cell is supposed to remain at the same position in the image.
  */
 function register_frames() {
     run("StackReg", "transformation=Translation");
