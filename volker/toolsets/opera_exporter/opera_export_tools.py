@@ -41,6 +41,8 @@ def main(args):
         print("Launching procedure")
     exporter.launch()
 
+
+
 def getArgumentParser():
     parser = argparse.ArgumentParser(
         description="Create a mosaic from the opera images using the index file and fiji-stitching."
@@ -61,6 +63,7 @@ def getArgumentParser():
     return parser
 
 
+
 def coords(s):
     s = s.replace(" ", "")
     l = s.split(",")
@@ -71,6 +74,7 @@ def coords(s):
     coords = [float(x) for x in l]
     it = iter(coords)
     return list(iter(lambda: tuple(islice(it, 2)), ()))
+
 
 
 def splitIntoChunksOfSize(aString, chunkLength):
@@ -95,6 +99,7 @@ def splitIntoChunksOfSize(aString, chunkLength):
     return res
 
 
+
 def prefix(name):
     only_alpha = ""
     for c in name:
@@ -102,6 +107,7 @@ def prefix(name):
             only_alpha += c
         else:
             return only_alpha
+
 
 
 def removeComponentFromName(name, compos):
@@ -136,6 +142,7 @@ def removeComponentFromName(name, compos):
     return "untitled.tiff" if buffer == "" else buffer
 
 
+
 def transformCoordinates(xPos, yPos):
     """
     Change the origin from (0, 0) to (min(xPos), max(yPos)) and inverse the y axis.
@@ -153,6 +160,10 @@ def transformCoordinates(xPos, yPos):
          a tupel of two lists, the first list contains the transformed x-values
          and the second list the transformed y-values
     """
+    if DEBUG:
+            print("ENTERING transformCoordinates")
+            print("xPos", xPos)
+            print("yPos", yPos)
     leftmost = min(xPos)
     top = max(yPos)
     if leftmost < 0:
@@ -164,6 +175,7 @@ def transformCoordinates(xPos, yPos):
     else:
         yPos = [top - i for i in yPos]
     return xPos, yPos
+
 
 
 def populateParserBase(parser):
@@ -200,6 +212,7 @@ def populateParserBase(parser):
         help="the gap left between two images on the final montage",
     )
     return parser
+
 
 
 def populateParserExport(parser):
@@ -270,6 +283,7 @@ def populateParserExport(parser):
     return parser
 
 
+
 def populateParserFusion(parser):
     parser.add_argument(
         "--computeOverlap",
@@ -304,6 +318,7 @@ def populateParserFusion(parser):
         help="removes links between images if the absolute displacement is higher than this value",
     )
     return parser
+
 
 
 def populateParserCorrection(parser):
@@ -364,6 +379,7 @@ def populateParserCorrection(parser):
     return parser
 
 
+
 def populateParserDisplay(parser):
     parser.add_argument(
         "--colours",
@@ -380,6 +396,7 @@ def populateParserDisplay(parser):
         help="pairs of min. and max. display values per channel",
     )
     return parser
+
 
 
 class OperaExporter(object):
@@ -401,27 +418,19 @@ class OperaExporter(object):
             IJ.log("Arguments parsed")
             self.configureFromOptions()
 
+
     def configureFromOptions(self):
+        if DEBUG:
+            print("ENTERING configureFromOptions")
         if not self.options:
             return
         self.experiment = PhenixHCSExperiment.fromIndexFile(self.options.index_file)
         self.experiment.setExporter(self)
         self.sourcePath = self.experiment.getPath()
-        self.wellsOnPlate = self.experiment.getPlates()[0].getWells()
-        self.wellsToExport = self.wellsOnPlate
+        self.wellIDsOnPlate = self.experiment.getPlates()[0].getWellIDs()
+        self.wellIDsToExport = self.wellIDsOnPlate
         if self.options.wells != "all":
-            wellIDs = splitIntoChunksOfSize(self.options.wells, 4)
-            self.wellsToExport = [
-                well for well in self.wellsOnPlate if well.getID() in wellIDs
-            ]
-        self.dims = self.wellsToExport[0].getDimensions()
-        self.zSize = self.dims[2]
-        self.sliceForStitching = self.options.slice
-        if self.sliceForStitching == 0:
-            self.sliceForStitching = max(self.zSize / 2, 1)
-        self.stitchOnMIP = self.options.stitchOnMIP
-        if self.stitchOnMIP:
-            self.sliceForStitching = 1
+            self.wellIDsToExport = splitIntoChunksOfSize(self.options.wells, 4)
         self.zStackFields = self.options.zStackFields
         self.projectionFields = self.options.projectionFields
         self.zStackMosaic = self.options.zStackMosaic
@@ -442,12 +451,18 @@ class OperaExporter(object):
             + _CUSTOM_OUTPUT_PATH
         )
 
+
     def getWells(self):
+        if DEBUG:
+            print("getWells: wellsToExport = " + self.wellsToExport)
         return self.wellsToExport
 
+
     def prepareCalculationOfStitching(self, well):
+        timePoints = well.getTimePoints()
+        t = timePoints[0]
         images, self.names, self.newNames = well.createTileConfig(
-            self.sliceForStitching, 0, self.channel
+            self.sliceForStitching, t, self.channel
         )
 
         if self.stitchOnMIP:
@@ -465,18 +480,22 @@ class OperaExporter(object):
                 images
             )
 
+
     def calculateStitching(self, well):
         IJ.log("Calculate Stitching")
         well.calculateStitching()
         well.deleteFile(self.experiment.getWorkFolder(), self.newNames)
 
+
     def createStack(self, well):
         IJ.log("Create zStacks Fields")
         well.createStack(self.dims, self.experiment.getZStackFolder())
 
+
     def createMIP(self, well):
         IJ.log("Create projection Fields")
         well.createMIP(self.dims, self.experiment.getProjectionsFolder())
+
 
     def makeMontage(self, well, size, statusTable):
         well.makeMontage(
@@ -492,6 +511,7 @@ class OperaExporter(object):
             self.projectionMosaicRGB,
             statusTable
         )
+
 
     def applyStitching(self, well):
         if self.zStackMosaic:
@@ -512,6 +532,7 @@ class OperaExporter(object):
                 well.applyStitchingProjection(
                     self.experiment.getProjectionMosaicFolder()
                 )
+
 
     def createRGBOverlaySnapshot(self, well):
         """
@@ -564,12 +585,15 @@ class OperaExporter(object):
                         channelExport=str(index),
                     )
 
+
     def renameOutputs(self, well):
         IJ.log("Rename output files")
         well.renameAllOutputs()
 
+
     def getOptions(self):
         return self.options
+
 
     def stitchingProcedure(self, i, well, statusTable):
         self.prepareCalculationOfStitching(well)
@@ -600,6 +624,7 @@ class OperaExporter(object):
         statusTable.setValue("Images Renamed", i, "V")
         statusTable.show("Execution Status")
     
+    
     def estimateGridSize(self, well):
         """
         Inspects the number of fields available in the well, and tries to place them as close as possible from a square.
@@ -614,6 +639,7 @@ class OperaExporter(object):
             height += 1
 
         return (height, width)
+
 
     def montageProcedure(self, i, well, statusTable):
         height, width = self.estimateGridSize(well)
@@ -637,11 +663,22 @@ class OperaExporter(object):
         statusTable.setValue("Projection Montage", i, "V")
         statusTable.show("Execution Status")
 
+
     def launch(self):
         IJ.log("Starting Treatment")
         statusTable = ResultsTable()
-        # self.createStatusTable()
-        for i, well in enumerate(self.wellsToExport):
+        
+        for i, wellID in enumerate(self.wellIDsToExport):
+            well = self.experiment.getWell(wellID, self.experiment.getPlates()[0]) 
+            if i==0:
+                self.dims = well.getDimensions()
+                self.zSize = self.dims[2]
+                self.sliceForStitching = self.options.slice
+                if self.sliceForStitching == 0:
+                    self.sliceForStitching = max(self.zSize / 2, 1)
+                self.stitchOnMIP = self.options.stitchOnMIP
+                if self.stitchOnMIP:
+                    self.sliceForStitching = 1            
             statusTable.setValue("Wells", i, str(well))
             try:
                 if self.montage:
@@ -650,12 +687,9 @@ class OperaExporter(object):
                     self.stitchingProcedure(i, well, statusTable)
             except FileNotFoundException:
                 print("FILE ACCESS PROBLEM: at " + str(well))
-            
             IJ.run("Close All", "")
             IJ.run("Collect Garbage", "")
 
-    def createStatusTable(self):
-        table = ResultsTable()
 
 
 class Plate(object):
@@ -677,6 +711,7 @@ class Plate(object):
         self.data = plateData
         self.experiment = experiment
 
+
     def __str__(self):
         plateType = self.data[4].text
         rows = self.data[5].text
@@ -684,51 +719,72 @@ class Plate(object):
         name = self.getName()
         return "Plate (" + name + ", " + plateType + ", " + rows + "x" + columns + ")"
 
+
     def getWells(self):
+        if DEBUG:
+            print("ENTERING Plate>>getWells")
         wells = []
         for wellID in self.data[7:]:
             wells.append(self.experiment.getWell(wellID.attrib["id"], self))
+        if DEBUG:
+            print("LEAVING Plate>>getWells")
         return wells
+
+
+    def getWellIDs(self):
+        return [wellID.attrib["id"] for wellID in self.data[7:]]
+
 
     def getName(self):
         return self.data[3].text
 
 
+
 class Well(object):
+
+
     def __init__(self, anID, row, col, imageData, experiment, plate):
+        if DEBUG:
+            print("ENTERING Well>>__init__")
+        self.dims = None
         self.id = anID
         self.row = row
         self.column = col
         self.imageData = imageData
         self.experiment = experiment
         self.plate = plate
-        self.images = [self.experiment.getImage(data.attrib["id"]) for data in self.imageData]
-
-        dims = self.getDimensions()
+        self.images = [None] * len(self.imageData)
+        for index, data in enumerate(self.imageData):
+            self.images[index] = self.experiment.getImage(data.attrib["id"])
+        self.dims = self.getDimensions()
         # Images are sorted according to their stack in the XML
         self.calibration = {
             'x': self.images[0].getPixelWidth()*1000000,
             'y': self.images[0].getPixelHeight()*1000000, 
-            'z': abs(self.images[0].getZ() - self.images[1].getZ())*1000000 if dims[2] > 1 else self.images[0].getPixelWidth()*1000000,
+            'z': abs(self.images[0].getZ() - self.images[1].getZ())*1000000 if self.dims[2] > 1 else self.images[0].getPixelWidth()*1000000,
             'unit': "um"
         }
+        if DEBUG:
+            print("LEAVING Well>>__init__")
+            
 
     def printUsedSlices(self, fieldsOfSlice):
-        print("The following tiles are detected for as a slice:")
+        print("The following tiles are detected as a slice:")
         for i in fieldsOfSlice:
             print("  - " + i.getURL())
+
 
     def makeMontage(self, size, targetFolderStack, targetFolderProjection, makeCompositeStack, makeCompositeProj, dims, padding, zstackmosaic, projectionmosaic, projectionMosaicRGB, statusTable):
         if DEBUG:
             print("ENTERING makeMontage (from Well)")
         
         slices     = dims[2]
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         channels   = dims[4]
         path       = self.experiment.getPath() # Path to the folder containing raw images
         fields     = self.getFields()
         
-        for t in range(timePoints):
+        for t in timePoints:
             channelImps  = [] # Container for stacks of montages (one per channel)
             channelProjs = [] # Container for projections of montages (one per channel)
             for c in range(1, channels + 1):
@@ -815,14 +871,18 @@ class Well(object):
             str(self.calibration['z'])
         ))
 
+
     def getID(self):
         return self.id
+
 
     def getRow(self):
         return self.row
 
+
     def getColumn(self):
         return self.column
+
 
     def getImageData(self):
         return self.imageData
@@ -830,8 +890,10 @@ class Well(object):
     def getOptions(self):
         return self.experiment.getOptions()
 
+
     def getImages(self):
         return self.images
+
 
     def getFields(self):
         images = self.getImages()
@@ -841,37 +903,50 @@ class Well(object):
         fields = sorted(fieldSet, key=int)
         return fields
 
+
     def getPixelWidth(self):
         return self.getImages()[0].getPixelWidth()
 
-    def getDimensions(self):
-        images = self.getImages()
-        slices = set()
-        frames = set()
-        channels = set()
-        width = 0
-        height = 0
-        pixelWidth = self.getPixelWidth()
-        xCoords = [int(round(image.getX() / pixelWidth)) for image in images]
-        yCoords = [int(round(image.getY() / pixelWidth)) for image in images]
-        xCoords, yCoords = transformCoordinates(xCoords, yCoords)
-        for image in images:
-            slices.add(image.getPlane())
-            frames.add(image.getTime())
-            channels.add(image.getChannel())
-            if image.getWidth() > width:
-                width = image.getWidth()  # Define the image coordinates
-            if image.getHeight() > height:
-                height = image.getHeight()
-        res = (
-            max(xCoords) + width,
-            max(yCoords) + height,
-            len(slices),
-            len(frames),
-            len(channels),
-        )
-        return res
 
+    def getTimePoints(self):
+        images = self.getImages()
+        timePointSet = set()
+        for image in images:
+            timePointSet.add(image.getTime())
+        timePoints = sorted(timePointSet, key=int)
+        return timePoints
+        
+        
+    def getDimensions(self):
+        if not self.dims:
+            images = self.getImages()
+            slices = set()
+            frames = set()
+            channels = set()
+            width = 0
+            height = 0
+            pixelWidth = self.getPixelWidth()
+            xCoords = [int(round(image.getX() / pixelWidth)) for image in images]
+            yCoords = [int(round(image.getY() / pixelWidth)) for image in images]
+            xCoords, yCoords = transformCoordinates(xCoords, yCoords)
+            for image in images:
+                slices.add(image.getPlane())
+                frames.add(image.getTime())
+                channels.add(image.getChannel())
+                if image.getWidth() > width:
+                    width = image.getWidth()  # Define the image coordinates
+                if image.getHeight() > height:
+                    height = image.getHeight()
+            self.dims = (
+                max(xCoords) + width,
+                max(yCoords) + height,
+                len(slices),
+                len(frames),
+                len(channels),
+            )
+        return self.dims
+        
+        
     def openImage(self, filePath):
         if IO_DEBUG:
             print("Opening image file " + filePath)
@@ -880,6 +955,7 @@ class Well(object):
 
         IJ.open(filePath)
         return IJ.getImage()
+
 
     def saveImage(self, image, filePath):
         if IO_DEBUG:
@@ -891,6 +967,7 @@ class Well(object):
             )
         self.applyCalibration(image)
         IJ.save(image, filePath)
+
 
     def copyImages(self, srcPath, dstPath, srcNames, dstNames, instances=None):
         failed = False
@@ -919,6 +996,7 @@ class Well(object):
             IJ.save(img, fullPath)
             img.close()
 
+
     def moveFile(self, srcPath, dstPath, srcName, dstName):
         if IO_DEBUG:
             print("Moving/Renaming image to " + dstPath)
@@ -933,6 +1011,7 @@ class Well(object):
             )
 
         shutil.move(srcPath + srcName, dstPath + dstName)
+
 
     def deleteFile(self, path, fileList=None):
         if IO_DEBUG:
@@ -949,6 +1028,7 @@ class Well(object):
                 if self.checkIfPathExists(path + file):
                     os.remove(path + file)
 
+
     def checkIfPathExists(self, path):
         numberOfTries = 0
         while not os.path.exists(path) and numberOfTries < 5:
@@ -958,6 +1038,7 @@ class Well(object):
         if numberOfTries >= 5:
             return False
         return True
+
 
     def createTileConfig(self, zPosition, timePoint, channel):
         if DEBUG:
@@ -984,6 +1065,7 @@ class Well(object):
                 f.write(name + ";" + " ; (" + str(x) + "," + str(y) + ")" + "\n")
         return images, names, newNames
 
+
     def getFusionMethod(self):
         fusionMethod = self.getOptions().fusion_method
         if "Max_" in fusionMethod:
@@ -995,6 +1077,7 @@ class Well(object):
         if "random" in fusionMethod:
             fusionMethod = "Intensity of random input tile"
         return fusionMethod
+
 
     def getStitchingOptions(self):
         options = self.getOptions()
@@ -1033,6 +1116,7 @@ class Well(object):
         )
         return options
 
+
     def calculateStitching(self):
         """
         Create an initial TileConfiguration from the meta-data in the work-folder
@@ -1062,6 +1146,7 @@ class Well(object):
         if DEBUG:
             print("LEAVING calculateStitching")
 
+
     def runCorrection(self, channel, newNames):
         if self.getOptions().index_flatfield:
             self.doIndexFlatFieldCorrection(newNames, channel)
@@ -1078,6 +1163,7 @@ class Well(object):
         if self.getOptions().subtract_background_radius > 0:
             self.doSubtractBackground(newNames)
 
+
     def executeStitching(self, channel=1, newNames=None):
         if DEBUG:
             print("ENTERING executeStitching")
@@ -1092,6 +1178,7 @@ class Well(object):
         self.runGridCollectionStitching()
         if DEBUG:
             print("LEAVING executeStitching")
+
 
     def applyStichingOnEachZ(self, nSlices, t, c):
         imps = []
@@ -1116,15 +1203,16 @@ class Well(object):
 
         return imp, name, calibration
 
+
     def applyStitching(self, outputPath, exportComposite=False):
         if DEBUG:
             print("ENTERING applyStitching")
         dims = self.getDimensions()
         slices = dims[2]
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         channels = dims[4]
         rgbStackMerge = RGBStackMerge()
-        for t in range(0, timePoints):
+        for t in timePoints:
             channelImps = []
             for c in range(1, channels + 1):
                 imp, name, calibration = self.applyStichingOnEachZ(slices, t, c)
@@ -1148,25 +1236,22 @@ class Well(object):
         if DEBUG:
             print("LEAVING applyStitching")
 
+
     def applyStitchingProjection(self, outputPath):
         if DEBUG:
             print("Entering applyStitchingProjection")
         dims = self.getDimensions()
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         channels = dims[4]
         if DEBUG:
             print("outputPath: " + outputPath)
         rgbStackMerge = RGBStackMerge()
-        for t in range(0, timePoints):
+        for t in timePoints:
             channelImps = []
             for c in range(1, channels + 1):
                 title = self.createMIPFromInputImages(
                     dims, c, self.experiment.getWorkFolder()
                 )
-                # self.openImage(self.experiment.getWorkFolder() + "00000001.tif")
-                # imp = IJ.getImage()
-                # calibration = imp.getCalibration()
-                # imp.close()
                 self.executeStitching(channel=c)
                 imp = IJ.getImage()
                 self.applyCalibration(imp)
@@ -1191,6 +1276,7 @@ class Well(object):
         if DEBUG:
             print("LEAVING applyStitchingProjection")
 
+
     def createComposite(self, channels, name, calibration, targetPath):
         composite = RGBStackMerge().mergeHyperstacks(channels, False) if (len(channels) > 1) else channels[0]
         composite.setCalibration(calibration)
@@ -1198,6 +1284,7 @@ class Well(object):
         # self.applyCalibration(composite)
         self.saveImage(composite, targetPath + name)
         composite.close()
+
 
     def doSubtractBackground(self, names):
         path = self.experiment.getWorkFolder()
@@ -1213,6 +1300,7 @@ class Well(object):
             # self.applyCalibration()
             self.saveImage(imp, path + "/" + name)
             imp.close()
+
 
     def findAndSubtractBackground(self, radius, offset, iterations, skipLimit):
         """
@@ -1266,6 +1354,7 @@ class Well(object):
         IJ.run("HiLo")
         IJ.run("Enhance Contrast", "saturated=0.35")
 
+
     def getMaxIntensityAround(self, ip, x, y, mean, radius, width, height):
         """
         Find the maximal intensity value below mean in the radius around x,y
@@ -1288,6 +1377,7 @@ class Well(object):
                             maxInt = value
         return maxInt
 
+
     def doBackgroundCorrection(self, names):
         radius = self.getOptions().rollingball
         path = self.experiment.getWorkFolder()
@@ -1297,6 +1387,7 @@ class Well(object):
             IJ.run(imp, "Subtract Background...", "rolling=" + str(radius))
             self.saveImage(imp, path + "/" + name)
             imp.close()
+
 
     def doNormalize(self, names):
         if DEBUG:
@@ -1330,6 +1421,7 @@ class Well(object):
         if DEBUG:
             print("Leaving doNormalize")
 
+
     def doIndexFlatFieldCorrection(self, names, chan):
         path = this.experiment.getWorkFolder()
         for name in names:
@@ -1343,6 +1435,7 @@ class Well(object):
             imp2.close()
             imp3.close()
 
+
     def doPseudoFlatFieldCorrection(self, names):
         path = this.experiment.getWorkFolder()
         radius = self.experiment.getOptions().pseudoflatfield
@@ -1353,17 +1446,18 @@ class Well(object):
             self.saveImage(imp, path + "/" + name)
             imp.close()
 
+
     def createStack(self, dims, outputPath):
         if DEBUG:
             print("ENTERING createStack")
         slices = dims[2]
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         channels = dims[4]
         path = self.experiment.getPath()
         rgbStackMerge = RGBStackMerge() # Never used !?!?
         fields = self.getFields()
         
-        for t in range(0, timePoints):
+        for t in timePoints:
             for f in range(0, len(fields)):
                 channelImps = []
                 for c in range(1, channels + 1):
@@ -1379,7 +1473,6 @@ class Well(object):
                     imp = ImagesToStack.run(imps)
                     IJ.run(imp, self.getOptions().colours[c - 1], "")
                     name = removeComponentFromName(image, ['p']) # image[:9] + image[12:]
-                    print("Name: "+name)
                     IJ.log("Creating Z-Stack of image : " + name)
                     minDisplay, maxDisplay = (
                         self.getOptions().min_max_display[c - 1][0],
@@ -1400,17 +1493,18 @@ class Well(object):
                     for im in channelImps:
                         im.close()
 
+
     def createMIP(self, dims, outputPath):
         if DEBUG:
             print("ENTERING createMIP")
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         channels = dims[4]
 
         path = self.experiment.getPath()
         rgbStackMerge = RGBStackMerge()
 
         fields = self.getFields()
-        for t in range(0, timePoints):
+        for t in timePoints:
             index = 0
             for f in fields:
                 channelImps = []
@@ -1458,17 +1552,18 @@ class Well(object):
                         im.close()
                 index = index + 1
 
+
     def createMIPFromInputImages(self, dims, channel, outputPath):
         if DEBUG:
             print("ENTERING createMIPFromInputImages")
-        timePoints = dims[3]
+        timePoints = self.getTimePoints()
         path = self.experiment.getPath()
         if DEBUG:
             print("path: " + path)
         if DEBUG:
             print("outputPath: " + outputPath)
         fields = self.getFields()
-        for t in range(0, timePoints):
+        for t in timePoints:
             index = 0
             for f in fields:
                 images = self.getImagesForTimeFieldAndChannel(t, f, channel)
@@ -1503,6 +1598,7 @@ class Well(object):
             print("LEAVING createMIPFromInputImages")
         return title
 
+
     def getImagesInFolder(self, inputPath, getFullPath=False, contains=""):
         coordName = (
             "r" + str(self.getRow()).zfill(2) + "c" + str(self.getColumn()).zfill(2)
@@ -1528,6 +1624,7 @@ class Well(object):
                 )
             ]
         return imagesURL
+
 
     def projectMosaic(self, stackPath, outputFolder, channelExport="All"):
         if DEBUG:
@@ -1584,6 +1681,7 @@ class Well(object):
         self.saveImage(imp, aFile)
         imp.close()
 
+
     def mergeChannels(self, dims):
         channels = dims[4]
         if channels == 1:
@@ -1621,33 +1719,23 @@ class Well(object):
             imp.close()
         self.deleteFile("", toBeDeleted)
 
+
     def mipImages(self, images, outputPath):
         imps = []
         for url in images:
             channel = int(os.path.basename(url).split("ch")[1].split("sk")[0])
             title = url.split("/")[-1]
-
             imp = self.openImage(url)
-
-            print("Step A")
-            # imp = IJ.getImage()
-            print("Step B")
             calibration = imp.getCalibration()
-            print("Step C")
             projImp = ZProjector.run(imp, "max")
-            print("Step D")
             minDisplay, maxDisplay = (
                 self.getOptions().min_max_display[channel - 1][0],
                 self.getOptions().min_max_display[channel - 1][1],
             )
-            print("Step E")
             projImp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
-
-            print("Step F")
             self.saveImage(projImp, outputPath + title)
             imps.append(projImp)
             imp.close()
-            # projImp.close()
         
         if self.getOptions().projectionMosaicComposite:
             # title[:6] + "-" + title[11:]
@@ -1659,7 +1747,10 @@ class Well(object):
             for im in imps:
                 im.close()
 
+
     def getImagesForTimeFieldAndChannel(self, timePoint, field, channel):
+        if DEBUG:
+            print("ENTERING getImagesForTimeFieldAndChannel, t=" + str(timePoint) + ", f=" + str(field) + ", c=" + str(channel))
         allImages = self.getImages()
         images = [
             image
@@ -1668,7 +1759,10 @@ class Well(object):
             and image.getChannel() == channel
             and image.getField() == field
         ]
+        if DEBUG:
+            print("Leaving getImagesForTimeFieldAndChannel")
         return images
+
 
     def getMergedImageName(self):
         allImages = self.getImages()
@@ -1679,44 +1773,31 @@ class Well(object):
         # strippedURL = strippedURL[:7] + strippedURL[10:]
         return strippedURL
 
+
     def getImagesForZPosTimeAndChannel(self, zPosition, timePoint, channel):
+        if DEBUG:
+            print("ENTERING getImagesForZPosTimeAndChannel, z=" + str(zPosition) + ", t=" + str(timePoint) + ", c=" + str(channel))
         allImages = self.getImages()
-        images = [
-            image
-            for image in allImages
-            if image.getPlane() == zPosition
-            and image.getChannel() == channel
-            and image.getTime() == timePoint
-        ]
+        images = []
+        for image in allImages:
+            print(image)
+            if image.getPlane() == zPosition and image.getChannel() == channel and image.getTime() == timePoint:
+                images.append(image)        
         return images
+
 
     def copyImagesToWorkFolder(self, images):
         srcPath = self.experiment.getPath()
         path = self.experiment.getWorkFolder()
         names = [image.getURL() for image in images]
         newNames = [str(names.index(name) + 1).zfill(8) + ".tif" for name in names]
-
         self.copyImages(srcPath, path, names, newNames, images)
-
-        # for idx, dest in enumerate(newNames):
-        #     fullPath = os.path.join(path, dest)
-        #     if not os.path.isfile(fullPath):
-        #         continue
-
-        #     img = IJ.openImage(fullPath)
-        #     dim = str(self.images[idx].getPixelWidth()*1000000)
-        #     IJ.run(img, "Properties...", "pixel_width={0} pixel_height={0} voxel_depth=1.0000".format(dim))
-        #     calib = img.getCalibration()
-        #     calib.setXUnit("um")
-        #     calib.setYUnit("um")
-        #     calib.setZUnit("pixel")
-        #     IJ.save(img, fullPath)
-        #     img.close()
-
         return names, newNames
+
 
     def emptyWorkFolder(self):
         shutil.rmtree(self.experiment.getWorkFolder())
+
 
     def runGridCollectionStitching(self):
         options = self.getOptions()
@@ -1737,22 +1818,6 @@ class Well(object):
             + str(options.abs_displacement_threshold)
             + " "
         )
-
-        # parameters = (
-        #     "type=[Positions from file] "
-        #     + "order=[Defined by TileConfiguration] "
-        #     + "directory=["
-        #     + self.experiment.getWorkFolder()
-        #     + "] "
-        #     + "layout_file=TileConfiguration.txt "
-        #     + "fusion_method=[Linear Blending] "
-        #     + "regression_threshold=0.30 "
-        #     + "max/avg_displacement_threshold=2.50 "
-        #     + "absolute_displacement_threshold=3.50 "
-        # )
-        
-        # if self.getOptions().computeOverlap:
-        #    parameters = parameters + "compute_overlap "
         parameters = (
             parameters
             + "subpixel_accuracy "
@@ -1762,11 +1827,11 @@ class Well(object):
         
         IJ.run("Grid/Collection stitching", parameters)
 
+
     def createHyperstack(self):
         Interpreter.batchMode = True
         name = self.plate.getName() + "_" + self.getID()
         dims = self.getDimensions()
-        print(dims)
         mosaic = IJ.createImage(
             name, "16-bit composite-mode", dims[0], dims[1], dims[4], dims[2], dims[3]
         )
@@ -1795,6 +1860,7 @@ class Well(object):
             mosaic.setPosition(c, 1, 1)
             IJ.run("Enhance Contrast", "saturated=0.35")
         mosaic.repaintWindow()
+
 
     def renameAllOutputs(self):
         wellName = self.getName()
@@ -1825,14 +1891,17 @@ class Well(object):
                     self.experiment.getProjectionMosaicChannelFolder()
                 )
 
+
     def getChannelNames(self):
         dims = self.getDimensions()
+        timePoints = self.getTimePoints()
         channels = dims[4]
         channelNames = []
         for c in range(1, channels + 1):
-            images = self.getImagesForZPosTimeAndChannel(1, 0, c)
+            images = self.getImagesForZPosTimeAndChannel(1, timePoints[0], c)
             channelNames.append(images[0].getChannelName())
         return channelNames
+
 
     def addWellAndChannelNameToImages(self, inputPath, outputPath=None):
         if outputPath:
@@ -1862,6 +1931,7 @@ class Well(object):
 
             self.moveFile(inputPath, outputPath, image, wellName + newImage[6:])
 
+
     def getName(self):
         """
         Get the name of the well from the file wellNames.txt
@@ -1878,6 +1948,7 @@ class Well(object):
             if len(wellLine) > 0:
                 resultName = resultName + "-" + wellLine[0].split(":")[-1][:-1]
         return resultName
+
 
     def __str__(self):
         anID = self.getID()
@@ -1901,119 +1972,159 @@ class Well(object):
         return res
 
 
+
 class Image(object):
+ 
+ 
     def __init__(self, anID):
         self.id = anID
+
 
     def getID(self):
         return self.id
 
+
     def setState(self, state):
         self.state = state
+
 
     def getState(self):
         return self.state
 
+
     def setURL(self, url):
         self.url = url
+
 
     def getURL(self):
         return self.url
 
+
     def setRow(self, row):
         self.row = row
+
 
     def getRow(self):
         return self.row
 
+
     def setColumn(self, column):
         self.column = column
+
 
     def getColumn(self):
         return self.column
 
+
     def getField(self):
         return self.field
+
 
     def setField(self, field):
         self.field = field
 
+
     def getPlane(self):
         return self.plane
+
 
     def setPlane(self, plane):
         self.plane = plane
 
+
     def getTime(self):
         return self.time
+
 
     def setTime(self, time):
         self.time = time
 
+
     def getChannel(self):
         return self.channel
+
 
     def setChannel(self, channel):
         self.channel = channel
 
+
     def getChannelName(self):
         return self.channelName
+
 
     def setChannelName(self, name):
         self.channelName = name
 
+
     def getWidth(self):
         return self.width
+
 
     def setWidth(self, width):
         self.width = width
 
+
     def getHeight(self):
         return self.height
+
 
     def setHeight(self, height):
         self.height = height
 
+
     def getX(self):
         return self.x
+
 
     def getY(self):
         return self.y
 
+
     def getZ(self):
         return self.z
+
 
     def setX(self, x):
         self.x = x
 
+
     def setY(self, y):
         self.y = y
+
 
     def setZ(self, z):
         self.z = z
 
+
     def setPixelWidth(self, pixelWidth):
         self.pixelWidth = pixelWidth
+
 
     def getPixelWidth(self):
         return self.pixelWidth
 
+
     def setPixelHeight(self, pixelHeight):
         self.pixelHeight = pixelHeight
+
 
     def getPixelHeight(self):
         return self.pixelHeight
 
+
     def setFolder(self, folder):
         self.folder = folder
 
+
     def getFolder(self):
         return self.folder
+
 
     def getURLWithoutField(self):
         url = self.getURL()
         res = removeComponentFromName(url, ['f']) # url[:6] + url[9:]
         return res
+
 
     def __str__(self):
         res = (
@@ -2034,6 +2145,7 @@ class Image(object):
         return res
 
 
+
 class PhenixHCSExperiment(object):
     """
     PhenixHCSExperiment represents a high-content streaming experiment done with
@@ -2041,6 +2153,7 @@ class PhenixHCSExperiment(object):
     of wells. Each well contains a number of fields. The fields of one well form
     a mosaic of images. Each image can have multiple frames, z-slices and channels.
     """
+
 
     @classmethod
     def fromIndexFile(cls, path):
@@ -2054,20 +2167,46 @@ class PhenixHCSExperiment(object):
         path : str
             The path to the file Index.idx.xml
         """
+        if DEBUG:
+            print("ENTERING fromIndexFile")
         root = ET.parse(path).getroot()
         children = root.getchildren()
         experiment = PhenixHCSExperiment()
+        experiment.root = root
+        experiment.setPrefix()
         experiment.setUser(children[0].text)
         experiment.setInstrumentType(children[1].text)
         experiment.setPlates(children[2])
         experiment.setWells(children[3])
         experiment.setMaps(children[4])
         experiment.setImages(children[5])
+        
         experiment.setPath(os.path.dirname(path))
         return experiment
 
+
+    def setPrefix(self):
+       tag = self.root.tag
+       index = tag.find('}')
+       self.prefix = tag[:index+1]
+
+
+    def getTextOfElement(self, nameOfElement, node=None):
+        subtree = node
+        if subtree is None:
+            subtree = self.root
+        elem = subtree.find(".//" + self.prefix + nameOfElement)
+        text = None
+        if elem is not None:
+            text = elem.text
+        return text
+        
+
     def setExporter(self, anExporter):
+        if DEBUG:
+            print("ENTERING setExporter")
         self.exporter = anExporter
+
 
     def getOptions(self):
         if not self.exporter:
@@ -2075,17 +2214,22 @@ class PhenixHCSExperiment(object):
         else:
             return self.exporter.getOptions()
 
+
     def setPath(self, path):
         self.path = path
+
 
     def getPath(self):
         return self.path
 
+
     def getParentPath(self):
         return os.path.dirname(self.getPath())
 
+
     def getOutputPath(self):
         return self.getOptions().customOutput
+
 
     def getPathForDir(self, aDirectory):
         if len(self.getOptions().customOutput) > 1:
@@ -2097,56 +2241,74 @@ class PhenixHCSExperiment(object):
             os.mkdir(path)
         return path
 
+
     def getZStackFolder(self):
         return self.getPathForDir(_Z_STACK_FOLDER)
+
 
     def getProjectionsFolder(self):
         return self.getPathForDir(_PROJECTION_FOLDER)
 
+
     def getZStackMosaicFolder(self):
         return self.getPathForDir(_Z_STACK_MOSAIC_FOLDER)
+
 
     def getProjectionMosaicFolder(self):
         return self.getPathForDir(_PROJECTION_MOSAIC_FOLDER)
 
+
     def getProjectionMosaicRGBFolder(self):
         return self.getPathForDir(_PROJECTION_MOSAIC_RGB_FOLDER)
+
 
     def getProjectionMosaicChannelFolder(self):
         return self.getPathForDir(_PROJECTION_MOSAIC_CHANNEL_FOLDER)
 
+
     def getWorkFolder(self):
         return self.getPathForDir(_WORK_FOLDER)
+
 
     def getFlatfieldFolder(self):
         return self.getPathForDir(_FLATFIELD_FOLDER)
 
+
     def getOutFolder(self):
         return self.getPathForDir(_OUT_FOLDER)
+
 
     def setUser(self, user):
         self.user = user
 
+
     def getUser(self):
         return self.user
+
 
     def setInstrumentType(self, instrumentType):
         self.instrumentTYpe = instrumentType
 
+
     def getInstrumentType(self):
         return self.instrumentTYpe
+
 
     def getNrOfPlates(self):
         return len(self.getPlates())
 
+
     def getNrOfColumns(self):
         return 0
+
 
     def getNrOfRows(self):
         return 0
 
+
     def getNrOfWells(self):
         return len(self.getWells())
+
 
     def getPlates(self):
         """
@@ -2157,7 +2319,10 @@ class PhenixHCSExperiment(object):
             plates : list
                 A list of plate objects.
         """
+        if DEBUG:
+            print("ENTERING getPlates")
         return self.plates
+
 
     def setPlates(self, plates):
         """
@@ -2169,28 +2334,39 @@ class PhenixHCSExperiment(object):
         plates : str
          The string of the plates xml-element.
         """
+        if DEBUG:
+            print("ENTERING setPlates")
         self.plates = []
         plates = plates.getchildren()
         for plate in plates:
             self.plates.append(Plate(plate, self))
 
+
     def getWells(self):
         return self.wells
+
 
     def setWells(self, wells):
         self.wells = wells
 
+
     def getMaps(self):
         return self.maps
+
 
     def setMaps(self, maps):
         self.maps = maps
 
+
     def getImages(self):
         return self.images
 
+
     def setImages(self, images):
-        self.images = images
+        self.images = {}
+        for image in images:
+            self.images[image[0].text] = image
+
 
     def getNrOfImages(self):
         """
@@ -2202,6 +2378,7 @@ class PhenixHCSExperiment(object):
         nrOfImages : int
         """
         return len(self.getImages())
+
 
     def getWell(self, anID, aPlate):
         """
@@ -2219,14 +2396,17 @@ class PhenixHCSExperiment(object):
         wellObject : Well
            The well-object for the well with the id anID
         """
+        if DEBUG:
+            print("ENTERING Experiment>>getWell")
         for well in self.wells:
             if well[0].text == anID:
-                imageData = [well[i] for i in range(3, len(well))]
+                imageData = well[3:]
                 wellObject = Well(
                     anID, well[1].text, well[2].text, imageData, self, aPlate
                 )
                 return wellObject
         return None
+
 
     def getImage(self, anID):
         """
@@ -2242,28 +2422,44 @@ class PhenixHCSExperiment(object):
         result : Image
            The image-object for the image with the id anID
         """
-        for image in self.images:
-            if image[0].text == anID:
-                result = Image(anID)
-                result.setFolder(self.getPath())
-                result.setState(image[1].text)
-                result.setURL(image[2].text)
-                result.setRow(image[3].text)
-                result.setColumn(image[4].text)
-                result.setField(image[5].text)
-                result.setPlane(int(image[6].text))
-                result.setTime(int(image[7].text))
-                result.setChannel(int(image[8].text))
-                result.setChannelName(image[10].text)
-                result.setPixelWidth(float(image[15].text))
-                result.setPixelHeight(float(image[16].text))
-                result.setWidth(int(image[17].text))
-                result.setHeight(int(image[18].text))
-                result.setX(float(image[23].text))
-                result.setY(float(image[24].text))
-                result.setZ(float(image[25].text))
-                return result
-        return None
+        if not self.images.has_key(anID):
+            return None
+        image = self.images[anID]
+        result = Image(anID)
+        result.setFolder(self.getPath())
+        result.setState(image[1].text)
+        result.setURL(image[2].text)
+        result.setRow(image[3].text)
+        result.setColumn(image[4].text)
+        result.setField(self.getTextOfElement('FieldID', node=image))
+        result.setPlane(int(self.getTextOfElement('PlaneID', node=image)))
+        result.setTime(int(self.getTextOfElement('TimepointID', node=image)))
+        result.setChannel(int(self.getTextOfElement('ChannelID', node=image)))
+        result.setChannelName(self.findChannelName(result.channel, image))
+        result.setPixelWidth(float(self.getTextOfElement('ImageResolutionX')))
+        result.setPixelHeight(float(self.getTextOfElement('ImageResolutionY')))
+        result.setWidth(int(self.getTextOfElement('ImageSizeX')))
+        result.setHeight(int(self.getTextOfElement('ImageSizeY')))
+        result.setX(float(self.getTextOfElement('PositionX', node=image)))
+        result.setY(float(self.getTextOfElement('PositionY', node=image)))
+        result.setZ(float(self.getTextOfElement('PositionZ', node=image)))
+        return result
+            
+            
+    def findChannelName(self, channel, node):
+        channelName = None
+        channelID = self.getTextOfElement("ChannelID", node=node)
+        if channelID is not None:
+            channelID = int(channelID)
+        channelName = self.getTextOfElement("ChannelName", node=node)
+        if channelName is None:
+            maps = self.root.find(".//" + self.prefix + "Maps")
+            aMap = maps[2]
+            for entry in aMap:
+                if "ChannelID" in entry.attrib and entry.attrib["ChannelID"] == str(channelID):
+                    channelName = self.getTextOfElement("ChannelName", node=entry)
+        return channelName
+        
 
     def __str__(self):
         nrOfPlates = self.getNrOfPlates()
@@ -2294,6 +2490,7 @@ class PhenixHCSExperiment(object):
         return res
 
 
+
 if "getArgument" in globals():
     if not hasattr(zip, "__call__"):
         del zip  # the python function zip got overriden by java.util.zip, so it must be deleted to get the zip-function to work.
@@ -2304,7 +2501,10 @@ if "getArgument" in globals():
     sys.exit(0)
 
 
+
 class SplitIntoChunksOfSizeTest(unittest.TestCase):
+
+
     def testSplitIntoChunksOfSize(self):
         chunks = splitIntoChunksOfSize("1234567890", 2)
         self.assertEqual(len(chunks[0]), 2)
@@ -2318,7 +2518,10 @@ class SplitIntoChunksOfSizeTest(unittest.TestCase):
         self.assertEqual(chunks[-1], "9")
 
 
+
 class TransformCoordinatesTest(unittest.TestCase):
+
+
     def testTransformCoordinates(self):
         xCoords, yCoords = transformCoordinates(
             [-10, -5, -1, 0, 1, 5, 10], [-10, -5, -1, 0, 1, 5, 10]
@@ -2340,16 +2543,21 @@ class TransformCoordinatesTest(unittest.TestCase):
             self.assertEqual(actual, expected)
 
 
+
 class PhenixHCSExperimentTest(unittest.TestCase):
+    
+    
     folder = None
     path = None
     exp = None
+
 
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.folder = IJ.getDir("macros") + "toolsets/opera_export_tools_test"
         self.path = self.folder + "/Index.idx.xml"
         self.exp = PhenixHCSExperiment.fromIndexFile(self.path)
+
 
     def testFromIndexFile(self):
         exp = PhenixHCSExperiment.fromIndexFile(self.path)
@@ -2369,6 +2577,7 @@ class PhenixHCSExperimentTest(unittest.TestCase):
         self.assertEquals(len(exp.getImages()), 24)
         self.assertEquals(exp.getNrOfImages(), 24)
 
+
     def testGetWell(self):
         exp = self.exp
         well = exp.getWell("0202", exp.getPlates()[0])
@@ -2383,6 +2592,7 @@ class PhenixHCSExperimentTest(unittest.TestCase):
         self.assertEquals(well.getRow(), "2")
         self.assertEquals(well.getColumn(), "3")
         self.assertEquals(well.getID(), "0203")
+
 
     def testGetImage(self):
         exp = self.exp
@@ -2408,9 +2618,13 @@ class PhenixHCSExperimentTest(unittest.TestCase):
         self.assertEquals(image.getURLWithoutField(), "r02c03p01-ch1sk1fk1fl1.tiff")
 
 
+
 class PlateTest(unittest.TestCase):
+
+
     plateXML = None
     experiment = None
+
 
     def setUp(self):
         unittest.TestCase.setUp(self)
@@ -2421,12 +2635,14 @@ class PlateTest(unittest.TestCase):
         self.plateXML = children[2][0]
         self.experiment = PhenixHCSExperiment.fromIndexFile(path)
 
+
     def testConstructor(self):
         plate = Plate(self.plateXML, self.experiment)
         self.assertEquals(plate.getName(), "Duc_plaque1_20210922")
         wells = plate.getWells()
         self.assertEquals(len(wells), 2)
         self.assertEquals(wells[0].plate, plate)
+
 
     def testStr(self):
         plate = Plate(self.plateXML, self.experiment)
@@ -2435,6 +2651,7 @@ class PlateTest(unittest.TestCase):
             "Plate (Duc_plaque1_20210922, 96 PerkinElmer CellCarrier Ultra, 8x12)",
         )
 
+
     def testGetWells(self):
         plate = Plate(self.plateXML, self.experiment)
         wells = plate.getWells()
@@ -2442,9 +2659,11 @@ class PlateTest(unittest.TestCase):
         self.assertEquals(wells[0].getID(), "0202")
         self.assertEquals(wells[1].getID(), "0203")
 
+
     def testGetName(self):
         plate = Plate(self.plateXML, self.experiment)
         self.assertEquals(plate.getName(), "Duc_plaque1_20210922")
+
 
 
 class OperaExporterTest(unittest.TestCase):
@@ -2475,24 +2694,30 @@ class OperaExporterTest(unittest.TestCase):
             path,
         ]
 
+
     def testConstructor(self):
         exporter = OperaExporter(self.params)
         self.assertEquals(len(exporter.getWells()), 1)
 
 
+
 class RemoveComponentsFromNameTest(unittest.TestCase):
     
+    
     baseName = None
+
 
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.baseName = "r01c02f103p25-ch1sk1fk1fl2.tiff"
+
 
     def testBadNaming(self):
         res = removeComponentFromName("azertyuiop", ['f'])
         self.assertEquals(res, "untitled.tiff")
         res = removeComponentFromName("", ['f'])
         self.assertEquals(res, "untitled.tiff")
+
 
     def testRemove(self):
         f = removeComponentFromName(self.baseName, ['f'])
@@ -2501,10 +2726,12 @@ class RemoveComponentsFromNameTest(unittest.TestCase):
         self.assertEquals(p, "r01c02f103-ch1sk1fk1fl2.tiff")
         n = removeComponentFromName(self.baseName, ['f', 'p', 'r', 'c', 'ch', 'sk', 'fk', 'fl'])
         self.assertEquals(n, "-.tiff")
-        
+      
+      
     def testInvalidRequest(self):
         res = removeComponentFromName(self.baseName, 'd')
         self.assertEquals(res, self.baseName)
+
 
 
 def suite():
@@ -2528,6 +2755,7 @@ def suite():
 
     suite.addTest(OperaExporterTest("testConstructor"))
     return suite
+
 
 
 folder = IJ.getDir("macros") + "toolsets/opera_export_tools_test"
