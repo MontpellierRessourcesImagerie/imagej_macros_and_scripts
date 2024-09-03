@@ -577,9 +577,12 @@ function selectWells() {
 function setIndexFile() {
 	_WELLS_DEFINED = false;
 	_CHANNELS_DEFINED = false;
-	newFile  = getDir("Please select the folder containing the index file (Index.idx.xml)!");
-	newFile = replace(newFile, "\\", "/");
-	newFile = newFile + "Index.idx.xml";
+	newPath  = getDir("Please select the folder containing the index file (Index.idx.xml or Index.xml)!");
+	newPath = replace(newPath, "\\", "/");
+	newFile = newPath + "Index.idx.xml";
+    if (!File.exists(newFile)) {
+        newFile = newPath + "Index.xml";    
+    }
 	if (File.exists(newFile)) {
 		setParameterDefault("indexFile",newFile);
 	}else{

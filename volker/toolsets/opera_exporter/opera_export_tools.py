@@ -841,18 +841,14 @@ class Well(object):
 
             if makeCompositeStack:
                 newName = removeComponentFromName(name, ['ch', 'p'])    
-                self.createComposite(
-                    channelImps, newName, calibration, targetFolderStack
-                )
+                self.createComposite(channelImps, newName, calibration, targetFolderStack)
             else:
                 for im in channelImps:
                     im.close()
 
             if makeCompositeProj:
                 newName = removeComponentFromName(name, ['ch', 'p'])
-                self.createComposite(
-                    channelProjs, newName, calibration, targetFolderProjection
-                )
+                self.createComposite(channelProjs, newName, calibration, targetFolderProjection)
             else:
                 for im in channelProjs:
                     im.close()
@@ -1263,12 +1259,11 @@ class Well(object):
                 )
                 imp.getProcessor().setMinAndMax(minDisplay, maxDisplay)
                 channelImps.append(imp)
-                # self.applyCalibration(imp)
                 self.saveImage(imp, outputPath + name)
             if self.getOptions().projectionMosaicComposite:
                 newName = removeComponentFromName(title, ['f', 'p', 'ch'])
                 self.createComposite(
-                    channelImps, newName, calibration, outputPath
+                    channelImps, newName, channelImps[0].getCalibration(), outputPath
                 )
             else:
                 for im in channelImps:
