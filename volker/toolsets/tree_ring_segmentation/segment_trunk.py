@@ -29,6 +29,9 @@ INTERPOLATION_INTERVAL = 100
 VECTORS = (0.7372839, 0.63264143, 0.23701741,
            0.91958255, 0.35537627, 0.16755785,
            0.69067574, 0.64728355, 0.3224746)
+BARK_VECTORS = (0.7898954, 0.5587874, 0.25262988,
+                0.5932292, 0.7353205, 0.3276933,
+                0.57844025, 0.5767322, 0.5768768)           
 PITH_MIN_SIZE = 200
 AUTO_THRESHOLDING_METHOD = "Mean"           
 
@@ -50,6 +53,7 @@ class TreeRingAnalyzer:
         self.interpolationInterval = interpolationInterval
         self.scaledDownMask = None
         self.vectors = None
+        self.barkVectors = None
         self.thresholdingMethod = thresholdingMethod
         self.pithMinSize = 500
         
@@ -109,11 +113,12 @@ class TreeRingAnalyzer:
         sm.init("wood", *self.vectors)
         labelFiltering = LabelSizeFiltering(RelationalOperator.GT, self.pithMinSize)
         
-        stack = sm.compute(False, True, self.image);
+        stack = sm.compute(False, True, self.image)
         imp = ImagePlus(self.image.getTitle() + "-(Colour_2)", stack[1])
         mask = self.calculateScaledDownMask(imp)        
         labelsProcessor = componentsLabeling.computeLabels(mask.getProcessor())
         labelsProcessor = labelFiltering.process(labelsProcessor)
+        LabelImages.remapLabels(labelsProcessor)
         labels = LabelImages.findAllLabels(labelsProcessor)
         label = self.getLabelClosestToCenter(labelsProcessor, labels)
         ip = LabelImages.binarize(labelsProcessor, label)
@@ -128,6 +133,12 @@ class TreeRingAnalyzer:
         self.addRoiToOverlay(roi)
         
     
+    def segmentBark(self):
+        sm = StainMatrix()
+        sm.init("bark", *self.barkVectors)
+        stack = sm.compute(False, True, self.image)
+        
+        
     def getLabelClosestToCenter(self, labelsProcessor, labels):
         boxes = BoundingBox.boundingBoxes(labelsProcessor, labels, None)
         imageCenterX = labelsProcessor.getWidth() / 2.0
@@ -157,6 +168,7 @@ analyzer = TreeRingAnalyzer(image, sigma=SIGMA,
                                    interpolationInterval=INTERPOLATION_INTERVAL,
                                    thresholdingMethod=AUTO_THRESHOLDING_METHOD)
 analyzer.vectors = VECTORS   
+analyzer.barkVectors = BARK_VECTORS
 analyzer.pithMinSize = PITH_MIN_SIZE
 analyzer.segmentTrunk()
 analyzer.segmentPith()
