@@ -1,22 +1,22 @@
 from ij import IJ
 from ij import ImagePlus
+from ij import Prefs
 from fr.cnrs.mri.cialib.tree_rings import TreeTrunkGroundTruthHelper
 
-INTERVAL = 50
-CLOSING = 2
-GRADIANT = 2
-DILATION = 1
-RING_MASKS_ONLY = True
+SAVE_OPTIONS = True
 
 
 def main():
-    image = IJ.getImage()
-    treeTrunkGTHelper = TreeTrunkGroundTruthHelper(image)
-    treeTrunkGTHelper.interval = INTERVAL
-    treeTrunkGTHelper.closing_radius = CLOSING
-    treeTrunkGTHelper.gradiant_radius = GRADIANT
-    treeTrunkGTHelper.dilation_radius = DILATION
-    treeTrunkGTHelper.ringsOnly = RING_MASKS_ONLY
+    optionsOnly = Prefs.get("mri.options.only", "false")
+    if optionsOnly=="true":
+        treeTrunkGTHelper = TreeTrunkGroundTruthHelper(None)
+    else:
+        image = IJ.getImage()
+        treeTrunkGTHelper = TreeTrunkGroundTruthHelper(image)
+    if not treeTrunkGTHelper.showCreateMaskFromRoisDialog(SAVE_OPTIONS):
+        return
+    if optionsOnly=='true':        
+        return
     mask = treeTrunkGTHelper.createMaskFromRois()
     mask.show()
 
