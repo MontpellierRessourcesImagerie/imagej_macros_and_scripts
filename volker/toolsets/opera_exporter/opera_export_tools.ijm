@@ -296,13 +296,6 @@ function getStitchingBaseDialog(channelNames){
 
 	stitchingBase = Dialog.getRadioButton();
 	_STITCH_ON_PROJECTION = (stitchingBase == _STITCHING_BASE[1]);
-
-	// if(stitchingBase == _STITCHING_BASE[1]){
-	// 	_STITCH_ON_PROJECTION = true;
-	// }else{
-	// 	_STITCH_ON_PROJECTION = false;
-	// }
-	
 	_ZSLICE = Dialog.getNumber();
 	
 	chan = Dialog.getChoice();
@@ -366,7 +359,6 @@ function addFusionDialog(){
 	
 	Dialog.addCheckbox("Compute Overlap", _FUSION_COMPUTE_OVERLAP);
 	Dialog.addChoice("method: ", _FUSION_METHODS, _FUSION_METHOD);
-	//Dialog.addMessage("Threshold:");
 	Dialog.addNumber("regression threshold: ", _FUSION_REGRESSION_THRESHOLD);
 	Dialog.addNumber("max/avg displacement threshold: ", _FUSION_DISPLACEMENT_THRESHOLD);
 	Dialog.addNumber("absolute displacement threshold: ", _FUSION_ABS_DISPLACEMENT_THRESHOLD);
@@ -779,8 +771,6 @@ macro "Create BG/FG Images"{
 	for(chan=1;chan<=nbChannels;chan++){
 		coeffsBG = getFlatfieldBGCoefficients(chan);
 		coeffsFG = getFlatfieldFGCoefficients(chan);
-		//Array.print(coeffsBG);
-		//Array.print(coeffsFG);
 		chanMean = channelMeans[chan-1];
 		originalBackgroundID = createBackgroundImage("background-"+chan,coeffsBG,imageSize,chanMean);
 		originalForegroundID = createBackgroundImage("foreground-"+chan,coeffsFG,imageSize,chanMean);
@@ -854,8 +844,6 @@ function prepareFlatfieldFolder(){
 	for(chan=1;chan<=nbChannels;chan++){
 		coeffs = getFlatfieldCoefficients(chan);
 		chanMean = channelMeans[chan-1];
-		//print("Creating flatfield image for channel "+chan+", using mean = "+chanMean);
-		//Array.print(Array.concat("Coefficients:",coeffs));
 		originalBackgroundID = createBackgroundImage("background",coeffs,imageSize,chanMean);
 		saveAs(outDirectory+chan+".tiff");
 		close();
@@ -866,7 +854,6 @@ function getValueOfPixelAfterPolynom(coeffs,x,y,scaleX,scaleY){
 	polX = (x/(0.5*scaleX))-1;
 	polY = (y/(0.5*scaleY))-1;
 	pixelValue = getValueOfPolynom(coeffs,x,y);
-	//print(pixelValue);
 	return pixelValue;
 }
 

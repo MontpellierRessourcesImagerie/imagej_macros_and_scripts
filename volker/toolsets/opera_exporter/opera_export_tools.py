@@ -1276,7 +1276,6 @@ class Well(object):
         composite = RGBStackMerge().mergeHyperstacks(channels, False) if (len(channels) > 1) else channels[0]
         composite.setCalibration(calibration)
         IJ.log("+ Composite: " + name)
-        # self.applyCalibration(composite)
         self.saveImage(composite, targetPath + name)
         composite.close()
 
@@ -1285,14 +1284,12 @@ class Well(object):
         path = self.experiment.getWorkFolder()
         for name in names:
             imp = self.openImage(path + "/" + name)
-            # imp = IJ.getImage()
             self.findAndSubtractBackground(
                 self.getOptions().subtract_background_radius,
                 self.getOptions().subtract_background_offset,
                 self.getOptions().subtract_background_iterations,
                 self.getOptions().subtract_background_skip,
             )
-            # self.applyCalibration()
             self.saveImage(imp, path + "/" + name)
             imp.close()
 
@@ -1402,7 +1399,6 @@ class Well(object):
         i = 0
         for name in names:
             imp = self.openImage(path + "/" + name)
-            # imp = IJ.getImage()
             IJ.run(imp, "Subtract...", "value=" + str(mins[i]))
             IJ.run(imp, "32-bit", "")
             IJ.run(imp, "Divide...", "value=" + str(maxs[i] - mins[i]))
@@ -1418,12 +1414,10 @@ class Well(object):
 
 
     def doIndexFlatFieldCorrection(self, names, chan):
-        path = this.experiment.getWorkFolder()
+        path = self.experiment.getWorkFolder()
         for name in names:
             imp1 = self.openImage(path + "/" + name)
-            # imp1 = IJ.getImage()
             imp2 = self.openImage(self.experiment.getFlatfieldFolder() + str(chan) + ".tiff")
-            # imp2 = IJ.getImage()
             imp3 = ImageCalculator.run(imp1, imp2, "Subtract create")
             self.saveImage(imp3, path + "/" + name)
             imp1.close()
@@ -1436,7 +1430,6 @@ class Well(object):
         radius = self.experiment.getOptions().pseudoflatfield
         for name in names:
             imp = self.openImage(path + "/" + name)
-            # imp = IJ.getImage()
             IJ.run("Pseudo flat field correction", "blurring=" + str(radius) + " hide")
             self.saveImage(imp, path + "/" + name)
             imp.close()
