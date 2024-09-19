@@ -37,7 +37,7 @@ macro "convert opera (f8) Action Tool Options" {
 
 function convertOpera() {
 	macrosDir = getDirectory("macros");
-	script = File.openAsString(macrosDir + "/toolsets/convert_Opera_To_Hyperstack.py");
+	script = File.openAsString(macrosDir + "/toolsets/Convert_Opera_To_Hyperstack.py");
 	dir = getDirectory("Select a directory!");
 	parameter = "dir=" + dir +", saturated="+_SATURATED+", outputFolder=" + _OUTPUT_FOLDER;
 	call("ij.plugin.Macro_Runner.runPython", script, parameter); 
