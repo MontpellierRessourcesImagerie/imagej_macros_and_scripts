@@ -21,7 +21,7 @@ macro "extract masks Action Tool - C000T4b12e" {
 
 
 macro "batch extract masks Action Tool - C000T4b12b" {
-    batchExtractMasks();
+    batchExtractMasksFromZip();
 }
 
 
@@ -40,7 +40,7 @@ function extractMasks() {
     }
 }
 
-
+// Unused
 function batchExtractMasks() {
     folder = getDir("Select the input folder!");
     if (!File.exists(folder + "masks/")) {
@@ -58,6 +58,41 @@ function batchExtractMasks() {
         close("*");
     }
 }
+
+function batchExtractMasksFromZip() {
+    folder = getDir("Select the input folder!");
+    if (!File.exists(folder + "masks/")) {
+        File.makeDirectory(folder + "masks/");
+    }
+    files = getFileList(folder);
+    zipFiles = filterFilesByExtension(files, "zip");
+    for (i=0; i<zipFiles.length; i++) {
+        zipFile = zipFiles[i];
+        image = replace(zipFile, ".zip", ".tif");
+        open(folder + image);
+        Overlay.remove()
+        roiManager("open", folder + zipFile);
+        run("From ROI Manager");
+        roiManager("reset");
+        extractMasks();
+        save(folder + "masks/" + image);
+        close("*");
+    }
+}
+
+
+function filterFilesByExtension(files, ext) {
+    results = newArray(0);    
+    for (i=0; i<files.length; i++) {
+        file = files[i];
+        if (!endsWith(file, "." + ext)) {
+            continue;
+        }
+        results = Array.concat(results, file);
+    }
+    return results;
+}
+
 
 function showOptionsForCommand(command) {
     call("ij.Prefs.set", "mri.options.only", "true");
