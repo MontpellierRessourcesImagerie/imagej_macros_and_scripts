@@ -146,6 +146,7 @@ function countAndMeasureDensity() {
 	run("Measure");
 	emptyArea = getResult("Area", nResults-1);
 	setColor(fgc);
+    setForegroundColor(255, 255, 255);
 	close();
     title = "axon number and density";
     handle = "[" + title + "]";
@@ -181,8 +182,10 @@ function addMyelinSelections() {
 			toBeRemoved = Array.concat(toBeRemoved, i);
 		}
 	}
-	roiManager("select", toBeRemoved);
-	roiManager("delete");
+    if (toBeRemoved.length > 0) {
+    	roiManager("select", toBeRemoved);
+    	roiManager("delete");
+    }
 	count = roiManager("Count");
 	for (i=0; i<count; i++) {
 		roiManager("select", i);
@@ -380,6 +383,7 @@ function createIndexedMask() {
 	run("Select All");
 	run("Copy");
 	selectImage(imageID);
+    run("Select None");
 	run("Duplicate...", " ");
 	newImageID = getImageID();
 	run("Paste");
