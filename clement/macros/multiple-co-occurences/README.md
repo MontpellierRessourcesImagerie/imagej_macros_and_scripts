@@ -5,3 +5,5 @@ Classifiers must be named "c1.classifier", "c2.classifier", ... for every channe
 For each image, channels will be split and segmented in a new folder.
 Each mask will be named "c1.tif", "c2.tif", ...
 These folders will be the source of the second script.
+
+Find some classifiers [here](https://dev.mri.cnrs.fr/attachments/download/3483/2064-classifiers.zip)
