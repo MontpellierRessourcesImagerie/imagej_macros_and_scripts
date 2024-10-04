@@ -7,7 +7,7 @@ A simple subtraction can restore the exclusivity.
 """
 
 _TABLE_NAME = "# co-occurences"
-_INPUT_FOLDER = "/home/benedetti/Documents/projects/2064-images-nelly/working/"
+_INPUT_FOLDER = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/output/"
 
 from ij import IJ
 from ij.plugin import ImageCalculator
@@ -81,7 +81,7 @@ def measure(combinations):
     rt = ResultsTable.getResultsTable(_TABLE_NAME) or ResultsTable()
     line = rt.size()
     rt.addRow()
-    rt.setValue("source", line, os.path.basename(_INPUT_FOLDER))
+    rt.setValue("source", line, os.path.basename(_INPUT_FOLDER).replace("-masks", ""))
     for c in combinations:
         name = "-".join([os.path.splitext(f)[0] for f in c])
         target_name = name + ".tif"

@@ -1,10 +1,10 @@
 
 # Contains "c1.classifier", "c2.classifier", ...
-_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/2064-images-nelly/training-set/"
+_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/coralie-co-occurance/classifiers/"
 # Contains the input image
-_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/2064-images-nelly/sources/"
-# Will contain the produced masks
-_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/2064-images-nelly/output/"
+_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/inputs/"
+# Will contain the produced masks (to be created before launching the macro)
+_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/output/"
 # Only images with this extension will be processed
 _EXTENSION        = ".czi"
 
@@ -22,7 +22,7 @@ def make_mask(img, channel_idx):
     classifier_path = os.path.join(_CLASSIFIERS_PATH, "c"+str(channel_idx)+".classifier")
     if not os.path.isfile(classifier_path):
         IJ.log("Can't find: " + classifier_path)
-        return
+        return None
     imgplus = ImagePlusAdapter.wrapImgPlus(img)
     sc = SegmentationTool()
     sc.openModel(classifier_path)
@@ -58,6 +58,8 @@ def classify_pixels(im_path, out_path):
     for c in range(1, nC+1):
         c_img = d.run(img, c, c, 1, nS, 1, nF)
         raw = make_mask(c_img, c)
+        if raw is None:
+        	continue
         binary = clean_mask(raw)
         export_path = os.path.join(out_path, "c"+str(c)+".tif")
         IJ.save(binary, export_path)
