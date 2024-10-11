@@ -144,9 +144,14 @@ macro "Install or Update Action Tool - N66C000D2dD2eD3cD58D59D5aD67D75Db3DbeDc3D
 var dCmds = newMenu("Images Menu Tool", newArray("download dataset", "mask_green.tif", "mask_red.tif", "nile_mask.tif", "test_mask.tif"));
     
 macro "Images Menu Tool - CfffL00f0L0161CeeeD71CfffL81f1L0252CeeeD62C666D72CeeeD82CfffL92f2L0353CeeeD63C444D73CeeeD83CfffL93f3L0454CeeeD64C444D74CeeeD84CfffL94f4L0555CeeeD65C444D75CeeeD85CfffL95f5L0636CdddD46CfffD56CeeeD66C444D76CeeeD86CfffD96CdddDa6CfffLb6f6L0727CdddD37C444D47CbbbD57CeeeD67C444D77CeeeD87CbbbD97C444Da7CdddDb7CfffLc7f7L0838CbbbD48C444D58C999D68C444D78C999D88C444D98CbbbDa8CfffLb8f8L0949CbbbD59C333D69C111D79C333D89CbbbD99CfffLa9f9L0a5aCbbbD6aC444D7aCbbbD8aCfffL9afaL0b6bCeeeD7bCfffL8bfbL0c2cCeeeL3cbcCfffLccfcL0d1dCeeeD2dC666D3dC444L4dadC666DbdCeeeDcdCfffLddfdL0e2eCeeeL3ebeCfffLcefeL0fff" {
-       cmd = getArgument();
-       URLS = newArray('https://dev.mri.cnrs.fr/attachments/download/2654/mask_green.tif', 'https://dev.mri.cnrs.fr/attachments/download/2655/mask_red.tif', 'https://dev.mri.cnrs.fr/attachments/download/2656/nile_mask.tif', 'https://dev.mri.cnrs.fr/attachments/download/2657/test_mask.tif');
-       MRI_DATA_FOLDER = getDirectory("imagej") + "mri-datasets" + "/";
+       cmd = getArgument();       
+       URLS = newArray('https://dev.mri.cnrs.fr/attachments/download/3514/mask_green.tif', 'https://dev.mri.cnrs.fr/attachments/download/3513/mask_red.tif', 'https://dev.mri.cnrs.fr/attachments/download/3515/nile_mask.tif', 'https://dev.mri.cnrs.fr/attachments/download/3512/test_mask.tif');
+       MRI_DATA_FOLDER = getDirectory("imagej");
+       if (startsWith(MRI_DATA_FOLDER, "./")) {
+           cwd = getDir("cwd");
+           MRI_DATA_FOLDER = replace(MRI_DATA_FOLDER, "./", cwd);
+       }
+       MRI_DATA_FOLDER = MRI_DATA_FOLDER + "mri-datasets" + "/";
        DATASET_DIR = MRI_DATA_FOLDER + "width-profile/";
        DATASET_NAME = "width-profile-dataset";
        if (!File.exists(MRI_DATA_FOLDER)) File.makeDirectory(MRI_DATA_FOLDER);
