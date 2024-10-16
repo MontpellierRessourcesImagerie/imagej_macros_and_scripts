@@ -6,8 +6,6 @@ import numpy as np
 import pymeshlab
 import subprocess
 from scipy.spatial import KDTree, Delaunay
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import csv
 from multiprocessing import Pool
 from functools import partial
@@ -1042,12 +1040,12 @@ def extractMeasures(state):
 #
 
 state = State(
-    outputDir="/home/benedetti/Documents/projects/7-isosurface/dev/produced-02",
-    inputs="/home/benedetti/Documents/projects/7-isosurface/dev/testing-set-02",
+    outputDir="/home/benedetti/Downloads/wrl-v2/output/",
+    inputs="/home/benedetti/Downloads/wrl-v2/",
     clear=False,
     csvName="results.csv",
-    blender="blender",
-    secondaryScript="./generateBlenderFile.py",
+    blender="/home/benedetti/Desktop/blender-formation-3d/blender-4.1.1-linux-x64/blender",
+    secondaryScript="/home/benedetti/Documents/imagej_macros_and_scripts/clement/stand-alones/astrocytesBloodVessels/generateBlenderFile.py",
     flushDir=True,
     resetAll=True
 )

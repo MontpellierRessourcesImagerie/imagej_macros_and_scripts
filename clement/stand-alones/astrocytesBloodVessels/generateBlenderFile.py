@@ -21,12 +21,13 @@ def createSurfaceMaterial():
     nodes.clear()
     node_0 = nodes.new('ShaderNodeMapRange')
     node_0.name = 'Map Range'
+    print(node_0.inputs.keys())
     node_0.inputs['Value'].default_value = 1.0 # Value
     node_0.inputs['From Min'].default_value = 0.0 # From Min
     node_0.inputs['From Max'].default_value = 1.0 # From Max
     node_0.inputs['To Min'].default_value = 0.5 # To Min
     node_0.inputs['To Max'].default_value = 0.8999999761581421 # To Max
-    node_0.inputs['Steps'].default_value = 4.0 # Steps
+    #node_0.inputs['Steps'].default_value = 4.0 # Steps
     node_1 = nodes.new('ShaderNodeNewGeometry')
     node_1.name = 'Geometry'
     node_2 = nodes.new('ShaderNodeVertexColor')
@@ -106,29 +107,29 @@ def createCageMaterial():
     node_0 = nodes.new('ShaderNodeBsdfPrincipled')
     node_0.name = 'Principled BSDF'
     node_0.inputs['Base Color'].default_value = (0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0) # Base Color
-    node_0.inputs['Subsurface'].default_value = 0.0 # Subsurface_01
-    node_0.inputs['Subsurface Radius'].default_value = (1.0, 0.20000000298023224, 0.10000000149011612) # Subsurface Radius_02
-    node_0.inputs['Subsurface Color'].default_value = (0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0) # Subsurface Color_03
-    node_0.inputs['Subsurface IOR'].default_value = 1.399999976158142 # Subsurface IOR_04
-    node_0.inputs['Subsurface Anisotropy'].default_value = 0.0 # Subsurface Anisotropy_05
+    #node_0.inputs['Subsurface'].default_value = 0.0 # Subsurface_01
+    #node_0.inputs['Subsurface Radius'].default_value = (1.0, 0.20000000298023224, 0.10000000149011612) # Subsurface Radius_02
+    #node_0.inputs['Subsurface Color'].default_value = (0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0) # Subsurface Color_03
+    #node_0.inputs['Subsurface IOR'].default_value = 1.399999976158142 # Subsurface IOR_04
+    #node_0.inputs['Subsurface Anisotropy'].default_value = 0.0 # Subsurface Anisotropy_05
     node_0.inputs['Metallic'].default_value = 0.0 # Metallic_06
-    node_0.inputs['Specular'].default_value = 0.5 # Specular_07
-    node_0.inputs['Specular Tint'].default_value = 0.0 # Specular Tint_08
+    #node_0.inputs['Specular'].default_value = 0.5 # Specular_07
+    #node_0.inputs['Specular Tint'].default_value = 0.0 # Specular Tint_08
     node_0.inputs['Roughness'].default_value = 0.5 # Roughness_09
     node_0.inputs['Anisotropic'].default_value = 0.0 # Anisotropic_10
-    node_0.inputs['Anisotropic Rotation'].default_value = 0.0 # Anisotropic Rotation_11
-    node_0.inputs['Sheen'].default_value = 0.0 # Sheen_12
-    node_0.inputs['Sheen Tint'].default_value = 0.5 # Sheen Tint_13
-    node_0.inputs['Clearcoat'].default_value = 0.0 # Clearcoat_14
-    node_0.inputs['Clearcoat Roughness'].default_value = 0.029999999329447746 # Clearcoat Roughness_15
-    node_0.inputs['IOR'].default_value = 1.4500000476837158 # IOR_16
-    node_0.inputs['Transmission'].default_value = 0.0 # Transmission_17
-    node_0.inputs['Transmission Roughness'].default_value = 0.0 # Transmission Roughness_18
-    node_0.inputs['Emission'].default_value = (0.0, 0.0, 0.0, 1.0) # Emission_19
+    #node_0.inputs['Anisotropic Rotation'].default_value = 0.0 # Anisotropic Rotation_11
+    #node_0.inputs['Sheen'].default_value = 0.0 # Sheen_12
+    #node_0.inputs['Sheen Tint'].default_value = 0.5 # Sheen Tint_13
+    #node_0.inputs['Clearcoat'].default_value = 0.0 # Clearcoat_14
+    #node_0.inputs['Clearcoat Roughness'].default_value = 0.029999999329447746 # Clearcoat Roughness_15
+    #node_0.inputs['IOR'].default_value = 1.4500000476837158 # IOR_16
+    #node_0.inputs['Transmission'].default_value = 0.0 # Transmission_17
+    #node_0.inputs['Transmission Roughness'].default_value = 0.0 # Transmission Roughness_18
+    node_0.inputs['Emission Color'].default_value = (0.0, 0.0, 0.0, 1.0) # Emission_19
     node_0.inputs['Emission Strength'].default_value = 1.0 # Emission Strength_20
     node_0.inputs['Alpha'].default_value = 1.0 # Alpha_21
-    node_0.inputs['Normal'].default_value = (0.0, 0.0, 0.0) # Normal_22
-    node_0.inputs['Clearcoat Normal'].default_value = (0.0, 0.0, 0.0) # Clearcoat Normal_23
+    #node_0.inputs['Normal'].default_value = (0.0, 0.0, 0.0) # Normal_22
+    #node_0.inputs['Clearcoat Normal'].default_value = (0.0, 0.0, 0.0) # Clearcoat Normal_23
     node_0.inputs['Tangent'].default_value = (0.0, 0.0, 0.0) # Tangent
     node_1 = nodes.new('ShaderNodeOutputMaterial')
     node_1.name = 'Material Output'
@@ -181,21 +182,21 @@ def importObjects(state, mainCollection):
         mainCollection.children.link(collection)
 
         # Importing the cage object (the before)
-        center_object = bpy.ops.import_scene.obj(
+        center_object = bpy.ops.wm.obj_import(
             filepath=production['center'],
-            split_mode='OFF',
-            axis_forward='Y',
-            axis_up='Z'
+            use_split_objects=False,
+            forward_axis='Y',
+            up_axis='Z'
         )
 
         center_ref = bpy.context.selected_objects[0] if center_object == {'FINISHED'} else None
 
         # Importing the cleaned object (the surface built)
-        cleaned_object = bpy.ops.import_scene.obj(
+        cleaned_object = bpy.ops.wm.obj_import(
             filepath=production['cleaned'],
-            split_mode='OFF',
-            axis_forward='Y',
-            axis_up='Z'
+            use_split_objects=False,
+            forward_axis='Y',
+            up_axis='Z'
         )
 
         cleaned_ref = bpy.context.selected_objects[0] if cleaned_object == {'FINISHED'} else None
