@@ -11,6 +11,7 @@ CONNECTIVITY = 26
 BIT_DEPTH = 16
 PIXEL_WIDTH = 0.179
 VOXEL_DEPTH = 0.5
+UNIT = "micron"
 N_DIRS = 13
 _TABLE_NAME = "cluster size"
 
@@ -30,7 +31,11 @@ def main():
         for channelIndex, mask in enumerate(masks):
             maskPath = os.path.join(path, mask)
             image = IJ.openImage(maskPath)
-            IJ.run(image, "Properties...", "pixel_width="+str(PIXEL_WIDTH)+" pixel_height="+str(PIXEL_WIDTH)+" voxel_depth="+str(VOXEL_DEPTH))
+            calibration = image.getCalibration()
+            calibration.pixelWidth = PIXEL_WIDTH
+            calibration.pixelHeight = PIXEL_WIDTH
+            calibration.pixelDepth = VOXEL_DEPTH         
+            calibration.setUnit(UNIT)         
             labels = BinaryImages.componentsLabeling(image, CONNECTIVITY, BIT_DEPTH)        
             numbers = LabelImages.findAllLabels(labels)
             volumes = IntrinsicVolumes3D.volumes(labels.getStack(), numbers, labels.getCalibration())
