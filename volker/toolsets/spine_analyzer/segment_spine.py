@@ -78,7 +78,7 @@ def main():
     if spineChannel and currentC == spineChannel:
         IJ.error("Please run the segmentation on a greyscale channel!")
         sys.exit()
-    roi = inputImage.getRoi();
+    roi = inputImage.getRoi()
     if not roi:
         IJ.error("Please draw a ROI around a spine!")
         sys.exit()

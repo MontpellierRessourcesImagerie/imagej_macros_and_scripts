@@ -45,6 +45,7 @@ from ij.plugin import Duplicator
 from ij.process import LUT 
 from ij.process import ImageStatistics
 from ij.process import StackStatistics
+from ij.process import ImageConverter
 from fr.cnrs.mri.cialib.stackutil import HyperstackUtils
 from inra.ijpb.binary import BinaryImages
 from inra.ijpb.label import LabelImages
@@ -140,6 +141,11 @@ class InstanceSegmentation:
     def addFromMask(self, mask, startSlice=None, endSlice=None):
         """Add the biggest connected object in the mask as a an object to the segmentation with the next unused label.
         """
+        doScaling = ImageConverter.getDoScaling()
+        ImageConverter.setDoScaling(False)
+        imageConverter = ImageConverter(mask)
+        imageConverter.convertToGray16()
+        ImageConverter.setDoScaling(doScaling)
         LabelImages.replaceLabels(mask, [255], self.nextLabel)
         HyperstackUtils.copyStackTo(self.image, mask, self.labelChannelIndex,  self.image.getT(), lut=self.lut, startSlice=startSlice, endSlice=endSlice)
         self.nextLabel = self.nextLabel + 1
