@@ -1,12 +1,12 @@
 
 # Contains "c1.classifier", "c2.classifier", ...
-_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/coralie-co-occurance/classifiers/"
+_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/classifiers-v2/"
 # Contains the input image
-_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/inputs/"
+_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/inputs/"
 # Will contain the produced masks (to be created before launching the macro)
-_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/output/"
+_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/outputs/"
 # Only images with this extension will be processed
-_EXTENSION        = ".czi"
+_EXTENSION        = ".tif"
 
 import os
 

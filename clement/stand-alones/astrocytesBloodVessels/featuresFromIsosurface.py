@@ -233,7 +233,7 @@ class State(object):
         Returns: 0 on success
                  1 if the specified path to Blender doesn't exist and is not in the PATH.
         """
-        res = subprocess.run(f"{p} --background", shell=True)
+        res = subprocess.run(f"\"{p}\" --background", shell=True)
 
         if res.returncode == 0:
             self.blenderPath = p

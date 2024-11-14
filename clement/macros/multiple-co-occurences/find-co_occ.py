@@ -7,7 +7,7 @@ A simple subtraction can restore the exclusivity.
 """
 
 _TABLE_NAME = "# co-occurences"
-_INPUT_FOLDER = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/output/"
+_INPUT_FOLDER = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/outputs/"
 
 from ij import IJ
 from ij.plugin import ImageCalculator
