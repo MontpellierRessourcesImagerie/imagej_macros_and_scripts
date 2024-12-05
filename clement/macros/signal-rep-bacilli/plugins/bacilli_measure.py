@@ -1,6 +1,6 @@
 from ij import IJ, ImagePlus
 from ij.plugin.frame import RoiManager
-from inra.ijpb.binary import BinaryImages
+from ij.measure import Calibration
 from inra.ijpb.morphology import Strel
 from ij.plugin.filter import ThresholdToSelection
 from ij.measure import ResultsTable
@@ -65,11 +65,18 @@ def get_triplet(target):
 	  - The image to be measured (whole image).
 	If the RoiManager is missing (it can happen if an image didn't have any good cell), it is set to None.
 	"""
+	c = Calibration()
+	c.pixelWidth = 1
+	c.pixelHeight = 1
+	c.pixelDepth = 1
+	c.setUnit("pixel")
 	mp = os.path.join(masks_path, target)
 	tt = os.path.join(root_folder, measures, target)
 	rp = os.path.join(masks_path, target.replace(".tif", ".zip"))
 	mp1 = IJ.openImage(mp)
+	mp1.setCalibration(c)
 	tt1 = IJ.openImage(tt)
+	tt1.setCalibration(c)
 	rp1 = None
 	if os.path.isfile(rp):
 		rp1 = RoiManager.getRoiManager()

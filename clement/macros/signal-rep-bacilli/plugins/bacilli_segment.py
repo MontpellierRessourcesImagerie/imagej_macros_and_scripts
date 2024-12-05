@@ -3,6 +3,7 @@ from net.imglib2.img import ImagePlusAdapter
 from sc.fiji.labkit.ui.segmentation import SegmentationTool
 from net.imglib2.img.display.imagej import ImageJFunctions
 from inra.ijpb.label.LabelImages import keepLabels
+from ij.measure import Calibration
 import os
 
 # Folder containing the `membranes` and `measures` sub-folders.
@@ -64,9 +65,16 @@ def open_pair(target):
 	if (not os.path.isfile(mp)) or (not os.path.isfile(tp)):
 		print("Image " + target + " is missing")
 		return (None, None)
+	c = Calibration()
+	c.pixelWidth = 1
+	c.pixelHeight = 1
+	c.pixelDepth = 1
+	c.setUnit("pixel")
 	m = IJ.openImage(mp)
+	m.setCalibration(c)
 	m1 = m.duplicate()
 	t = IJ.openImage(tp)
+	t.setCalibration(c)
 	t1 = t.duplicate()
 	m.close()
 	t.close()
