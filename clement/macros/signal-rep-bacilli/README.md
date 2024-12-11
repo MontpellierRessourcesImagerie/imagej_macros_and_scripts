@@ -79,7 +79,7 @@ Note that images are named the same way in both folders.
         - Give it the same name as the mask, just by replacing ".tif" by ".zip".
         - Close the RoiManager and pass to the next mask.
 
-### Step 4: Measures
+### 🟢 Step 4: Measures
 
 - Click the "Measure tool" button.
 - After a few seconds, a ResultsTable should show up.
