@@ -69,6 +69,9 @@ function batchExtractMasksFromZip() {
     for (i=0; i<zipFiles.length; i++) {
         zipFile = zipFiles[i];
         image = replace(zipFile, ".zip", ".tif");
+        if (!File.exists(folder + image)) {
+        	image = replace(zipFile, ".zip", ".jpg");
+        }
         open(folder + image);
         Overlay.remove()
         roiManager("open", folder + zipFile);
