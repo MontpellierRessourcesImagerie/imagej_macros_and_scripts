@@ -30,6 +30,11 @@ macro "extract masks Action Tool Options" {
 }
 
 
+macro "segment trunk Action Tool - C000T4b12s" {
+    segmentTrunk();
+}
+
+
 function extractMasks() {
     call("ij.Prefs.set", "mri.options.only", "false");  
     if (File.exists(getOptionsPathExtractMasks())) {
@@ -39,6 +44,18 @@ function extractMasks() {
         run("extract masks");
     }
 }
+
+
+function segmentTrunk() {
+	call("ij.Prefs.set", "mri.options.only", "false");  
+    if (File.exists(getOptionsPathSegmentTrunk())) {
+        options = loadOptions(getOptionsPathSegmentTrunk());
+        run("segment trunk", options);
+    } else {
+        run("segment trunk");
+    }
+}
+
 
 // Unused
 function batchExtractMasks() {
@@ -114,5 +131,12 @@ function loadOptions(path) {
 function getOptionsPathExtractMasks() {
     pluginsPath = getDirectory("plugins");
     optionsPath = pluginsPath + "mri-tree-rings-tool/cmfr-options.txt";
+    return optionsPath;
+}
+
+
+function getOptionsPathSegmentTrunk() {
+	pluginsPath = getDirectory("plugins");
+    optionsPath = pluginsPath + "mri-tree-rings-tool/tra-options.txt";
     return optionsPath;
 }
