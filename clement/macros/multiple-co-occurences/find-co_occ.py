@@ -104,6 +104,7 @@ def launcher():
 def main():
     global _INPUT_FOLDER
     save_input_folder = _INPUT_FOLDER
+    # 1 directory == the channels of an image.
     all_dirs = os.listdir(save_input_folder)
     for d in all_dirs:
         if d.startswith("_"):

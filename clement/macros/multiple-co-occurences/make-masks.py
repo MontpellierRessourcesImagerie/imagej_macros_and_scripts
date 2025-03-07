@@ -1,10 +1,10 @@
 
 # Contains "c1.classifier", "c2.classifier", ...
-_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/classifiers-v2/"
+_CLASSIFIERS_PATH = "/home/benedetti/Documents/projects/open-desk/2025-03-06-images-stephane/to_send/classifiers/"
 # Contains the input image
-_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/inputs/"
+_SOURCES_FOLDER   = "/home/benedetti/Documents/projects/open-desk/2025-03-06-images-stephane/inputs/"
 # Will contain the produced masks (to be created before launching the macro)
-_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/outputs/"
+_OUTPUT_FOLDER    = "/home/benedetti/Documents/projects/open-desk/2025-03-06-images-stephane/outputs/"
 # Only images with this extension will be processed
 _EXTENSION        = ".tif"
 
