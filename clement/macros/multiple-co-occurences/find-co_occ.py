@@ -7,7 +7,7 @@ A simple subtraction can restore the exclusivity.
 """
 
 _TABLE_NAME = "# co-occurences"
-_INPUT_FOLDER = "/home/benedetti/Documents/projects/coralie-co-occurance/transfer_8066882_files_8c192037/output/"
+_INPUT_FOLDER = "/home/benedetti/Documents/projects/2068-coralie-co-occurance/transfer_8066882_files_8c192037/new_version/outputs/"
 
 from ij import IJ
 from ij.plugin import ImageCalculator
@@ -104,6 +104,7 @@ def launcher():
 def main():
     global _INPUT_FOLDER
     save_input_folder = _INPUT_FOLDER
+    # 1 directory == the channels of an image.
     all_dirs = os.listdir(save_input_folder)
     for d in all_dirs:
         if d.startswith("_"):
