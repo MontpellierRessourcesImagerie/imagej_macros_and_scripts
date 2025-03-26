@@ -620,9 +620,7 @@ class OperaExporter(object):
             statusTable.setValue("RGB Mosaic Created", i, "V")
             statusTable.show("Execution Status")
         self.createRGBChannelSnapshots(well)
-        self.renameOutputs(well)
-        statusTable.setValue("Images Renamed", i, "V")
-        statusTable.show("Execution Status")
+        
     
     
     def estimateGridSize(self, well):
@@ -685,8 +683,13 @@ class OperaExporter(object):
                     self.montageProcedure(i, well, statusTable)
                 else:
                     self.stitchingProcedure(i, well, statusTable)
+                self.renameOutputs(well)
+                statusTable.setValue("Images Renamed", i, "V")
+                statusTable.show("Execution Status")
             except FileNotFoundException:
                 print("FILE ACCESS PROBLEM: at " + str(well))
+            except Exception as error:
+                print("An error occurred:", error) 
             IJ.run("Close All", "")
             IJ.run("Collect Garbage", "")
 
