@@ -114,6 +114,12 @@ This macro is meant to detect peaks of intensity within yeasts radial profiles.
 ####   [MRI_Root_Hair_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Root_Hair_Tools)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/6ea28ca3-9094-46aa-9912-95fb3b007b03" height='100'/> The tool allows to measure the diameter of the root and the density of the root hair. 
+####   [Signal repartition bacilli](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/signal-rep-bacilli#signal-repartition-bacilli)
+
+This toolset is meant to analyze the distribution of the signal in bacilli. We want to know if it is:
+ * Uniformly spread in the whole bacteria
+ * Only focused on the membrane area
+ *  Only focused in the center area
 ####   [Skin_Tools](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Skin-Tools)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/bdfd60a1-de2d-4974-8831-a7561f694112" height='100'/> The Skin Tools allow to analyze masks of skin tissue that touch the right and left border of the image. The length of the lower border line is measured. For each extremum on the lower border line of the mask the length of a vertical line across the mask is measured. The advanced analysis allows to measure the interdigitation index and the filaggrin thickness. The filaggrin thickness is calculated using a number of random lines perpendicular to the border across the mask.  
