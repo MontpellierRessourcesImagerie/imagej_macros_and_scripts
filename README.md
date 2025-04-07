@@ -67,7 +67,7 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/4d912e4c-c54f-4724-b9ca-631482d9930b" height='100'/> Calculate the area-fraction of the image filled with (septin) filaments.
 ####   [FLIM FRET_Volume_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/FLIM-FRET_Volume_Tool)
 
-<img align='right' src="https://dev.mri.cnrs.fr/attachments/download/2200/Movie.gif" height='100'/> The tool measures in FLIM-FRET images, for each cell, the total volume of the cell and the volume occupied by values in a given range. It displays the positions of the values in the range in a result image. 
+<img align='right' src="https://github.com/user-attachments/assets/085b587f-f523-47a7-9350-405d74cbb11e" height='100'/> The tool measures in FLIM-FRET images, for each cell, the total volume of the cell and the volume occupied by values in a given range. It displays the positions of the values in the range in a result image. 
 ####   [Foci-Per-Nucleus-Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Foci-Per-Nucleus-Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/73c0794b-c475-4512-8bed-0b396013022c" height='100'/> The tool detects, counts and measures the foci per nucleus. It reports the number of small, medium sized and big fosci per nucleus. It also measures the area and mean intensity of the nuclei. 
