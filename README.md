@@ -99,6 +99,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Measure_Nuclei_And_Membranes](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Nuclei_And_Membranes_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/d7dcc245-8adc-45a5-8387-6488b2c5fbab" height='100'/> The tool measures the membranes and nuclei, of cells segmented with cellpose, in all channels but the nuclei-channel.
+####   [Peaks in yeasts](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/peaks-yeast-profile#readme)
+
+This macro is meant to detect peaks of intensity within yeasts radial profiles. 
 ####   [Phase Contrast Cell Analysis Tool (Trainable WEKA Segmentation)](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Phase-Contrast-Cell-Analysis-Tool-%28Trainable-WEKA-Segmentation%29)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/9ce4400a-d5d2-4ecd-a3e7-692dc15dba43" height='100'/> The tool allows to segment cells in non fluorescent microscopy images using the trainable WEKA segmentation. It allows to run a preprocessing that crops and converts images, to apply a classifier created with the Trainable Weka Segmentation plugin to a folder containing images and to open the images in a folder as a stack in the "Trainable Weka Segmentation plugin" to create a classifier. 
