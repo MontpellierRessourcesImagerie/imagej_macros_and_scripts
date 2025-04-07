@@ -92,13 +92,15 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Measure Intensity Without Spots](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure-Intensity-Without-Spots)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/39aae8aa-b3d5-46a3-9e7b-fba31d19c053" height='100'/> Measure the signal in a channel in areas defined by the stained nuclei in another channel. Remove the bright spots when measuring the signal. 
-
-####   [MRI Neurite Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer)
-
-<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/d475988c-e939-4a3d-9fa9-1f213b2bf060" height='100'/> The toolset helps to segment neurites, measure the distances on the neurites to the closest soma, assign each neurite to a soma and to measure the FISH-signal on the neurites.
 ####   [Measure_Nuclei_And_Membranes](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Nuclei_And_Membranes_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/d7dcc245-8adc-45a5-8387-6488b2c5fbab" height='100'/> The tool measures the membranes and nuclei, of cells segmented with cellpose, in all channels but the nuclei-channel.
+####   [Multiple-Co-Occurrences](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/multiple-co-occurences#multiple-co-occurrences)
+
+This set of scripts aims to segment blobs/spots in 3D over several channels (with LabKit) Then, co-occurences are processed in all combinations of channels. 
+####   [MRI Neurite Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Neurite_Analyzer)
+
+<img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/d475988c-e939-4a3d-9fa9-1f213b2bf060" height='100'/> The toolset helps to segment neurites, measure the distances on the neurites to the closest soma, assign each neurite to a soma and to measure the FISH-signal on the neurites.
 ####   [Peaks in yeasts](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/peaks-yeast-profile#readme)
 
 This macro is meant to detect peaks of intensity within yeasts radial profiles. 
