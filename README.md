@@ -59,6 +59,9 @@ This macro counts cells in a Boyden chamber, even though pores are stained with 
 ####   [MRI Dynamic Zones Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Dynamic_Zones_Analyzer)
 
 <img align='right' src="https://dev.mri.cnrs.fr/attachments/download/2640/active_zones.gif" height='100'/> Find and segment zones in which the intensity changes over time. Classify the zones into zones with increasing, decreasing, constant, u-shaped and n-shapes intensity profiles.  
+####   [Export series from multi‐series images](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Export-series-from-multi%E2%80%90series-images)
+
+The macro exports the images of a selected series from multi-series image files.
 ####   [MRI_Fibrosis_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/MRI_Fibrosis_Tool) 
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/020df5c3-4a25-49e6-9268-ffd12463bbaa" height='100'/> Measure the relative area of sirius red stained fibrosis. The tool uses the colour deconvolution plugin from Gabriel Landini. 
