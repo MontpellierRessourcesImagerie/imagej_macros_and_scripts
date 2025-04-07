@@ -44,6 +44,9 @@ ImageJ macros and scripts written at the imaging facility MRI. Have a look at th
 ####   [Count Axonal Projections Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Count-Axonal-Projections-Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/cb5ae67b-52a0-4dcc-9402-7bc8e7162498" height='100'/> Count the number of axonal projections that cross a given line. The tool detects and counts the maxima along a line-selection, for example a segmented line. 
+####   [Count Cells in Boyden Chamber](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/tree/master/clement/macros/nCells-boyden#count-cells-in-boyden-chamber)
+
+This macro counts cells in a Boyden chamber, even though pores are stained with the same dye as the cells.
 ####   [Count Satellites Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Count_Satellites_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/71d7ca0e-36b5-425e-8d50-6c3754c5b6e1" height='100'/> The tool detects and counts the neurons and the neurons with satellite cells. 
