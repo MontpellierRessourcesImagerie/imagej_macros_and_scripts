@@ -92,6 +92,9 @@ The macro exports the images of a selected series from multi-series image files.
 #### [Intensity Ratio Nuclei Cytoplasm Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Intensity-Ratio-Nuclei-Cytoplasm-Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/7340d927-cc85-4b88-91d0-7b1eb6c92bfb" height='100'/> The tool calculates the ratio of the intensity in the nuclei and the cytoplasm. It needs two images as input: the cytoplasm channel and the nuclei channel. The nuclei channel is used to segment the nuclei. The measurements are made in the cytoplasm channel after the background intensity has been corrected. 
+#### [Lipid Droplets Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Lipid-Droplets-Tool)
+
+<img align='right' src="https://github.com/user-attachments/assets/9e4d0d69-4230-4a69-b7e2-0d1cf7eaac35" height='100'/> The Lipid Droplets Tool helps to segment lipid droplets marked with BODIPY.
 ####   [Measure_Border_And_Spots_Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Measure_Border_And_Spots_Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/c8e40b77-8bb8-4ab0-ae66-9ce884528a83" height='100'/> The tool counts the number of spots (foci) per nucleus and measures the intensity, form, size and position of the spots. It also optionally measures the intensity in the membrane of the nucleus. 
