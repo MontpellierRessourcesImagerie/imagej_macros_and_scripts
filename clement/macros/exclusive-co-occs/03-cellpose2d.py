@@ -6,9 +6,9 @@ import numpy as np
 
 # Settings:
 
-images_dir = "/home/clement/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
+images_dir  = "/home/clement/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
 nuclei_diam = 100
-cells_diam = 250
+cells_diam  = 250
 
 ######################
 
