@@ -2,10 +2,13 @@ from cellpose import models, core
 from cellpose.io import logger_setup
 import os
 import tifffile
+import numpy as np
 
 # Settings:
 
-images_dir = "/home/benedetti/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
+images_dir = "/home/clement/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
+nuclei_diam = 100
+cells_diam = 250
 
 ######################
 
@@ -40,7 +43,7 @@ def main():
             imIn,
             channels     = [1, 2],
             channel_axis = 0,
-            diameter     = 250.0
+            diameter     = cells_diam
         )
 
         # Segment nuclei
@@ -48,16 +51,24 @@ def main():
             imIn,
             channels     = [2, 2],
             channel_axis = 0,
-            diameter     = 100.0
+            diameter     = nuclei_diam
         )
 
         # Remove nuclei from cells
         nuclei = nuclei == 0
         masks = cells * nuclei
 
+        # Post-process nuclei
+        nuclei = nuclei.astype(np.uint16)
+        f = int(np.max(nuclei))
+        print(nuclei.dtype)
+        nuclei = (nuclei / f).astype(np.uint16)
+
         # Write the result to the disk
         output_path = os.path.join(output_dir, image)
+        output_nuclei = os.path.join(output_dir, "nuclei-"+image)
         tifffile.imwrite(output_path, masks)
+        tifffile.imwrite(output_nuclei, nuclei)
 
     print("Segmentation done")
     return True
