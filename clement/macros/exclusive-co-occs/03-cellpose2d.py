@@ -61,7 +61,6 @@ def main():
         # Post-process nuclei
         nuclei = nuclei.astype(np.uint16)
         f = int(np.max(nuclei))
-        print(nuclei.dtype)
         nuclei = (nuclei / f).astype(np.uint16)
 
         # Write the result to the disk

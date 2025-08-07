@@ -13,6 +13,62 @@ function join(a, b) {
 	return a + File.separator + b;
 }
 
+function should_redraw(labels_path, inv, whatisit) {
+	open(labels_path);
+	if (inv) { run("Invert"); }
+	roiManager("reset");
+	run("Label Map to ROIs", "connectivity=C4 vertex_location=Corners name_pattern=r%03d");
+	close();
+
+	waitForUser(
+		"Check " + whatisit, 
+		"Are " + whatisit + " correct?\n    [OK]: Yes\n    [Shift]+[OK]: No"
+	);
+
+	if (!isKeyDown("shift")) { 
+		return false;
+	}
+
+	roiManager("reset");
+	waitForUser("Redraw", "Add new " + whatisit + " to the RoiManager and press [OK]");
+
+	getDimensions(width, height, channels, slices, frames);
+	newImage("fixed", "16-bit black", width, height, 1);
+
+	for (j = 0 ; j < roiManager("count") ; ++j) {
+		roiManager("select", j);
+		setColor(j+1, j+1, j+1);
+		fill();
+	}
+	run("Remap Labels");
+	saveAs("TIFF", labels_path);
+	close();
+	return true;
+}
+
+function update_nuclei(nuclei_path) {
+	open(nuclei_path);
+	setThreshold(1, 65535, "raw");
+	setOption("BlackBackground", true);
+	run("Convert to Mask");
+	run("Invert");
+	run("Divide...", "value=255");
+	saveAs("TIFF", nuclei_path);
+	run("Close All");
+}
+
+function update_cells(nuclei_path, cells_path) {
+	open(nuclei_path);
+	rename("nuclei");
+
+	open(cells_path);
+	rename("cells");
+
+	imageCalculator("Multiply create", "cells","nuclei");
+	saveAs("TIFF", cells_path);
+	run("Close All");
+}
+
 labels_path = join(images_folder, "labeled-2d");
 images_pool = getFileList(images_folder);
 
@@ -24,50 +80,26 @@ for (i = 0 ; i < images_pool.length ; ++i) {
 
 	// Skip files that don't have the correct extension.
 	if (!endsWith(image_name, extension)) { continue; }
-	IJ.log("[" + (i+1) + "∕" + images_pool.length + "] Processing: " + image_name);
+	IJ.log("[" + (i+1) + "∕" + images_pool.length + "] Checking: " + image_name);
 	raw_name = replace(image_name, extension, "");
+	setTool("polygon");
 
 	// Open an image
 	full_path  = join(images_folder, image_name);
 	run("Bio-Formats", "open=[" + full_path + "] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	original = getImageID();
 
-	// Open CellPose's labels
-	cp_name = raw_name + ".tif";
-	cp_path = join(labels_path, cp_name);
-	roiManager("reset");
-	open(cp_path);
-	run("Label Map to ROIs", "connectivity=C4 vertex_location=Corners name_pattern=r%03d");
-	close();
-
-	waitForUser("Check masks", "Are labels correct?\n    [OK]: Yes\n    [Alt]+[OK]: No");
-
-	if (!isKeyDown("alt")) { 
-		run("Close All");
-		continue;
-	}
-
-	roiManager("reset");
-	waitForUser("Redraw", "Draw a new polygon and press [OK].");
-
-	Roi.copy();
-	getDimensions(width, height, channels, slices, frames);
-	newImage("fixed", "16-bit black", width, height, 1);
-	Roi.paste();
-	setColor(1, 1, 1);
-	fill();
-	run("Select None");
-
-	// Open the segmented nuclei
+	// Open the nuclei
 	nuclei_name = "nuclei-" + raw_name + ".tif";
 	nuclei_path = join(labels_path, nuclei_name);
-	open(nuclei_path);
-	rename("nuclei");
+	if (should_redraw(nuclei_path, true, "nuclei")) {
+		update_nuclei(nuclei_path);
+	}
 
-	// Remove nuclei
-	imageCalculator("Multiply create", "fixed","nuclei");
-
-	// Save the results
-	saveAs("TIFF", cp_path);
-	run("Close All");
+	// Open CellPose's labels
+	cells_name = raw_name + ".tif";
+	cells_path = join(labels_path, cells_name);
+	if (should_redraw(cells_path, false, "cells")) {
+		update_cells(nuclei_path, cells_path);
+	}
 }
