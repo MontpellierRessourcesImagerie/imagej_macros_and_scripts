@@ -8,7 +8,7 @@ function join(a, b) {
 	return a + File.separator + b;
 }
 
-output_folder = join(input_folder, "cropped");
+output_folder = input_folder; // join(input_folder, "cropped");
 if (!File.isDirectory(output_folder)) {
 	File.makeDirectory(output_folder);
 }
@@ -47,3 +47,5 @@ for (i = 0 ; i < lengthOf(images_pool) ; i++) {
 
 	run("Close All");
 }
+
+print("DONE. No more image to crop.")
