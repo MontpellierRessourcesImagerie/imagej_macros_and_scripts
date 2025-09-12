@@ -2,7 +2,7 @@ import json
 import csv
 import os
 
-images_folder = "/home/benedetti/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
+images_folder = "/media/clement/5B0AAEC37149070F/debug-celia/CC399-240725-dNC+-PURO/NEW JOINT DECONVOLUTION"
 extension     = ".czi"
 
 # SETTINGS

@@ -23,7 +23,7 @@ for (i = 0 ; i < lengthOf(images_pool) ; i++) {
 
 	// Skip files that don't have the correct extension.
 	if (!endsWith(image_name, extension)) { continue; }
-	IJ.log("[" + (i+1) + "∕" + images_pool.length + "] Processing: " + image_name);
+	IJ.log("[" + (i+1) + "/" + images_pool.length + "] Processing: " + image_name);
 	raw_name = replace(image_name, extension, "");
 
 	// Open an image

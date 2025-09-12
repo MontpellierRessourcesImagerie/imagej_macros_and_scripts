@@ -38,13 +38,14 @@ for (i = 0 ; i < lengthOf(images_pool) ; i++) {
 
 	// Skip files that don't have the correct extension.
 	if (!endsWith(image_name, extension)) { continue; }
-	IJ.log("[" + (i+1) + "∕" + images_pool.length + "] Processing: " + image_name);
+	IJ.log("[" + (i+1) + "/" + images_pool.length + "] Processing: " + image_name);
 	raw_name = replace(image_name, extension, "");
 
 	// Open an image
 	full_path  = join(input_folder, image_name);
 	run("Bio-Formats", "open=[" + full_path + "] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	original = getImageID();
+	getVoxelSize(pw, ph, pd, unit);
 	
 	// Extracting membranes channel
 	selectImage(original);
@@ -60,6 +61,7 @@ for (i = 0 ; i < lengthOf(images_pool) ; i++) {
 	
 	// Make a composite out this two channels
 	run("Merge Channels...", "c1=membranes-max c2=nuclei-max create");
+	setVoxelSize(pw, ph, pd, unit);
 
 	// Write the result to the disk
 	output_name = raw_name + ".tif";

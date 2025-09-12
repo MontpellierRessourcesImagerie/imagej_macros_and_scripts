@@ -2,35 +2,38 @@ import os
 import shutil
 import math
 import json
+
 from ij import IJ, ImagePlus, ImageStack
-from net.imglib2.img import ImagePlusAdapter
+from ij.plugin import Duplicator, GaussianBlur3D, RGBStackMerge
 from ij.io import Opener
-from sc.fiji.labkit.ui.segmentation import SegmentationTool
+
+from net.imglib2.img import ImagePlusAdapter
 from net.imglib2.img.display.imagej import ImageJFunctions
-from inra.ijpb.label.LabelImages import (keepLabels, findAllLabels, 
-	                                     remapLabels, dilateLabels)
-from inra.ijpb.label.conncomp import FloodFillRegionComponentsLabeling3D
-from ij.plugin import Duplicator, GaussianBlur3D
-from ij.plugin.filter import BackgroundSubtracter
-from ij.plugin import ImageCalculator
-from ij.measure import ResultsTable
-from mcib3d.image3d import (ImageFloat, ImageHandler, ImageInt)
+
+from sc.fiji.labkit.ui.segmentation import SegmentationTool
+
+from mcib3d.image3d import ImageInt
 from mcib3d.image3d.distanceMap3d import EDT
 from mcib3d.image3d.processing import FastFilters3D
 from mcib3d.image3d.regionGrowing import Watershed3D
+
 from inra.ijpb.measure.region3d import Centroid3D
 from inra.ijpb.measure import IntensityMeasures
 from inra.ijpb.geometry import Point3D
+from inra.ijpb.label.LabelImages import (keepLabels, findAllLabels, 
+										 remapLabels, sizeOpening)
 
-images_folder  = "/home/benedetti/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
-clfs_location  = "/home/benedetti/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054"
-extension      = ".czi"
+images_folder  = "/media/clement/5B0AAEC37149070F/debug-celia/CC399-240725-dNC+-PURO/NEW JOINT DECONVOLUTION"
+clfs_location  = "/home/clement/Downloads/2025-04-16-celia_chamontin/2025-07-09-last-batch"
+extension	  = ".czi"
 spots_channels = {
 	"RFP": 4,
 	"GFP": 4
 }
-distance = 0.35 # in physical unit
+distance	   = 0.35 # in physical unit
+ball_rad	   = 2.0
 
+###################################################
 
 def run_classification(ch_data, ch_name):
 	cf_path = os.path.join(clfs_location, ch_name+"-last.classifier")
@@ -116,12 +119,17 @@ def postprocess_labels(labels):
 	# Split the mask using a watershed
 	labeled = split_spots(mask)
 	mask.close()
+	# Filter small objects
+	min_size = 3
+	bigger = sizeOpening(labeled, min_size)
+	labeled.close()
 	# Make sure IDs are continuous
-	remapLabels(labeled.getStack())
-	return labeled
+	remapLabels(bigger.getStack())
+	return bigger
 
 def segment_channel(ch_data, ch_name):
 	labels = run_classification(ch_data, ch_name)
+	IJ.saveAs(labels, "TIFF", "/tmp/debug/labels.tif")
 	clean = postprocess_labels(labels)
 	labels.close()
 	return clean
@@ -129,7 +137,7 @@ def segment_channel(ch_data, ch_name):
 def check_content():
 	original_content = sorted([f for f in os.listdir(images_folder) if f.endswith(extension)])
 	required_masks   = [f.replace(extension, ".tif") for f in original_content]
-	masks_path       = os.path.join(images_folder, "labeled-stacks")
+	masks_path	   = os.path.join(images_folder, "labeled-stacks")
 	
 	if not os.path.isdir(masks_path):
 		return (None, None)
@@ -158,6 +166,14 @@ def create_spots_folder(output_dir, image_name):
 	os.mkdir(target)
 	return target
 
+def export_spots_to_file(spots):
+	path = "/tmp/debug/spots.txt"
+	f = open(path, 'w')
+	f.write("X\tY\tZ\n")
+	for p3d in spots:
+		f.write(str(p3d.getX()) + "\t" + str(p3d.getY()) + "\t" + str(p3d.getZ()) + "\n")
+	f.close()
+
 def extract_spots(segmented_cells, labeled_spots, clb):
 	all_lbls = findAllLabels(labeled_spots.getStack())
 	all_cell = findAllLabels(segmented_cells.getStack())
@@ -179,58 +195,55 @@ def extract_spots(segmented_cells, labeled_spots, clb):
 		if cell == 0:
 			continue
 		spots[cell].append(centers[lbl-1])
-
+	
 	return spots
 
-def get_distance(p1, p2):
-    return math.sqrt((p2.getX() - p1.getX())**2 + (p2.getY() - p1.getY())**2 + (p2.getZ() - p1.getZ())**2)
-
 def midpoint(p1, p2):
-    return Point3D(
-        (p1.getX() + p2.getX()) / 2.0,
-        (p1.getY() + p2.getY()) / 2.0,
-        (p1.getZ() + p2.getZ()) / 2.0
-    )
+	return Point3D(
+		(p1.getX() + p2.getX()) / 2.0,
+		(p1.getY() + p2.getY()) / 2.0,
+		(p1.getZ() + p2.getZ()) / 2.0
+	)
 
 def get_distance(p1, p2):
-    return math.sqrt(
-        (p1.getX() - p2.getX())**2 +
-        (p1.getY() - p2.getY())**2 +
-        (p1.getZ() - p2.getZ())**2
-    )
+	return math.sqrt(
+		(p1.getX() - p2.getX())**2 +
+		(p1.getY() - p2.getY())**2 +
+		(p1.getZ() - p2.getZ())**2
+	)
 
 def build_graph(A, B, threshold):
-    graph = [[] for _ in range(len(A))]
-    for i, a in enumerate(A):
-        for j, b in enumerate(B):
-            if get_distance(a, b) <= threshold:
-                graph[i].append(j)
-    return graph
+	graph = [[] for _ in range(len(A))]
+	for i, a in enumerate(A):
+		for j, b in enumerate(B):
+			if get_distance(a, b) <= threshold:
+				graph[i].append(j)
+	return graph
 
 def bpm(u, graph, seen, match_to):
-    for v in graph[u]:
-        if not seen[v]:
-            seen[v] = True
-            if match_to[v] == -1 or bpm(match_to[v], graph, seen, match_to):
-                match_to[v] = u
-                return True
-    return False
+	for v in graph[u]:
+		if not seen[v]:
+			seen[v] = True
+			if match_to[v] == -1 or bpm(match_to[v], graph, seen, match_to):
+				match_to[v] = u
+				return True
+	return False
 
 def max_matching(A, B, threshold):
-    graph = build_graph(A, B, threshold)
-    match_to = [-1] * len(B)
-    result = []
+	graph = build_graph(A, B, threshold)
+	match_to = [-1] * len(B)
+	result = []
 
-    for u in range(len(A)):
-        seen = [False] * len(B)
-        if bpm(u, graph, seen, match_to):
-            pass
+	for u in range(len(A)):
+		seen = [False] * len(B)
+		if bpm(u, graph, seen, match_to):
+			pass
 
-    for v in range(len(B)):
-        if match_to[v] != -1:
-            result.append( (match_to[v], v) )
+	for v in range(len(B)):
+		if match_to[v] != -1:
+			result.append( (match_to[v], v) )
 
-    return result
+	return result
 
 def count_co_occurrences(spots):
 	if len(spots) != 2:
@@ -248,24 +261,46 @@ def count_co_occurrences(spots):
 
 	return True
 
+def ball_around_point(x, y, z, w, h, d, rad):
+	points = []
+	irad = int(math.ceil(rad))
+	for dz in range(-irad, irad+1):
+		for dy in range(-irad, irad+1):
+			for dx in range(-irad, irad+1):
+				if math.sqrt(dx*dx + dy*dy + dz*dz) > rad:
+					continue
+				nx = x + dx
+				ny = y + dy
+				nz = z + dz
+				if nx < 0 or nx >= w:
+					continue
+				if ny < 0 or ny >= h:
+					continue
+				if nz <= 0 or nz > d:
+					continue
+				points.append( (nx, ny, nz) )
+	return points
+
 def create_control(im_like, spots, path):
 	h = im_like.getHeight()
 	w = im_like.getWidth()
 	d = im_like.getNSlices()
 	c = len(spots)
 	clb = im_like.getCalibration()
-	control = IJ.createImage("control", "8-bit black", w, h, c, d, 1)
-	for idx, ch in enumerate(sorted(list(spots.keys())), start=1):
-		control.setC(idx)
+	controls = [IJ.createImage("C"+str(i), "8-bit black", w, h, 1, d, 1) for i in range(c)]
+	for idx, ch in enumerate(sorted(list(spots.keys()))):
 		for cell_idx, positions in spots[ch].items():
 			for p in positions:
 				x = int(clb.getRawX(p.getX()))
 				y = int(clb.getRawY(p.getY()))
 				z = int(clb.getRawZ(p.getZ()))
-				control.setSlice(z+1)
-				prc = control.getProcessor()
-				prc.set(x, y, cell_idx)
+				points = ball_around_point(x, y, z, w, h, d, ball_rad)
+				for (_x, _y, _z) in points:
+					controls[idx].setSlice(_z)
+					prc = controls[idx].getProcessor()
+					prc.set(_x, _y, 255-cell_idx)
 
+	control = RGBStackMerge.mergeChannels(controls, False)
 	IJ.saveAs(control, "TIFF", path)
 	control.close()
 
@@ -290,7 +325,7 @@ def main():
 
 	# Verify that every input image is associated with a mask
 	masks_path, content = check_content()
-	if masks_path is None:
+	if (masks_path is None) or (content is None) or (len(content) == 0):
 		print("Error: Couldn't find masks directory (labeled-stacks)")
 		return
 
@@ -298,7 +333,6 @@ def main():
 	output_folder = reset_output()
 
 	dp = Duplicator()
-	rt = ResultsTable()
 	summary = {}
 	for idx, (image_name, mask_name) in enumerate(content):
 		print("[" + str(idx+1).zfill(2) + "/" + str(len(content)).zfill(2) + "] - Processing: '" + image_name + "'...")
@@ -329,6 +363,7 @@ def main():
 		print(summary)
 		image_data.close()
 		segmented.close()
+		break
 	export_summary(output_folder, summary)
 	print("DONE.")
 

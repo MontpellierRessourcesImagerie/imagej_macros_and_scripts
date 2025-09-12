@@ -13,6 +13,7 @@ cells_diam  = 250
 ######################
 
 def main():
+    # Create a model for a 2-channel image
     logger_setup()
     model = models.CellposeModel(
         gpu=True, 

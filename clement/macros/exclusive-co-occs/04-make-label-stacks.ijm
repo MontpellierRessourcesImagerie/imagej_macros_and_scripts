@@ -1,6 +1,6 @@
 // Settings :
 
-images_folder = "/home/benedetti/Downloads/2025-04-16-celia_chamontin/transfer_9591250_files_e96af054";
+images_folder = "/media/clement/5B0AAEC37149070F/debug-celia/CC399-240725-dNC+-PURO/NEW JOINT DECONVOLUTION";
 originals_ext = ".czi";
 membranes_c   = 4;
 
@@ -58,6 +58,32 @@ function membranes_to_mask(image_id) {
 	return getImageID();
 }
 
+/**
+ * Fills the holes in every label in a stack by convexifying it on each slice independently.
+ * A good membrane staining is required to do so, but it's the only required thing.
+ */
+function fix_labels(image_id) {
+	getRawStatistics(nPixels, mean, min, max, std, histogram);
+	n_labels = max;
+	if (n_labels == 0) { return; }
+	Stack.getDimensions(width, height, channels, slices, frames);
+
+	for (sl = 1 ; sl <= slices ; ++sl) {
+		Stack.setSlice(sl);
+		for (lbl = 1 ; lbl <= n_labels ; ++lbl) {
+			resetThreshold();
+			print(lbl);
+			setThreshold(lbl, lbl, "raw");
+			run("Create Selection");
+			if (Roi.size == 0) { continue; }
+			Color.set(lbl);
+			run("Convex Hull");
+			fill();
+			run("Select None");
+		}
+	}
+}
+
 // Check that the folder containing 2D label maps exists
 labels_folder = join(images_folder, "labeled-2d");
 if (!File.isDirectory(labels_folder)) {
@@ -76,13 +102,14 @@ run("Close All");
 run("Collect Garbage");
 setBatchMode(true);
 
-for (i = 0 ; i < lengthOf(labels_pool) ; i++) {
+for (i = 0 ; i < lengthOf(labels_pool) ; ++i) {
 	labels_name   = labels_pool[i];
 	original_name = replace(labels_name, ".tif", originals_ext);
 	labels_path   = join(labels_folder, labels_name);
 	image_path    = join(images_folder, original_name);
+	print(image_path);
 	
-	IJ.log("[" + (i+1) + "∕" + labels_pool.length + "] Processing: " + labels_name);
+	IJ.log("[" + (i+1) + "/" + labels_pool.length + "] Processing: " + labels_name);
 	
 	// Check that labels exist
 	if (!File.exists(labels_path)) {
@@ -99,7 +126,7 @@ for (i = 0 ; i < lengthOf(labels_pool) ; i++) {
 	run("Bio-Formats", "open=[" + image_path + "] autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	ori_img = getImageID();
 	getVoxelSize(pw, ph, pd, unit);
-	cells_mask = membranes_to_mask(ori_img);
+	// cells_mask = membranes_to_mask(ori_img);
 	getDimensions(width, height, channels, slices, frames);
 	
 	// Transforming 2D labels in 3D labels
@@ -108,8 +135,16 @@ for (i = 0 ; i < lengthOf(labels_pool) ; i++) {
 	lbls3d = make_stack(lbls2d, slices);
 	
 	// Merging the mask with the labels
-	imageCalculator("AND create stack", "lbls3d","mask3d");
+	// imageCalculator("AND create stack", "lbls3d", "mask3d");
+	// rename("labels-merged");
+	// merged_stack = getImageID();
 	setVoxelSize(pw, ph, pd, unit);
+	run("Remap Labels");
+
+	// Fix the labels
+	// fix_labels(merged_stack);
+
+	// Save the result
 	output_path = join(output_folder, labels_name);
 	saveAs("TIFF", output_path);
 
@@ -125,8 +160,4 @@ for (i = 0 ; i < lengthOf(labels_pool) ; i++) {
 
 IJ.log("DONE.");
 setBatchMode(false);
-
-
-
-
 
