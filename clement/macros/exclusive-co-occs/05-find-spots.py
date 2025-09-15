@@ -129,7 +129,6 @@ def postprocess_labels(labels):
 
 def segment_channel(ch_data, ch_name):
 	labels = run_classification(ch_data, ch_name)
-	IJ.saveAs(labels, "TIFF", "/tmp/debug/labels.tif")
 	clean = postprocess_labels(labels)
 	labels.close()
 	return clean
@@ -165,14 +164,6 @@ def create_spots_folder(output_dir, image_name):
 	target = os.path.join(output_dir, n)
 	os.mkdir(target)
 	return target
-
-def export_spots_to_file(spots):
-	path = "/tmp/debug/spots.txt"
-	f = open(path, 'w')
-	f.write("X\tY\tZ\n")
-	for p3d in spots:
-		f.write(str(p3d.getX()) + "\t" + str(p3d.getY()) + "\t" + str(p3d.getZ()) + "\n")
-	f.close()
 
 def extract_spots(segmented_cells, labeled_spots, clb):
 	all_lbls = findAllLabels(labeled_spots.getStack())
@@ -363,7 +354,6 @@ def main():
 		print(summary)
 		image_data.close()
 		segmented.close()
-		break
 	export_summary(output_folder, summary)
 	print("DONE.")
 
