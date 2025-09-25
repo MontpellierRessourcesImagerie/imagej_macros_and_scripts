@@ -25,7 +25,7 @@ from inra.ijpb.label.LabelImages import (keepLabels, findAllLabels,
 
 images_folder  = "/media/clement/5B0AAEC37149070F/debug-celia/CC399-240725-dNC+-PURO/NEW JOINT DECONVOLUTION"
 clfs_location  = "/home/clement/Downloads/2025-04-16-celia_chamontin/2025-07-09-last-batch"
-extension	  = ".czi"
+extension	   = ".czi"
 spots_channels = {
 	"RFP": 4,
 	"GFP": 4
