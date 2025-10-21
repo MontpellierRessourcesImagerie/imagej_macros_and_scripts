@@ -32,7 +32,7 @@ spots_channels = {
 }
 distance	   = 0.35 # in physical unit
 ball_rad	   = 2.0
-up_to          = 2 # Of how many slices should we remove spots starting from the most populated one?
+up_to          = 1 # Of how many slices should we remove spots starting from the first one?
 
 ###################################################
 
@@ -167,16 +167,7 @@ def create_spots_folder(output_dir, image_name):
 	return target
 
 def remove_slide_spots(pts, clb):
-	vals = [int(round(p.getZ() / clb.pixelDepth)) for p in pts]
-	histo = [0 for _ in range(1 + int(math.ceil(max(vals))))]
-	for val in vals:
-		histo[int(round(val))] += 1
-	sliced = [(v, i) for i, v in enumerate(histo)]
-	sliced = list(sorted(sliced))
-	n_spots, last = sliced[-1]
-	last += up_to
-	print("Removing all spots below slice " + str(last))
-	to_keep = [p if round(p.getZ() / clb.pixelDepth) > last else None for p in pts]
+	to_keep = [p if round(p.getZ() / clb.pixelDepth) > up_to else None for p in pts]
 	print("Keeping " + str(sum([1 for p in to_keep if p is not None])) + " items from " + str(len(pts)))
 	return to_keep
 
@@ -298,7 +289,9 @@ def create_control(im_like, spots, path):
 	c = len(spots)
 	clb = im_like.getCalibration()
 	controls = [IJ.createImage("C"+str(i), "8-bit black", w, h, 1, d, 1) for i in range(c)]
-	for idx, ch in enumerate(sorted(list(spots.keys()))):
+	ch_order = sorted(list(spots.keys()))
+	print("Creating control image with channels: " + str(ch_order))
+	for idx, ch in enumerate(ch_order):
 		for cell_idx, positions in spots[ch].items():
 			for p in positions:
 				x = int(clb.getRawX(p.getX()))
