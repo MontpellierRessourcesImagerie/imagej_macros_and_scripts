@@ -32,6 +32,7 @@ spots_channels = {
 }
 distance	   = 0.35 # in physical unit
 ball_rad	   = 2.0
+up_to          = 2 # Of how many slices should we remove spots starting from the most populated one?
 
 ###################################################
 
@@ -165,6 +166,20 @@ def create_spots_folder(output_dir, image_name):
 	os.mkdir(target)
 	return target
 
+def remove_slide_spots(pts, clb):
+	vals = [int(round(p.getZ() / clb.pixelDepth)) for p in pts]
+	histo = [0 for _ in range(1 + int(math.ceil(max(vals))))]
+	for val in vals:
+		histo[int(round(val))] += 1
+	sliced = [(v, i) for i, v in enumerate(histo)]
+	sliced = list(sorted(sliced))
+	n_spots, last = sliced[-1]
+	last += up_to
+	print("Removing all spots below slice " + str(last))
+	to_keep = [p if round(p.getZ() / clb.pixelDepth) > last else None for p in pts]
+	print("Keeping " + str(sum([1 for p in to_keep if p is not None])) + " items from " + str(len(pts)))
+	return to_keep
+
 def extract_spots(segmented_cells, labeled_spots, clb):
 	all_lbls = findAllLabels(labeled_spots.getStack())
 	all_cell = findAllLabels(segmented_cells.getStack())
@@ -175,6 +190,7 @@ def extract_spots(segmented_cells, labeled_spots, clb):
 		all_lbls, 
 		clb
 	)
+	centers = remove_slide_spots(centers, clb)
 	im = IntensityMeasures(segmented_cells, labeled_spots)
 	rt = im.getMedian()
 	spots = {c: [] for c in all_cell}
@@ -185,7 +201,10 @@ def extract_spots(segmented_cells, labeled_spots, clb):
 		cell = int(rt.getValueAsDouble(cl, row_idx))
 		if cell == 0:
 			continue
-		spots[cell].append(centers[lbl-1])
+		p = centers[lbl-1]
+		if p is None:
+			continue
+		spots[cell].append(p)
 	
 	return spots
 

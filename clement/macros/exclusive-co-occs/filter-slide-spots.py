@@ -4,7 +4,7 @@ from ij.measure import ResultsTable
 from inra.ijpb.label.LabelImages import keepLabels, findAllLabels, remapLabels
 from inra.ijpb.measure.region3d import Centroid3D
 
-# How many slices to remove (starting from the most populated ones)
+# Of how many slices should we remove spots starting from the most populated one?
 up_to = 3
 
 # ------------------------------------------------------------------
