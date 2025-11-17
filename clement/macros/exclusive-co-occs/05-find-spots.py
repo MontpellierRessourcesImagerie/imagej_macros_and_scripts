@@ -33,6 +33,7 @@ spots_channels = {
 distance	   = 0.35 # in physical unit
 ball_rad	   = 2.0
 up_to          = 1 # Of how many slices should we remove spots starting from the first one?
+size_threshold = 5 # minimal size of objects in voxels
 
 ###################################################
 
@@ -121,8 +122,7 @@ def postprocess_labels(labels):
 	labeled = split_spots(mask)
 	mask.close()
 	# Filter small objects
-	min_size = 3
-	bigger = sizeOpening(labeled, min_size)
+	bigger = sizeOpening(labeled, size_threshold)
 	labeled.close()
 	# Make sure IDs are continuous
 	remapLabels(bigger.getStack())
