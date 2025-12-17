@@ -1,0 +1,11 @@
+run("Select None");
+roiManager("Select", newArray(0,1));
+roiManager("AND");
+roiManager("Add", "00ff00", 2);
+roiManager("Select", 0);
+roiManager("Select", newArray(0,2));
+roiManager("XOR");
+roiManager("Add", "00ff00", 2);
+roiManager("Select", 3);
+run("Enlarge...", "enlarge=-1");
+roiManager("Split");
