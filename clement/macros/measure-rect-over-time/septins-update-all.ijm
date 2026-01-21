@@ -48,14 +48,15 @@ function update_frames() {
 function preprocess() {
 	waitForUser("Preprocessing", "Apply BG subtraction and registration?\n[OK] Yes\n[Alt+OK] No");
 	if (!isKeyDown("alt")) {
+		folder = getDirectory("Where to export preprocessed images?");
 		for (z = 0 ; z < n_images ; ++z) {
 			selectImage(titles[z]);
 			print("Subtracting background...");
 			run("Subtract Background...", "rolling=50 stack");
 			print("Registering the stack...");
 			run("StackReg ", "transformation=[Rigid Body]");
-			name = File.getNameWithoutExtension(titles[z]);
-			output_path = join(File.directory, name);
+			name = File.getNameWithoutExtension(titles[z]) + suffix;
+			output_path = join(folder, name);
 			print("Saving image at: " + output_path);
 			saveAs("TIFF", output_path);
 		}
@@ -94,7 +95,12 @@ function analyze_cell(cell_index) {
 			"Draw a thick line perpenticular to the ring"
 		);
 	}
-	update_frames();
+	while (!update_frames()) {
+		waitForUser(
+			"Not enough frames", 
+			"The desired number of frames before or after is not compatible with the current frame.\nMove to another cell."
+		);
+	}
 	Stack.setFrame(f_first);
 	getSelectionCoordinates(x, y);
 	center_x = (x[0] + x[1]) / 2;
