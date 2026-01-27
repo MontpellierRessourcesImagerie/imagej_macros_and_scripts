@@ -5,7 +5,8 @@ var f_last   = 0;
 var n_images = 2;
 var t_name   = "Measurements";
 var suffix   = "_preprocessed.tif";
-var titles = getList("image.titles");
+var titles   = getList("image.titles");
+var remember = false;
 
 if (titles.length != n_images) {
 	exit("!!! Only " + n_images + " images should be opened!!!");
@@ -19,9 +20,11 @@ function join(a, b) {
 }
 
 function update_frames() {
+	if (remember) { return true; }
 	Dialog.create("N. of frames in sequence to analyze");
 	Dialog.addNumber("N. frames before", 1);
 	Dialog.addNumber("N. frames after", 1);
+	Dialog.addCheckbox("Remember frames range?", false);
 	Dialog.show();
 
 	getDimensions(width, height, channels, slices, frames);
@@ -29,6 +32,7 @@ function update_frames() {
 
 	f_before = Dialog.getNumber();
 	f_after  = Dialog.getNumber();
+	remember = Dialog.getCheckbox();
 	f_first  = frame - f_before;
 	f_last   = frame + f_after;
 
@@ -66,6 +70,44 @@ function preprocess() {
 	Table.reset(t_name);
 }
 
+function shrink_line() {
+	Dialog.create("Dimensions");
+	Dialog.addNumber("Length (um)", 1.5);
+	Dialog.addNumber("Width (pxl)", 15);
+	Dialog.show();
+	l = Dialog.getNumber();
+	w = Dialog.getNumber();
+	toUnscaled(l);
+	Roi.getCoordinates(xpoints, ypoints);
+	// original points
+	p1x = xpoints[0];
+	p2x = xpoints[1];
+	p1y = ypoints[0];
+	p2y = ypoints[1];
+	// position of the center
+	cx  = (p1x + p2x) / 2;
+	cy  = (p1y + p2y) / 2;
+	// current length (in pixels)
+	my  = (p2y - p1y) * (p2y - p1y);
+	mx  = (p2x - p1x) * (p2x - p1x);
+	mag = sqrt(mx + my);
+	// unit vectors to move the points towards the center
+	v1x = (cx - p1x) / mag;
+	v1y = (cy - p1y) / mag;
+	v2x = (cx - p2x) / mag;
+	v2y = (cy - p2y) / mag;
+	// distance of which we must move the points
+	d = (mag - l) / 2;
+	// moving the points
+	p1x = p1x + d * v1x;
+	p1y = p1y + d * v1y;
+	p2x = p2x + d * v2x;
+	p2y = p2y + d * v2y;
+	// Removing old selection and replacing it
+	run("Select None");
+	makeLine(p1x, p1y, p2x, p2y, w);
+}
+
 function measure(cell_index, f) {
 	current = getImageID();
 	Roi.copy();
@@ -95,6 +137,7 @@ function analyze_cell(cell_index) {
 			"Draw a thick line perpenticular to the ring"
 		);
 	}
+	shrink_line();
 	while (!update_frames()) {
 		waitForUser(
 			"Not enough frames", 
