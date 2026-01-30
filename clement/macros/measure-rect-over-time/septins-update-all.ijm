@@ -19,20 +19,22 @@ function join(a, b) {
 	return a + File.separator + b;
 }
 
-function update_frames() {
-	if (remember) { return true; }
+function ask_frames() {
+	if (remember) { return; }
 	Dialog.create("N. of frames in sequence to analyze");
 	Dialog.addNumber("N. frames before", 1);
 	Dialog.addNumber("N. frames after", 1);
 	Dialog.addCheckbox("Remember frames range?", false);
 	Dialog.show();
-
-	getDimensions(width, height, channels, slices, frames);
-	Stack.getPosition(channel, slice, frame);
-
 	f_before = Dialog.getNumber();
 	f_after  = Dialog.getNumber();
 	remember = Dialog.getCheckbox();
+}
+
+function update_frames() {
+	getDimensions(width, height, channels, slices, frames);
+	Stack.getPosition(channel, slice, frame);
+
 	f_first  = frame - f_before;
 	f_last   = frame + f_after;
 
@@ -187,6 +189,7 @@ function analyze_cell(cell_index) {
 function main() {
 	cell_index = 1;
 	preprocess();
+	ask_frames();
 	while(true) {
 		analyze_cell(cell_index);
 		cell_index++;
