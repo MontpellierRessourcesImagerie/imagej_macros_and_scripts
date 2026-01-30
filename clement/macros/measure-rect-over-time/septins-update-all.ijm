@@ -1,12 +1,15 @@
-var f_before = 1;
-var f_after  = 1;
-var f_first  = 0;
-var f_last   = 0;
-var n_images = 2;
-var t_name   = "Measurements";
-var suffix   = "_preprocessed.tif";
-var titles   = getList("image.titles");
-var remember = false;
+var f_before    = 1;
+var f_after     = 1;
+var f_first     = 0;
+var f_last      = 0;
+var n_images    = 2;
+var t_name      = "Measurements";
+var suffix      = "_preprocessed.tif";
+var titles      = getList("image.titles");
+var remember    = false;
+var line_length = 0;
+var line_width  = 0;
+var line_set    = false;
 
 if (titles.length != n_images) {
 	exit("!!! Only " + n_images + " images should be opened!!!");
@@ -72,7 +75,8 @@ function preprocess() {
 	Table.reset(t_name);
 }
 
-function shrink_line() {
+function ask_line_settings() {
+	if (line_set) { return; }
 	Dialog.create("Dimensions");
 	Dialog.addNumber("Length (um)", 1.5);
 	Dialog.addNumber("Width (pxl)", 15);
@@ -80,6 +84,14 @@ function shrink_line() {
 	l = Dialog.getNumber();
 	w = Dialog.getNumber();
 	toUnscaled(l);
+	line_length = l;
+	line_width = w;
+	line_set = true;
+}
+
+function shrink_line() {
+	l = line_length;
+	w = line_width;
 	Roi.getCoordinates(xpoints, ypoints);
 	// original points
 	p1x = xpoints[0];
@@ -139,7 +151,9 @@ function analyze_cell(cell_index) {
 			"Draw a thick line perpenticular to the ring"
 		);
 	}
+	ask_line_settings();
 	shrink_line();
+	ask_frames();
 	while (!update_frames()) {
 		waitForUser(
 			"Not enough frames", 
@@ -189,7 +203,6 @@ function analyze_cell(cell_index) {
 function main() {
 	cell_index = 1;
 	preprocess();
-	ask_frames();
 	while(true) {
 		analyze_cell(cell_index);
 		cell_index++;
