@@ -182,10 +182,10 @@ function downloadImage(url, folder) {
 
 function installOrUpdate() {
     scriptsFolder = getDirectory("imagej") + "scripts/";
-    if (File.exists(scriptsFolder + "mri-updater.py")) {
+    if (File.exists(scriptsFolder + "mri_updater.py")) {
         print("Running the updater...");
         setToolInfo();
-        run("mri-updater");   
+        run("mri updater");   
         unsetToolInfo();
     } else {
         print("Installing the updater...");
