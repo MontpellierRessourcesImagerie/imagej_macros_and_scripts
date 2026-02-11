@@ -210,9 +210,9 @@ function unsetToolInfo() {
 
 
 function updateUpdater() {
-    updaterContent = File.openUrlAsString("https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/volker/scripts/mri-updater.py");
+    updaterContent = File.openUrlAsString("https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/volker/scripts/mri_updater.py");
     scriptsFolder = getDirectory("imagej") + "scripts/";
-    File.saveString(updaterContent, scriptsFolder + "mri-updater.py");
+    File.saveString(updaterContent, scriptsFolder + "mri_updater.py");
 }
 
 
