@@ -181,13 +181,17 @@ function downloadImage(url, folder) {
 }
 
 function installOrUpdate() {
-    print("Downloading the updater...");
-    updateUpdater()
-    setToolInfo();
-    print("Running the updater...");
     scriptsFolder = getDirectory("imagej") + "scripts/";
-    runMacro(scriptsFolder + "mri-updater.py");
-    unsetToolInfo();
+    if (File.exists(scriptsFolder + "mri-updater.py")) {
+        print("Running the updater...");
+        setToolInfo();
+        run("mri-updater");   
+        unsetToolInfo();
+    } else {
+        print("Installing the updater...");
+        updateUpdater();  
+        print("Please restart FIJI and press the install/update button again!");
+    }
 }
 
 
