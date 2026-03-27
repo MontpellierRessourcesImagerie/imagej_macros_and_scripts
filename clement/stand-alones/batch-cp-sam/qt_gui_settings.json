@@ -1,0 +1,10 @@
+{
+    "folder_path": "/home/clement/Downloads/2026-03-12-cchamontin/pool",
+    "median_diameter": 220,
+    "xy_pixel_size": 0.0971045,
+    "z_pixel_size": 0.3,
+    "nuclei_channel": 3,
+    "membrane_channel": 4,
+    "use_gpu": true,
+    "use_secondary": true
+}
