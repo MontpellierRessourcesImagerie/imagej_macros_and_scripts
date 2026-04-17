@@ -8,3 +8,4 @@ run("Label Size Filtering", "operation=Greater_Than size="+min_size);
 selectImage(original);
 close();
 roiManager("reset");
+run("Remap Labels");

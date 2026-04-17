@@ -1,4 +1,7 @@
-from inra.ijpb.label.LabelImages import mergeLabels
+from inra.ijpb.label.LabelImages import (
+    mergeLabels,
+    remapLabels
+)
 from ij.plugin.frame import RoiManager
 from ij import IJ
 
@@ -10,6 +13,7 @@ for i in range(len(rois)):
 	img.setRoi(rois[i])
 	roi = img.getRoi()
 	mergeLabels(img, roi, False)
+remapLabels(img)
 
 rm.reset()
 img.updateImage()
