@@ -26,14 +26,12 @@ function get_max_from_stack() {
         Stack.setSlice(i);
         getRawStatistics(nPixels, mean, min, max, std, histogram);
         if (max > maximum) { maximum = max; }
-        print("max: "+maximum);
     }
     return maximum;
 }
 
 function make_measurements(base_name) {
     max_nuclei_label = get_max_from_stack();
-    print(max_nuclei_label);
     buffer_count     = newArray(max_nuclei_label+1);
     buffer_volume    = newArray(max_nuclei_label+1);
     run("Intensity Measurements 2D/3D", "input=nuclei labels=spots max volume");
@@ -46,8 +44,6 @@ function make_measurements(base_name) {
         volume = parseFloat(volume);
         buffer_count[nucleus_label]++;
         buffer_volume[nucleus_label] += volume;
-        print(nucleus_label);
-        print(volume);
     }
     close(t_name);
     res_name = replace(base_name, ".tif", ".csv");
