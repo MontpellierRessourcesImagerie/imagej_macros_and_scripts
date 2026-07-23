@@ -43,7 +43,7 @@ macro 'Measure Wound Healing Action Tool Options' {
      Dialog.create("Wound Healing Tool Options");
      Dialog.addChoice("method", METHODS, METHOD);
      Dialog.addNumber("variance filter radius", VARIANCE_FILTER_RADIUS);
-     Dialog.addNumber("threshol", THRESHOLD);
+     Dialog.addNumber("threshold", THRESHOLD);
      Dialog.addNumber("radius close", RADIUS_CLOSE);
      Dialog.addNumber("min. size", MINIMAL_SIZE);
      Dialog.addCheckbox("ignore spatial calibration", MEASURE_IN_PIXEL_UNITS);
@@ -97,7 +97,7 @@ function batchMeasureImages() {
 }
 
 function measureActiveImage() {
-    if (MEASURE_IN_PIXEL_UNITS) removeScale;
+    if (MEASURE_IN_PIXEL_UNITS) removeScale();
     initialize();
     createMaskWithGapAsForeground(METHOD, VARIANCE_FILTER_RADIUS, THRESHOLD);
     applyMorphologicalCloseOnTissue(RADIUS_CLOSE);
