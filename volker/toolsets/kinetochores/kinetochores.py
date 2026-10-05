@@ -1,8 +1,12 @@
 from ij import IJ
 from ij.plugin import Duplicator
-from ij.plugin.filter import RankFilters
+from ij.plugin import ImageCalculator
 from ij.plugin import ZProjector
+from ij.measure import ResultsTable
+from ij.plugin.filter import RankFilters
 from inra.ijpb.label import LabelImages
+from inra.ijpb.measure import IntensityMeasures
+
 
 
 class KinetochoreAnalyzer(object):
@@ -21,12 +25,18 @@ class KinetochoreAnalyzer(object):
         self.cellLabels = None
         self.kinetochoreMask = None
         self.signalMask = None
+        self.signal = None
+        self.table =None
 
 
     def run(self):
         self.segmentCells()
         self.segmentKinetochores()
         self.segmentSignal()
+        self.removeKinetochoresOutOfCells()
+        self.removeSignalOutOfCells()
+        self.createSignalImageWithCellBackgroundRemoved()
+        self.measureSignalInKinetochores()
         
         
     def segmentCells(self):
@@ -49,6 +59,98 @@ class KinetochoreAnalyzer(object):
         image.close()
         self.signalMask = self.spotSegmenter.mask
         
+
+    def removeKinetochoresOutOfCells(self):
+        self.kinetochoreMask = self.removeOutOfCells(self.kinetochoreMask)
+        
+        
+    def removeSignalOutOfCells(self):
+        self.signalMask = self.removeOutOfCells(self.signalMask)
+        
+        
+    def removeOutOfCells(self, mask):
+        cellMask = self.getCellMask()
+        result = ImageCalculator.run(cellMask, mask, "and")
+        return result
+
+
+    def getCellMask(self):
+        cellMask = self.imageTool.copyImage(self.cellLabels)
+        cellMask.getProcessor().setThreshold(1.0000, 1000000000000000000000000000000.0000)
+        cellMask.setProcessor(cellMask.createThresholdMask())
+        return cellMask
+
+
+    def createSignalImageWithCellBackgroundRemoved(self):
+        self.signal = self.imageTool.getMaxProjectionOf(self.signalChannelNr)
+        labelsWithHoles = self.getLabelsWithHoles()
+        measurements = IntensityMeasures(self.signal, labelsWithHoles)
+        table = measurements.getMax()
+        table.show("max")
+        maxValues = table.getColumn("Max")
+        for label, intensity in enumerate(maxValues, start=1):
+            labelImage = LabelImages.keepLabels(self.cellLabels, [label])
+            IJ.setThreshold(labelImage, label, 1000000000000000000000000000000.0000)
+            IJ.run(labelImage, "Create Selection", "")
+            roi = labelImage.getRoi()
+            self.signal.setRoi(roi)
+            IJ.run(self.signal, "Subtract...", "value=" + str(intensity))
+        self.signal.resetRoi()
+
+
+    def getLabelsWithHoles(self):
+        labels = self.imageTool.copyImage(self.cellLabels)
+        cellMask = self.getCellMask()
+        cellMask = ImageCalculator.run(cellMask, self.kinetochoreMask, "subtract create")
+        cellMask = ImageCalculator.run(cellMask, self.signalMask, "subtract create")
+        cellLabelsWithHoles = ImageCalculator.run(labels, cellMask, "and create")
+        return cellLabelsWithHoles
+
+
+    def measureSignalInKinetochores(self):
+        kLabels = ImageCalculator.run(self.kinetochoreMask, self.cellLabels, "and create")
+        sLabels = ImageCalculator.run(self.signalMask, self.cellLabels, "and create")
+        sLabels.show()
+        print("signal mask", self.signalMask, type(self.signalMask))
+        print("slabels", sLabels, type(sLabels))
+        measurements = IntensityMeasures(kLabels, sLabels)
+        table = measurements.getMax()
+        maxValues = table.getColumn("Max")
+        labels = []
+        for i, maxValue in enumerate(maxValues):
+            if maxValue < 1:
+                continue
+            label = table.getLabel(i)
+            labels.append(int(label))
+        print("labels", labels)
+        labelsToBeMeasured = LabelImages.keepLabels(sLabels, labels)
+        iMeasurements = IntensityMeasures(self.signal, labelsToBeMeasured)
+        self.table = ResultsTable()
+        maxValues = iMeasurements.getMax()
+        meanValues = iMeasurements.getMean()
+        medianValues = iMeasurements.getMedian()
+        minValues = iMeasurements.getMin()
+        modeValues = iMeasurements.getMode()
+        stdDevValues = iMeasurements.getStdDev()
+        index = 0
+        for maxValue, meanValue, medianValue, minValue, modeValue, stdValue in zip(maxValues.getColumn("Max"),
+                                                                                   meanValues.getColumn("Mean"),
+                                                                                   medianValues.getColumn("Median"),
+                                                                                   minValues.getColumn("Min"),
+                                                                                   modeValues.getColumn("Mode"),
+                                                                                   stdDevValues.getColumn("StdDev")):
+            self.table.addRow()
+            self.table.addLabel(maxValues.getLabel(index))
+            self.table.addValue("image", self.image.getTitle())
+            self.table.addValue("Max", maxValue)
+            self.table.addValue("Mean", meanValue)
+            self.table.addValue("StdDev", stdValue)
+            self.table.addValue("Median", medianValue)
+            self.table.addValue("Min", minValue)
+            self.table.addValue("Mode", modeValue)
+            index = index + 1
+
+
 
 class CellposeSegmenter(object):
     
@@ -114,8 +216,8 @@ class LabKitSpotSegmenter(object):
 
     def getParameterString(self):
         useGPUString = "false"
-        # if self.useGPU:
-        #    useGPUString = "true"
+        if self.useGPU:
+            useGPUString = "true"
         parameters = ("segmenter_file=" + self.classifierPath + " "
                       "use_gpu=" + useGPUString)
         print(parameters)
@@ -159,3 +261,7 @@ class ImageTool(object):
         image = self.getChannel(channelNr)
         projection = ZProjector.run(image, "max")
         return projection
+        
+        
+    def copyImage(self, anImage):
+        return self.duplicator.run(anImage)

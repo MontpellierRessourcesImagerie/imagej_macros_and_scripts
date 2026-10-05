@@ -4,6 +4,7 @@ from fr.cnrs.mri.kinetochores import LabKitSpotSegmenter
 from fr.cnrs.mri.kinetochores import KinetochoreAnalyzer
 
 
+
 SIGNAL_CHANNEL = 1
 KINETOCHORES_CHANNEL = 2
 DIAMETER = 50
@@ -12,6 +13,7 @@ MODEL_PATH = "/home/baecker/.cellpose/models/size_cyto3.npy"
 CLASSIFIER_PATH = "/home/baecker/Documents/mri/in/2026/open-desk/2026-09-24/kinetochore.classifier"
 SPOT_LABEL = 2
 USE_GPU = True
+
 
 
 def main():
@@ -27,7 +29,9 @@ def main():
     analyzer.cellLabels.show()
     analyzer.kinetochoreMask.show()
     analyzer.signalMask.show()
-    
+    analyzer.signal.show()
+    analyzer.table.show("Kinetochore measurements")
+
 
 def getCellSegmenter():
     segmenter = CellposeSegmenter()
@@ -42,9 +46,10 @@ def getCellSegmenter():
     return segmenter
 
 
+
 def getSpotSegmenter():
     segmenter = LabKitSpotSegmenter(CLASSIFIER_PATH)
-    segmenter.useGPU = USE_GPU
+    segmenter.useGPU = False
     return segmenter
 
 
