@@ -8,11 +8,10 @@ from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
 
 
-
 class KinetochoreAnalyzer(object):
 
 
-    def __init__(self, cellSegmenter, spotSegmenter, image):
+    def __init__(self, cellSegmenter, spotSegmenter, image, options=None):
         super(KinetochoreAnalyzer, self).__init__()
         self.cellSegmenter = cellSegmenter
         self.spotSegmenter = spotSegmenter
@@ -27,6 +26,12 @@ class KinetochoreAnalyzer(object):
         self.signalMask = None
         self.signal = None
         self.table =None
+        if options:
+            self.setOptions(options)
+
+
+    def setOptions(self, options):
+        pass
 
 
     def run(self):
@@ -48,14 +53,14 @@ class KinetochoreAnalyzer(object):
 
     def segmentKinetochores(self):
         image = self.imageTool.getMaxProjectionOf(self.kinetochoreChannelNr)
-        self.spotSegmenter.run(image, self.spotLabel)
+        self.spotSegmenter.run(image)
         image.close()
         self.kinetochoreMask = self.spotSegmenter.mask
 
 
     def segmentSignal(self):
         image = self.imageTool.getMaxProjectionOf(self.signalChannelNr)
-        self.spotSegmenter.run(image, self.spotLabel)
+        self.spotSegmenter.run(image)
         image.close()
         self.signalMask = self.spotSegmenter.mask
         
@@ -155,17 +160,26 @@ class KinetochoreAnalyzer(object):
 class CellposeSegmenter(object):
     
 
-    def __init__(self):
+    def __init__(self, options=None):
         super(CellposeSegmenter, self).__init__()
         self.env_path = ""
         self.env_type = "conda"
         self.model= "cyto"
-        self.model_path = " "
+        self.model_path = ""
         self.diameter = 50
         self.useGPU = False
         self.ch1 = 0
         self.ch2 = 0
         self.labels = None
+        if options:
+            self.setOptions(options)
+        
+        
+    def setOptions(self, options):
+        self.env_path = options.value("conda env path")
+        self.model_path = options.value("model path")
+        self.diameter = options.value("cell diameter")
+        self.useGPU = options.value("use gpu")
 
 
     def run(self, image):
@@ -194,21 +208,29 @@ class CellposeSegmenter(object):
 class LabKitSpotSegmenter(object):
 
 
-    def __init__(self, classifierPath):
+    def __init__(self, options=None):
         super(LabKitSpotSegmenter, self).__init__()
-        self.classifierPath = classifierPath
         self.useGPU = False
         self.mask = None
+        self.classifierPath = ""
+        self.labelOfInterest = 2
+        if options:
+            self.setOptions(options)
 
 
-    def run(self, image, labelOfInterest):
+    def setOptions(self, options):
+        self.labelOfInterest = options.value("spot label")
+        self.classifierPath = options.value("labkit classifier path")
+
+
+    def run(self, image):
         image.show()
         parameters = self.getParameterString()
         IJ.run(image,
                "Segment Image With Labkit",
                "input =" + image.getTitle() + " " + parameters)
         labels = IJ.getImage()
-        self.mask = LabelImages.keepLabels(labels, [labelOfInterest])
+        self.mask = LabelImages.keepLabels(labels, [self.labelOfInterest])
         labels.close()
         self.mask.setAutoThreshold("Default dark")
         IJ.run(self.mask, "Convert to Mask", "")

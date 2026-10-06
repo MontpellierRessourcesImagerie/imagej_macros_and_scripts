@@ -2,7 +2,8 @@ from ij import IJ
 from fr.cnrs.mri.kinetochores import CellposeSegmenter
 from fr.cnrs.mri.kinetochores import LabKitSpotSegmenter
 from fr.cnrs.mri.kinetochores import KinetochoreAnalyzer
-
+from fr.cnrs.mri.cialib.options import Options
+from fr.cnrs.mri.cialib.dialog import OptionsDialog
 
 
 SIGNAL_CHANNEL = 1
@@ -17,14 +18,18 @@ USE_GPU = True
 
 
 def main():
+    options = getOptions()
+    dialog = OptionsDialog(options)
+    if not dialog.showOptions():
+        return
+
     image = IJ.getImage()
-    cellSegmenter = getCellSegmenter()
-    spotSegmenter = getSpotSegmenter()
-    analyzer = KinetochoreAnalyzer(cellSegmenter, spotSegmenter, image)
-    analyzer.cellChannelNr = SIGNAL_CHANNEL
-    analyzer.signalChannelNr = SIGNAL_CHANNEL
-    analyzer.kinetochoreChannelNr = KINETOCHORES_CHANNEL
-    analyzer.spotLabel = SPOT_LABEL
+    IJ.log("Running analyze kinetochores on " + image.getTitle())
+    IJ.log(options.asString())
+
+    cellSegmenter = getCellSegmenter(options)
+    spotSegmenter = getSpotSegmenter(options)
+    analyzer = KinetochoreAnalyzer(cellSegmenter, spotSegmenter, image, options=options)
     analyzer.run()
     analyzer.cellLabels.show()
     analyzer.kinetochoreMask.show()
@@ -33,25 +38,28 @@ def main():
     analyzer.table.show("Kinetochore measurements")
 
 
-def getCellSegmenter():
-    segmenter = CellposeSegmenter()
-    segmenter.env_path = CONDA_ENV_PATH
-    segmenter.env_type = "conda"
-    segmenter.model = "cyto"
-    segmenter.model_path = MODEL_PATH
-    segmenter.diameter = DIAMETER
-    segmenter.useGPU = USE_GPU
-    segmenter.ch1 = 0
-    segmenter.ch2 = 0
+def getCellSegmenter(options):
+    segmenter = CellposeSegmenter(options=options)
     return segmenter
 
 
-
-def getSpotSegmenter():
-    segmenter = LabKitSpotSegmenter(CLASSIFIER_PATH)
-    segmenter.useGPU = False
+def getSpotSegmenter(options):
+    segmenter = LabKitSpotSegmenter(options=options)
     return segmenter
 
+
+def getOptions():
+    options = Options("kinetochore analyzer", "Analyze Image")
+    options.addInt("signal channel", value=SIGNAL_CHANNEL)
+    options.addInt("kinetochore channel", value=KINETOCHORES_CHANNEL)
+    options.addInt("cell diameter", value=DIAMETER)
+    options.addStr("conda env path", value=CONDA_ENV_PATH)
+    options.addStr("model path", value=MODEL_PATH)
+    options.addStr("labkit classifier path", value=CLASSIFIER_PATH)
+    options.addInt("spot label", value=SPOT_LABEL)
+    options.addBool("use gpu", value=USE_GPU)
+    options.load()
+    return options
 
 
 main()
