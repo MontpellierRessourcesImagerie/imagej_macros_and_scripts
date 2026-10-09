@@ -1,4 +1,8 @@
 from ij import IJ
+from java.lang import Math
+from java.awt import Color
+from ij import ImagePlus
+from ij.gui import Overlay
 from ij.plugin import Duplicator
 from ij.plugin import ImageCalculator
 from ij.plugin import ZProjector
@@ -6,6 +10,10 @@ from ij.measure import ResultsTable
 from ij.plugin.filter import RankFilters
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
+from inra.ijpb.color.ColorMaps import CommonLabelMaps
+from inra.ijpb.color import ColorMaps
+from inra.ijpb.label.conncomp import LabelBoundariesLabeling2D
+
 
 
 class KinetochoreAnalyzer(object):
@@ -25,30 +33,114 @@ class KinetochoreAnalyzer(object):
         self.kinetochoreMask = None
         self.signalMask = None
         self.signal = None
+        self.signalLabels = None
         self.table =None
+        self.controlImage = None
+        self.subtractBackgroundValue = "max"
         if options:
             self.setOptions(options)
 
 
     def setOptions(self, options):
-        pass
+        self.cellChannelNr = options.value("cell channel")
+        self.kinetochoreChannelNr = options.value("kinetochore channel")
+        self.signalChannelNr = options.value("signal channel")
+        self.subtractBackgroundValue = options.value("background subtraction value")
+        self.spotLabel = options.value("spot label")
 
 
     def run(self):
+        IJ.log("Segmenting cells...")
         self.segmentCells()
+        IJ.log("Segmenting kinetochores...")
         self.segmentKinetochores()
+        IJ.log("Segmenting the signal...")
         self.segmentSignal()
+        IJ.log("Removing kinetochores out of cells...")
         self.removeKinetochoresOutOfCells()
+        IJ.log("Removing signal out of cells...")
         self.removeSignalOutOfCells()
+        IJ.log("Removing signal background...")
         self.createSignalImageWithCellBackgroundRemoved()
+        IJ.log("Measuring kinetochores...")
         self.measureSignalInKinetochores()
+        IJ.log("Creating the control image...")
+        self.createControlImage()
         
-        
+
+    def createControlImage(self):
+        self.controlImage = ImageTool.getMaxProjection(self.image)
+        self.addCellContoursToControlImage()
+        self.adjustControlImageDisplay()
+        overlay = self.addKinetochoreRoiToControlImage()
+        self.addSignalRoiToControlImage(overlay)
+
+
+    def addSignalRoiToControlImage(self, overlay):
+        IJ.setThreshold(self.signalLabels, 1.0000, 1000000000000000000000000000000.0000)
+        IJ.run(self.signalLabels, "Create Selection", "")
+        roi = self.signalLabels.getRoi()
+        self.signalLabels.getProcessor().resetThreshold()
+        roi.setStrokeColor(Color.GREEN)
+        overlay.add(roi, "signal")
+        self.controlImage.setOverlay(overlay)
+        self.controlImage.resetRoi()
+
+
+    def addKinetochoreRoiToControlImage(self):
+        IJ.run(self.kinetochoreMask, "Create Selection", "")
+        roi = self.kinetochoreMask.getRoi()
+        roi.setStrokeColor(Color.RED)
+        overlay = Overlay()
+        overlay.add(roi, "kinetochores")
+        self.controlImage.setRoi(roi)
+        return overlay
+
+
+    def adjustControlImageDisplay(self):
+        nChannels = self.controlImage.getNChannels()
+        for i in range(2, nChannels+1):
+            self.controlImage.setPosition(i,1,1)
+            IJ.resetMinAndMax(self.controlImage)
+        self.controlImage.setPosition(1, 1, 1)
+        IJ.resetMinAndMax(self.controlImage)
+        self.controlImage.setProp("CompositeProjection", "Sum")
+        self.controlImage.setDisplayMode(IJ.COMPOSITE)
+
+
+    def addCellContoursToControlImage(self):
+        IJ.run(self.cellLabels, "Label Morphological Filters", "operation=Erosion radius=1 from_any_label")
+        cellLabelErosion = IJ.getImage()
+        cellLabelContours = self.doRegionBoundaryLabeling(cellLabelErosion)
+        cellLabelErosion.close()
+        shortProcessor = cellLabelContours.getProcessor().convertToShortProcessor(False)
+        cellLabelContours.setProcessor(shortProcessor)
+        IJ.run(self.controlImage, "Add Slice", "add=channel prepend")
+        self.controlImage.setPosition(1, 1, 1)
+        self.controlImage.setProcessor(shortProcessor)
+        IJ.run(self.controlImage, "glasbey on dark", "")
+        cellLabelContours.close()
+
+
+    def doRegionBoundaryLabeling(self, cellLabelContours):
+        colorMap = CommonLabelMaps.GLASBEY_BRIGHT.computeLut(255, False)
+        cm = ColorMaps.createColorModel(colorMap, Color.BLACK)
+        algo = LabelBoundariesLabeling2D()
+        res = algo.process(cellLabelContours.getProcessor())
+        boundaries = res.boundaryLabelMap
+        newName = cellLabelContours.getShortTitle() + "-bnd"
+        resultPlus = ImagePlus(newName, boundaries)
+        resultPlus.getProcessor().setColorModel(cm)
+        resultPlus.setDisplayRange(0, Math.max(res.boundaries.size(), 255))
+        return resultPlus
+
+
     def segmentCells(self):
         inFocusImage = self.imageTool.getInFocusSlice(self.cellChannelNr)
         self.cellSegmenter.run(inFocusImage)
         inFocusImage.close()
         self.cellLabels = self.cellSegmenter.labels
+        self.cellLabels.setTitle("cell labels")
 
 
     def segmentKinetochores(self):
@@ -56,6 +148,7 @@ class KinetochoreAnalyzer(object):
         self.spotSegmenter.run(image)
         image.close()
         self.kinetochoreMask = self.spotSegmenter.mask
+        self.kinetochoreMask.setTitle("kinetochore mask")
 
 
     def segmentSignal(self):
@@ -63,6 +156,7 @@ class KinetochoreAnalyzer(object):
         self.spotSegmenter.run(image)
         image.close()
         self.signalMask = self.spotSegmenter.mask
+        self.signalMask.setTitle("signal mask")
         
 
     def removeKinetochoresOutOfCells(self):
@@ -80,7 +174,7 @@ class KinetochoreAnalyzer(object):
 
 
     def getCellMask(self):
-        cellMask = self.imageTool.copyImage(self.cellLabels)
+        cellMask = ImageTool.copyImage(self.cellLabels)
         cellMask.getProcessor().setThreshold(1.0000, 1000000000000000000000000000000.0000)
         cellMask.setProcessor(cellMask.createThresholdMask())
         return cellMask
@@ -90,9 +184,14 @@ class KinetochoreAnalyzer(object):
         self.signal = self.imageTool.getMaxProjectionOf(self.signalChannelNr)
         labelsWithHoles = self.getLabelsWithHoles()
         measurements = IntensityMeasures(self.signal, labelsWithHoles)
-        table = measurements.getMax()
-        table.show("max")
-        maxValues = table.getColumn("Max")
+        table = measurements.getMean()
+        if self.subtractBackgroundValue=="max":
+            table = measurements.getMax()
+        if self.subtractBackgroundValue=="mode":
+            table = measurements.getMode()
+        if self.subtractBackgroundValue=="median":
+            table = measurements.getMedian()
+        maxValues = table.getColumn(self.subtractBackgroundValue.capitalize())
         for label, intensity in enumerate(maxValues, start=1):
             labelImage = LabelImages.keepLabels(self.cellLabels, [label])
             IJ.setThreshold(labelImage, label, 1000000000000000000000000000000.0000)
@@ -101,6 +200,7 @@ class KinetochoreAnalyzer(object):
             self.signal.setRoi(roi)
             IJ.run(self.signal, "Subtract...", "value=" + str(intensity))
         self.signal.resetRoi()
+        self.signal.setTitle("signal with background removed")
 
 
     def getLabelsWithHoles(self):
@@ -113,11 +213,8 @@ class KinetochoreAnalyzer(object):
 
 
     def measureSignalInKinetochores(self):
-        kLabels = ImageCalculator.run(self.kinetochoreMask, self.cellLabels, "and create")
-        sLabels = ImageCalculator.run(self.signalMask, self.cellLabels, "and create")
-        sLabels.show()
-        print("signal mask", self.signalMask, type(self.signalMask))
-        print("slabels", sLabels, type(sLabels))
+        kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
+        sLabels = ImageCalculator.run(self.cellLabels, self.signalMask, "and create")
         measurements = IntensityMeasures(kLabels, sLabels)
         table = measurements.getMax()
         maxValues = table.getColumn("Max")
@@ -127,9 +224,9 @@ class KinetochoreAnalyzer(object):
                 continue
             label = table.getLabel(i)
             labels.append(int(label))
-        print("labels", labels)
-        labelsToBeMeasured = LabelImages.keepLabels(sLabels, labels)
-        iMeasurements = IntensityMeasures(self.signal, labelsToBeMeasured)
+        self.signalLabels = LabelImages.keepLabels(sLabels, labels)
+        self.signalLabels.setTitle("co-occuring signal labels")
+        iMeasurements = IntensityMeasures(self.signal, self.signalLabels)
         self.table = ResultsTable()
         maxValues = iMeasurements.getMax()
         meanValues = iMeasurements.getMean()
@@ -281,9 +378,16 @@ class ImageTool(object):
 
     def getMaxProjectionOf(self, channelNr):
         image = self.getChannel(channelNr)
-        projection = ZProjector.run(image, "max")
+        projection =self.getMaxProjection(image)
         return projection
         
-        
-    def copyImage(self, anImage):
-        return self.duplicator.run(anImage)
+
+    @classmethod
+    def getMaxProjection(cls, image):
+        projection = ZProjector.run(image, "max")
+        return projection
+
+
+    @classmethod
+    def copyImage(cls, anImage):
+        return Duplicator().run(anImage)
