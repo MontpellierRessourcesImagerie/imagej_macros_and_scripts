@@ -1,4 +1,6 @@
 from ij import IJ
+from ij import WindowManager
+from ij.measure import ResultsTable
 from fr.cnrs.mri.kinetochores import CellposeSegmenter
 from fr.cnrs.mri.kinetochores import LabKitSpotSegmenter
 from fr.cnrs.mri.kinetochores import KinetochoreAnalyzer
@@ -27,12 +29,21 @@ def main():
     image = IJ.getImage()
     IJ.log("Running analyze kinetochores on " + image.getTitle() + "...")
     IJ.log(options.asString())
+
+    tableTitle = "Kinetochore Measurements"
+    table = WindowManager.getWindow(tableTitle)
+    if table:
+        table = table.getResultsTable()
+    else:
+        table = ResultsTable()
+
     cellSegmenter = getCellSegmenter(options)
     spotSegmenter = getSpotSegmenter(options)
     analyzer = KinetochoreAnalyzer(cellSegmenter, spotSegmenter, image, options=options)
+    analyzer.table = table
     analyzer.run()
     analyzer.controlImage.show()
-    analyzer.table.show("Kinetochore measurements")
+    analyzer.table.show(tableTitle)
     IJ.log("Kinetochore analysis finished.")
 
 

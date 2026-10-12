@@ -1,12 +1,13 @@
-from ij import IJ
 from java.lang import Math
 from java.awt import Color
+from ij import IJ
 from ij import ImagePlus
 from ij.gui import Overlay
 from ij.plugin import Duplicator
 from ij.plugin import ImageCalculator
 from ij.plugin import ZProjector
 from ij.measure import ResultsTable
+from ij.measure import Measurements
 from ij.plugin.filter import RankFilters
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
@@ -34,9 +35,9 @@ class KinetochoreAnalyzer(object):
         self.signalMask = None
         self.signal = None
         self.signalLabels = None
-        self.table =None
+        self.table = None
         self.controlImage = None
-        self.subtractBackgroundValue = "max"
+        self.subtractBackgroundValue = "mean"
         if options:
             self.setOptions(options)
 
@@ -81,8 +82,9 @@ class KinetochoreAnalyzer(object):
         IJ.run(self.signalLabels, "Create Selection", "")
         roi = self.signalLabels.getRoi()
         self.signalLabels.getProcessor().resetThreshold()
-        roi.setStrokeColor(Color.GREEN)
-        overlay.add(roi, "signal")
+        if roi:
+            roi.setStrokeColor(Color.GREEN)
+            overlay.add(roi, "signal")
         self.controlImage.setOverlay(overlay)
         self.controlImage.resetRoi()
 
@@ -213,10 +215,18 @@ class KinetochoreAnalyzer(object):
 
 
     def measureSignalInKinetochores(self):
+        if not self.table:
+            self.table = ResultsTable()
         kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
         sLabels = ImageCalculator.run(self.cellLabels, self.signalMask, "and create")
         measurements = IntensityMeasures(kLabels, sLabels)
         table = measurements.getMax()
+        if table.getCounter() < 1:
+            self.addToTable()
+            self.signalLabels = ImagePlus("co-occuring signal labels",
+                                          sLabels.getProcessor().createProcessor(sLabels.getWidth(),
+                                                                                 sLabels.getHeight()))
+            return
         maxValues = table.getColumn("Max")
         labels = []
         for i, maxValue in enumerate(maxValues):
@@ -226,8 +236,11 @@ class KinetochoreAnalyzer(object):
             labels.append(int(label))
         self.signalLabels = LabelImages.keepLabels(sLabels, labels)
         self.signalLabels.setTitle("co-occuring signal labels")
+        maxLabel = self.signalLabels.getStatistics(Measurements.MIN_MAX).max
+        if maxLabel < 1:
+            self.addToTable()
+            return
         iMeasurements = IntensityMeasures(self.signal, self.signalLabels)
-        self.table = ResultsTable()
         maxValues = iMeasurements.getMax()
         meanValues = iMeasurements.getMean()
         medianValues = iMeasurements.getMedian()
@@ -241,17 +254,26 @@ class KinetochoreAnalyzer(object):
                                                                                    minValues.getColumn("Min"),
                                                                                    modeValues.getColumn("Mode"),
                                                                                    stdDevValues.getColumn("StdDev")):
-            self.table.addRow()
-            self.table.addLabel(maxValues.getLabel(index))
-            self.table.addValue("image", self.image.getTitle())
-            self.table.addValue("Max", maxValue)
-            self.table.addValue("Mean", meanValue)
-            self.table.addValue("StdDev", stdValue)
-            self.table.addValue("Median", medianValue)
-            self.table.addValue("Min", minValue)
-            self.table.addValue("Mode", modeValue)
+            self.addToTable(label=maxValues.getLabel(index),
+                            max=maxValue,
+                            mean=meanValue,
+                            stdDev=stdValue,
+                            median=medianValue,
+                            min=minValue,
+                            mode=modeValue)
             index = index + 1
 
+
+    def addToTable(self, label=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
+        self.table.addRow()
+        self.table.addLabel(str(label))
+        self.table.addValue("image", self.image.getTitle())
+        self.table.addValue("Max", max)
+        self.table.addValue("Mean", mean)
+        self.table.addValue("StdDev", stdDev)
+        self.table.addValue("Median", median)
+        self.table.addValue("Min", min)
+        self.table.addValue("Mode", mode)
 
 
 class CellposeSegmenter(object):
