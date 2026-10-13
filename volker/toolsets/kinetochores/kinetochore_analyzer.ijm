@@ -162,7 +162,7 @@ function installOrUpdate() {
         setToolInfo();
         run("mri updater");
         unsetToolInfo();
-        installModels()
+        installModels();
     } else {
         print("Installing the updater...");
         updateUpdater();
