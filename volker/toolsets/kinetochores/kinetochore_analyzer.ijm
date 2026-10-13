@@ -118,19 +118,20 @@ function readOptions(path) {
         nameParts = split(name, " ");
         option = nameParts[0]; 
         params = substring(line, indexOf(line, ":"));
-        params = split(params, ",");
-        type = split(params[1], ':');
-        type = String.trim(type[1]);
-        transient = split(params[2], ':');
-        transient = String.trim(transient[1]);
+        params = replace(params, "\\[.*\\]", "choices");
+        params = split(params, ",");        
+        type = getOptionMetadata(params, "type");
+        transient = getOptionMetadata(params, "transient");
         if (transient=='true') continue;
-        value = split(params[5], ':');
-        value = String.trim(value[1]);
+        value = getOptionMetadata(params, "value");
         if (type=='bool' && value=='true') {
             booleanOptions = booleanOptions + " " + option;
         }
         if (type=='int' || type=='float' || type=='str') {
             options = options + " " + option + "=" + value;
+        }
+        if (type=='str' || type=='choice' || type=='file') {
+            options = options + " " + option + "=[" + value + "]";
         }
     }
     options = options + booleanOptions;
@@ -141,7 +142,56 @@ function readOptions(path) {
 }
 
 
-function installOrUpdate() {        
+function getOptionMetadata(params, name) {
+    for (i=0; i<params.length; i++) {
+        parts = split(params[i], ':');
+        metadataName = String.trim(parts[0]);
+        metadataValue = String.trim(parts[1]);
+        if (metadataName == name) {
+            return metadataValue;
+        }
+    }
+    return ""
+}
 
-       
+
+function installOrUpdate() {
+    scriptsFolder = getDirectory("imagej") + "scripts/";
+    if (File.exists(scriptsFolder + "mri_updater.py")) {
+        print("Running the updater...");
+        setToolInfo();
+        run("mri updater");
+        unsetToolInfo();
+        installModels()
+    } else {
+        print("Installing the updater...");
+        updateUpdater();
+        print("Please restart FIJI and press the install/update button again!");
+    }
+}
+
+
+function installModels() {
+
+}
+
+
+function setToolInfo() {
+    call("ij.Prefs.set", "mri.update.tool", "kinetochores");
+    call("ij.Prefs.set", "mri.update.folder", "kinetochore_analyzer");
+    call("ij.Prefs.set", "mri.update.author", "volker");
+}
+
+
+function unsetToolInfo() {
+    call("ij.Prefs.set", "mri.update.tool", "");
+    call("ij.Prefs.set", "mri.update.folder", "");
+    call("ij.Prefs.set", "mri.update.author", "");
+}
+
+
+function updateUpdater() {
+    updaterContent = File.openUrlAsString("https://raw.githubusercontent.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/master/volker/scripts/mri_updater.py");
+    scriptsFolder = getDirectory("imagej") + "scripts/";
+    File.saveString(updaterContent, scriptsFolder + "mri_updater.py");
 }

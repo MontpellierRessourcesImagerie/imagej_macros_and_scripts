@@ -6,7 +6,6 @@ from copy import copy
 
 
 
-
 class Options:
 
 
@@ -134,24 +133,42 @@ class Options:
                             'callback': callback}
 
 
+    def addFile(
+            self,
+            name="file",
+            value="",
+            transient=False,
+            position=None,
+            callback=None,
+    ):
+        position = self._getPosition(position)
+        self.items[name] = {
+            'type': 'file',
+            "value": value,
+            "transient": transient,
+            "position": position,
+            "callback": callback,
+        }
+
+
     def asString(self):
         items = [(name, item, item['position']) for name, item in self.items.items()]
         items.sort(key=lambda x: x[2])
         options = ""
         booleanOptions = ""
         for name, item, _ in items:
-            if item['type'] in ['int', 'float', 'str', 'choice']:
+            if item['type'] in ['int', 'float', 'str', 'choice', 'file']:
                 value = str(item['value'])
                 if ' ' in value:
                     value = '[' + value + ']'
                 options = options + " " + name.split()[0] + "=" + value
-            if item['type'] == 'bool' and item['value']==True:
+            if item['type'] == 'bool' and item['value'] == True:
                 booleanOptions = booleanOptions + " " + name.split()[0]
         options = options + booleanOptions
         options = options.strip()
         return options
-        
-        
+
+
     def _getPosition(self, position):
         if not position:
             position = len(self.items.keys())

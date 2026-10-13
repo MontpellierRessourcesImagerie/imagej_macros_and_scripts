@@ -2,6 +2,7 @@ from ij import Prefs
 from ij.gui import GenericDialog
 
 
+
 class OptionsDialog(GenericDialog):
 
 
@@ -9,8 +10,8 @@ class OptionsDialog(GenericDialog):
         super(OptionsDialog, self).__init__(options.optionsName)
         self.options = options
         self.columns = 8
-        
-        
+
+
     def addFields(self):
         items = [(name, item, item['position']) for name, item in self.options.items.items()]
         items.sort(key=lambda x: x[2])
@@ -25,26 +26,30 @@ class OptionsDialog(GenericDialog):
                 self.addStringField(name, item['value'], self.columns)
             if item['type'] == 'choice':
                 self.addChoice(name, item['choices'], item['value'])
-        
-        
+            if item['type'] == 'file':
+                self.addFileField(name, item['value'], 4*self.columns)
+
+
     def transferValues(self):
         for name, item in self.options.items.items():
-             if item['type'] == 'int':
+            if item['type'] == 'int':
                 item['value'] = int(self.getNextNumber())
-             if item['type'] == 'float':
+            if item['type'] == 'float':
                 item['value'] = self.getNextNumber()
-             if item['type'] == 'bool':
+            if item['type'] == 'bool':
                 item['value'] = self.getNextBoolean()
-             if item['type'] == 'str':
-                item['value'] = self.getNextString() 
-             if item['type'] == 'choice':
-                item['value'] = self.getNextChoice()      
-                
-                
+            if item['type'] == 'str':
+                item['value'] = self.getNextString()
+            if item['type'] == 'choice':
+                item['value'] = self.getNextChoice()
+            if item['type'] == 'file':
+                item['value'] = self.getNextString()
+
+
     def showOptions(self):
         self.addFields()
         optionsOnly = Prefs.get("mri.options.only", "false")
-        optionsOnly = optionsOnly=='true'
+        optionsOnly = optionsOnly == 'true'
         self.showDialog()
         if self.wasCanceled():
             return False
@@ -52,6 +57,5 @@ class OptionsDialog(GenericDialog):
         if optionsOnly:
             self.options.save()
             return False
-        return True   
-             
-            
+        return True
+
