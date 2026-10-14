@@ -63,7 +63,7 @@ def getOptions():
     options.addInt("kinetochore channel", value=KINETOCHORES_CHANNEL)
     options.addInt("cell channel", value=CELL_CHANNEL)
     options.addInt("cell diameter", value=DIAMETER)
-    options.addFile("conda env path", value=CONDA_ENV_PATH, transient=False)
+    options.addFolder("conda env path", value=CONDA_ENV_PATH, transient=False)
     options.addFile("model path", value=MODEL_PATH, transient=False)
     options.addFile("labkit classifier path", value=CLASSIFIER_PATH, transient=False)
     options.addInt("spot label", value=SPOT_LABEL)

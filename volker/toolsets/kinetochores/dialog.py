@@ -28,6 +28,8 @@ class OptionsDialog(GenericDialog):
                 self.addChoice(name, item['choices'], item['value'])
             if item['type'] == 'file':
                 self.addFileField(name, item['value'], 4*self.columns)
+            if item['type'] == 'folder':
+                self.addDirectoryField(name, item['value'], 4*self.columns)
 
 
     def transferValues(self):
@@ -43,6 +45,8 @@ class OptionsDialog(GenericDialog):
             if item['type'] == 'choice':
                 item['value'] = self.getNextChoice()
             if item['type'] == 'file':
+                item['value'] = self.getNextString()
+            if item['type'] == 'folder':
                 item['value'] = self.getNextString()
 
 

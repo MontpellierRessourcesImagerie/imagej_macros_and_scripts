@@ -130,7 +130,7 @@ function readOptions(path) {
         if (type=='int' || type=='float' || type=='str') {
             options = options + " " + option + "=" + value;
         }
-        if (type=='str' || type=='choice' || type=='file') {
+        if (type=='str' || type=='choice' || type=='file' || type=='folder') {
             options = options + " " + option + "=[" + value + "]";
         }
     }

@@ -151,13 +151,31 @@ class Options:
         }
 
 
+    def addFolder(
+            self,
+            name="folder",
+            value="",
+            transient=False,
+            position=None,
+            callback=None,
+    ):
+        position = self._getPosition(position)
+        self.items[name] = {
+            'type': 'folder',
+            "value": value,
+            "transient": transient,
+            "position": position,
+            "callback": callback,
+        }
+
+
     def asString(self):
         items = [(name, item, item['position']) for name, item in self.items.items()]
         items.sort(key=lambda x: x[2])
         options = ""
         booleanOptions = ""
         for name, item, _ in items:
-            if item['type'] in ['int', 'float', 'str', 'choice', 'file']:
+            if item['type'] in ['int', 'float', 'str', 'choice', 'file', 'folder']:
                 value = str(item['value'])
                 if ' ' in value:
                     value = '[' + value + ']'
