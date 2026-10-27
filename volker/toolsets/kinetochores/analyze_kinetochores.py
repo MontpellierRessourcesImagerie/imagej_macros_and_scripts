@@ -25,7 +25,7 @@ def main():
     dialog = OptionsDialog(options)
     if not dialog.showOptions():
         return
-
+    options.save()
     image = IJ.getImage()
     IJ.log("Running analyze kinetochores on " + image.getTitle() + "...")
     IJ.log(options.asString())

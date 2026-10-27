@@ -2,6 +2,7 @@ from java.lang import Math
 from java.awt import Color
 from ij import IJ
 from ij import ImagePlus
+from ij import WindowManager
 from ij.gui import Overlay
 from ij.plugin import Duplicator
 from ij.plugin import ImageCalculator
@@ -230,9 +231,10 @@ class KinetochoreAnalyzer(object):
         maxValues = table.getColumn("Max")
         labels = []
         for i, maxValue in enumerate(maxValues):
-            if maxValue < 1:
-                continue
             label = table.getLabel(i)
+            if maxValue < 1:
+                self.addToTable(label=label)
+                continue
             labels.append(int(label))
         self.signalLabels = LabelImages.keepLabels(sLabels, labels)
         self.signalLabels.setTitle("co-occuring signal labels")
@@ -241,6 +243,9 @@ class KinetochoreAnalyzer(object):
             self.addToTable()
             return
         iMeasurements = IntensityMeasures(self.signal, self.signalLabels)
+        nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
+        sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
+        volumeValues = iMeasurements.getVolume()
         maxValues = iMeasurements.getMax()
         meanValues = iMeasurements.getMean()
         medianValues = iMeasurements.getMedian()
@@ -248,13 +253,21 @@ class KinetochoreAnalyzer(object):
         modeValues = iMeasurements.getMode()
         stdDevValues = iMeasurements.getStdDev()
         index = 0
-        for maxValue, meanValue, medianValue, minValue, modeValue, stdValue in zip(maxValues.getColumn("Max"),
-                                                                                   meanValues.getColumn("Mean"),
-                                                                                   medianValues.getColumn("Median"),
-                                                                                   minValues.getColumn("Min"),
-                                                                                   modeValues.getColumn("Mode"),
-                                                                                   stdDevValues.getColumn("StdDev")):
+        for nrOfVoxelsValue, sumOfVoxelsValue, volumeValue, maxValue, meanValue, medianValue, minValue, modeValue, stdValue in zip(
+                       nrOfVoxelsValues.getColumn("NumberOfVoxels"),
+                       sumOfVoxelsValues.getColumn("Voxels Sum"),
+                       volumeValues.getColumn("Volume"),
+                       maxValues.getColumn("Max"),
+                       meanValues.getColumn("Mean"),
+                       medianValues.getColumn("Median"),
+                       minValues.getColumn("Min"),
+                       modeValues.getColumn("Mode"),
+                       stdDevValues.getColumn("StdDev")):
             self.addToTable(label=maxValues.getLabel(index),
+                            nrOfPixel=nrOfVoxelsValue,
+                            area=volumeValue,
+                            integratedDensity=volumeValue*meanValue,
+                            rawIntegratedDensity=sumOfVoxelsValue,
                             max=maxValue,
                             mean=meanValue,
                             stdDev=stdValue,
@@ -262,18 +275,28 @@ class KinetochoreAnalyzer(object):
                             min=minValue,
                             mode=modeValue)
             index = index + 1
+        self.table.sort("Cell")
+        self.table.deleteColumn("Cell")
+        self.table.updateResults()
+        frame = WindowManager.getFrame("Results")
+        frame.close()
 
 
-    def addToTable(self, label=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
+    def addToTable(self, label=0, nrOfPixel=0, area=0, integratedDensity=0, rawIntegratedDensity=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
         self.table.addRow()
         self.table.addLabel(str(label))
         self.table.addValue("image", self.image.getTitle())
+        self.table.addValue("Pixels", nrOfPixel)
+        self.table.addValue("Area", area)
+        self.table.addValue("IntDen", integratedDensity)
+        self.table.addValue("RawIntDen", rawIntegratedDensity)
         self.table.addValue("Max", max)
         self.table.addValue("Mean", mean)
         self.table.addValue("StdDev", stdDev)
         self.table.addValue("Median", median)
         self.table.addValue("Min", min)
         self.table.addValue("Mode", mode)
+        self.table.addValue("Cell", int(label))
 
 
 class CellposeSegmenter(object):
