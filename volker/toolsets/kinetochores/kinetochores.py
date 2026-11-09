@@ -221,22 +221,21 @@ class KinetochoreAnalyzer(object):
         kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
         sLabels = ImageCalculator.run(self.cellLabels, self.signalMask, "and create")
         measurements = IntensityMeasures(kLabels, sLabels)
+        kMeasurements = IntensityMeasures(kLabels, kLabels)
         table = measurements.getMax()
+        kTable = kMeasurements.getMax()
         if table.getCounter() < 1:
             self.addToTable()
             self.signalLabels = ImagePlus("co-occuring signal labels",
                                           sLabels.getProcessor().createProcessor(sLabels.getWidth(),
                                                                                  sLabels.getHeight()))
-            return
-        maxValues = table.getColumn("Max")
-        labels = []
-        for i, maxValue in enumerate(maxValues):
-            label = table.getLabel(i)
-            if maxValue < 1:
-                self.addToTable(label=label)
-                continue
-            labels.append(int(label))
-        self.signalLabels = LabelImages.keepLabels(sLabels, labels)
+            return        
+        kLabelsList = [kTable.getLabel(row) for row in range(kTable.size())]
+        sLabelsList = [table.getLabel(row) for row in range(table.size())]
+        zeroValueLabels = list(set(kLabelsList) - set(sLabelsList))
+        for label in zeroValueLabels:
+            self.addToTable(label=label)
+        self.signalLabels = sLabels
         self.signalLabels.setTitle("co-occuring signal labels")
         maxLabel = self.signalLabels.getStatistics(Measurements.MIN_MAX).max
         if maxLabel < 1:
