@@ -92,6 +92,9 @@ The macro exports the images of a selected series from multi-series image files.
 #### [Intensity Ratio Nuclei Cytoplasm Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Intensity-Ratio-Nuclei-Cytoplasm-Tool)
 
 <img align='right' src="https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/assets/7602420/7340d927-cc85-4b88-91d0-7b1eb6c92bfb" height='100'/> The tool calculates the ratio of the intensity in the nuclei and the cytoplasm. It needs two images as input: the cytoplasm channel and the nuclei channel. The nuclei channel is used to segment the nuclei. The measurements are made in the cytoplasm channel after the background intensity has been corrected. 
+#### [Kinetochore Analyzer](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Kinetochore-Analyzer)
+
+<img  align='right' height="100" alt="kinetochores" src="https://github.com/user-attachments/assets/b5beaa30-27db-4de0-b840-992918145ad4" /> Segment kinetochores in yeast cells and measure the co-occurence with a molecule in a different fluorescent channel.
 #### [Lipid Droplets Tool](https://github.com/MontpellierRessourcesImagerie/imagej_macros_and_scripts/wiki/Lipid-Droplets-Tool)
 
 <img align='right' src="https://github.com/user-attachments/assets/9e4d0d69-4230-4a69-b7e2-0d1cf7eaac35" height='100'/> The Lipid Droplets Tool helps to segment lipid droplets marked with BODIPY.
