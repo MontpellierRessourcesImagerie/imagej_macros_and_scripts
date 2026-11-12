@@ -224,7 +224,7 @@ class KinetochoreAnalyzer(object):
         kMeasurements = IntensityMeasures(kLabels, kLabels)
         table = measurements.getMax()
         kTable = kMeasurements.getMax()
-        if table.getCounter() < 1:
+        if kTable.getCounter() < 1:
             self.addToTable()
             self.signalLabels = ImagePlus("co-occuring signal labels",
                                           sLabels.getProcessor().createProcessor(sLabels.getWidth(),
@@ -238,9 +238,16 @@ class KinetochoreAnalyzer(object):
         self.signalLabels = sLabels
         self.signalLabels.setTitle("co-occuring signal labels")
         maxLabel = self.signalLabels.getStatistics(Measurements.MIN_MAX).max
-        if maxLabel < 1:
-            self.addToTable()
-            return
+        if maxLabel > 0:
+            self.measureCoocuringSignal()
+        self.table.sort("Cell")
+        self.table.deleteColumn("Cell")
+        self.table.updateResults()
+        frame = WindowManager.getFrame("Results")
+        frame.close()
+
+
+    def measureCoocuringSignal(self):
         iMeasurements = IntensityMeasures(self.signal, self.signalLabels)
         nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
         sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
@@ -274,13 +281,8 @@ class KinetochoreAnalyzer(object):
                             min=minValue,
                             mode=modeValue)
             index = index + 1
-        self.table.sort("Cell")
-        self.table.deleteColumn("Cell")
-        self.table.updateResults()
-        frame = WindowManager.getFrame("Results")
-        frame.close()
-
-
+            
+            
     def addToTable(self, label=0, nrOfPixel=0, area=0, integratedDensity=0, rawIntegratedDensity=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
         self.table.addRow()
         self.table.addLabel(str(label))
