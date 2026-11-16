@@ -67,6 +67,7 @@ def getOptions():
     options.addFile("model path", value=MODEL_PATH, transient=False)
     options.addFile("labkit classifier path", value=CLASSIFIER_PATH, transient=False)
     options.addInt("spot label", value=SPOT_LABEL)
+    options.addInt("kinetochore dilation radius", value=3)
     options.addChoice("background subtraction value", value="mean", choices=["mean", "max", "mode", "median"])
     options.addBool("use gpu", value=USE_GPU)
     options.load()

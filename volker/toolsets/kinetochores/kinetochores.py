@@ -12,6 +12,8 @@ from ij.measure import Measurements
 from ij.plugin.filter import RankFilters
 from inra.ijpb.label import LabelImages
 from inra.ijpb.measure import IntensityMeasures
+from inra.ijpb.morphology import Morphology
+from inra.ijpb.morphology.strel import DiskStrel
 from inra.ijpb.color.ColorMaps import CommonLabelMaps
 from inra.ijpb.color import ColorMaps
 from inra.ijpb.label.conncomp import LabelBoundariesLabeling2D
@@ -39,6 +41,8 @@ class KinetochoreAnalyzer(object):
         self.table = None
         self.controlImage = None
         self.subtractBackgroundValue = "mean"
+        self.kinetochoreDilationRadius = 3
+        self.dilatedKtByCell = {}
         if options:
             self.setOptions(options)
 
@@ -49,6 +53,7 @@ class KinetochoreAnalyzer(object):
         self.signalChannelNr = options.value("signal channel")
         self.subtractBackgroundValue = options.value("background subtraction value")
         self.spotLabel = options.value("spot label")
+        self.kinetochoreDilationRadius = options.value("kinetochore dilation radius")
 
 
     def run(self):
@@ -64,6 +69,8 @@ class KinetochoreAnalyzer(object):
         self.removeSignalOutOfCells()
         IJ.log("Removing signal background...")
         self.createSignalImageWithCellBackgroundRemoved()
+        IJ.log("Measuring signal in dilated kinetochores...")
+        self.measureSignalInDilatedKinetochores()
         IJ.log("Measuring kinetochores...")
         self.measureSignalInKinetochores()
         IJ.log("Creating the control image...")
@@ -215,6 +222,39 @@ class KinetochoreAnalyzer(object):
         return cellLabelsWithHoles
 
 
+    def measureSignalInDilatedKinetochores(self):
+        """Measure mean and integrated density of the background-subtracted signal channel
+        inside the dilated kinetochore mask, per cell that has kinetochores.
+
+        One entry per cell, keyed by the cell label. If no cell has kinetochores a
+        single entry for label 0 with zeros is stored, mirroring the existing behavior.
+        """
+        kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
+        kMeasurements = IntensityMeasures(kLabels, kLabels)
+        kTable = kMeasurements.getMax()
+        if kTable.getCounter() < 1:
+            self.dilatedKtByCell = {0: (0, 0, 0, 0)}
+            return
+        ktCellLabels = set(int(kTable.getLabel(row)) for row in range(kTable.size()))
+        dilatedKtMask = self.imageTool.dilate(self.kinetochoreMask, self.kinetochoreDilationRadius)
+        dilatedKtCells = ImageCalculator.run(self.cellLabels, dilatedKtMask, "and create")
+        iMeasurements = IntensityMeasures(self.signal, dilatedKtCells)
+        nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
+        sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
+        volumeValues = iMeasurements.getVolume()
+        meanValues = iMeasurements.getMean()
+        self.dilatedKtByCell = {}
+        for index in range(meanValues.size()):
+            label = int(meanValues.getLabel(index))
+            if label not in ktCellLabels:
+                continue
+            nrOfVoxelsValue = nrOfVoxelsValues.getValue("NumberOfVoxels", index)
+            sumOfVoxelsValue = sumOfVoxelsValues.getValue("Voxels Sum", index)
+            volumeValue = volumeValues.getValue("Volume", index)
+            meanValue = meanValues.getValue("Mean", index)
+            self.dilatedKtByCell[label] = (volumeValue, meanValue,
+                                           volumeValue * meanValue, sumOfVoxelsValue)
+
     def measureSignalInKinetochores(self):
         if not self.table:
             self.table = ResultsTable()
@@ -284,6 +324,18 @@ class KinetochoreAnalyzer(object):
             
             
     def addToTable(self, label=0, nrOfPixel=0, area=0, integratedDensity=0, rawIntegratedDensity=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
+        areaInDilatedKt = 0
+        meanInDilatedKt = 0
+        intDenInDilatedKt = 0
+        rawIntDenInDilatedKt = 0
+        labelKey = label
+        if not isinstance(labelKey, int):
+            try:
+                labelKey = int(label)
+            except (TypeError, ValueError):
+                labelKey = -1
+        if labelKey in self.dilatedKtByCell:
+            areaInDilatedKt, meanInDilatedKt, intDenInDilatedKt, rawIntDenInDilatedKt = self.dilatedKtByCell[labelKey]
         self.table.addRow()
         self.table.addLabel(str(label))
         self.table.addValue("image", self.image.getTitle())
@@ -297,6 +349,10 @@ class KinetochoreAnalyzer(object):
         self.table.addValue("Median", median)
         self.table.addValue("Min", min)
         self.table.addValue("Mode", mode)
+        self.table.addValue("AreaInDilatedKinetochores", areaInDilatedKt)
+        self.table.addValue("MeanInDilatedKinetochores", meanInDilatedKt)
+        self.table.addValue("IntDenInDilatedKinetochores", intDenInDilatedKt)
+        self.table.addValue("RawIntDenInDilatedKinetochores", rawIntDenInDilatedKt)
         self.table.addValue("Cell", int(label))
 
 
@@ -437,3 +493,10 @@ class ImageTool(object):
     @classmethod
     def copyImage(cls, anImage):
         return Duplicator().run(anImage)
+
+
+    def dilate(self, mask, radius=1):
+        """Return a copy of the binary mask dilated by a disk of the given radius (px)."""
+        proc = Morphology.dilation(mask.getProcessor(), DiskStrel.fromRadius(radius))
+        result = ImagePlus(mask.getTitle() + "-dilated", proc)
+        return result
