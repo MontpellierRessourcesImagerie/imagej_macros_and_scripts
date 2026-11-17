@@ -42,6 +42,7 @@ class KinetochoreAnalyzer(object):
         self.controlImage = None
         self.subtractBackgroundValue = "mean"
         self.kinetochoreDilationRadius = 3
+        self.signalThreshold = 0
         self.dilatedKtByCell = {}
         if options:
             self.setOptions(options)
@@ -54,6 +55,7 @@ class KinetochoreAnalyzer(object):
         self.subtractBackgroundValue = options.value("background subtraction value")
         self.spotLabel = options.value("spot label")
         self.kinetochoreDilationRadius = options.value("kinetochore dilation radius")
+        self.signalThreshold = options.value("signal threshold")
 
 
     def run(self):
@@ -226,8 +228,11 @@ class KinetochoreAnalyzer(object):
         """Measure mean and integrated density of the background-subtracted signal channel
         inside the dilated kinetochore mask, per cell that has kinetochores.
 
-        One entry per cell, keyed by the cell label. If no cell has kinetochores a
-        single entry for label 0 with zeros is stored, mirroring the existing behavior.
+        Only background-corrected signal pixels with a value >= signalThreshold are
+        measured; the area is the area of these pixels. One entry per cell, keyed by the
+        cell label. If no cell has kinetochores a single entry for label 0 with zeros is
+        stored, mirroring the existing behavior. Cells with kinetochores but no signal
+        pixel above the threshold are stored with zeros.
         """
         kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
         kMeasurements = IntensityMeasures(kLabels, kLabels)
@@ -238,12 +243,14 @@ class KinetochoreAnalyzer(object):
         ktCellLabels = set(int(kTable.getLabel(row)) for row in range(kTable.size()))
         dilatedKtMask = self.imageTool.dilate(self.kinetochoreMask, self.kinetochoreDilationRadius)
         dilatedKtCells = ImageCalculator.run(self.cellLabels, dilatedKtMask, "and create")
+        thresholdMask = self.imageTool.getThresholdMask(self.signal, self.signalThreshold)
+        dilatedKtCells = ImageCalculator.run(dilatedKtCells, thresholdMask, "and create")
         iMeasurements = IntensityMeasures(self.signal, dilatedKtCells)
         nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
         sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
         volumeValues = iMeasurements.getVolume()
         meanValues = iMeasurements.getMean()
-        self.dilatedKtByCell = {}
+        self.dilatedKtByCell = {label: (0, 0, 0, 0) for label in ktCellLabels}
         for index in range(meanValues.size()):
             label = int(meanValues.getLabel(index))
             if label not in ktCellLabels:
@@ -500,3 +507,11 @@ class ImageTool(object):
         proc = Morphology.dilation(mask.getProcessor(), DiskStrel.fromRadius(radius))
         result = ImagePlus(mask.getTitle() + "-dilated", proc)
         return result
+
+
+    def getThresholdMask(self, anImage, threshold=0):
+        """Return a binary mask (0/255) marking all pixels with a value >= threshold."""
+        duplicate = self.copyImage(anImage)
+        duplicate.getProcessor().setThreshold(threshold, 1e30)
+        mask = ImagePlus(anImage.getTitle() + "-threshold-mask", duplicate.createThresholdMask())
+        return mask
