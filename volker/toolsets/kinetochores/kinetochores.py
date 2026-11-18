@@ -21,7 +21,14 @@ from inra.ijpb.label.conncomp import LabelBoundariesLabeling2D
 
 
 class KinetochoreAnalyzer(object):
+    """Base class for kinetochore signal analysis.
 
+    Handles everything shared by the two measurement approaches: cell,
+    kinetochore and signal segmentation, removal of structures outside the
+    cells, per-cell background subtraction, the per-cell results table and the
+    control image scaffold. Subclasses must implement `measureSignal()` and
+    `addMeasuredSignalRoiToControlImage()`.
+    """
 
     def __init__(self, cellSegmenter, spotSegmenter, image, options=None):
         super(KinetochoreAnalyzer, self).__init__()
@@ -43,7 +50,6 @@ class KinetochoreAnalyzer(object):
         self.subtractBackgroundValue = "mean"
         self.kinetochoreDilationRadius = 3
         self.signalThreshold = 0
-        self.dilatedKtByCell = {}
         if options:
             self.setOptions(options)
 
@@ -54,8 +60,6 @@ class KinetochoreAnalyzer(object):
         self.signalChannelNr = options.value("signal channel")
         self.subtractBackgroundValue = options.value("background subtraction value")
         self.spotLabel = options.value("spot label")
-        self.kinetochoreDilationRadius = options.value("kinetochore dilation radius")
-        self.signalThreshold = options.value("signal threshold")
 
 
     def run(self):
@@ -71,41 +75,36 @@ class KinetochoreAnalyzer(object):
         self.removeSignalOutOfCells()
         IJ.log("Removing signal background...")
         self.createSignalImageWithCellBackgroundRemoved()
-        IJ.log("Measuring signal in dilated kinetochores...")
-        self.measureSignalInDilatedKinetochores()
-        IJ.log("Measuring kinetochores...")
-        self.measureSignalInKinetochores()
+        IJ.log("Measuring signal...")
+        self.measureSignal()
         IJ.log("Creating the control image...")
         self.createControlImage()
-        
+
+
+    def measureSignal(self):
+        raise NotImplementedError("Subclasses must implement measureSignal()!")
+
 
     def createControlImage(self):
         self.controlImage = ImageTool.getMaxProjection(self.image)
         self.addCellContoursToControlImage()
         self.adjustControlImageDisplay()
         overlay = self.addKinetochoreRoiToControlImage()
-        self.addSignalRoiToControlImage(overlay)
+        self.addMeasuredSignalRoiToControlImage(overlay)
 
 
-    def addSignalRoiToControlImage(self, overlay):
-        IJ.setThreshold(self.signalLabels, 1.0000, 1000000000000000000000000000000.0000)
-        IJ.run(self.signalLabels, "Create Selection", "")
-        roi = self.signalLabels.getRoi()
-        self.signalLabels.getProcessor().resetThreshold()
-        if roi:
-            roi.setStrokeColor(Color.GREEN)
-            overlay.add(roi, "signal")
-        self.controlImage.setOverlay(overlay)
-        self.controlImage.resetRoi()
+    def addMeasuredSignalRoiToControlImage(self, overlay):
+        raise NotImplementedError("Subclasses must implement addMeasuredSignalRoiToControlImage()!")
 
 
     def addKinetochoreRoiToControlImage(self):
         IJ.run(self.kinetochoreMask, "Create Selection", "")
         roi = self.kinetochoreMask.getRoi()
-        roi.setStrokeColor(Color.RED)
         overlay = Overlay()
-        overlay.add(roi, "kinetochores")
-        self.controlImage.setRoi(roi)
+        if roi:
+            roi.setStrokeColor(Color.RED)
+            overlay.add(roi, "kinetochores")
+            self.controlImage.setRoi(roi)
         return overlay
 
 
@@ -169,16 +168,16 @@ class KinetochoreAnalyzer(object):
         image.close()
         self.signalMask = self.spotSegmenter.mask
         self.signalMask.setTitle("signal mask")
-        
+
 
     def removeKinetochoresOutOfCells(self):
         self.kinetochoreMask = self.removeOutOfCells(self.kinetochoreMask)
-        
-        
+
+
     def removeSignalOutOfCells(self):
         self.signalMask = self.removeOutOfCells(self.signalMask)
-        
-        
+
+
     def removeOutOfCells(self, mask):
         cellMask = self.getCellMask()
         result = ImageCalculator.run(cellMask, mask, "and")
@@ -224,45 +223,48 @@ class KinetochoreAnalyzer(object):
         return cellLabelsWithHoles
 
 
-    def measureSignalInDilatedKinetochores(self):
-        """Measure mean and integrated density of the background-subtracted signal channel
-        inside the dilated kinetochore mask, per cell that has kinetochores.
+    def addToTable(self, label=0, nrOfPixel=0, area=0, integratedDensity=0, rawIntegratedDensity=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
+        labelKey = label
+        if not isinstance(labelKey, int):
+            try:
+                labelKey = int(label)
+            except (TypeError, ValueError):
+                labelKey = -1
+        self.table.addRow()
+        self.table.addLabel(str(label))
+        self.table.addValue("image", self.image.getTitle())
+        self.table.addValue("Pixels", nrOfPixel)
+        self.table.addValue("Area", area)
+        self.table.addValue("IntDen", integratedDensity)
+        self.table.addValue("RawIntDen", rawIntegratedDensity)
+        self.table.addValue("Max", max)
+        self.table.addValue("Mean", mean)
+        self.table.addValue("StdDev", stdDev)
+        self.table.addValue("Median", median)
+        self.table.addValue("Min", min)
+        self.table.addValue("Mode", mode)
+        self.table.addValue("Cell", int(label))
 
-        Only background-corrected signal pixels with a value >= signalThreshold are
-        measured; the area is the area of these pixels. One entry per cell, keyed by the
-        cell label. If no cell has kinetochores a single entry for label 0 with zeros is
-        stored, mirroring the existing behavior. Cells with kinetochores but no signal
-        pixel above the threshold are stored with zeros.
-        """
-        kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
-        kMeasurements = IntensityMeasures(kLabels, kLabels)
-        kTable = kMeasurements.getMax()
-        if kTable.getCounter() < 1:
-            self.dilatedKtByCell = {0: (0, 0, 0, 0)}
-            return
-        ktCellLabels = set(int(kTable.getLabel(row)) for row in range(kTable.size()))
-        dilatedKtMask = self.imageTool.dilate(self.kinetochoreMask, self.kinetochoreDilationRadius)
-        dilatedKtCells = ImageCalculator.run(self.cellLabels, dilatedKtMask, "and create")
-        thresholdMask = self.imageTool.getThresholdMask(self.signal, self.signalThreshold)
-        dilatedKtCells = ImageCalculator.run(dilatedKtCells, thresholdMask, "and create")
-        iMeasurements = IntensityMeasures(self.signal, dilatedKtCells)
-        nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
-        sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
-        volumeValues = iMeasurements.getVolume()
-        meanValues = iMeasurements.getMean()
-        self.dilatedKtByCell = {label: (0, 0, 0, 0) for label in ktCellLabels}
-        for index in range(meanValues.size()):
-            label = int(meanValues.getLabel(index))
-            if label not in ktCellLabels:
-                continue
-            nrOfVoxelsValue = nrOfVoxelsValues.getValue("NumberOfVoxels", index)
-            sumOfVoxelsValue = sumOfVoxelsValues.getValue("Voxels Sum", index)
-            volumeValue = volumeValues.getValue("Volume", index)
-            meanValue = meanValues.getValue("Mean", index)
-            self.dilatedKtByCell[label] = (volumeValue, meanValue,
-                                           volumeValue * meanValue, sumOfVoxelsValue)
 
-    def measureSignalInKinetochores(self):
+    def finishTable(self):
+        self.table.sort("Cell")
+        self.table.deleteColumn("Cell")
+        self.table.updateResults()
+        frame = WindowManager.getFrame("Results")
+        if frame:
+            frame.close()
+
+
+
+class OverlapKinetochoreAnalyzer(KinetochoreAnalyzer):
+    """Measure the signal co-occurring inside the (un-dilated) kinetochores.
+
+    The measured region is the overlap of the kinetochore and the signal
+    segmentation, restricted to the cells. No dilation and no signal threshold
+    are applied. This is the classic overlap-based approach.
+    """
+
+    def measureSignal(self):
         if not self.table:
             self.table = ResultsTable()
         kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
@@ -276,7 +278,7 @@ class KinetochoreAnalyzer(object):
             self.signalLabels = ImagePlus("co-occuring signal labels",
                                           sLabels.getProcessor().createProcessor(sLabels.getWidth(),
                                                                                  sLabels.getHeight()))
-            return        
+            return
         kLabelsList = [kTable.getLabel(row) for row in range(kTable.size())]
         sLabelsList = [table.getLabel(row) for row in range(table.size())]
         zeroValueLabels = list(set(kLabelsList) - set(sLabelsList))
@@ -287,11 +289,7 @@ class KinetochoreAnalyzer(object):
         maxLabel = self.signalLabels.getStatistics(Measurements.MIN_MAX).max
         if maxLabel > 0:
             self.measureCoocuringSignal()
-        self.table.sort("Cell")
-        self.table.deleteColumn("Cell")
-        self.table.updateResults()
-        frame = WindowManager.getFrame("Results")
-        frame.close()
+        self.finishTable()
 
 
     def measureCoocuringSignal(self):
@@ -328,43 +326,123 @@ class KinetochoreAnalyzer(object):
                             min=minValue,
                             mode=modeValue)
             index = index + 1
-            
-            
-    def addToTable(self, label=0, nrOfPixel=0, area=0, integratedDensity=0, rawIntegratedDensity=0, max=0, mean=0, median=0, min=0, mode=0, stdDev=0):
-        areaInDilatedKt = 0
-        meanInDilatedKt = 0
-        intDenInDilatedKt = 0
-        rawIntDenInDilatedKt = 0
-        labelKey = label
-        if not isinstance(labelKey, int):
-            try:
-                labelKey = int(label)
-            except (TypeError, ValueError):
-                labelKey = -1
-        if labelKey in self.dilatedKtByCell:
-            areaInDilatedKt, meanInDilatedKt, intDenInDilatedKt, rawIntDenInDilatedKt = self.dilatedKtByCell[labelKey]
-        self.table.addRow()
-        self.table.addLabel(str(label))
-        self.table.addValue("image", self.image.getTitle())
-        self.table.addValue("Pixels", nrOfPixel)
-        self.table.addValue("Area", area)
-        self.table.addValue("IntDen", integratedDensity)
-        self.table.addValue("RawIntDen", rawIntegratedDensity)
-        self.table.addValue("Max", max)
-        self.table.addValue("Mean", mean)
-        self.table.addValue("StdDev", stdDev)
-        self.table.addValue("Median", median)
-        self.table.addValue("Min", min)
-        self.table.addValue("Mode", mode)
-        self.table.addValue("AreaInDilatedKinetochores", areaInDilatedKt)
-        self.table.addValue("MeanInDilatedKinetochores", meanInDilatedKt)
-        self.table.addValue("IntDenInDilatedKinetochores", intDenInDilatedKt)
-        self.table.addValue("RawIntDenInDilatedKinetochores", rawIntDenInDilatedKt)
-        self.table.addValue("Cell", int(label))
+
+
+    def addMeasuredSignalRoiToControlImage(self, overlay):
+        IJ.setThreshold(self.signalLabels, 1.0000, 1000000000000000000000000000000.0000)
+        IJ.run(self.signalLabels, "Create Selection", "")
+        roi = self.signalLabels.getRoi()
+        self.signalLabels.getProcessor().resetThreshold()
+        if roi:
+            roi.setStrokeColor(Color.GREEN)
+            overlay.add(roi, "signal")
+        self.controlImage.setOverlay(overlay)
+        self.controlImage.resetRoi()
+
+
+
+class DilatedKinetochoreAnalyzer(KinetochoreAnalyzer):
+    """Measure the background-corrected signal inside the dilated kinetochores.
+
+    The kinetochore mask is dilated by `kinetochore dilation radius`, restricted
+    to the cells, and only background-corrected signal pixels with a value
+    >= `signal threshold` are measured. One entry per cell that has
+    kinetochores; cells with kinetochores but no signal pixel above the
+    threshold are reported with zeros. Reports NrOfVoxels/Area/IntDen/RawIntDen
+    as well as Max/Mean/StdDev/Median/Min/Mode of the measured zone.
+    """
+
+    def __init__(self, cellSegmenter, spotSegmenter, image, options=None):
+        super(DilatedKinetochoreAnalyzer, self).__init__(cellSegmenter, spotSegmenter, image, options=options)
+        self.dilatedKtByCell = {}
+        self.dilatedKtCells = None
+
+
+    def setOptions(self, options):
+        super(DilatedKinetochoreAnalyzer, self).setOptions(options)
+        self.kinetochoreDilationRadius = options.value("kinetochore dilation radius")
+        self.signalThreshold = options.value("signal threshold")
+
+
+    def measureSignal(self):
+        if not self.table:
+            self.table = ResultsTable()
+        kLabels = ImageCalculator.run(self.cellLabels, self.kinetochoreMask, "and create")
+        kMeasurements = IntensityMeasures(kLabels, kLabels)
+        kTable = kMeasurements.getMax()
+        if kTable.getCounter() < 1:
+            self.dilatedKtByCell = {0: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)}
+            self.addToTable()
+            return
+        ktCellLabels = set(int(kTable.getLabel(row)) for row in range(kTable.size()))
+        dilatedKtMask = self.imageTool.dilate(self.kinetochoreMask, self.kinetochoreDilationRadius)
+        self.dilatedKtCells = ImageCalculator.run(self.cellLabels, dilatedKtMask, "and create")
+        thresholdMask = self.imageTool.getThresholdMask(self.signal, self.signalThreshold)
+        self.dilatedKtCells = ImageCalculator.run(self.dilatedKtCells, thresholdMask, "and create")
+        iMeasurements = IntensityMeasures(self.signal, self.dilatedKtCells)
+        nrOfVoxelsValues = iMeasurements.getNumberOfVoxels()
+        sumOfVoxelsValues = iMeasurements.getSumOfVoxels()
+        volumeValues = iMeasurements.getVolume()
+        meanValues = iMeasurements.getMean()
+        maxValues = iMeasurements.getMax()
+        minValues = iMeasurements.getMin()
+        medianValues = iMeasurements.getMedian()
+        modeValues = iMeasurements.getMode()
+        stdDevValues = iMeasurements.getStdDev()
+        self.dilatedKtByCell = {label: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0) for label in ktCellLabels}
+        for index in range(meanValues.size()):
+            label = int(meanValues.getLabel(index))
+            if label not in ktCellLabels:
+                continue
+            nrOfVoxelsValue = nrOfVoxelsValues.getValue("NumberOfVoxels", index)
+            sumOfVoxelsValue = sumOfVoxelsValues.getValue("Voxels Sum", index)
+            volumeValue = volumeValues.getValue("Volume", index)
+            meanValue = meanValues.getValue("Mean", index)
+            maxValue = maxValues.getValue("Max", index)
+            minValue = minValues.getValue("Min", index)
+            medianValue = medianValues.getValue("Median", index)
+            modeValue = modeValues.getValue("Mode", index)
+            stdDevValue = stdDevValues.getValue("StdDev", index)
+            self.dilatedKtByCell[label] = (nrOfVoxelsValue, volumeValue,
+                                           volumeValue * meanValue, sumOfVoxelsValue,
+                                           maxValue, meanValue, stdDevValue,
+                                           medianValue, minValue, modeValue)
+        for cellLabel in self.dilatedKtByCell:
+            self.addDilatedRow(cellLabel)
+        self.finishTable()
+
+
+    def addDilatedRow(self, label):
+        nrOfPixel, area, integratedDensity, rawIntegratedDensity, maxValue, meanValue, stdDevValue, medianValue, minValue, modeValue = self.dilatedKtByCell[label]
+        self.addToTable(label=label,
+                        nrOfPixel=nrOfPixel,
+                        area=area,
+                        integratedDensity=integratedDensity,
+                        rawIntegratedDensity=rawIntegratedDensity,
+                        max=maxValue,
+                        mean=meanValue,
+                        median=medianValue,
+                        min=minValue,
+                        mode=modeValue,
+                        stdDev=stdDevValue)
+
+
+    def addMeasuredSignalRoiToControlImage(self, overlay):
+        if self.dilatedKtCells is not None:
+            IJ.setThreshold(self.dilatedKtCells, 1.0000, 1000000000000000000000000000000.0000)
+            IJ.run(self.dilatedKtCells, "Create Selection", "")
+            roi = self.dilatedKtCells.getRoi()
+            self.dilatedKtCells.getProcessor().resetThreshold()
+            if roi:
+                roi.setStrokeColor(Color.MAGENTA)
+                overlay.add(roi, "measured zones")
+        self.controlImage.setOverlay(overlay)
+        self.controlImage.resetRoi()
+
 
 
 class CellposeSegmenter(object):
-    
+
 
     def __init__(self, options=None):
         super(CellposeSegmenter, self).__init__()
@@ -379,8 +457,8 @@ class CellposeSegmenter(object):
         self.labels = None
         if options:
             self.setOptions(options)
-        
-        
+
+
     def setOptions(self, options):
         self.env_path = options.value("conda env path")
         self.model_path = options.value("model path")
@@ -452,6 +530,7 @@ class LabKitSpotSegmenter(object):
         return parameters
 
 
+
 class ImageTool(object):
 
 
@@ -489,7 +568,7 @@ class ImageTool(object):
         image = self.getChannel(channelNr)
         projection =self.getMaxProjection(image)
         return projection
-        
+
 
     @classmethod
     def getMaxProjection(cls, image):

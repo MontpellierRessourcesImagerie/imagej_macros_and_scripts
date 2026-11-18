@@ -5,7 +5,7 @@ from ij import IJ
 from ij import WindowManager
 from ij.measure import ResultsTable
 from loci.plugins import BF
-from fr.cnrs.mri.cialib.kinetochores import KinetochoreAnalyzer
+from fr.cnrs.mri.cialib.kinetochores import OverlapKinetochoreAnalyzer
 from fr.cnrs.mri.cialib.kinetochores import CellposeSegmenter
 from fr.cnrs.mri.cialib.kinetochores import LabKitSpotSegmenter
 from fr.cnrs.mri.cialib.options import Options
@@ -50,7 +50,7 @@ def batchAnalyzeImages(folder, ext, table):
         imp = imps[0]
         cellSegmenter = getCellSegmenter(options)
         spotSegmenter = getSpotSegmenter(options)
-        analyzer = KinetochoreAnalyzer(cellSegmenter, spotSegmenter, imp, options=options)
+        analyzer = OverlapKinetochoreAnalyzer(cellSegmenter, spotSegmenter, imp, options=options)
         analyzer.table = table
         try:
             analyzer.run()
