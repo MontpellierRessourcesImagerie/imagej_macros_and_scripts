@@ -274,11 +274,15 @@ class KinetochoreAnalyzer(object):
 
 
 class OverlapKinetochoreAnalyzer(KinetochoreAnalyzer):
-    """Measure the signal co-occurring inside the (un-dilated) kinetochores.
+    """Measure the signal in cells that contain (un-dilated) kinetochores.
 
-    The measured region is the overlap of the kinetochore and the signal
-    segmentation, restricted to the cells. No dilation and no signal threshold
-    are applied. This is the classic overlap-based approach.
+    Kinetochores and signal are segmented independently and restricted to the
+    cells. For each cell with kinetochores, the background-corrected signal is
+    measured over the complete segmented signal regions of that cell, i.e. not
+    only over the part of the signal that overlaps the kinetochores. Cells
+    with kinetochores but without any signal are reported with zeros. No
+    dilation and no signal threshold are applied. This is the classic
+    overlap-based approach.
     """
 
     def measureSignal(self):
