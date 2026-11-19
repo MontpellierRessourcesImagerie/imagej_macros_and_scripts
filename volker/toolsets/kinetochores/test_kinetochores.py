@@ -135,6 +135,15 @@ def findRow(table, label):
     return -1
 
 
+def findSliceWith(image, x, y, value):
+    """Return the first stack slice whose pixel value at (x, y) equals `value`."""
+    for i in range(1, image.getStackSize() + 1):
+        proc = image.getStack().getProcessor(i)
+        if close(proc.getf(x, y), value):
+            return proc
+    return None
+
+
 def runDilated(radius, threshold, masks=None):
     imp = makeSyntheticImage()
     if masks is None:
@@ -262,6 +271,7 @@ def testOverlapPipeline():
     check(close(sig.getProcessor().getf(14, 14), 0.0), "T3f cell1 rest=0 got %s" % sig.getProcessor().getf(14, 14))
     check(close(sig.getProcessor().getf(41, 41), 90.0), "T3g kt2 value=90 got %s" % sig.getProcessor().getf(41, 41))
     check(close(sig.getProcessor().getf(2, 2), 30.0), "T3h outside=30 got %s" % sig.getProcessor().getf(2, 2))
+    check(analyzer.signal is not None, "T3i2 signal image exists")
     check(analyzer.controlImage is not None, "T3i control image created")
     if analyzer.controlImage is not None:
         overlay = analyzer.controlImage.getOverlay()
@@ -313,8 +323,17 @@ def testDilatedRadiusZeroThresholds():
 
     a = runDilated(0, 120)
     t = a.table
-    check(close(t.getValue("Pixels", findRow(t, 1)), 0), "T4h threshold120 cell1 zero pixels")
+    # Discriminator for the threshold being applied to the *corrected* signal:
+    # raw kt1 = 220, corrected kt1 = 110. If the threshold were read from the
+    # raw image, 120 would keep the 4 kt1 pixels; with the corrected signal it
+    # drops them. (This check is the regression guard for the semantics.)
+    check(close(t.getValue("Pixels", findRow(t, 1)), 0), "T4h threshold120 cell1 zero pixels (raw 220 would keep, corrected 110 drops)")
     check(close(t.getValue("Pixels", findRow(t, 2)), 0), "T4i threshold120 cell2 zero pixels")
+
+    a = runDilated(0, 150)
+    t = a.table
+    check(close(t.getValue("Pixels", findRow(t, 1)), 0), "T4l threshold150 cell1 zero pixels (between corrected 110 and raw 220)")
+    check(close(t.getValue("Pixels", findRow(t, 2)), 0), "T4m threshold150 cell2 zero pixels (raw 180 would keep)")
 
     a = runDilated(0, 360)
     t = a.table
@@ -360,6 +379,47 @@ def testDilatedRadiusOneIndependentRecomputation():
           "T5l control image overlay present")
 
 
+def testControlImageSignalReplacement():
+    """The control image signal channel must show the background-corrected signal.
+
+    Tested on a deterministic 2-channel stand-in (channel 1 = raw signal
+    placeholder, channel 2 = kinetochores placeholder): after the replacement,
+    channel 1 must carry the corrected signal values and channel 2 must be
+    unchanged. (A real pipeline control image cannot be built in-memory as a
+    hyperstack - ImageJ only marks Bio-Formats-opened files as such - so the
+    step is tested in isolation.)
+    """
+    imp = makeSyntheticImage()
+    analyzer = OverlapKinetochoreAnalyzer(FakeCellSegmenter(makeLabels()),
+                                          FakeSpotSegmenter([makeKtMask(), makeKtMask()]), imp)
+    analyzer.table = ResultsTable()
+    analyzer.run()
+
+    # stand-in control image: ch1 raw signal placeholder (100), ch2 kt (200)
+    s1 = ShortProcessor(W, H)
+    s2 = ShortProcessor(W, H)
+    for x in range(W):
+        for y in range(H):
+            s1.set(x, y, 100)
+            s2.set(x, y, 200)
+    stack = ImageStack(W, H)
+    stack.addSlice("ch1 raw", s1)
+    stack.addSlice("ch2 kt", s2)
+    standIn = ImagePlus("stand-in", stack)
+    standIn.setDimensions(2, 1, 1)
+    analyzer.controlImage = standIn
+    analyzer.replaceSignalWithBackgroundCorrectedSignal()
+
+    ch1 = standIn.getStack().getProcessor(1)
+    ch2 = standIn.getStack().getProcessor(2)
+    sig = analyzer.signal.getProcessor()
+    check(close(ch1.getf(11, 11), 110.0), "T7a control ch1 kt1 corrected=110 got %s" % ch1.getf(11, 11))
+    check(close(ch1.getf(14, 14), 0.0), "T7b control ch1 cell1 rest=0 got %s" % ch1.getf(14, 14))
+    check(close(ch1.getf(2, 2), sig.getf(2, 2)), "T7c control ch1 outside=signal value got %s" % ch1.getf(2, 2))
+    check(close(ch1.getf(42, 42), sig.getf(42, 42)), "T7d control ch1 cell2 rest=signal value")
+    check(ch2.get(5, 5) == 200, "T7e control ch2 untouched got %s" % ch2.get(5, 5))
+
+
 def testEmptyKinetochores():
     emptyMasks = [makeKtMask(empty=True), makeKtMask(empty=True)]
     imp = makeSyntheticImage()
@@ -388,6 +448,7 @@ try:
     testOverlapPipeline()
     testDilatedRadiusZeroThresholds()
     testDilatedRadiusOneIndependentRecomputation()
+    testControlImageSignalReplacement()
     testEmptyKinetochores()
 except:
     import traceback

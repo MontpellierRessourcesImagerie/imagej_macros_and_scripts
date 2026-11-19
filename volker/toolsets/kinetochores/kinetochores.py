@@ -87,10 +87,27 @@ class KinetochoreAnalyzer(object):
 
     def createControlImage(self):
         self.controlImage = ImageTool.getMaxProjection(self.image)
+        self.replaceSignalWithBackgroundCorrectedSignal()
         self.addCellContoursToControlImage()
         self.adjustControlImageDisplay()
         overlay = self.addKinetochoreRoiToControlImage()
         self.addMeasuredSignalRoiToControlImage(overlay)
+
+
+    def replaceSignalWithBackgroundCorrectedSignal(self):
+        """Show the per-cell background corrected signal in the control image.
+
+        The control image starts as the max projection of the input image. This
+        replaces the raw signal channel with `self.signal` (the signal after the
+        per-cell background subtraction), so the intensities displayed and
+        overlaid with the measured zones are exactly the values being measured.
+        """
+        if self.signal is None:
+            return
+        self.controlImage.setPosition(self.signalChannelNr, 1, 1)
+        corrected = self.signal.getProcessor().duplicate()
+        self.controlImage.setProcessor(corrected)
+        self.controlImage.setPosition(1, 1, 1)
 
 
     def addMeasuredSignalRoiToControlImage(self, overlay):

@@ -2,3 +2,4 @@
 # User-specific stuff
 **/.idea/**
 
+__pycache__/
