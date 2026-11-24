@@ -455,7 +455,7 @@ class DilatedKinetochoreAnalyzer(KinetochoreAnalyzer):
             roi = self.dilatedKtCells.getRoi()
             self.dilatedKtCells.getProcessor().resetThreshold()
             if roi:
-                roi.setStrokeColor(Color.MAGENTA)
+                roi.setStrokeColor(Color.GREEN)
                 overlay.add(roi, "measured zones")
         self.controlImage.setOverlay(overlay)
         self.controlImage.resetRoi()
