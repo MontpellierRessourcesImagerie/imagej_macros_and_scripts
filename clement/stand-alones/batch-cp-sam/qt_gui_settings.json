@@ -1,10 +1,19 @@
 {
-    "folder_path": "/home/clement/Downloads/2026-03-12-cchamontin/pool",
-    "median_diameter": 220,
-    "xy_pixel_size": 0.0971045,
-    "z_pixel_size": 0.3,
-    "nuclei_channel": 3,
-    "membrane_channel": 4,
+    "folder_path": "/home/clement/T\u00e9l\u00e9chargements/OD-jimmy-cadenes/from-guilhem",
     "use_gpu": true,
-    "use_secondary": true
+    "xy_pixel_size": 0.0971045,
+    "is_3d": true,
+    "z_pixel_size": 0.3,
+    "cells": {
+        "enabled": true,
+        "channel": 3,
+        "diameter": 280.0
+    },
+    "nuclei": {
+        "enabled": true,
+        "channel": 4,
+        "diameter": 200.0
+    },
+    "nuclei_assist_cells": true,
+    "export_cytoplasm": true
 }
